@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # ─── Auth Database ───────────────────────────────────────
+  auth-db:
+    image: mysql:8.0
+    container_name: angelow_auth_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: angelow_auth
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: auth_secret
+    ports:
+      - "3307:3306"
+    volumes:
+      - auth_db_data:/var/lib/mysql
+    networks:
+      - angelow_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Auth Service (Laravel API) ──────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: angelow_auth_service
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./services/auth-service:/var/www/html
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: auth-db
+      DB_PORT: 3306
+      DB_DATABASE: angelow_auth
+      DB_USERNAME: auth_user
+      DB_PASSWORD: auth_secret
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - angelow_network
+
+  # ─── Frontend (Vue 3 + Vite) ─────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: angelow_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_AUTH_API_URL: http://localhost:8001/api
+    networks:
+      - angelow_network
+
+volumes:
+  auth_db_data:
+
+networks:
+  angelow_network:
+    driver: bridge

@@ -1,0 +1,102 @@
+.progress-container {
+    margin-bottom: 3rem;
+}
+
+/* Footprints icon */
+.progress-icon-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.footprints-img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+}
+
+/* Steps */
+.steps-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    position: relative;
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+/* Background line */
+.steps-line {
+    position: absolute;
+    top: 15px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background-color: var(--gray-200);
+    z-index: 0;
+}
+
+/* Filled line */
+.steps-line-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: var(--primary);
+    transition: width var(--transition-slow);
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1;
+    flex: 1;
+}
+
+.step {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-full);
+    background-color: var(--gray-200);
+    color: var(--gray-400);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    transition: all var(--transition);
+    border: 2px solid var(--gray-200);
+    font-size: var(--font-size-sm);
+}
+
+.step--active {
+    background-color: var(--primary);
+    color: var(--white);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(26, 143, 196, 0.15);
+}
+
+.step--completed {
+    background-color: var(--primary);
+    color: var(--white);
+    border-color: var(--primary);
+}
+
+.step-number {
+    font-size: var(--font-size-sm);
+    line-height: 1;
+}
+
+.step-label {
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    font-weight: 600;
+    transition: color var(--transition);
+    text-align: center;
+}
+
+.step-item:has(.step--active) .step-label,
+.step-item:has(.step--completed) .step-label {
+    color: var(--primary);
+}

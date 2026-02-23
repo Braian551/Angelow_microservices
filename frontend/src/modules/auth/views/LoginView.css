@@ -1,0 +1,123 @@
+/* ===== Page Layout ===== */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-color: var(--gray-50);
+    position: relative;
+}
+
+
+/* ===== Card ===== */
+.login-card {
+    max-width: 440px;
+    width: 100%;
+    padding: 3.2rem 3.6rem;
+    background-color: var(--white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    animation: slideUp 0.5s ease;
+}
+
+/* ===== Header ===== */
+.login-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.main-logo {
+    height: 32px;
+    display: block;
+    margin: 0 auto 1.6rem;
+    object-fit: contain;
+}
+
+.login-header h1 {
+    font-size: var(--font-size-xl);
+    color: var(--gray-900);
+    margin-bottom: 0.4rem;
+    font-weight: 800;
+}
+
+.login-subtitle {
+    color: var(--gray-400);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+}
+
+/* ===== Form Extras ===== */
+.form-extras {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.8rem;
+    font-size: var(--font-size-sm);
+}
+
+.remember-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    color: var(--gray-600);
+}
+
+.remember-checkbox input[type='checkbox'] {
+    width: 1.6rem;
+    height: 1.6rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.forgot-link {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
+/* ===== Divider ===== */
+.divider {
+    height: 1px;
+    background: var(--gray-200);
+    margin: 2.4rem 0 2rem;
+}
+
+/* ===== Auth Link ===== */
+.auth-link {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.auth-link__action {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.auth-link__action:hover {
+    text-decoration: underline;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 2.4rem 2rem;
+        border-radius: var(--radius-lg);
+    }
+
+    .login-header h1 {
+        font-size: var(--font-size-lg);
+    }
+
+    .form-extras {
+        flex-direction: column;
+        gap: 0.8rem;
+        align-items: flex-start;
+    }
+}

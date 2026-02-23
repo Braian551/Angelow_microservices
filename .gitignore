@@ -1,0 +1,59 @@
+# ===== Dependencies =====
+node_modules/
+vendor/
+
+# ===== Environment files =====
+.env
+.env.local
+.env.*.local
+
+# ===== Build output =====
+dist/
+build/
+*.min.js
+*.min.css
+
+# ===== IDE / Editor =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ===== Laravel =====
+services/*/storage/logs/*
+services/*/storage/framework/cache/*
+services/*/storage/framework/sessions/*
+services/*/storage/framework/views/*
+services/*/bootstrap/cache/*
+!services/*/storage/logs/.gitkeep
+!services/*/storage/framework/cache/.gitkeep
+!services/*/storage/framework/sessions/.gitkeep
+!services/*/storage/framework/views/.gitkeep
+!services/*/bootstrap/cache/.gitkeep
+
+# ===== PHP =====
+composer.phar
+phpunit.result.cache
+.phpunit.cache/
+
+# ===== Node =====
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+.yarn/
+
+# ===== OS =====
+.DS_Store
+*.bak
+*.tmp
+*.log
+
+# ===== Backend ms-catalog (vacío / legacy) =====
+backend/ms-catalog/node_modules/
+
+# ===== Monolith (referencia, no subir archivos pesados) =====
+angelow/uploads/

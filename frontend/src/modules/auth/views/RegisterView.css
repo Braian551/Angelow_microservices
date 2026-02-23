@@ -1,0 +1,174 @@
+/* ===== Page Layout ===== */
+.register-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background-color: var(--gray-50);
+    position: relative;
+}
+
+
+/* ===== Card ===== */
+.register-card {
+    max-width: 480px;
+    width: 100%;
+    padding: 3.2rem 3.6rem;
+    background-color: var(--white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    animation: slideUp 0.5s ease;
+}
+
+/* ===== Header ===== */
+.register-header {
+    text-align: center;
+    margin-bottom: 0.8rem;
+}
+
+.main-logo {
+    height: 32px;
+    display: block;
+    margin: 0 auto 1.6rem;
+    object-fit: contain;
+}
+
+.register-header h1 {
+    font-size: var(--font-size-xl);
+    color: var(--gray-900);
+    font-weight: 800;
+}
+
+.register-subtitle {
+    color: var(--gray-400);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    margin-top: 0.4rem;
+    margin-bottom: 1.6rem;
+}
+
+/* ===== Steps Content ===== */
+.step-content {
+    animation: fadeIn 0.3s ease;
+}
+
+.step-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.step-actions>* {
+    flex: 1;
+}
+
+/* ===== Terms ===== */
+.terms-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+    margin: 1rem 0;
+    cursor: pointer;
+}
+
+.terms-checkbox input[type='checkbox'] {
+    width: 1.6rem;
+    height: 1.6rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.terms-link {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+.terms-link:hover {
+    color: var(--primary-hover);
+}
+
+.field-error {
+    font-size: var(--font-size-xs);
+    color: var(--error);
+    margin-top: -0.4rem;
+    margin-bottom: 0.8rem;
+}
+
+/* ===== Password Strength ===== */
+.password-strength {
+    margin: 0.6rem 0 1.4rem;
+}
+
+.strength-bar {
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 0.4rem;
+}
+
+.strength-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strength--weak {
+    background-color: var(--error);
+    color: var(--error);
+}
+
+.strength--medium {
+    background-color: var(--warning);
+    color: #b38600;
+}
+
+.strength--strong {
+    background-color: var(--success);
+    color: var(--success);
+}
+
+.strength-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+}
+
+/* ===== Divider ===== */
+.divider {
+    height: 1px;
+    background: var(--gray-200);
+    margin: 2.4rem 0 2rem;
+}
+
+/* ===== Auth Link ===== */
+.auth-link {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.auth-link__action {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.auth-link__action:hover {
+    text-decoration: underline;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 520px) {
+    .register-card {
+        padding: 2.4rem 2rem;
+        margin: 1rem;
+        border-radius: var(--radius-lg);
+    }
+
+    .register-header h1 {
+        font-size: var(--font-size-lg);
+    }
+}

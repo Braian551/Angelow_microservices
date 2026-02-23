@@ -1,0 +1,16 @@
+.announcement-bar {
+    background-color: #6a96cf;
+    color: white;
+    text-align: center;
+    padding: 0.8rem 0;
+    font-size: 1.4rem;
+    font-weight: 500;
+}
+
+.announcement-bar p {
+    margin: 0;
+}
+
+.announcement-bar i {
+    margin-right: 0.5rem;
+}

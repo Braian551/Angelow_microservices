@@ -1,0 +1,76 @@
+.social-login {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.social-text {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-sm);
+    color: var(--gray-400);
+    width: 100%;
+}
+
+.social-text::before,
+.social-text::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gray-200);
+}
+
+.social-text::before {
+    margin-right: 1.2rem;
+}
+
+.social-text::after {
+    margin-left: 1.2rem;
+}
+
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem 1.6rem;
+    border-radius: var(--radius-md);
+    background-color: var(--white);
+    border: 1.5px solid var(--gray-200);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.social-btn:not(:disabled):hover {
+    background-color: var(--gray-50);
+    border-color: var(--gray-300);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.social-btn:not(:disabled):active {
+    transform: translateY(0);
+}
+
+.social-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.google-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.google-icon svg {
+    width: 18px;
+    height: 18px;
+}

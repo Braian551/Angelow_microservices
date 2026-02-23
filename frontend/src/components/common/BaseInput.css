@@ -1,0 +1,75 @@
+.form-group {
+    margin-bottom: 2rem;
+    text-align: left;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.6rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: var(--font-size-base);
+}
+
+.form-input {
+    width: 100%;
+    padding: 1.2rem 1.4rem;
+    font-size: var(--font-size-base);
+    color: var(--gray-800);
+    background-color: var(--white);
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    outline: none;
+}
+
+.form-input::placeholder {
+    color: var(--gray-400);
+    font-weight: 400;
+}
+
+.form-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 143, 196, 0.12);
+}
+
+.form-input[type='password'] {
+    letter-spacing: 2px;
+}
+
+.form-input[type='password']::placeholder {
+    letter-spacing: normal;
+}
+
+/* Error state */
+.has-error .form-input {
+    border-color: var(--error);
+}
+
+.has-error .form-input:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.form-error {
+    display: block;
+    color: var(--error);
+    font-size: var(--font-size-sm);
+    margin-top: 0.4rem;
+    font-weight: 500;
+    animation: fadeIn 0.2s ease;
+}
+
+.form-hint {
+    display: block;
+    color: var(--gray-400);
+    font-size: var(--font-size-sm);
+    margin-top: 0.4rem;
+}
+
+/* Autofill styling */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: var(--gray-800) !important;
+}
