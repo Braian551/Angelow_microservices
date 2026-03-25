@@ -39,7 +39,7 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
     public function getSliders(): array
     {
         return DB::table('sliders')
-            ->where('is_active', 1)
+            ->where('is_active', true)
             ->orderBy('order_position')
             ->get()
             ->map(fn($s) => (array) $s)
@@ -55,7 +55,7 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
     {
         return DB::table('announcements')
             ->where('type', 'top_bar')
-            ->where('is_active', 1)
+            ->where('is_active', true)
             ->where(function ($q) {
                 $q->whereNull('start_date')
                   ->orWhere('start_date', '<=', now());
@@ -78,7 +78,7 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
     {
         return DB::table('announcements')
             ->where('type', 'promo_banner')
-            ->where('is_active', 1)
+            ->where('is_active', true)
             ->where(function ($q) {
                 $q->whereNull('start_date')
                   ->orWhere('start_date', '<=', now());

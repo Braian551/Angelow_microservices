@@ -14,10 +14,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('login_attempts', function (Blueprint $table) {
-            $table->id();
-            $table->string('username', 100);
+            $table->increments('id');
+            $table->string('username', 255);
             $table->string('ip_address', 45);
-            $table->datetime('attempt_date');
+            $table->timestamp('attempt_date')->useCurrent();
+            $table->char('trial551', 1)->nullable();
 
             $table->index(['username', 'attempt_date']);
             $table->index(['ip_address', 'attempt_date']);

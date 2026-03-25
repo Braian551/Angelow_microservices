@@ -1,47 +1,19 @@
-# Auth Service - Angelow Microservices
+# Flujo de auth-service
 
-## Descripción
-Servicio de autenticación para la plataforma Angelow. Maneja registro de usuarios, inicio de sesión y gestión de tokens.
-
-## Arquitectura
-
-```
-app/
-├── DTOs/                          # Data Transfer Objects
-│   ├── RegisterUserDTO.php
-│   └── LoginUserDTO.php
-├── Exceptions/
-│   └── AuthException.php          # Excepciones personalizadas
-├── Http/
-│   ├── Controllers/Api/Auth/
-│   │   ├── RegisterController.php # POST /api/auth/register
-│   │   └── LoginController.php    # POST /api/auth/login, logout, me
-│   └── Requests/
-│       ├── RegisterRequest.php    # Validaciones de registro
-│       └── LoginRequest.php       # Validaciones de login
-├── Models/
-│   └── User.php                   # Eloquent Model
-├── Repositories/
-│   ├── Contracts/
-│   │   └── UserRepositoryInterface.php
-│   └── EloquentUserRepository.php
-├── Services/
-│   └── AuthService.php            # Lógica de negocio
-└── Providers/
-    └── RepositoryServiceProvider.php
+```mermaid
+flowchart TD
+  A[Frontend] --> B[POST /api/auth/register]
+  A --> C[POST /api/auth/login]
+  C --> D[AuthService]
+  D --> E[UserRepository]
+  E --> F[(users)]
+  D --> G[(personal_access_tokens)]
+  A --> H[GET /api/auth/me]
 ```
 
-## API Endpoints
+## Patrones de diseño
 
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| POST | `/api/auth/register` | No | Registro de usuario |
-| POST | `/api/auth/login` | No | Inicio de sesión |
-| POST | `/api/auth/logout` | Sí | Cerrar sesión |
-| GET | `/api/auth/me` | Sí | Perfil del usuario |
-
-## Patrones de Diseño
-- **Repository Pattern**: Abstrae el acceso a datos
-- **Service Layer**: Concentra la lógica de negocio
-- **DTO Pattern**: Datos inmutables entre capas
-- **Form Request**: Validaciones centralizadas
+- `Repository Pattern`: acceso a datos desacoplado.
+- `Service Layer`: reglas de negocio de autenticación.
+- `DTO + Request Validation`: entrada controlada.
+- `Token-based auth`: Sanctum para sesiones API.

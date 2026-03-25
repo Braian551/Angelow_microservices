@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,3 +25,5 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [LoginController::class, 'me']);
     });
 });
+
+Route::get('/health', HealthController::class);

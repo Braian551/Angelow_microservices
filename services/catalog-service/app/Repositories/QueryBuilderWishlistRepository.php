@@ -17,7 +17,7 @@ class QueryBuilderWishlistRepository implements WishlistRepositoryInterface
         // Verify that the product exists and is active
         $productExists = DB::table('products')
             ->where('id', $productId)
-            ->where('is_active', 1)
+            ->where('is_active', true)
             ->exists();
 
         if (!$productExists) {
@@ -54,11 +54,11 @@ class QueryBuilderWishlistRepository implements WishlistRepositoryInterface
             ->join('products as p', 'w.product_id', '=', 'p.id')
             ->leftJoin('product_images as pi', function ($join) {
                 $join->on('p.id', '=', 'pi.product_id')
-                     ->where('pi.is_primary', '=', 1);
+                     ->where('pi.is_primary', '=', true);
             })
             ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
             ->where('w.user_id', $userId)
-            ->where('p.is_active', 1)
+            ->where('p.is_active', true)
             ->select([
                 'p.id', 'p.name', 'p.slug', 'p.price', 'p.compare_price',
                 'pi.image_path as primary_image',

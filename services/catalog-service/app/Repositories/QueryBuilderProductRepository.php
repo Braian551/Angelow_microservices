@@ -24,11 +24,11 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         $query = DB::table('products as p')
             ->leftJoin('product_images as pi', function ($join) {
                 $join->on('p.id', '=', 'pi.product_id')
-                     ->where('pi.is_primary', '=', 1);
+                     ->where('pi.is_primary', '=', true);
             })
             ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
-            ->leftJoin(DB::raw('(SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE is_approved = 1 GROUP BY product_id) as pr'), 'p.id', '=', 'pr.product_id')
-            ->where('p.is_active', 1)
+            ->leftJoin(DB::raw('(SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE is_approved = true GROUP BY product_id) as pr'), 'p.id', '=', 'pr.product_id')
+            ->where('p.is_active', true)
             ->select([
                 'p.*',
                 'pi.image_path as primary_image',
@@ -43,7 +43,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
                 $join->on('p.id', '=', 'w.product_id')
                      ->where('w.user_id', '=', $userId);
             });
-            $query->addSelect(DB::raw('IF(w.id IS NOT NULL, 1, 0) as is_favorite'));
+            $query->addSelect(DB::raw('CASE WHEN w.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite'));
         } else {
             $query->addSelect(DB::raw('0 as is_favorite'));
         }
@@ -122,12 +122,12 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         return DB::table('products as p')
             ->leftJoin('product_images as pi', function ($join) {
                 $join->on('p.id', '=', 'pi.product_id')
-                     ->where('pi.is_primary', '=', 1);
+                     ->where('pi.is_primary', '=', true);
             })
             ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
             ->leftJoin('collections as col', 'p.collection_id', '=', 'col.id')
             ->where('p.slug', $slug)
-            ->where('p.is_active', 1)
+            ->where('p.is_active', true)
             ->select([
                 'p.*',
                 'pi.image_path as primary_image',
@@ -166,7 +166,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             $sizeVariants = DB::table('product_size_variants as psv')
                 ->leftJoin('sizes as s', 'psv.size_id', '=', 's.id')
                 ->where('psv.color_variant_id', $cv->color_variant_id)
-                ->where('psv.is_active', 1)
+                ->where('psv.is_active', true)
                 ->orderBy('s.id')
                 ->select([
                     'psv.id', 'psv.color_variant_id', 'psv.size_id',
@@ -221,7 +221,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             ->where('product_id', $productId)
             ->where(function ($q) {
                 $q->whereNull('is_primary')
-                  ->orWhere('is_primary', 0);
+                  ->orWhere('is_primary', false);
             })
             ->orderBy('order')
             ->select(['image_path', 'alt_text'])
@@ -240,13 +240,13 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         return DB::table('products as p')
             ->leftJoin('product_images as pi', function ($join) {
                 $join->on('p.id', '=', 'pi.product_id')
-                     ->where('pi.is_primary', '=', 1);
+                     ->where('pi.is_primary', '=', true);
             })
             ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
-            ->leftJoin(DB::raw('(SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE is_approved = 1 GROUP BY product_id) as pr'), 'p.id', '=', 'pr.product_id')
+            ->leftJoin(DB::raw('(SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE is_approved = true GROUP BY product_id) as pr'), 'p.id', '=', 'pr.product_id')
             ->where('p.category_id', $categoryId)
             ->where('p.id', '!=', $productId)
-            ->where('p.is_active', 1)
+            ->where('p.is_active', true)
             ->orderByDesc('p.is_featured')
             ->inRandomOrder()
             ->limit($limit)
@@ -270,24 +270,27 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     public function getReviews(int $productId, ?string $userId = null): array
     {
         $query = DB::table('product_reviews as pr')
-            ->leftJoin('users as u', 'pr.user_id', '=', 'u.id')
             ->where('pr.product_id', $productId)
-            ->where('pr.is_approved', 1)
+            ->where('pr.is_approved', true)
             ->orderByDesc('pr.is_verified')
             ->orderByDesc('pr.created_at')
             ->limit(10)
-            ->select([
-                'pr.*',
-                'u.name as user_name',
-                'u.image as user_image',
-            ]);
+            ->select(['pr.*']);
 
-        $reviews = $query->get()->map(fn($r) => (array) $r)->toArray();
+        $reviews = $query
+            ->get()
+            ->map(function ($review) {
+                $item = (array) $review;
+                $item['user_name'] = 'Usuario ' . ($item['user_id'] ?? '');
+                $item['user_image'] = null;
+                return $item;
+            })
+            ->toArray();
 
         // Stats
         $stats = DB::table('product_reviews')
             ->where('product_id', $productId)
-            ->where('is_approved', 1)
+            ->where('is_approved', true)
             ->selectRaw('COUNT(*) as total_reviews, AVG(rating) as average_rating')
             ->selectRaw('SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END) as five_star')
             ->selectRaw('SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END) as four_star')
@@ -317,28 +320,32 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     public function getQuestions(int $productId, int $limit = 5): array
     {
         $questions = DB::table('product_questions as pq')
-            ->leftJoin('users as u', 'pq.user_id', '=', 'u.id')
             ->where('pq.product_id', $productId)
             ->orderByDesc('pq.created_at')
             ->limit($limit)
-            ->select([
-                'pq.*',
-                'u.name as user_name',
-                'u.image as user_image',
-            ])
+            ->select(['pq.*'])
             ->get()
-            ->map(fn($q) => (array) $q)
+            ->map(function ($question) {
+                $item = (array) $question;
+                $item['user_name'] = 'Usuario ' . ($item['user_id'] ?? '');
+                $item['user_image'] = null;
+                return $item;
+            })
             ->toArray();
 
         foreach ($questions as &$question) {
             $question['answers'] = DB::table('question_answers as qa')
-                ->leftJoin('users as u', 'qa.user_id', '=', 'u.id')
                 ->where('qa.question_id', $question['id'])
                 ->orderByDesc('qa.is_seller')
                 ->orderBy('qa.created_at')
-                ->select(['qa.*', 'u.name as user_name', 'u.image as user_image'])
+                ->select(['qa.*'])
                 ->get()
-                ->map(fn($a) => (array) $a)
+                ->map(function ($answer) {
+                    $item = (array) $answer;
+                    $item['user_name'] = 'Usuario ' . ($item['user_id'] ?? '');
+                    $item['user_image'] = null;
+                    return $item;
+                })
                 ->toArray();
         }
 

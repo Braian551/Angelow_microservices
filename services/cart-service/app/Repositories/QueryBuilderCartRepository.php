@@ -44,34 +44,18 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Get all items in a cart with product/variant details.
+     * Get all items in a cart.
      */
     public function getItems(int $cartId): array
     {
         return DB::table('cart_items as ci')
-            ->join('products as p', 'ci.product_id', '=', 'p.id')
-            ->leftJoin('product_size_variants as psv', 'ci.size_variant_id', '=', 'psv.id')
-            ->leftJoin('sizes as s', 'psv.size_id', '=', 's.id')
-            ->leftJoin('product_color_variants as pcv', 'ci.color_variant_id', '=', 'pcv.id')
-            ->leftJoin('colors as c', 'pcv.color_id', '=', 'c.id')
-            ->leftJoin('product_images as pi', function ($join) {
-                $join->on('p.id', '=', 'pi.product_id')
-                     ->where('pi.is_primary', '=', 1);
-            })
             ->where('ci.cart_id', $cartId)
             ->select([
                 'ci.id as item_id',
+                'ci.product_id',
+                'ci.color_variant_id',
+                'ci.size_variant_id',
                 'ci.quantity',
-                'p.id as product_id',
-                'p.name as product_name',
-                'p.slug as product_slug',
-                'pi.image_path as product_image',
-                'psv.price',
-                'psv.compare_price',
-                'psv.quantity as available_stock',
-                's.name as size_name',
-                'c.name as color_name',
-                'c.hex_code as color_hex',
             ])
             ->get()
             ->map(fn($item) => (array) $item)

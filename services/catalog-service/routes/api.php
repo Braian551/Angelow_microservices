@@ -4,6 +4,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\HealthController;
+use App\Http\Controllers\InternalCatalogController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,3 +37,11 @@ Route::get('/collections', [CategoryController::class, 'collections']);
 // ── Wishlist / Favorites ────────────────────────────────────────────────
 Route::get('/wishlist', [WishlistController::class, 'index']);
 Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
+
+// Internal endpoints for cross-service communication.
+Route::prefix('internal')->group(function () {
+    Route::get('/products/{id}', [InternalCatalogController::class, 'product']);
+    Route::get('/variants/{id}', [InternalCatalogController::class, 'variant']);
+});
+
+Route::get('/health', HealthController::class);

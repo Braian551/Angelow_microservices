@@ -57,3 +57,6 @@ backend/ms-catalog/node_modules/
 
 # ===== Monolith (referencia, no subir archivos pesados) =====
 angelow/uploads/
+uploads/
+.composer-cache/
+.composer-home/
