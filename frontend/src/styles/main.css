@@ -1,0 +1,44 @@
+@import '/legacy/css/style.css';
+@import '/legacy/css/productos.css';
+@import '/legacy/css/announcements.css';
+@import '/legacy/css/cart.css';
+@import '/legacy/css/envio.css';
+@import '/legacy/css/payment.css';
+@import '/legacy/css/confirmar-orden.css';
+@import '/legacy/css/notificacion.css';
+@import '/legacy/producto/css/product-view.css';
+@import '/legacy/producto/css/product-gallery.css';
+@import '/legacy/producto/css/product-info.css';
+@import '/legacy/producto/css/product-tabs.css';
+@import '/legacy/producto/css/related-products.css';
+@import '/legacy/producto/css/product-modal.css';
+
+body {
+  background: #fff;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.section-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.loading-box {
+  font-size: 1.5rem;
+  color: #6b7280;
+  padding: 2rem;
+}
+
+.error-box {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1.2rem 1.4rem;
+  font-size: 1.4rem;
+}

@@ -1,55 +1,26 @@
-import axios from 'axios';
+import { catalogHttp } from './http'
 
-/**
- * Axios instance configured for the Catalog API (catalog-service).
- */
-const catalogApi = axios.create({
-    baseURL: import.meta.env.VITE_CATALOG_API_URL || 'http://localhost:8002/api',
-    headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    },
-    timeout: 10000,
-});
+export async function getHomeData() {
+  const { data } = await catalogHttp.get('/home')
+  return data
+}
 
-// ── Home (aggregated) ───────────────────────────────────────────────────
+export async function getProducts(params = {}) {
+  const { data } = await catalogHttp.get('/products', { params })
+  return data
+}
 
-/**
- * Get all home page data in one call (settings, sliders, top_bar, promo_banner).
- */
-export const getHomeData = () =>
-    catalogApi.get('/home').then(res => res.data);
+export async function getProductBySlug(slug) {
+  const { data } = await catalogHttp.get(`/products/${slug}`)
+  return data
+}
 
-// ── Site Content ────────────────────────────────────────────────────────
+export async function getCategories() {
+  const { data } = await catalogHttp.get('/categories')
+  return data
+}
 
-export const getSettings = () =>
-    catalogApi.get('/settings').then(res => res.data);
-
-export const getSliders = () =>
-    catalogApi.get('/sliders').then(res => res.data);
-
-// ── Products ────────────────────────────────────────────────────────────
-
-export const getProducts = (params = {}) =>
-    catalogApi.get('/products', { params }).then(res => res.data);
-
-export const getProductBySlug = (slug) =>
-    catalogApi.get(`/products/${slug}`).then(res => res.data);
-
-// ── Categories & Collections ────────────────────────────────────────────
-
-export const getCategories = () =>
-    catalogApi.get('/categories').then(res => res.data);
-
-export const getCollections = () =>
-    catalogApi.get('/collections').then(res => res.data);
-
-// ── Wishlist ────────────────────────────────────────────────────────────
-
-export const toggleWishlist = (userId, productId) =>
-    catalogApi.post('/wishlist/toggle', { user_id: userId, product_id: productId }).then(res => res.data);
-
-export const getWishlist = (userId) =>
-    catalogApi.get('/wishlist', { params: { user_id: userId } }).then(res => res.data);
-
-export default catalogApi;
+export async function getCollections() {
+  const { data } = await catalogHttp.get('/collections')
+  return data
+}
