@@ -17,6 +17,31 @@ Migracion del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, R
 | `audit-service` | 8009 | `angelow_audit` |
 | `frontend` | 5173 | n/a |
 
+## PostgreSQL en pgAdmin (evitar confusion)
+
+Cada microservicio usa su propia base PostgreSQL en un puerto distinto.
+Si en pgAdmin te conectas solo a `localhost:5432`, veras la instancia local general, no las bases de microservicios.
+
+| Base de datos | Host | Puerto | Usuario | Contrasena |
+|---|---|---:|---|---|
+| `angelow_auth` | `localhost` | 5433 | `postgres` | `root` |
+| `angelow_catalog` | `localhost` | 5434 | `postgres` | `root` |
+| `angelow_cart` | `localhost` | 5435 | `postgres` | `root` |
+| `angelow_orders` | `localhost` | 5436 | `postgres` | `root` |
+| `angelow_payments` | `localhost` | 5437 | `postgres` | `root` |
+| `angelow_discounts` | `localhost` | 5438 | `postgres` | `root` |
+| `angelow_shipping` | `localhost` | 5439 | `postgres` | `root` |
+| `angelow_notifications` | `localhost` | 5440 | `postgres` | `root` |
+| `angelow_audit` | `localhost` | 5441 | `postgres` | `root` |
+
+Validacion rapida en pgAdmin (sobre cada base):
+
+```sql
+SELECT count(*) AS total_tablas
+FROM information_schema.tables
+WHERE table_schema = 'public';
+```
+
 ## Levantar todo con Docker
 
 ```bash
