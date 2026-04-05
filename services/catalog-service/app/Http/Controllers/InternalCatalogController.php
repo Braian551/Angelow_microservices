@@ -35,6 +35,11 @@ class InternalCatalogController extends Controller
     {
         $variant = DB::table('product_size_variants as psv')
             ->join('product_color_variants as pcv', 'psv.color_variant_id', '=', 'pcv.id')
+            ->leftJoin('variant_images as vi', function ($join) {
+                $join->on('pcv.id', '=', 'vi.color_variant_id')
+                    ->on('pcv.product_id', '=', 'vi.product_id')
+                    ->where('vi.is_primary', '=', true);
+            })
             ->leftJoin('sizes as s', 'psv.size_id', '=', 's.id')
             ->leftJoin('colors as c', 'pcv.color_id', '=', 'c.id')
             ->where('psv.id', $id)
@@ -49,6 +54,7 @@ class InternalCatalogController extends Controller
                 's.name as size_name',
                 'c.name as color_name',
                 'c.hex_code as color_hex',
+                'vi.image_path as variant_image',
             ])
             ->first();
 

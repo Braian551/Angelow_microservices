@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
@@ -29,9 +30,11 @@ class PaymentController extends Controller
             'amount' => ['required', 'numeric'],
             'reference_number' => ['nullable', 'string', 'max:50'],
             'payment_proof' => ['nullable', 'string', 'max:255'],
+            'bank_code' => ['nullable', 'string', 'max:30'],
+            'payment_method' => ['nullable', 'string', 'max:30'],
         ]);
 
-        $id = DB::table('payment_transactions')->insertGetId([
+        $payload = [
             'order_id' => $data['order_id'] ?? null,
             'user_id' => $data['user_id'] ?? null,
             'amount' => $data['amount'],
@@ -40,7 +43,17 @@ class PaymentController extends Controller
             'status' => 'pending',
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+
+        if (Schema::hasColumn('payment_transactions', 'bank_code')) {
+            $payload['bank_code'] = $data['bank_code'] ?? null;
+        }
+
+        if (Schema::hasColumn('payment_transactions', 'payment_method')) {
+            $payload['payment_method'] = $data['payment_method'] ?? null;
+        }
+
+        $id = DB::table('payment_transactions')->insertGetId($payload);
 
         return response()->json([
             'message' => 'Transaccion creada',

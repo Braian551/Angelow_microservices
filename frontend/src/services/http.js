@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { normalizeUtf8Data } from '../utils/text'
 
 const baseConfig = {
   timeout: 15000,
@@ -21,6 +22,19 @@ function createClient(baseURL) {
     }
     return config
   })
+
+  client.interceptors.response.use(
+    (response) => {
+      response.data = normalizeUtf8Data(response.data)
+      return response
+    },
+    (error) => {
+      if (error?.response?.data) {
+        error.response.data = normalizeUtf8Data(error.response.data)
+      }
+      return Promise.reject(error)
+    },
+  )
 
   return client
 }

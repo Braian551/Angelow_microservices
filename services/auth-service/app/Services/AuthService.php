@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\DTOs\LoginUserDTO;
 use App\DTOs\RegisterUserDTO;
+use App\Exceptions\AuthException;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -102,6 +104,92 @@ class AuthService
     }
 
     /**
+     * Authenticate a user with a Firebase Google ID token.
+     *
+     * @throws \App\Exceptions\AuthException
+     * @return array{user: User, token: string}
+     */
+    public function loginWithGoogleToken(string $idToken): array
+    {
+        $apiKey = (string) config('services.firebase.web_api_key');
+
+        if ($apiKey === '') {
+            throw new AuthException(
+                'La configuración de Firebase no está completa',
+                500
+            );
+        }
+
+        $response = Http::timeout(10)->post(
+            "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}",
+            ['idToken' => $idToken]
+        );
+
+        if (!$response->successful()) {
+            throw new AuthException(
+                'No se pudo validar la cuenta de Google',
+                401
+            );
+        }
+
+        $firebaseUser = $response->json('users.0');
+
+        if (!is_array($firebaseUser)) {
+            throw new AuthException(
+                'La cuenta de Google no es válida',
+                401
+            );
+        }
+
+        $email = strtolower(trim((string) ($firebaseUser['email'] ?? '')));
+        $isEmailVerified = (bool) ($firebaseUser['emailVerified'] ?? false);
+
+        if ($email === '' || !$isEmailVerified) {
+            throw new AuthException(
+                'Google no devolvió un correo verificado',
+                401
+            );
+        }
+
+        $user = $this->userRepository->findByEmail($email);
+
+        if (!$user) {
+            $displayName = trim((string) ($firebaseUser['displayName'] ?? ''));
+            $name = $displayName !== '' ? $displayName : explode('@', $email)[0];
+            $rawPhone = trim((string) ($firebaseUser['phoneNumber'] ?? ''));
+            $phoneDigits = preg_replace('/\D+/', '', $rawPhone ?? '');
+            $phone = ($phoneDigits !== '' && strlen($phoneDigits) >= 10 && strlen($phoneDigits) <= 15)
+                ? $phoneDigits
+                : null;
+
+            $user = $this->userRepository->create([
+                'id'       => uniqid(),
+                'name'     => $name,
+                'email'    => $email,
+                'phone'    => $phone,
+                'password' => Str::random(40),
+                'role'     => 'customer',
+            ]);
+        } else {
+            if ($user->isBlocked()) {
+                throw new AuthException(
+                    'Tu cuenta ha sido bloqueada. Por favor, contacta al administrador.',
+                    403
+                );
+            }
+
+            $this->userRepository->updateLastAccess($user);
+        }
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return [
+            'user'  => $user,
+            'token' => $token,
+        ];
+    }
+
+    /**
      * Revoke all tokens for a user (logout).
      */
     public function logout(User $user): void
@@ -109,3 +197,4 @@ class AuthService
         $user->tokens()->delete();
     }
 }
+

@@ -77,6 +77,7 @@ class CartService
 
         $productsById = [];
         $variantsById = [];
+        $itemCount = 0;
 
         foreach ($rawItems as $rawItem) {
             $productId = (int) $rawItem['product_id'];
@@ -97,14 +98,16 @@ class CartService
         foreach ($rawItems as $rawItem) {
             $product = $productsById[(int) $rawItem['product_id']] ?? null;
             $variant = $variantsById[(int) $rawItem['size_variant_id']] ?? null;
+            $quantity = (int) $rawItem['quantity'];
+            $productImage = $variant['variant_image'] ?? $product['primary_image'] ?? self::PRODUCT_FALLBACK_IMAGE;
 
             $item = [
                 'item_id' => (int) $rawItem['item_id'],
-                'quantity' => (int) $rawItem['quantity'],
+                'quantity' => $quantity,
                 'product_id' => (int) $rawItem['product_id'],
                 'product_name' => $product['name'] ?? 'Producto',
                 'product_slug' => $product['slug'] ?? '',
-                'product_image' => $product['primary_image'] ?? self::PRODUCT_FALLBACK_IMAGE,
+                'product_image' => $productImage,
                 'price' => (float) ($variant['price'] ?? 0),
                 'compare_price' => isset($variant['compare_price']) ? (float) $variant['compare_price'] : null,
                 'available_stock' => (int) ($variant['quantity'] ?? 0),
@@ -115,13 +118,14 @@ class CartService
 
             $item['line_total'] = $item['price'] * $item['quantity'];
             $subtotal += $item['line_total'];
+            $itemCount += $quantity;
             $items[] = $item;
         }
 
         return [
             'cart_id' => $cartId,
             'items' => $items,
-            'item_count' => count($items),
+            'item_count' => $itemCount,
             'subtotal' => $subtotal,
         ];
     }

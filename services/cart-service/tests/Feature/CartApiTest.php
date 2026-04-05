@@ -35,6 +35,7 @@ class CartApiTest extends TestCase
                     'size_name' => '8',
                     'color_name' => 'Azul',
                     'color_hex' => '#0000ff',
+                    'variant_image' => 'uploads/productos/conjunto-fiesta-azul.webp',
                 ],
             ], 200),
             '*/internal/products/100' => Http::response([
@@ -59,9 +60,10 @@ class CartApiTest extends TestCase
         $this->getJson('/api/cart?session_id=sess_test')
             ->assertStatus(200)
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.item_count', 1)
+            ->assertJsonPath('data.item_count', 2)
             ->assertJsonPath('data.items.0.product_name', 'Conjunto Fiesta')
             ->assertJsonPath('data.items.0.quantity', 2)
+            ->assertJsonPath('data.items.0.product_image', 'uploads/productos/conjunto-fiesta-azul.webp')
             ->assertJsonPath('data.subtotal', 180000);
     }
 

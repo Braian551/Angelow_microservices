@@ -1,17 +1,6 @@
 @import '/legacy/css/style.css';
 @import '/legacy/css/productos.css';
 @import '/legacy/css/announcements.css';
-@import '/legacy/css/cart.css';
-@import '/legacy/css/envio.css';
-@import '/legacy/css/payment.css';
-@import '/legacy/css/confirmar-orden.css';
-@import '/legacy/css/notificacion.css';
-@import '/legacy/producto/css/product-view.css';
-@import '/legacy/producto/css/product-gallery.css';
-@import '/legacy/producto/css/product-info.css';
-@import '/legacy/producto/css/product-tabs.css';
-@import '/legacy/producto/css/related-products.css';
-@import '/legacy/producto/css/product-modal.css';
 
 body {
   background: #fff;

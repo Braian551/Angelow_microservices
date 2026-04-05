@@ -165,6 +165,18 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      FIREBASE_WEB_API_KEY: AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k
+      INTERNAL_API_TOKEN: angelow-internal-token
+      FRONTEND_URL: http://localhost:5173
+      PASSWORD_RECOVERY_CODE_TTL: 900
+      PASSWORD_RECOVERY_RESEND_COOLDOWN: 60
+      PHPMAILER_HOST: smtp.gmail.com
+      PHPMAILER_PORT: 587
+      PHPMAILER_USERNAME: angelow2025sen@gmail.com
+      PHPMAILER_PASSWORD: "djaf tdju nyhr scgd"
+      PHPMAILER_ENCRYPTION: tls
+      PHPMAILER_FROM_EMAIL: seguridad@angelow.com
+      PHPMAILER_FROM_NAME: Seguridad Angelow
     depends_on:
       - auth-db
       - redis
@@ -190,9 +202,16 @@ services:
       DB_DATABASE: angelow_catalog
       DB_USERNAME: postgres
       DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
     depends_on:
       - catalog-db
       - redis
@@ -247,6 +266,11 @@ services:
       DB_DATABASE: angelow_orders
       DB_USERNAME: postgres
       DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
@@ -331,6 +355,11 @@ services:
       DB_DATABASE: angelow_shipping
       DB_USERNAME: postgres
       DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
@@ -359,6 +388,11 @@ services:
       DB_DATABASE: angelow_notifications
       DB_USERNAME: postgres
       DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
@@ -467,6 +501,13 @@ services:
       VITE_DISCOUNT_API_URL: http://localhost:8006/api
       VITE_SHIPPING_API_URL: http://localhost:8007/api
       VITE_NOTIFICATION_API_URL: http://localhost:8008/api
+      VITE_FIREBASE_API_KEY: AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k
+      VITE_FIREBASE_AUTH_DOMAIN: angelow-4e5fe.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: angelow-4e5fe
+      VITE_FIREBASE_STORAGE_BUCKET: angelow-4e5fe.firebasestorage.app
+      VITE_FIREBASE_MESSAGING_SENDER_ID: "77139939464"
+      VITE_FIREBASE_APP_ID: 1:77139939464:web:b5a6e06b7c89fd510fcf3d
+      VITE_FIREBASE_MEASUREMENT_ID: G-NFE4E4F0BF
     networks:
       - angelow_network
 

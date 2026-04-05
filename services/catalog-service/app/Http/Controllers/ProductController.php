@@ -30,15 +30,16 @@ class ProductController extends Controller
             'collection', 'sort',
         ]);
 
-        $page    = max(1, (int) $request->query('page', 1));
+        $page = max(1, (int) $request->query('page', 1));
         $perPage = min(50, max(1, (int) $request->query('per_page', 12)));
-        $userId  = $request->query('user_id'); // opcional para favoritos
+        $userId = $request->query('user_id');
+        $userEmail = $request->query('user_email');
 
-        $result = $this->catalogService->listProducts($filters, $page, $perPage, $userId);
+        $result = $this->catalogService->listProducts($filters, $page, $perPage, $userId, $userEmail);
 
         return response()->json([
             'success' => true,
-            'data'    => $result,
+            'data' => $result,
         ]);
     }
 
@@ -47,19 +48,23 @@ class ProductController extends Controller
      *
      * Get detailed product information.
      */
-    public function show(string $slug): JsonResponse
+    public function show(Request $request, string $slug): JsonResponse
     {
         try {
-            $detail = $this->catalogService->getProductDetail($slug);
+            $detail = $this->catalogService->getProductDetail(
+                $slug,
+                $request->query('user_id'),
+                $request->query('user_email'),
+            );
 
             return response()->json([
                 'success' => true,
-                'data'    => $detail,
+                'data' => $detail,
             ]);
         } catch (\App\Exceptions\NotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 404);
         }
     }

@@ -1,6 +1,6 @@
 <template>
   <section class="featured-collections">
-    <h2 class="section-title">Colecciones</h2>
+    <h2 class="section-title">Nuestras colecciones</h2>
     <div class="collections-grid">
       <RouterLink
         v-for="collection in collections"
@@ -8,7 +8,11 @@
         :to="{ name: 'store', query: { collection: collection.id } }"
         class="collection-card"
       >
-        <img :src="resolveMediaUrl(collection.image, '/logo.png')" :alt="collection.name" />
+        <img
+          :src="resolveMediaUrl(collection.image, 'collection')"
+          :alt="collection.name"
+          @error="onImageError($event, collection.image)"
+        />
         <div class="collection-overlay">
           <h3>{{ collection.name }}</h3>
           <p>{{ collection.description || 'Nuevos lanzamientos' }}</p>
@@ -20,7 +24,7 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
-import { resolveMediaUrl } from '../../../utils/media'
+import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 
 defineProps({
   collections: {
@@ -28,4 +32,8 @@ defineProps({
     default: () => [],
   },
 })
+
+function onImageError(event, originalPath) {
+  handleMediaError(event, originalPath, 'collection')
+}
 </script>

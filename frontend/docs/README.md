@@ -17,3 +17,8 @@ flowchart LR
 - `Service layer`: consumo API centralizado en `src/services/*Api.js`.
 - `Composables`: sesion compartida en `src/composables/useSession.js`.
 - `Presentational components`: componentes reutilizables en `modules/*/components`.
+
+## Registro obligatorio de patrones
+
+- Cada cambio nuevo debe documentar patron(es) del catalogo Refactoring Guru usados o justificar por que no aplica.
+- El registro vigente se mantiene en `docs/patrones-diseno.md`.
