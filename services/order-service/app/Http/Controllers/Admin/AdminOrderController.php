@@ -13,48 +13,69 @@ class AdminOrderController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
+    private function likeOperator(?string $connection = null): string
+    {
+        $driver = ($connection ? DB::connection($connection) : DB::connection())->getDriverName();
+        return $driver === 'pgsql' ? 'ILIKE' : 'LIKE';
+    }
+
+    private function firstExistingColumn(string $table, array $candidates, ?string $connection = null): ?string
+    {
+        $dbConnection = $connection ?: config('database.default');
+
+        foreach ($candidates as $column) {
+            if (Schema::connection($dbConnection)->hasColumn($table, $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Ordenes recientes para el dashboard admin.
      */
     public function recentOrders(Request $request): JsonResponse
     {
-        $limit = max(1, min((int) $request->input('limit', 12), 50));
+        $limit = max(1, min((int) $request->input('limit', 12), 500));
         $connection = null;
 
-        $query = $this->buildOrdersQuery($connection, null, null);
+        $query = $this->buildOrdersQuery($connection, $request);
 
         if ((clone $query)->count() === 0) {
             $connection = self::LEGACY_CONNECTION;
-            $query = $this->buildOrdersQuery($connection, null, null);
+            $query = $this->buildOrdersQuery($connection, $request);
         }
 
         $dbConnection = $connection ?: config('database.default');
-        $columns = ['id', 'created_at', 'total'];
 
-        if (Schema::connection($dbConnection)->hasColumn('orders', 'status')) {
-            $columns[] = 'status';
-        }
-        if (Schema::connection($dbConnection)->hasColumn('orders', 'order_status')) {
-            $columns[] = 'order_status';
-        }
-        if (Schema::connection($dbConnection)->hasColumn('orders', 'payment_status')) {
-            $columns[] = 'payment_status';
-        }
-        if (Schema::connection($dbConnection)->hasColumn('orders', 'user_name')) {
-            $columns[] = 'user_name';
-        }
-        if (Schema::connection($dbConnection)->hasColumn('orders', 'customer_name')) {
-            $columns[] = 'customer_name';
-        }
+        $statusCol = $this->firstExistingColumn('orders', ['status', 'order_status'], $connection) ?: 'status';
+        $customerNameCol = $this->firstExistingColumn('orders', ['user_name', 'customer_name', 'billing_name'], $connection);
+        $customerEmailCol = $this->firstExistingColumn('orders', ['user_email', 'customer_email', 'billing_email'], $connection);
 
         $rows = $query
             ->orderByDesc('created_at')
             ->limit($limit)
-            ->get($columns);
+            ->get();
+
+        $totalOrders = (clone $query)->count();
+        $totalRevenue = (clone $query)->sum('total');
+        $pendingOrders = (clone $query)->where($statusCol, 'pending')->count();
+        $completedOrders = (clone $query)->whereIn($statusCol, ['delivered', 'completed'])->count();
 
         return response()->json([
             'success' => true,
-            'data' => $rows,
+            'data' => [
+                'rows' => $rows,
+                'stats' => [
+                    'total_orders' => $totalOrders,
+                    'total_revenue' => round((float) $totalRevenue, 2),
+                    'pending_orders' => $pendingOrders,
+                    'completed_orders' => $completedOrders,
+                    'customer_name_column' => $customerNameCol,
+                    'customer_email_column' => $customerEmailCol,
+                ],
+            ],
         ]);
     }
 
@@ -65,14 +86,18 @@ class AdminOrderController extends Controller
     {
         $from = $request->input('from');
         $to   = $request->input('to');
+        $filtersRequest = new Request([
+            'from_date' => $from,
+            'to_date' => $to,
+        ]);
 
         $connection = null;
-        $query = $this->buildOrdersQuery($connection, $from, $to);
+        $query = $this->buildOrdersQuery($connection, $filtersRequest);
 
         // Si no hay datos en la BD distribuida, usa fallback legacy para no romper reportes.
         if ((clone $query)->count() === 0) {
             $connection = self::LEGACY_CONNECTION;
-            $query = $this->buildOrdersQuery($connection, $from, $to);
+            $query = $this->buildOrdersQuery($connection, $filtersRequest);
         }
 
         $dbConnection = $connection ?: config('database.default');
@@ -150,15 +175,65 @@ class AdminOrderController extends Controller
         ]);
     }
 
-    private function buildOrdersQuery(?string $connection, ?string $from, ?string $to)
+    private function buildOrdersQuery(?string $connection, Request $request)
     {
+        $dbConnection = $connection ?: config('database.default');
         $query = $this->query($connection)->table('orders');
+        $statusCol = $this->firstExistingColumn('orders', ['status', 'order_status'], $connection) ?: 'status';
+        $paymentStatusCol = $this->firstExistingColumn('orders', ['payment_status'], $connection);
+        $customerNameCol = $this->firstExistingColumn('orders', ['user_name', 'customer_name', 'billing_name'], $connection);
+        $customerEmailCol = $this->firstExistingColumn('orders', ['user_email', 'customer_email', 'billing_email'], $connection);
+        $likeOperator = $this->likeOperator($connection);
 
-        if ($from) {
-            $query->where('created_at', '>=', $from);
+        $query->select('orders.*');
+
+        if (!Schema::connection($dbConnection)->hasColumn('orders', 'status') && Schema::connection($dbConnection)->hasColumn('orders', 'order_status')) {
+            $query->addSelect('orders.order_status as status');
         }
-        if ($to) {
-            $query->where('created_at', '<=', $to . ' 23:59:59');
+
+        if ($customerNameCol && $customerNameCol !== 'user_name') {
+            $query->addSelect("orders.{$customerNameCol} as user_name");
+        }
+
+        if ($customerEmailCol && $customerEmailCol !== 'user_email') {
+            $query->addSelect("orders.{$customerEmailCol} as user_email");
+        }
+
+        $query->selectSub(function ($subQuery): void {
+            $subQuery
+                ->from('order_items')
+                ->selectRaw('COUNT(*)')
+                ->whereColumn('order_items.order_id', 'orders.id');
+        }, 'items_count');
+
+        if ($request->filled('from_date')) {
+            $query->where('created_at', '>=', $request->string('from_date')->toString());
+        }
+        if ($request->filled('to_date')) {
+            $query->where('created_at', '<=', $request->string('to_date')->toString() . ' 23:59:59');
+        }
+
+        if ($request->filled('status')) {
+            $query->where($statusCol, $request->string('status')->toString());
+        }
+
+        if ($paymentStatusCol && $request->filled('payment_status')) {
+            $query->where($paymentStatusCol, $request->string('payment_status')->toString());
+        }
+
+        if ($request->filled('search')) {
+            $term = $request->string('search')->toString();
+            $query->where(function ($searchQuery) use ($term, $customerNameCol, $customerEmailCol, $likeOperator) {
+                $searchQuery->where('orders.order_number', $likeOperator, "%{$term}%");
+
+                if ($customerNameCol) {
+                    $searchQuery->orWhere("orders.{$customerNameCol}", $likeOperator, "%{$term}%");
+                }
+
+                if ($customerEmailCol) {
+                    $searchQuery->orWhere("orders.{$customerEmailCol}", $likeOperator, "%{$term}%");
+                }
+            });
         }
 
         return $query;

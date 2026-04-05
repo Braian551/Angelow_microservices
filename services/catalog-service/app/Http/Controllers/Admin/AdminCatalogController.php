@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -39,6 +40,417 @@ class AdminCatalogController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Convierte distintos formatos de entrada a booleano estable.
+     */
+    private function toBoolean(mixed $value, bool $default = false): bool
+    {
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        return $normalized ?? $default;
+    }
+
+    /**
+     * Obtiene un arreglo desde JSON o desde el valor ya parseado del request.
+     */
+    private function arrayInput(Request $request, string $key): array
+    {
+        $value = $request->input($key);
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Genera un slug unico para evitar colisiones en productos.
+     */
+    private function generateUniqueProductSlug(string $name, ?string $requestedSlug = null, ?int $ignoreId = null): string
+    {
+        $baseSlug = Str::slug($requestedSlug ?: $name);
+        $slug = $baseSlug !== '' ? $baseSlug : 'producto';
+        $candidate = $slug;
+        $suffix = 2;
+
+        while (true) {
+            $query = DB::table('products')->where('slug', $candidate);
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+
+            if (!$query->exists()) {
+                return $candidate;
+            }
+
+            $candidate = $slug . '-' . $suffix;
+            $suffix++;
+        }
+    }
+
+    /**
+     * Construye el payload de producto usando las columnas reales disponibles.
+     */
+    private function buildProductUpsertData(array $payload, ?int $ignoreId = null): array
+    {
+        $nameColumn = $this->firstExistingColumn('products', ['name', 'nombre']);
+        $descriptionColumn = $this->firstExistingColumn('products', ['description', 'descripcion']);
+        $priceColumn = $this->firstExistingColumn('products', ['price', 'precio']);
+        $comparePriceColumn = $this->firstExistingColumn('products', ['compare_price']);
+        $activeColumn = $this->firstExistingColumn('products', ['is_active', 'activo']);
+        $featuredColumn = $this->firstExistingColumn('products', ['is_featured', 'destacado']);
+        $brandColumn = $this->firstExistingColumn('products', ['brand', 'marca']);
+        $genderColumn = $this->firstExistingColumn('products', ['gender', 'genero']);
+        $collectionTextColumn = $this->firstExistingColumn('products', ['collection', 'coleccion']);
+        $materialColumn = $this->firstExistingColumn('products', ['material']);
+        $careColumn = $this->firstExistingColumn('products', ['care_instructions', 'instrucciones_cuidado']);
+        $collectionIdColumn = $this->firstExistingColumn('products', ['collection_id']);
+
+        $data = [
+            'slug' => $this->generateUniqueProductSlug(
+                $payload['nombre'],
+                $payload['slug'] ?? null,
+                $ignoreId,
+            ),
+            'category_id' => $payload['category_id'] ?? null,
+            'updated_at' => now(),
+        ];
+
+        if ($nameColumn) {
+            $data[$nameColumn] = $payload['nombre'];
+        }
+
+        if ($descriptionColumn) {
+            $data[$descriptionColumn] = $payload['descripcion'] ?? null;
+        }
+
+        if ($priceColumn) {
+            $data[$priceColumn] = $payload['precio'];
+        }
+
+        if ($comparePriceColumn) {
+            $data[$comparePriceColumn] = $payload['compare_price'] ?? null;
+        }
+
+        if ($activeColumn) {
+            $data[$activeColumn] = $payload['activo'] ? 1 : 0;
+        }
+
+        if ($featuredColumn) {
+            $data[$featuredColumn] = $payload['is_featured'] ? 1 : 0;
+        }
+
+        if ($brandColumn) {
+            $data[$brandColumn] = $payload['brand'] ?? null;
+        }
+
+        if ($genderColumn) {
+            $data[$genderColumn] = $payload['gender'] ?? 'unisex';
+        }
+
+        if ($collectionTextColumn) {
+            $data[$collectionTextColumn] = $payload['collection'] ?? null;
+        }
+
+        if ($materialColumn) {
+            $data[$materialColumn] = $payload['material'] ?? null;
+        }
+
+        if ($careColumn) {
+            $data[$careColumn] = $payload['care_instructions'] ?? null;
+        }
+
+        if ($collectionIdColumn) {
+            $data[$collectionIdColumn] = $payload['collection_id'] ?? null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Persiste una imagen en uploads compartidos y retorna la ruta publica.
+     */
+    private function storeUploadedImage(UploadedFile $file, string $folder = 'productos'): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+        $filename = Str::uuid()->toString() . '.' . $extension;
+        $destination = public_path('uploads/' . trim($folder, '/'));
+
+        if (!is_dir($destination)) {
+            mkdir($destination, 0775, true);
+        }
+
+        $file->move($destination, $filename);
+
+        return '/uploads/' . trim($folder, '/') . '/' . $filename;
+    }
+
+    /**
+     * Normaliza y valida el payload extendido del formulario admin.
+     */
+    private function parseProductPayload(Request $request): array
+    {
+        $baseData = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'descripcion' => ['nullable', 'string'],
+            'precio' => ['required', 'numeric', 'min:0.01'],
+            'compare_price' => ['nullable', 'numeric', 'min:0'],
+            'category_id' => ['required', 'integer'],
+            'collection_id' => ['nullable', 'integer'],
+            'slug' => ['nullable', 'string', 'max:255'],
+            'activo' => ['nullable'],
+            'is_featured' => ['nullable'],
+            'brand' => ['nullable', 'string', 'max:100'],
+            'gender' => ['nullable', 'string', 'max:20'],
+            'collection' => ['nullable', 'string', 'max:100'],
+            'material' => ['nullable', 'string', 'max:100'],
+            'care_instructions' => ['nullable', 'string'],
+            'main_image_path' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $variants = collect($this->arrayInput($request, 'variants'))
+            ->map(function ($variant, $index) {
+                $sizes = collect($variant['sizes'] ?? [])->map(function ($size, $sizeIndex) use ($index) {
+                    $price = isset($size['price']) && $size['price'] !== '' ? (float) $size['price'] : null;
+                    $comparePrice = isset($size['compare_price']) && $size['compare_price'] !== ''
+                        ? (float) $size['compare_price']
+                        : null;
+
+                    return [
+                        'id' => isset($size['id']) && $size['id'] !== '' ? (int) $size['id'] : null,
+                        'key' => (string) ($size['key'] ?? ('size-' . $index . '-' . $sizeIndex)),
+                        'size_id' => isset($size['size_id']) && $size['size_id'] !== '' ? (int) $size['size_id'] : null,
+                        'price' => $price,
+                        'compare_price' => $comparePrice,
+                        'quantity' => isset($size['quantity']) && $size['quantity'] !== '' ? (int) $size['quantity'] : 0,
+                        'sku' => trim((string) ($size['sku'] ?? '')) ?: null,
+                        'barcode' => trim((string) ($size['barcode'] ?? '')) ?: null,
+                        'is_active' => $this->toBoolean($size['is_active'] ?? true, true),
+                    ];
+                })->values()->all();
+
+                return [
+                    'id' => isset($variant['id']) && $variant['id'] !== '' ? (int) $variant['id'] : null,
+                    'key' => (string) ($variant['key'] ?? ('variant-' . $index)),
+                    'color_id' => isset($variant['color_id']) && $variant['color_id'] !== '' ? (int) $variant['color_id'] : null,
+                    'is_default' => $this->toBoolean($variant['is_default'] ?? false, false),
+                    'image_path' => trim((string) ($variant['image_path'] ?? '')) ?: null,
+                    'sizes' => $sizes,
+                ];
+            })
+            ->values();
+
+        if ($variants->isEmpty()) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Debes registrar al menos una variante.',
+            ], 422));
+        }
+
+        if (!$variants->contains(fn ($variant) => $variant['is_default'])) {
+            $first = $variants->first();
+            $first['is_default'] = true;
+            $variants[0] = $first;
+        }
+
+        foreach ($variants as $index => $variant) {
+            if (!$variant['color_id']) {
+                abort(response()->json([
+                    'success' => false,
+                    'message' => 'Cada variante debe tener un color seleccionado.',
+                    'meta' => ['variant_index' => $index],
+                ], 422));
+            }
+
+            if (collect($variant['sizes'])->isEmpty()) {
+                abort(response()->json([
+                    'success' => false,
+                    'message' => 'Cada variante debe tener al menos una talla configurada.',
+                    'meta' => ['variant_index' => $index],
+                ], 422));
+            }
+
+            $duplicateSize = collect($variant['sizes'])
+                ->pluck('size_id')
+                ->filter()
+                ->duplicates()
+                ->isNotEmpty();
+
+            if ($duplicateSize) {
+                abort(response()->json([
+                    'success' => false,
+                    'message' => 'No puedes repetir la misma talla dentro de una variante.',
+                    'meta' => ['variant_index' => $index],
+                ], 422));
+            }
+
+            foreach ($variant['sizes'] as $sizeIndex => $size) {
+                if (!$size['size_id']) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'Cada configuracion de talla debe incluir una talla valida.',
+                        'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
+                    ], 422));
+                }
+
+                if ($size['price'] === null || $size['price'] <= 0) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'Cada talla debe tener un precio mayor a cero.',
+                        'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
+                    ], 422));
+                }
+
+                if ($size['compare_price'] !== null && $size['compare_price'] <= $size['price']) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'El precio comparativo por talla debe ser mayor al precio de venta.',
+                        'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
+                    ], 422));
+                }
+            }
+        }
+
+        $baseComparePrice = isset($baseData['compare_price']) && $baseData['compare_price'] !== ''
+            ? (float) $baseData['compare_price']
+            : null;
+
+        if ($baseComparePrice !== null && $baseComparePrice <= (float) $baseData['precio']) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'El precio comparativo general debe ser mayor al precio base.',
+            ], 422));
+        }
+
+        return [
+            ...$baseData,
+            'precio' => (float) $baseData['precio'],
+            'compare_price' => $baseComparePrice,
+            'activo' => $this->toBoolean($baseData['activo'] ?? true, true),
+            'is_featured' => $this->toBoolean($baseData['is_featured'] ?? false, false),
+            'main_image_path' => trim((string) ($baseData['main_image_path'] ?? '')) ?: null,
+            'variants' => $variants->all(),
+        ];
+    }
+
+    /**
+     * Reemplaza imagenes y variantes de un producto de forma consistente.
+     */
+    private function syncProductStructure(int $productId, array $payload, Request $request): void
+    {
+        $mainImageFile = $request->file('main_image_file');
+        $mainImagePath = $payload['main_image_path'];
+        $variantImageFiles = $request->file('variant_image_files', []);
+
+        if ($mainImageFile instanceof UploadedFile) {
+            $mainImagePath = $this->storeUploadedImage($mainImageFile);
+        }
+
+        if (Schema::hasTable('variant_images')) {
+            DB::table('variant_images')->where('product_id', $productId)->delete();
+        }
+
+        if (Schema::hasTable('product_images')) {
+            DB::table('product_images')->where('product_id', $productId)->delete();
+        }
+
+        if (Schema::hasTable('product_size_variants') && Schema::hasTable('product_color_variants')) {
+            $colorVariantIds = DB::table('product_color_variants')
+                ->where('product_id', $productId)
+                ->pluck('id');
+
+            if ($colorVariantIds->isNotEmpty()) {
+                DB::table('product_size_variants')->whereIn('color_variant_id', $colorVariantIds)->delete();
+            }
+        }
+
+        if (Schema::hasTable('product_color_variants')) {
+            DB::table('product_color_variants')->where('product_id', $productId)->delete();
+        }
+
+        if ($mainImagePath && Schema::hasTable('product_images')) {
+            DB::table('product_images')->insert([
+                'product_id' => $productId,
+                'color_variant_id' => null,
+                'image_path' => $mainImagePath,
+                'alt_text' => $payload['nombre'],
+                'order' => 0,
+                'is_primary' => true,
+                'created_at' => now(),
+            ]);
+        }
+
+        foreach ($payload['variants'] as $variantIndex => $variant) {
+            $colorVariantId = DB::table('product_color_variants')->insertGetId([
+                'product_id' => $productId,
+                'color_id' => $variant['color_id'],
+                'is_default' => $variant['is_default'] ? 1 : 0,
+            ]);
+
+            $variantImagePath = $variant['image_path'];
+            $variantKey = $variant['key'];
+            $variantFile = is_array($variantImageFiles) ? ($variantImageFiles[$variantKey] ?? null) : null;
+
+            if ($variantFile instanceof UploadedFile) {
+                $variantImagePath = $this->storeUploadedImage($variantFile);
+            }
+
+            if ($variantImagePath) {
+                if (Schema::hasTable('variant_images')) {
+                    DB::table('variant_images')->insert([
+                        'color_variant_id' => $colorVariantId,
+                        'product_id' => $productId,
+                        'image_path' => $variantImagePath,
+                        'alt_text' => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order' => $variantIndex + 1,
+                        'is_primary' => true,
+                        'created_at' => now(),
+                    ]);
+                }
+
+                if (Schema::hasTable('product_images')) {
+                    DB::table('product_images')->insert([
+                        'product_id' => $productId,
+                        'color_variant_id' => $colorVariantId,
+                        'image_path' => $variantImagePath,
+                        'alt_text' => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order' => $variantIndex + 1,
+                        'is_primary' => false,
+                        'created_at' => now(),
+                    ]);
+                }
+            }
+
+            foreach ($variant['sizes'] as $size) {
+                DB::table('product_size_variants')->insert([
+                    'color_variant_id' => $colorVariantId,
+                    'size_id' => $size['size_id'],
+                    'sku' => $size['sku'],
+                    'barcode' => $size['barcode'],
+                    'price' => $size['price'],
+                    'compare_price' => $size['compare_price'],
+                    'quantity' => $size['quantity'],
+                    'is_active' => $size['is_active'] ? 1 : 0,
+                ]);
+            }
+        }
     }
 
     // ── Productos ────────────────────────────────────────────────────
@@ -163,13 +575,30 @@ class AdminCatalogController extends Controller
 
         $variants = collect();
         $images = collect();
+        $variantImages = collect();
         $sizeVariants = collect();
         $totalStock = 0;
         $minPrice = 0;
         $maxPrice = 0;
 
         if (Schema::hasTable('product_color_variants')) {
-            $variants = DB::table('product_color_variants')->where('product_id', $id)->get();
+            $colorNameColumn = $this->firstExistingColumn('colors', ['name', 'nombre']);
+            $hexColumn = $this->firstExistingColumn('colors', ['hex_code', 'color_hex']);
+            $variantsQuery = DB::table('product_color_variants as pcv')
+                ->where('pcv.product_id', $id)
+                ->select('pcv.*');
+
+            if (Schema::hasTable('colors')) {
+                $variantsQuery->leftJoin('colors as clr', 'pcv.color_id', '=', 'clr.id');
+                if ($colorNameColumn) {
+                    $variantsQuery->addSelect("clr.{$colorNameColumn} as color_name");
+                }
+                if ($hexColumn) {
+                    $variantsQuery->addSelect("clr.{$hexColumn} as hex_code");
+                }
+            }
+
+            $variants = $variantsQuery->get();
         }
         if (Schema::hasTable('product_images')) {
             // Incluir nombre de color para filtros de galeria
@@ -201,13 +630,14 @@ class AdminCatalogController extends Controller
             $colorNameCol = $this->firstExistingColumn('product_color_variants', ['color_name', 'name']);
             $sizeNameCol = $this->firstExistingColumn('product_size_variants', ['size_label']);
             $priceCol = $this->firstExistingColumn('product_size_variants', ['price', 'precio']);
+            $comparePriceCol = $this->firstExistingColumn('product_size_variants', ['compare_price']);
             $stockCol = $this->firstExistingColumn('product_size_variants', ['quantity', 'stock']);
             $activeCol = $this->firstExistingColumn('product_size_variants', ['is_active', 'activo']);
 
             $svQuery = DB::table('product_size_variants as psv')
                 ->join('product_color_variants as pcv', 'psv.color_variant_id', '=', 'pcv.id')
                 ->where('pcv.product_id', $id)
-                ->select('psv.id');
+                ->select('psv.id', 'psv.color_variant_id', 'psv.size_id', 'psv.sku', 'psv.barcode');
 
             if ($colorNameCol) $svQuery->addSelect("pcv.{$colorNameCol} as color_name");
             if ($sizeNameCol) {
@@ -220,6 +650,7 @@ class AdminCatalogController extends Controller
                 }
             }
             if ($priceCol) $svQuery->addSelect("psv.{$priceCol} as price");
+            if ($comparePriceCol) $svQuery->addSelect("psv.{$comparePriceCol} as compare_price");
             if ($stockCol) $svQuery->addSelect("psv.{$stockCol} as quantity");
             if ($activeCol) $svQuery->addSelect("psv.{$activeCol} as is_active");
 
@@ -236,12 +667,37 @@ class AdminCatalogController extends Controller
             }
         }
 
+        if (Schema::hasTable('variant_images')) {
+            $variantImages = DB::table('variant_images')
+                ->where('product_id', $id)
+                ->orderByDesc('is_primary')
+                ->orderBy('order')
+                ->orderBy('id')
+                ->get()
+                ->map(function ($img) {
+                    $img->url = $img->image_path ?? null;
+                    return $img;
+                });
+        }
+
+        if ($variants->isNotEmpty()) {
+            $sizesByVariant = $sizeVariants->groupBy('color_variant_id');
+            $imagesByVariant = $variantImages->groupBy('color_variant_id');
+
+            $variants = $variants->map(function ($variant) use ($sizesByVariant, $imagesByVariant) {
+                $variant->size_variants = $sizesByVariant->get($variant->id, collect())->values();
+                $variant->images = $imagesByVariant->get($variant->id, collect())->values();
+                return $variant;
+            });
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
                 'product' => $product,
                 'variants' => $variants,
                 'images' => $images,
+                'variant_images' => $variantImages,
                 'size_variants' => $sizeVariants,
                 'total_stock' => $totalStock,
                 'min_price' => $minPrice,
@@ -252,27 +708,17 @@ class AdminCatalogController extends Controller
 
     public function storeProduct(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'nombre' => ['required', 'string', 'max:255'],
-            'descripcion' => ['nullable', 'string'],
-            'precio' => ['required', 'numeric', 'min:0'],
-            'category_id' => ['nullable', 'integer'],
-            'slug' => ['nullable', 'string', 'max:255'],
-            'activo' => ['nullable', 'boolean'],
-        ]);
+        $payload = $this->parseProductPayload($request);
 
-        $slug = $data['slug'] ?? Str::slug($data['nombre']);
+        $id = DB::transaction(function () use ($payload, $request) {
+            $productData = $this->buildProductUpsertData($payload);
+            $productData['created_at'] = now();
 
-        $id = DB::table('products')->insertGetId([
-            'nombre' => $data['nombre'],
-            'descripcion' => $data['descripcion'] ?? null,
-            'precio' => $data['precio'],
-            'category_id' => $data['category_id'] ?? null,
-            'slug' => $slug,
-            'activo' => $data['activo'] ?? true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            $productId = DB::table('products')->insertGetId($productData);
+            $this->syncProductStructure($productId, $payload, $request);
+
+            return $productId;
+        });
 
         return response()->json(['success' => true, 'message' => 'Producto creado', 'id' => $id], 201);
     }
@@ -285,25 +731,41 @@ class AdminCatalogController extends Controller
             return response()->json(['success' => false, 'message' => 'Producto no encontrado'], 404);
         }
 
-        $data = $request->validate([
-            'nombre' => ['sometimes', 'string', 'max:255'],
-            'descripcion' => ['nullable', 'string'],
-            'precio' => ['sometimes', 'numeric', 'min:0'],
-            'category_id' => ['nullable', 'integer'],
-            'slug' => ['nullable', 'string', 'max:255'],
-            'activo' => ['nullable', 'boolean'],
-        ]);
+        $payload = $this->parseProductPayload($request);
 
-        $data['updated_at'] = now();
-
-        DB::table('products')->where('id', $id)->update($data);
+        DB::transaction(function () use ($id, $payload, $request) {
+            $productData = $this->buildProductUpsertData($payload, $id);
+            DB::table('products')->where('id', $id)->update($productData);
+            $this->syncProductStructure($id, $payload, $request);
+        });
 
         return response()->json(['success' => true, 'message' => 'Producto actualizado']);
     }
 
     public function destroyProduct(int $id): JsonResponse
     {
-        $deleted = DB::table('products')->where('id', $id)->delete();
+        $deleted = DB::transaction(function () use ($id) {
+            if (Schema::hasTable('variant_images')) {
+                DB::table('variant_images')->where('product_id', $id)->delete();
+            }
+
+            if (Schema::hasTable('product_images')) {
+                DB::table('product_images')->where('product_id', $id)->delete();
+            }
+
+            if (Schema::hasTable('product_color_variants') && Schema::hasTable('product_size_variants')) {
+                $variantIds = DB::table('product_color_variants')->where('product_id', $id)->pluck('id');
+                if ($variantIds->isNotEmpty()) {
+                    DB::table('product_size_variants')->whereIn('color_variant_id', $variantIds)->delete();
+                }
+            }
+
+            if (Schema::hasTable('product_color_variants')) {
+                DB::table('product_color_variants')->where('product_id', $id)->delete();
+            }
+
+            return DB::table('products')->where('id', $id)->delete();
+        });
 
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Producto no encontrado'], 404);
@@ -344,7 +806,37 @@ class AdminCatalogController extends Controller
 
     public function categories(): JsonResponse
     {
-        $categories = DB::table('categories')->orderBy('nombre')->get();
+        $nameColumn = $this->firstExistingColumn('categories', ['nombre', 'name']);
+        $descriptionColumn = $this->firstExistingColumn('categories', ['descripcion', 'description']);
+        $imageColumn = $this->firstExistingColumn('categories', ['imagen', 'image']);
+        $activeColumn = $this->firstExistingColumn('categories', ['is_active', 'activo']);
+        $query = DB::table('categories')->select('categories.*');
+
+        if (Schema::hasTable('products') && Schema::hasColumn('products', 'category_id')) {
+            $query->selectSub(
+                DB::table('products')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('products.category_id', 'categories.id'),
+                'product_count',
+            );
+        }
+
+        if ($nameColumn) {
+            $query->orderBy($nameColumn);
+        } else {
+            $query->orderBy('id');
+        }
+
+        $categories = $query->get()->map(function ($category) use ($nameColumn, $descriptionColumn, $imageColumn, $activeColumn) {
+            $category->name = $nameColumn ? ($category->{$nameColumn} ?? 'Sin nombre') : 'Sin nombre';
+            $category->description = $descriptionColumn ? ($category->{$descriptionColumn} ?? null) : null;
+            $category->image = $imageColumn ? ($category->{$imageColumn} ?? null) : null;
+            $category->is_active = $activeColumn
+                ? (bool) ($category->{$activeColumn} ?? true)
+                : true;
+            $category->product_count = (int) ($category->product_count ?? 0);
+            return $category;
+        });
 
         return response()->json(['success' => true, 'data' => $categories]);
     }
@@ -356,16 +848,34 @@ class AdminCatalogController extends Controller
             'descripcion' => ['nullable', 'string'],
             'imagen' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:100'],
+            'activo' => ['nullable', 'boolean'],
         ]);
 
-        $id = DB::table('categories')->insertGetId([
-            'nombre' => $data['nombre'],
-            'descripcion' => $data['descripcion'] ?? null,
-            'imagen' => $data['imagen'] ?? null,
+        $nameColumn = $this->firstExistingColumn('categories', ['nombre', 'name']);
+        $descriptionColumn = $this->firstExistingColumn('categories', ['descripcion', 'description']);
+        $imageColumn = $this->firstExistingColumn('categories', ['imagen', 'image']);
+        $activeColumn = $this->firstExistingColumn('categories', ['is_active', 'activo']);
+
+        $payload = [
+            ($nameColumn ?: 'name') => $data['nombre'],
             'slug' => $data['slug'] ?? Str::slug($data['nombre']),
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+
+        if ($descriptionColumn) {
+            $payload[$descriptionColumn] = $data['descripcion'] ?? null;
+        }
+
+        if ($imageColumn) {
+            $payload[$imageColumn] = $data['imagen'] ?? null;
+        }
+
+        if ($activeColumn) {
+            $payload[$activeColumn] = ($data['activo'] ?? true) ? 1 : 0;
+        }
+
+        $id = DB::table('categories')->insertGetId($payload);
 
         return response()->json(['success' => true, 'message' => 'Categoria creada', 'id' => $id], 201);
     }
@@ -377,10 +887,32 @@ class AdminCatalogController extends Controller
             'descripcion' => ['nullable', 'string'],
             'imagen' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:100'],
+            'activo' => ['nullable', 'boolean'],
         ]);
 
-        $data['updated_at'] = now();
-        $updated = DB::table('categories')->where('id', $id)->update($data);
+        $nameColumn = $this->firstExistingColumn('categories', ['nombre', 'name']);
+        $descriptionColumn = $this->firstExistingColumn('categories', ['descripcion', 'description']);
+        $imageColumn = $this->firstExistingColumn('categories', ['imagen', 'image']);
+        $activeColumn = $this->firstExistingColumn('categories', ['is_active', 'activo']);
+
+        $payload = ['updated_at' => now()];
+        if ($nameColumn && isset($data['nombre'])) {
+            $payload[$nameColumn] = $data['nombre'];
+        }
+        if ($descriptionColumn && array_key_exists('descripcion', $data)) {
+            $payload[$descriptionColumn] = $data['descripcion'];
+        }
+        if ($imageColumn && array_key_exists('imagen', $data)) {
+            $payload[$imageColumn] = $data['imagen'];
+        }
+        if (array_key_exists('slug', $data)) {
+            $payload['slug'] = $data['slug'];
+        }
+        if ($activeColumn && array_key_exists('activo', $data)) {
+            $payload[$activeColumn] = $data['activo'] ? 1 : 0;
+        }
+
+        $updated = DB::table('categories')->where('id', $id)->update($payload);
 
         if (!$updated) {
             return response()->json(['success' => false, 'message' => 'Categoria no encontrada'], 404);
@@ -391,6 +923,16 @@ class AdminCatalogController extends Controller
 
     public function destroyCategory(int $id): JsonResponse
     {
+        if (Schema::hasTable('products') && Schema::hasColumn('products', 'category_id')) {
+            $productsUsingCategory = DB::table('products')->where('category_id', $id)->count();
+            if ($productsUsingCategory > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes eliminar una categoria que tiene productos asociados',
+                ], 422);
+            }
+        }
+
         DB::table('categories')->where('id', $id)->delete();
 
         return response()->json(['success' => true, 'message' => 'Categoria eliminada']);
@@ -400,9 +942,76 @@ class AdminCatalogController extends Controller
 
     public function collections(): JsonResponse
     {
-        $collections = DB::table('collections')->orderByDesc('created_at')->get();
+        $nameColumn = $this->firstExistingColumn('collections', ['nombre', 'name']);
+        $descriptionColumn = $this->firstExistingColumn('collections', ['descripcion', 'description']);
+        $imageColumn = $this->firstExistingColumn('collections', ['imagen', 'image']);
+        $activeColumn = $this->firstExistingColumn('collections', ['is_active', 'activo']);
+        $query = DB::table('collections')->select('collections.*');
+
+        if (Schema::hasTable('products') && Schema::hasColumn('products', 'collection_id')) {
+            $query->selectSub(
+                DB::table('products')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('products.collection_id', 'collections.id'),
+                'product_count',
+            );
+        }
+
+        if ($nameColumn) {
+            $query->orderBy($nameColumn);
+        } else {
+            $query->orderByDesc('created_at');
+        }
+
+        $collections = $query->get()->map(function ($collection) use ($nameColumn, $descriptionColumn, $imageColumn, $activeColumn) {
+            $collection->name = $nameColumn ? ($collection->{$nameColumn} ?? 'Sin nombre') : 'Sin nombre';
+            $collection->description = $descriptionColumn ? ($collection->{$descriptionColumn} ?? null) : null;
+            $collection->image = $imageColumn ? ($collection->{$imageColumn} ?? null) : null;
+            $collection->is_active = $activeColumn
+                ? (bool) ($collection->{$activeColumn} ?? true)
+                : true;
+            $collection->product_count = (int) ($collection->product_count ?? 0);
+            return $collection;
+        });
 
         return response()->json(['success' => true, 'data' => $collections]);
+    }
+
+    public function colors(): JsonResponse
+    {
+        if (!Schema::hasTable('colors')) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $nameColumn = $this->firstExistingColumn('colors', ['name', 'nombre']);
+        $hexColumn = $this->firstExistingColumn('colors', ['hex_code', 'color_hex']);
+        $activeColumn = $this->firstExistingColumn('colors', ['is_active', 'activo']);
+
+        $query = DB::table('colors')->select('id');
+        $query->addSelect($nameColumn ? "{$nameColumn} as name" : DB::raw("'Sin color' as name"));
+        $query->addSelect($hexColumn ? "{$hexColumn} as hex_code" : DB::raw('NULL as hex_code'));
+
+        if ($activeColumn) {
+            $query->where($activeColumn, 1);
+        }
+
+        if ($nameColumn) {
+            $query->orderBy($nameColumn);
+        }
+
+        $colors = $query->get()->map(function ($color) {
+            if (isset($color->name)) {
+                // Correccion on-the-fly de strings corruptos generados por legacy
+                $color->name = str_replace(
+                    ['Caf??', 'Mel??n', 'Marr??n', 'Lim??n', 'Ne??n'],
+                    ['Café', 'Melón', 'Marrón', 'Limón', 'Neón'],
+                    $color->name
+                );
+            }
+            return $color;
+        });
+
+        return response()->json(['success' => true, 'data' => $colors]);
     }
 
     public function storeCollection(Request $request): JsonResponse
@@ -413,17 +1022,35 @@ class AdminCatalogController extends Controller
             'imagen' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:100'],
             'launch_date' => ['nullable', 'date'],
+            'activo' => ['nullable', 'boolean'],
         ]);
 
-        $id = DB::table('collections')->insertGetId([
-            'nombre' => $data['nombre'],
-            'descripcion' => $data['descripcion'] ?? null,
-            'imagen' => $data['imagen'] ?? null,
+        $nameColumn = $this->firstExistingColumn('collections', ['nombre', 'name']);
+        $descriptionColumn = $this->firstExistingColumn('collections', ['descripcion', 'description']);
+        $imageColumn = $this->firstExistingColumn('collections', ['imagen', 'image']);
+        $activeColumn = $this->firstExistingColumn('collections', ['is_active', 'activo']);
+
+        $payload = [
+            ($nameColumn ?: 'name') => $data['nombre'],
             'slug' => $data['slug'] ?? Str::slug($data['nombre']),
             'launch_date' => $data['launch_date'] ?? null,
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
+
+        if ($descriptionColumn) {
+            $payload[$descriptionColumn] = $data['descripcion'] ?? null;
+        }
+
+        if ($imageColumn) {
+            $payload[$imageColumn] = $data['imagen'] ?? null;
+        }
+
+        if ($activeColumn) {
+            $payload[$activeColumn] = ($data['activo'] ?? true) ? 1 : 0;
+        }
+
+        $id = DB::table('collections')->insertGetId($payload);
 
         return response()->json(['success' => true, 'message' => 'Coleccion creada', 'id' => $id], 201);
     }
@@ -436,16 +1063,51 @@ class AdminCatalogController extends Controller
             'imagen' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:100'],
             'launch_date' => ['nullable', 'date'],
+            'activo' => ['nullable', 'boolean'],
         ]);
 
-        $data['updated_at'] = now();
-        DB::table('collections')->where('id', $id)->update($data);
+        $nameColumn = $this->firstExistingColumn('collections', ['nombre', 'name']);
+        $descriptionColumn = $this->firstExistingColumn('collections', ['descripcion', 'description']);
+        $imageColumn = $this->firstExistingColumn('collections', ['imagen', 'image']);
+        $activeColumn = $this->firstExistingColumn('collections', ['is_active', 'activo']);
+
+        $payload = ['updated_at' => now()];
+        if ($nameColumn && isset($data['nombre'])) {
+            $payload[$nameColumn] = $data['nombre'];
+        }
+        if ($descriptionColumn && array_key_exists('descripcion', $data)) {
+            $payload[$descriptionColumn] = $data['descripcion'];
+        }
+        if ($imageColumn && array_key_exists('imagen', $data)) {
+            $payload[$imageColumn] = $data['imagen'];
+        }
+        if (array_key_exists('slug', $data)) {
+            $payload['slug'] = $data['slug'];
+        }
+        if (array_key_exists('launch_date', $data)) {
+            $payload['launch_date'] = $data['launch_date'];
+        }
+        if ($activeColumn && array_key_exists('activo', $data)) {
+            $payload[$activeColumn] = $data['activo'] ? 1 : 0;
+        }
+
+        DB::table('collections')->where('id', $id)->update($payload);
 
         return response()->json(['success' => true, 'message' => 'Coleccion actualizada']);
     }
 
     public function destroyCollection(int $id): JsonResponse
     {
+        if (Schema::hasTable('products') && Schema::hasColumn('products', 'collection_id')) {
+            $productsUsingCollection = DB::table('products')->where('collection_id', $id)->count();
+            if ($productsUsingCollection > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes eliminar una coleccion que tiene productos asociados',
+                ], 422);
+            }
+        }
+
         DB::table('collections')->where('id', $id)->delete();
 
         return response()->json(['success' => true, 'message' => 'Coleccion eliminada']);
@@ -453,7 +1115,7 @@ class AdminCatalogController extends Controller
 
     // ── Tallas ──────────────────────────────────────────────────────
 
-    public function sizes(): JsonResponse
+    public function sizes(Request $request): JsonResponse
     {
         if (Schema::hasTable('sizes')) {
             $nameColumn = $this->firstExistingColumn('sizes', ['name', 'nombre', 'size_label']);
@@ -463,9 +1125,23 @@ class AdminCatalogController extends Controller
             $query = DB::table('sizes')->select('id');
             $query->addSelect($nameColumn ? "{$nameColumn} as name" : DB::raw("'Sin talla' as name"));
             $query->addSelect($orderColumn ? "{$orderColumn} as sort_order" : DB::raw('NULL as sort_order'));
+            $descriptionColumn = $this->firstExistingColumn('sizes', ['description', 'descripcion']);
+            $query->addSelect($descriptionColumn ? "{$descriptionColumn} as description" : DB::raw('NULL as description'));
+            $query->addSelect($activeColumn ? "{$activeColumn} as is_active" : DB::raw('TRUE as is_active'));
+
+            if (Schema::hasTable('product_size_variants') && Schema::hasColumn('product_size_variants', 'size_id')) {
+                $query->selectSub(
+                    DB::table('product_size_variants')
+                        ->selectRaw('COUNT(*)')
+                        ->whereColumn('product_size_variants.size_id', 'sizes.id'),
+                    'product_count',
+                );
+            }
 
             if ($activeColumn) {
-                $query->where($activeColumn, 1);
+                if (!$request->boolean('include_inactive')) {
+                    $query->where($activeColumn, 1);
+                }
             }
 
             if ($orderColumn) {
@@ -607,6 +1283,16 @@ class AdminCatalogController extends Controller
             return response()->json(['success' => false, 'message' => 'Tabla de tallas no disponible'], 422);
         }
 
+        if (Schema::hasTable('product_size_variants') && Schema::hasColumn('product_size_variants', 'size_id')) {
+            $sizeUsage = DB::table('product_size_variants')->where('size_id', $id)->count();
+            if ($sizeUsage > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No puedes eliminar una talla que ya esta asociada a variantes',
+                ], 422);
+            }
+        }
+
         $deleted = DB::table('sizes')->where('id', $id)->delete();
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Talla no encontrada'], 404);
@@ -643,6 +1329,7 @@ class AdminCatalogController extends Controller
             ->select(
                 'psv.id',
                 'p.id as product_id',
+                'pcv.id as color_variant_id',
                 DB::raw(($productNameColumn ? "p.{$productNameColumn}" : "'Producto'") . ' as product_name'),
                 DB::raw(($colorNameColumn ? "pcv.{$colorNameColumn}" : 'NULL') . ' as color_name'),
                 DB::raw("psv.{$stockColumn} as stock"),
@@ -686,6 +1373,57 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'data' => $items]);
     }
 
+    public function inventoryHistory(Request $request): JsonResponse
+    {
+        if (!Schema::hasTable('stock_history')) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $productNameColumn = $this->firstExistingColumn('products', ['nombre', 'name']);
+        $colorNameColumn = $this->firstExistingColumn('product_color_variants', ['color_name', 'name']);
+        $sizeNameColumn = $this->firstExistingColumn('sizes', ['name', 'nombre', 'size_label']);
+        $hasSizeTableJoin = Schema::hasTable('sizes') && Schema::hasColumn('product_size_variants', 'size_id');
+        $sizeLabelExpression = 'NULL as size_label';
+
+        if ($hasSizeTableJoin && $sizeNameColumn) {
+            $sizeLabelExpression = 's.' . $sizeNameColumn . ' as size_label';
+        } elseif (Schema::hasColumn('product_size_variants', 'size_label')) {
+            $sizeLabelExpression = 'psv.size_label as size_label';
+        }
+
+        $query = DB::table('stock_history as sh')
+            ->leftJoin('product_size_variants as psv', 'sh.variant_id', '=', 'psv.id')
+            ->leftJoin('product_color_variants as pcv', 'psv.color_variant_id', '=', 'pcv.id')
+            ->leftJoin('products as p', 'pcv.product_id', '=', 'p.id')
+            ->select(
+                'sh.*',
+                'psv.color_variant_id',
+                'pcv.product_id',
+                DB::raw(($productNameColumn ? 'p.' . $productNameColumn : "'Producto'") . ' as product_name'),
+                DB::raw(($colorNameColumn ? 'pcv.' . $colorNameColumn : 'NULL') . ' as color_name'),
+                DB::raw($sizeLabelExpression)
+            );
+
+        if ($hasSizeTableJoin) {
+            $query->leftJoin('sizes as s', 'psv.size_id', '=', 's.id');
+        }
+
+        if ($request->filled('product_id')) {
+            $query->where('pcv.product_id', (int) $request->input('product_id'));
+        }
+
+        if ($request->filled('variant_id')) {
+            $query->where('sh.variant_id', (int) $request->input('variant_id'));
+        }
+
+        $history = $query
+            ->orderByDesc('sh.created_at')
+            ->limit(100)
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $history]);
+    }
+
     public function adjustStock(Request $request, int $variantId): JsonResponse
     {
         $stockColumn = $this->firstExistingColumn('product_size_variants', ['stock', 'quantity']);
@@ -720,6 +1458,18 @@ class AdminCatalogController extends Controller
 
         DB::table('product_size_variants')->where('id', $variantId)->update($payload);
 
+        if (Schema::hasTable('stock_history')) {
+            DB::table('stock_history')->insert([
+                'variant_id' => $variantId,
+                'user_id' => (string) ($request->user()?->id ?? 'admin'),
+                'previous_qty' => $currentStock,
+                'new_qty' => $newStock,
+                'operation' => $data['action'],
+                'notes' => $data['reason'] ?? null,
+                'created_at' => now(),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Stock actualizado',
@@ -727,22 +1477,128 @@ class AdminCatalogController extends Controller
         ]);
     }
 
+    public function transferStock(Request $request): JsonResponse
+    {
+        $stockColumn = $this->firstExistingColumn('product_size_variants', ['stock', 'quantity']);
+        if (!$stockColumn) {
+            return response()->json(['success' => false, 'message' => 'No se encontro columna de stock'], 422);
+        }
+
+        $data = $request->validate([
+            'source_variant_id' => ['required', 'integer'],
+            'target_variant_id' => ['required', 'integer', 'different:source_variant_id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        DB::transaction(function () use ($data, $stockColumn, $request) {
+            $source = DB::table('product_size_variants')->where('id', $data['source_variant_id'])->lockForUpdate()->first();
+            $target = DB::table('product_size_variants')->where('id', $data['target_variant_id'])->lockForUpdate()->first();
+
+            if (!$source || !$target) {
+                abort(response()->json(['success' => false, 'message' => 'Variante origen o destino no encontrada'], 404));
+            }
+
+            $sourceQty = (int) ($source->{$stockColumn} ?? 0);
+            $targetQty = (int) ($target->{$stockColumn} ?? 0);
+
+            if ($sourceQty < $data['quantity']) {
+                abort(response()->json(['success' => false, 'message' => 'La variante origen no tiene stock suficiente'], 422));
+            }
+
+            DB::table('product_size_variants')->where('id', $source->id)->update([$stockColumn => $sourceQty - $data['quantity']]);
+            DB::table('product_size_variants')->where('id', $target->id)->update([$stockColumn => $targetQty + $data['quantity']]);
+
+            if (Schema::hasTable('stock_history')) {
+                $userId = (string) ($request->user()?->id ?? 'admin');
+                $note = $data['reason'] ?? 'Transferencia entre variantes';
+
+                DB::table('stock_history')->insert([
+                    [
+                        'variant_id' => $source->id,
+                        'user_id' => $userId,
+                        'previous_qty' => $sourceQty,
+                        'new_qty' => $sourceQty - $data['quantity'],
+                        'operation' => 'transfer',
+                        'notes' => $note,
+                        'created_at' => now(),
+                    ],
+                    [
+                        'variant_id' => $target->id,
+                        'user_id' => $userId,
+                        'previous_qty' => $targetQty,
+                        'new_qty' => $targetQty + $data['quantity'],
+                        'operation' => 'transfer',
+                        'notes' => $note,
+                        'created_at' => now(),
+                    ],
+                ]);
+            }
+        });
+
+        return response()->json(['success' => true, 'message' => 'Stock transferido correctamente']);
+    }
+
     // ── Resenas ─────────────────────────────────────────────────────
 
     public function reviews(Request $request): JsonResponse
     {
+        $reviewStatusColumn = $this->firstExistingColumn('product_reviews', ['status']);
+        $reviewApprovedColumn = $this->firstExistingColumn('product_reviews', ['is_approved']);
+        $reviewVerifiedColumn = $this->firstExistingColumn('product_reviews', ['is_verified']);
+        $reviewTitleColumn = $this->firstExistingColumn('product_reviews', ['title']);
+        $reviewCommentColumn = $this->firstExistingColumn('product_reviews', ['comment', 'body']);
         $productNameColumn = $this->firstExistingColumn('products', ['nombre', 'name']);
 
         $query = DB::table('product_reviews as pr')
             ->leftJoin('products as p', 'pr.product_id', '=', 'p.id')
             ->select('pr.*');
 
+        if (!$reviewStatusColumn && $reviewApprovedColumn) {
+            $query->addSelect(DB::raw("CASE WHEN COALESCE(pr.{$reviewApprovedColumn}, false) THEN 'approved' ELSE 'pending' END as status"));
+        }
+
         if ($productNameColumn) {
             $query->addSelect("p.{$productNameColumn} as product_name");
         }
 
-        if ($request->filled('status')) {
-            $query->where('pr.status', $request->input('status'));
+        $status = trim($request->string('status')->toString());
+        if ($status !== '' && $status !== 'all') {
+
+            if ($reviewStatusColumn) {
+                $query->where("pr.{$reviewStatusColumn}", $status);
+            } elseif ($reviewApprovedColumn) {
+                $query->where("pr.{$reviewApprovedColumn}", $status === 'approved');
+            }
+        }
+
+        if ($request->filled('rating')) {
+            $query->where('pr.rating', (int) $request->input('rating'));
+        }
+
+        $verified = trim((string) $request->input('verified', ''));
+        if ($reviewVerifiedColumn && $verified !== '' && $verified !== 'all') {
+            $query->where("pr.{$reviewVerifiedColumn}", filter_var($verified, FILTER_VALIDATE_BOOLEAN));
+        }
+
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->string('search')->toString()) . '%';
+            $likeOperator = $this->likeOperator();
+
+            $query->where(function ($searchQuery) use ($term, $likeOperator, $reviewTitleColumn, $reviewCommentColumn, $productNameColumn) {
+                if ($reviewTitleColumn) {
+                    $searchQuery->where("pr.{$reviewTitleColumn}", $likeOperator, $term);
+                }
+
+                if ($reviewCommentColumn) {
+                    $method = $reviewTitleColumn ? 'orWhere' : 'where';
+                    $searchQuery->{$method}("pr.{$reviewCommentColumn}", $likeOperator, $term);
+                }
+
+                if ($productNameColumn) {
+                    $searchQuery->orWhere("p.{$productNameColumn}", $likeOperator, $term);
+                }
+            });
         }
 
         $reviews = $query->orderByDesc('pr.created_at')->limit(200)->get();
@@ -753,13 +1609,36 @@ class AdminCatalogController extends Controller
     public function updateReviewStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
-            'status' => ['required', 'in:pending,approved,rejected'],
+            'status' => ['nullable', 'in:pending,approved,rejected'],
+            'is_verified' => ['nullable', 'boolean'],
         ]);
 
-        $updated = DB::table('product_reviews')->where('id', $id)->update([
-            'status' => $data['status'],
-            'updated_at' => now(),
-        ]);
+        if (!array_key_exists('status', $data) && !array_key_exists('is_verified', $data)) {
+            return response()->json(['success' => false, 'message' => 'No se enviaron cambios para la reseña'], 422);
+        }
+
+        $statusColumn = $this->firstExistingColumn('product_reviews', ['status']);
+        $approvedColumn = $this->firstExistingColumn('product_reviews', ['is_approved']);
+        $verifiedColumn = $this->firstExistingColumn('product_reviews', ['is_verified']);
+        $payload = [];
+
+        if (array_key_exists('status', $data)) {
+            if ($statusColumn) {
+                $payload[$statusColumn] = $data['status'];
+            } elseif ($approvedColumn) {
+                $payload[$approvedColumn] = $data['status'] === 'approved';
+            }
+        }
+
+        if ($verifiedColumn && array_key_exists('is_verified', $data)) {
+            $payload[$verifiedColumn] = (bool) $data['is_verified'];
+        }
+
+        if (Schema::hasColumn('product_reviews', 'updated_at')) {
+            $payload['updated_at'] = now();
+        }
+
+        $updated = DB::table('product_reviews')->where('id', $id)->update($payload);
 
         if (!$updated) {
             return response()->json(['success' => false, 'message' => 'Resena no encontrada'], 404);
@@ -768,10 +1647,22 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Resena actualizada']);
     }
 
+    public function deleteReview(int $id): JsonResponse
+    {
+        $deleted = DB::table('product_reviews')->where('id', $id)->delete();
+
+        if (!$deleted) {
+            return response()->json(['success' => false, 'message' => 'Resena no encontrada'], 404);
+        }
+
+        return response()->json(['success' => true, 'message' => 'Resena eliminada']);
+    }
+
     // ── Preguntas ───────────────────────────────────────────────────
 
     public function questions(Request $request): JsonResponse
     {
+        $questionAnswerColumn = $this->firstExistingColumn('question_answers', ['answer', 'answer_text']) ?: 'answer';
         $productNameColumn = $this->firstExistingColumn('products', ['nombre', 'name']);
 
         $query = DB::table('product_questions as pq')
@@ -780,6 +1671,19 @@ class AdminCatalogController extends Controller
 
         if ($productNameColumn) {
             $query->addSelect("p.{$productNameColumn} as product_name");
+        }
+
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->string('search')->toString()) . '%';
+            $likeOperator = $this->likeOperator();
+
+            $query->where(function ($searchQuery) use ($term, $likeOperator, $productNameColumn) {
+                $searchQuery->where('pq.question', $likeOperator, $term);
+
+                if ($productNameColumn) {
+                    $searchQuery->orWhere("p.{$productNameColumn}", $likeOperator, $term);
+                }
+            });
         }
 
         $questions = $query->orderByDesc('pq.created_at')->limit(200)->get();
@@ -796,11 +1700,20 @@ class AdminCatalogController extends Controller
                 ->groupBy('question_id');
         }
 
-        $questions = $questions->map(function ($q) use ($answers) {
+        $questions = $questions->map(function ($q) use ($answers, $questionAnswerColumn, $request) {
             $q->answers = $answers->get($q->id, collect())->values();
-            $q->answer = $q->answers->first()?->answer_text ?? null;
+            $q->answer = $q->answers->first()?->{$questionAnswerColumn} ?? null;
+            $q->answer_count = $q->answers->count();
             return $q;
         });
+
+        if ($request->filled('answered')) {
+            $answered = filter_var($request->input('answered'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            if ($answered !== null) {
+                $questions = $questions->filter(static fn ($question) => $answered ? $question->answer_count > 0 : $question->answer_count === 0)->values();
+            }
+        }
 
         return response()->json(['success' => true, 'data' => $questions]);
     }
@@ -808,8 +1721,14 @@ class AdminCatalogController extends Controller
     public function answerQuestion(Request $request, int $questionId): JsonResponse
     {
         $data = $request->validate([
-            'answer_text' => ['required', 'string', 'max:2000'],
+            'answer_text' => ['nullable', 'string', 'max:2000'],
+            'answer' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        $answerValue = trim((string) ($data['answer_text'] ?? $data['answer'] ?? ''));
+        if ($answerValue === '') {
+            return response()->json(['success' => false, 'message' => 'La respuesta es obligatoria'], 422);
+        }
 
         $question = DB::table('product_questions')->where('id', $questionId)->first();
 
@@ -819,15 +1738,39 @@ class AdminCatalogController extends Controller
 
         $admin = $request->input('_admin_user', []);
 
-        DB::table('question_answers')->insert([
+        $answerColumn = $this->firstExistingColumn('question_answers', ['answer', 'answer_text']) ?: 'answer';
+        $sellerColumn = $this->firstExistingColumn('question_answers', ['is_seller', 'is_admin']);
+
+        $payload = [
             'question_id' => $questionId,
             'user_id' => $admin['id'] ?? null,
-            'answer_text' => $data['answer_text'],
-            'is_admin' => true,
+            $answerColumn => $answerValue,
             'created_at' => now(),
-        ]);
+        ];
+
+        if ($sellerColumn) {
+            $payload[$sellerColumn] = true;
+        }
+
+        DB::table('question_answers')->insert($payload);
 
         return response()->json(['success' => true, 'message' => 'Respuesta enviada']);
+    }
+
+    public function deleteQuestion(int $questionId): JsonResponse
+    {
+        $question = DB::table('product_questions')->where('id', $questionId)->first();
+
+        if (!$question) {
+            return response()->json(['success' => false, 'message' => 'Pregunta no encontrada'], 404);
+        }
+
+        DB::transaction(function () use ($questionId) {
+            DB::table('question_answers')->where('question_id', $questionId)->delete();
+            DB::table('product_questions')->where('id', $questionId)->delete();
+        });
+
+        return response()->json(['success' => true, 'message' => 'Pregunta eliminada']);
     }
 
     // ── Sliders ─────────────────────────────────────────────────────

@@ -1,31 +1,97 @@
 <template>
-  <div>
+  <div class="admin-entity-page">
     <AdminPageHeader
       icon="fas fa-folder-open"
       title="Categorias"
-      subtitle="Administra las categorias de productos."
-      :breadcrumbs="[{ label: 'Categorias' }]"
+      subtitle="Gestiona estructura, estado y contenido descriptivo de las categorias del catalogo."
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Categorias' }]"
     >
       <template #actions>
-        <button class="btn btn-primary" @click="openModal()"><i class="fas fa-plus"></i> Nueva categoria</button>
+        <button class="btn btn-primary" type="button" @click="openModal()">
+          <i class="fas fa-plus"></i> Nueva categoria
+        </button>
       </template>
     </AdminPageHeader>
 
+    <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
+
+    <div class="filters-bar entity-filters">
+      <div class="filter-group entity-filters__search">
+        <label for="category-search">Buscar</label>
+        <input id="category-search" v-model="search" type="text" placeholder="Nombre, slug o descripcion">
+      </div>
+      <div class="filter-group">
+        <label for="category-status">Estado</label>
+        <select id="category-status" v-model="statusFilter">
+          <option value="">Todas</option>
+          <option value="active">Activas</option>
+          <option value="inactive">Inactivas</option>
+        </select>
+      </div>
+      <div class="entity-filters__summary">
+        <span><i class="fas fa-list"></i> {{ filteredCategories.length }} resultado(s)</span>
+      </div>
+    </div>
+
     <AdminCard :flush="true">
-      <AdminTableShimmer v-if="loading" :rows="5" :columns="['thumb', 'line', 'line', 'pill', 'btn']" />
-      <AdminEmptyState v-else-if="categories.length === 0" icon="fas fa-folder-open" title="Sin categorias" description="Crea categorias para organizar los productos." />
+      <AdminTableShimmer v-if="loading" :rows="6" :columns="['thumb', 'line', 'line', 'line', 'pill', 'btn']" />
+      <AdminEmptyState
+        v-else-if="filteredCategories.length === 0"
+        icon="fas fa-folder-open"
+        title="Sin categorias visibles"
+        description="Ajusta los filtros o crea una nueva categoria para empezar."
+      />
       <div v-else class="table-responsive">
         <table class="dashboard-table">
-          <thead><tr><th>Imagen</th><th>Nombre</th><th>Slug</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Imagen</th>
+              <th>Nombre</th>
+              <th>Descripcion</th>
+              <th>Productos</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="c in categories" :key="c.id">
-              <td><img :src="catImage(c)" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover;"></td>
-              <td><strong>{{ c.name }}</strong></td>
-              <td>{{ c.slug }}</td>
-              <td><span class="status-badge" :class="c.is_active !== false ? 'active' : 'inactive'">{{ c.is_active !== false ? 'Activa' : 'Inactiva' }}</span></td>
+            <tr v-for="category in filteredCategories" :key="category.id">
               <td>
-                <button class="action-btn edit" @click="openModal(c)"><i class="fas fa-edit"></i></button>
-                <button class="action-btn delete" @click="confirmDelete(c)"><i class="fas fa-trash"></i></button>
+                <img
+                  :src="resolveCategoryImage(category)"
+                  :alt="category.name"
+                  class="entity-thumb"
+                  @error="onCategoryImageError($event, category.image)"
+                >
+              </td>
+              <td>
+                <div class="entity-name-cell">
+                  <strong>{{ category.name }}</strong>
+                  <span>{{ category.slug || 'Sin slug' }}</span>
+                </div>
+              </td>
+              <td>
+                <p class="entity-description">{{ excerpt(category.description, 120) }}</p>
+              </td>
+              <td>
+                <span class="entity-count-pill">{{ category.product_count }} producto(s)</span>
+              </td>
+              <td>
+                <span class="status-badge" :class="category.is_active ? 'active' : 'inactive'">
+                  {{ category.is_active ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td>
+                <div class="entity-actions">
+                  <button class="action-btn edit" type="button" title="Editar" @click="openModal(category)">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button class="action-btn view" type="button" :title="category.is_active ? 'Desactivar' : 'Activar'" @click="toggleStatus(category)">
+                    <i class="fas fa-power-off"></i>
+                  </button>
+                  <button class="action-btn delete" type="button" title="Eliminar" :disabled="category.product_count > 0" @click="confirmDelete(category)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -33,128 +99,362 @@
       </div>
     </AdminCard>
 
-    <!-- Modal -->
-    <div v-if="showModal" class="admin-modal-overlay" @click.self="showModal = false">
-      <div class="admin-modal">
-        <div class="admin-modal-header">
-          <h3>{{ editing ? 'Editar categoria' : 'Nueva categoria' }}</h3>
-          <button class="admin-modal-close" @click="showModal = false">&times;</button>
+    <AdminModal :show="showModal" :title="editing ? 'Editar categoria' : 'Nueva categoria'" max-width="720px" @close="closeModal">
+      <div class="entity-form-grid">
+        <div class="form-group entity-form-grid__full">
+          <label for="category-name">Nombre *</label>
+          <input id="category-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
+          <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
         </div>
-        <div class="admin-modal-body">
-          <div class="form-group">
-            <label>Nombre *</label>
-            <input v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="errors.name = form.name.trim() ? '' : 'Obligatorio'">
-            <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
-          </div>
-          <div class="form-group">
-            <label>Slug</label>
-            <input v-model="form.slug" class="form-control" placeholder="se-genera-automaticamente">
-          </div>
-          <div class="form-group">
-            <label>Estado</label>
-            <label class="toggle-switch">
-              <input type="checkbox" v-model="form.is_active">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
+
+        <div class="form-group">
+          <label for="category-slug">Slug</label>
+          <input id="category-slug" v-model="form.slug" class="form-control" placeholder="se-genera-automaticamente">
         </div>
-        <div class="admin-modal-footer">
-          <button class="btn btn-secondary" @click="showModal = false">Cancelar</button>
-          <button class="btn btn-primary" @click="saveCategory">{{ editing ? 'Actualizar' : 'Crear' }}</button>
+
+        <div class="form-group">
+          <label for="category-image">Ruta de imagen</label>
+          <input id="category-image" v-model="form.image" class="form-control" placeholder="/uploads/categories/mi-categoria.jpg">
+        </div>
+
+        <div class="form-group entity-form-grid__full">
+          <label for="category-description">Descripcion</label>
+          <textarea id="category-description" v-model="form.description" class="form-control" rows="4" placeholder="Describe la categoria y su alcance comercial."></textarea>
+        </div>
+
+        <div class="form-group entity-form-grid__full entity-form-toggle">
+          <div>
+            <strong>Categoria activa</strong>
+            <p>Permite que siga disponible para asociarla a productos.</p>
+          </div>
+          <label class="toggle-switch">
+            <input v-model="form.is_active" type="checkbox">
+            <span class="toggle-slider"></span>
+          </label>
         </div>
       </div>
-    </div>
+
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="closeModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" @click="saveCategory">
+          {{ editing ? 'Actualizar categoria' : 'Crear categoria' }}
+        </button>
+      </template>
+    </AdminModal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { catalogHttp } from '../../../services/http'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
-import AdminPageHeader from '../components/AdminPageHeader.vue'
+import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
-import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminModal from '../components/AdminModal.vue'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminStatsGrid from '../components/AdminStatsGrid.vue'
+import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
-const { showSnackbar } = useSnackbarSystem()
 const { showAlert } = useAlertSystem()
+const { showSnackbar } = useSnackbarSystem()
 
 const categories = ref([])
 const loading = ref(true)
+const search = ref('')
+const statusFilter = ref('')
 const showModal = ref(false)
 const editing = ref(null)
-const form = reactive({ name: '', slug: '', is_active: true })
-const errors = reactive({ name: '' })
 
-function catImage(c) {
-  if (c.image) {
-    if (c.image.startsWith('http') || c.image.startsWith('/')) return c.image
-    return `/uploads/categories/${c.image}`
+const form = reactive({
+  name: '',
+  slug: '',
+  description: '',
+  image: '',
+  is_active: true,
+})
+
+const errors = reactive({
+  name: '',
+})
+
+const filteredCategories = computed(() => {
+  const term = search.value.trim().toLowerCase()
+
+  return categories.value.filter((category) => {
+    const matchesSearch = !term || [category.name, category.slug, category.description]
+      .some((value) => String(value || '').toLowerCase().includes(term))
+
+    const matchesStatus = !statusFilter.value
+      || (statusFilter.value === 'active' && category.is_active)
+      || (statusFilter.value === 'inactive' && !category.is_active)
+
+    return matchesSearch && matchesStatus
+  })
+})
+
+const stats = computed(() => {
+  const total = categories.value.length
+  const active = categories.value.filter((category) => category.is_active).length
+  const inactive = total - active
+  const linkedProducts = categories.value.reduce((sum, category) => sum + Number(category.product_count || 0), 0)
+
+  return [
+    { key: 'total', label: 'Categorias totales', value: String(total), icon: 'fas fa-tags', color: 'primary' },
+    { key: 'active', label: 'Categorias activas', value: String(active), icon: 'fas fa-check-circle', color: 'success' },
+    { key: 'inactive', label: 'Categorias inactivas', value: String(inactive), icon: 'fas fa-pause-circle', color: 'warning' },
+    { key: 'products', label: 'Productos asociados', value: String(linkedProducts), icon: 'fas fa-box-open', color: 'info' },
+  ]
+})
+
+function normalizeCategory(item) {
+  return {
+    ...item,
+    id: Number(item.id),
+    name: item.name || item.nombre || 'Sin nombre',
+    slug: item.slug || '',
+    description: item.description || item.descripcion || '',
+    image: item.image || item.imagen || null,
+    product_count: Number(item.product_count || 0),
+    is_active: typeof item.is_active === 'boolean' ? item.is_active : Boolean(Number(item.activo ?? 1)),
   }
-  return '/assets/foundnotimages/category.png'
 }
 
-function openModal(cat = null) {
-  editing.value = cat
-  form.name = cat?.name || ''
-  form.slug = cat?.slug || ''
-  form.is_active = cat?.is_active !== false
+function resolveCategoryImage(category) {
+  return resolveMediaUrl(category.image, 'category')
+}
+
+function onCategoryImageError(event, imagePath) {
+  handleMediaError(event, imagePath, 'category')
+}
+
+function excerpt(value, max = 100) {
+  const text = String(value || '').trim()
+  if (!text) return 'Sin descripcion'
+  return text.length > max ? `${text.slice(0, max).trim()}...` : text
+}
+
+function validateField(field) {
+  if (field === 'name') {
+    errors.name = form.name.trim().length >= 2 ? '' : 'El nombre es obligatorio y debe tener al menos 2 caracteres.'
+  }
+}
+
+function resetForm() {
+  form.name = ''
+  form.slug = ''
+  form.description = ''
+  form.image = ''
+  form.is_active = true
   errors.name = ''
+}
+
+function openModal(category = null) {
+  editing.value = category
+  resetForm()
+
+  if (category) {
+    form.name = category.name
+    form.slug = category.slug
+    form.description = category.description
+    form.image = category.image || ''
+    form.is_active = category.is_active
+  }
+
   showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  editing.value = null
 }
 
 async function loadCategories() {
   loading.value = true
   try {
-    const res = await catalogHttp.get('/admin/categories')
-    const data = res.data?.data || res.data || []
+    const response = await catalogHttp.get('/admin/categories')
+    const data = response.data?.data || response.data || []
     const rows = Array.isArray(data) ? data : (data.data || [])
-    categories.value = rows.map((item) => ({
-      ...item,
-      name: item.name || item.nombre || 'Sin nombre',
-      image: item.image || item.imagen || null,
-      is_active: typeof item.is_active === 'boolean' ? item.is_active : Boolean(Number(item.activo ?? 1)),
-    }))
-  } catch { showSnackbar({ type: 'error', message: 'Error cargando categorias' }) }
-  finally { loading.value = false }
+    categories.value = rows.map(normalizeCategory)
+  } catch {
+    showSnackbar({ type: 'error', message: 'Error cargando categorias' })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function saveCategory() {
-  if (!form.name.trim()) { errors.name = 'Obligatorio'; return }
-  try {
-    const payload = {
-      nombre: form.name.trim(),
-      slug: form.slug?.trim() || null,
-      activo: form.is_active,
-    }
+  validateField('name')
+  if (errors.name) return
 
+  const payload = {
+    nombre: form.name.trim(),
+    slug: form.slug?.trim() || null,
+    descripcion: form.description?.trim() || null,
+    imagen: form.image?.trim() || null,
+    activo: form.is_active,
+  }
+
+  try {
     if (editing.value?.id) {
       await catalogHttp.put(`/admin/categories/${editing.value.id}`, payload)
+      showSnackbar({ type: 'success', message: 'Categoria actualizada' })
     } else {
       await catalogHttp.post('/admin/categories', payload)
+      showSnackbar({ type: 'success', message: 'Categoria creada' })
     }
 
-    showSnackbar({ type: 'success', message: editing.value ? 'Categoria actualizada' : 'Categoria creada' })
-    showModal.value = false
+    closeModal()
     await loadCategories()
-  } catch { showSnackbar({ type: 'error', message: 'Error guardando categoria' }) }
+  } catch (error) {
+    showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error guardando categoria' })
+  }
 }
 
-function confirmDelete(cat) {
-  showAlert({ type: 'warning', title: 'Eliminar', message: `¿Eliminar "${cat.name}"?`, actions: [
-    { text: 'Cancelar', style: 'secondary' },
-    { text: 'Eliminar', style: 'danger', callback: async () => {
-      try {
-        await catalogHttp.delete(`/admin/categories/${cat.id}`)
-        showSnackbar({ type: 'success', message: 'Categoria eliminada' })
-        await loadCategories()
-      }
-      catch { showSnackbar({ type: 'error', message: 'Error eliminando' }) }
-    }},
-  ]})
+function confirmDelete(category) {
+  showAlert({
+    type: 'warning',
+    title: 'Eliminar categoria',
+    message: category.product_count > 0
+      ? `La categoria ${category.name} tiene productos asociados y no se puede eliminar.`
+      : `¿Deseas eliminar la categoria ${category.name}?`,
+    actions: category.product_count > 0
+      ? [{ text: 'Entendido', style: 'primary' }]
+      : [
+          { text: 'Cancelar', style: 'secondary' },
+          {
+            text: 'Eliminar',
+            style: 'danger',
+            callback: async () => {
+              try {
+                await catalogHttp.delete(`/admin/categories/${category.id}`)
+                showSnackbar({ type: 'success', message: 'Categoria eliminada' })
+                await loadCategories()
+              } catch (error) {
+                showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error eliminando categoria' })
+              }
+            },
+          },
+        ],
+  })
+}
+
+async function toggleStatus(category) {
+  try {
+    await catalogHttp.put(`/admin/categories/${category.id}`, {
+      nombre: category.name,
+      slug: category.slug || null,
+      descripcion: category.description || null,
+      imagen: category.image || null,
+      activo: !category.is_active,
+    })
+    showSnackbar({
+      type: 'success',
+      message: !category.is_active ? 'Categoria activada' : 'Categoria desactivada',
+    })
+    await loadCategories()
+  } catch (error) {
+    showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error actualizando estado' })
+  }
 }
 
 onMounted(loadCategories)
 </script>
+
+<style scoped>
+.entity-filters {
+  justify-content: space-between;
+}
+
+.entity-filters__search {
+  flex: 1 1 320px;
+}
+
+.entity-filters__search input {
+  width: 100%;
+}
+
+.entity-filters__summary {
+  margin-left: auto;
+  color: var(--admin-text-light);
+  font-size: 1.3rem;
+}
+
+.entity-thumb {
+  width: 4.4rem;
+  height: 4.4rem;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--admin-bg-dark);
+}
+
+.entity-name-cell,
+.entity-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.entity-name-cell {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.entity-name-cell span,
+.entity-description {
+  color: var(--admin-text-light);
+  font-size: 1.25rem;
+}
+
+.entity-description {
+  margin: 0;
+}
+
+.entity-count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  background: rgba(0, 119, 182, 0.08);
+  color: var(--admin-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.entity-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.entity-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+.entity-form-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+}
+
+.entity-form-toggle p {
+  margin: 0.3rem 0 0;
+  color: var(--admin-text-light);
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .entity-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .entity-actions {
+    flex-wrap: wrap;
+  }
+}
+</style>

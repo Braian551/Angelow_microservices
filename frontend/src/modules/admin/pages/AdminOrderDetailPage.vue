@@ -126,7 +126,7 @@ async function loadOrder() {
 
 async function updateStatus(status) {
   try {
-    await orderHttp.patch(`/orders/${orderId}/status`, { order_status: status })
+    await orderHttp.patch(`/orders/${orderId}/status`, { status })
     showSnackbar({ type: 'success', message: 'Estado actualizado' })
     loadOrder()
   } catch {

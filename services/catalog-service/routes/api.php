@@ -60,6 +60,8 @@ Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     Route::post('/collections', [AdminCatalogController::class, 'storeCollection']);
     Route::put('/collections/{id}', [AdminCatalogController::class, 'updateCollection']);
     Route::delete('/collections/{id}', [AdminCatalogController::class, 'destroyCollection']);
+    // Colores
+    Route::get('/colors', [AdminCatalogController::class, 'colors']);
     // Tallas
     Route::get('/sizes', [AdminCatalogController::class, 'sizes']);
     Route::post('/sizes', [AdminCatalogController::class, 'storeSize']);
@@ -67,13 +69,17 @@ Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     Route::delete('/sizes/{id}', [AdminCatalogController::class, 'destroySize']);
     // Inventario
     Route::get('/inventory', [AdminCatalogController::class, 'inventory']);
+    Route::get('/inventory/history', [AdminCatalogController::class, 'inventoryHistory']);
     Route::patch('/inventory/{variantId}/stock', [AdminCatalogController::class, 'adjustStock']);
+    Route::post('/inventory/transfer', [AdminCatalogController::class, 'transferStock']);
     // Resenas
     Route::get('/reviews', [AdminCatalogController::class, 'reviews']);
     Route::patch('/reviews/{id}', [AdminCatalogController::class, 'updateReviewStatus']);
+    Route::delete('/reviews/{id}', [AdminCatalogController::class, 'deleteReview']);
     // Preguntas
     Route::get('/questions', [AdminCatalogController::class, 'questions']);
     Route::post('/questions/{id}/answer', [AdminCatalogController::class, 'answerQuestion']);
+    Route::delete('/questions/{id}', [AdminCatalogController::class, 'deleteQuestion']);
     // Sliders
     Route::get('/sliders', [AdminCatalogController::class, 'sliders']);
     Route::post('/sliders', [AdminCatalogController::class, 'storeSlider']);

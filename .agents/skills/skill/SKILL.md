@@ -26,6 +26,7 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 17. Después de cambios en endpoints/controladores, se deben ejecutar pruebas de verificación (endpoint o lógica equivalente) y eliminar al final cualquier archivo temporal de test/debug creado para esa validación.
 18. Todo ajuste visual en frontend debe validarse y resolverse de forma responsiva en desktop, tablet y móvil; no se considera terminado si la UI se rompe o se solapa en alguno de esos tamaños.
 19. Nunca usar colores degradados en la UI de microservicios, salvo que una pantalla legacy específica ya los tenga y la tarea exija replicarlos exactamente.
+20. Si las respuestas de las bases de datos (especialmente legacy) traen caracteres corruptos o errores UTF-8 (por ejemplo `Caf??` o `Mel??n`), se deben aplicar correcciones on-the-fly en las respuestas del backend o parseos del frontend para restaurar los formatos correctos (ej. `Café`, `Melón`) garantizando consistencia visual hasta que los esquemas DB de origen sean completamente corregidos en la migración.
 
 ## Arquitectura funcional (resumen)
 - `auth-service`: login, registro, perfil, recuperación de contraseña.

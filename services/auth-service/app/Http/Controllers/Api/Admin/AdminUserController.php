@@ -29,6 +29,20 @@ class AdminUserController extends Controller
         $query = User::query()->where('role', 'customer');
         $likeOperator = $this->likeOperator();
 
+        if ($request->filled('ids')) {
+            $rawIds = explode(',', $request->string('ids')->toString());
+            $ids = collect($rawIds)
+                ->map(static fn ($id) => trim((string) $id))
+                ->filter(static fn ($id) => $id !== '')
+                ->unique()
+                ->take(200)
+                ->values();
+
+            if ($ids->isNotEmpty()) {
+                $query->whereIn('id', $ids->all());
+            }
+        }
+
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($q) use ($search, $likeOperator) {
