@@ -1,101 +1,484 @@
 <template>
-  <div>
-    <AdminPageHeader icon="fas fa-dollar-sign" title="Reglas de envio por precio" subtitle="Configura tarifas de envio segun el total del pedido." :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Reglas de envio' }]">
+  <div class="admin-shipping-rules-page">
+    <AdminPageHeader
+      icon="fas fa-dollar-sign"
+      title="Reglas por precio"
+      subtitle="Configura la misma logica operativa de tarifas por rangos con modales, resumen y validacion en tiempo real."
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Reglas por precio' }]"
+    >
       <template #actions>
-        <button class="btn btn-primary" @click="openModal()"><i class="fas fa-plus"></i> Nueva regla</button>
+        <button class="btn btn-secondary" type="button" @click="exportRules">
+          <i class="fas fa-file-export"></i>
+          Exportar
+        </button>
+        <button class="btn btn-primary" type="button" @click="openCreateModal">
+          <i class="fas fa-plus"></i>
+          Nueva regla
+        </button>
       </template>
     </AdminPageHeader>
 
-    <AdminCard title="Reglas de envio" icon="fas fa-shipping-fast" :flush="true">
-      <AdminTableShimmer v-if="loading" :rows="5" :columns="['line','line','line','pill','btn']" />
-      <AdminEmptyState v-else-if="rules.length === 0" icon="fas fa-shipping-fast" title="Sin reglas de envio" description="Crea reglas para calcular el envio automaticamente." />
-      <table v-else class="admin-table">
-        <thead><tr><th>Desde ($)</th><th>Hasta ($)</th><th>Costo envio ($)</th><th>Envio gratis</th><th>Acciones</th></tr></thead>
-        <tbody>
-          <tr v-for="r in rules" :key="r.id">
-            <td>${{ Number(r.min_amount || 0).toLocaleString() }}</td>
-            <td>{{ r.max_amount ? `$${Number(r.max_amount).toLocaleString()}` : 'Sin limite' }}</td>
-            <td>{{ r.free_shipping ? 'Gratis' : `$${Number(r.shipping_cost || 0).toLocaleString()}` }}</td>
-            <td><span class="status-badge" :class="r.free_shipping ? 'approved' : 'pending'">{{ r.free_shipping ? 'Si' : 'No' }}</span></td>
-            <td>
-              <button class="btn btn-sm btn-secondary" @click="openModal(r)"><i class="fas fa-edit"></i></button>
-              <button class="btn btn-sm btn-danger" @click="deleteRule(r.id)"><i class="fas fa-trash"></i></button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </AdminCard>
+    <AdminStatsGrid :loading="loading" :count="4" :stats="ruleStats" />
 
-    <!-- Modal -->
-    <div v-if="showModal" class="admin-modal-overlay" @click.self="showModal = false">
-      <div class="admin-modal">
-        <div class="modal-header"><h3>{{ editing ? 'Editar regla' : 'Nueva regla' }}</h3><button class="modal-close" @click="showModal = false">&times;</button></div>
-        <div class="modal-body">
-          <div class="form-group"><label>Monto minimo ($)</label><input v-model.number="form.min_amount" type="number" class="form-input" min="0" /></div>
-          <div class="form-group"><label>Monto maximo ($) <small>(dejar vacio = sin limite)</small></label><input v-model.number="form.max_amount" type="number" class="form-input" min="0" /></div>
-          <div class="form-group"><label class="toggle-label"><input type="checkbox" v-model="form.free_shipping" /> Envio gratis</label></div>
-          <div v-if="!form.free_shipping" class="form-group"><label>Costo de envio ($)</label><input v-model.number="form.shipping_cost" type="number" class="form-input" min="0" /></div>
+    <AdminCard class="filters-card" :flush="true">
+      <template #header>
+        <div class="filters-header">
+          <div class="filters-title">
+            <i class="fas fa-filter"></i>
+            <h3>Filtros de vigencia</h3>
+          </div>
+          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
+            <i class="fas fa-chevron-down"></i>
+          </button>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="showModal = false">Cancelar</button>
-          <button class="btn btn-primary" @click="saveRule">{{ editing ? 'Guardar' : 'Crear' }}</button>
+      </template>
+
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <i class="fas fa-search search-icon"></i>
+          <input v-model.trim="filters.search" type="text" class="search-input" placeholder="Buscar por rango o valor...">
+          <button v-if="filters.search" type="button" class="search-clear" @click="filters.search = ''">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
       </div>
+
+      <div v-show="showAdvanced" class="filters-advanced">
+        <div class="filters-row filters-row--shipping-rules">
+          <div class="filter-group">
+            <label for="shipping-rule-status"><i class="fas fa-signal"></i> Estado</label>
+            <select id="shipping-rule-status" v-model="filters.state">
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+              <option value="free">Envio gratis</option>
+              <option value="paid">Con cobro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filters-actions-bar">
+          <div class="active-filters">
+            <i class="fas fa-sliders-h"></i>
+            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
+          </div>
+          <div class="filters-buttons">
+            <button type="button" class="btn-clear-filters" @click="clearFilters">
+              <i class="fas fa-times-circle"></i>
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      </div>
+    </AdminCard>
+
+    <div class="results-summary">
+      <div class="results-info">
+        <i class="fas fa-list-ul"></i>
+        <p>Mostrando {{ filteredRules.length }} reglas</p>
+      </div>
     </div>
+
+    <AdminCard title="Bandeja de reglas" icon="fas fa-shipping-fast" :flush="true">
+      <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'pill', 'btn']" />
+      <AdminEmptyState
+        v-else-if="filteredRules.length === 0"
+        icon="fas fa-shipping-fast"
+        title="Sin reglas por precio"
+        description="No hay reglas configuradas o ninguna coincide con los filtros activos."
+      />
+      <div v-else class="table-responsive">
+        <table class="dashboard-table shipping-rules-table">
+          <thead>
+            <tr>
+              <th>Rango</th>
+              <th>Lectura comercial</th>
+              <th>Costo</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="rule in filteredRules" :key="rule.id">
+              <td>
+                <div class="entity-name-cell">
+                  <strong>{{ rangeLabel(rule) }}</strong>
+                  <span>{{ rule.max_price ? 'Rango cerrado' : 'Sin tope maximo' }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="entity-name-cell">
+                  <strong>{{ isFreeRule(rule) ? 'Envio gratis' : formatCurrency(rule.shipping_cost) }}</strong>
+                  <span>{{ pricingNarrative(rule) }}</span>
+                </div>
+              </td>
+              <td><strong>{{ isFreeRule(rule) ? 'Gratis' : formatCurrency(rule.shipping_cost) }}</strong></td>
+              <td>
+                <span class="status-badge" :class="ruleStatusClass(rule)">{{ ruleStatusLabel(rule) }}</span>
+              </td>
+              <td>
+                <div class="entity-actions">
+                  <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal(rule)">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button class="action-btn edit" type="button" title="Editar regla" @click="openEditModal(rule)">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button class="action-btn delete" type="button" title="Eliminar regla" @click="confirmDeleteRule(rule)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </AdminCard>
+
+    <AdminModal :show="showDetailModal" :title="selectedRule ? rangeLabel(selectedRule) : 'Detalle de la regla'" max-width="920px" @close="closeDetailModal">
+      <template v-if="selectedRule">
+        <div class="shipping-rule-detail-grid admin-detail-grid">
+          <AdminCard title="Resumen de tarifa" icon="fas fa-money-bill-wave">
+            <div class="shipping-rule-hero admin-surface-card">
+              <p class="shipping-rule-hero__label admin-surface-card__label">Rango aplicado</p>
+              <h3>{{ rangeLabel(selectedRule) }}</h3>
+              <p>{{ pricingNarrative(selectedRule) }}</p>
+              <span class="status-badge" :class="ruleStatusClass(selectedRule)">{{ ruleStatusLabel(selectedRule) }}</span>
+            </div>
+          </AdminCard>
+
+          <AdminCard title="Configuracion" icon="fas fa-cogs">
+            <div class="summary-stack">
+              <div class="summary-row"><span>Minimo</span><strong>{{ formatCurrency(selectedRule.min_price) }}</strong></div>
+              <div class="summary-row"><span>Maximo</span><strong>{{ selectedRule.max_price ? formatCurrency(selectedRule.max_price) : 'Sin limite' }}</strong></div>
+              <div class="summary-row"><span>Costo envio</span><strong>{{ isFreeRule(selectedRule) ? 'Gratis' : formatCurrency(selectedRule.shipping_cost) }}</strong></div>
+              <div class="summary-row"><span>Estado</span><strong>{{ ruleStatusLabel(selectedRule) }}</strong></div>
+            </div>
+          </AdminCard>
+        </div>
+      </template>
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="closeDetailModal">Cerrar</button>
+        <button v-if="selectedRule" class="btn btn-primary" type="button" @click="openEditFromDetail">
+          <i class="fas fa-edit"></i>
+          Editar regla
+        </button>
+      </template>
+    </AdminModal>
+
+    <AdminModal :show="showEditorModal" :title="editingRuleId ? 'Editar regla por precio' : 'Nueva regla por precio'" max-width="760px" @close="closeEditorModal">
+      <div class="editor-grid editor-grid--shipping-rules admin-editor-grid">
+        <div>
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="shipping-rule-min">Precio minimo *</label>
+              <input id="shipping-rule-min" v-model.number="form.min_price" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.min_price }" @input="validateField('min_price')">
+              <p v-if="formErrors.min_price" class="form-error">{{ formErrors.min_price }}</p>
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label for="shipping-rule-max">Precio maximo</label>
+              <input id="shipping-rule-max" v-model.number="form.max_price" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.max_price }" @input="validateField('max_price')">
+              <p v-if="formErrors.max_price" class="form-error">{{ formErrors.max_price }}</p>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="shipping-rule-cost">Costo de envio *</label>
+            <input id="shipping-rule-cost" v-model.number="form.shipping_cost" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.shipping_cost }" @input="validateField('shipping_cost')">
+            <p v-if="formErrors.shipping_cost" class="form-error">{{ formErrors.shipping_cost }}</p>
+          </div>
+
+          <div class="form-group form-group--toggle">
+            <label class="toggle-label">
+              <input v-model="form.active" type="checkbox">
+              Regla activa para checkout
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div class="shipping-rule-preview-card admin-surface-card">
+            <p class="shipping-rule-preview-card__label admin-surface-card__label">Previsualizacion</p>
+            <h3>{{ previewRangeLabel }}</h3>
+            <p>{{ Number(form.shipping_cost || 0) === 0 ? 'Envio gratis' : formatCurrency(form.shipping_cost) }}</p>
+            <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="closeEditorModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" @click="saveRule">
+          <i class="fas fa-save"></i>
+          {{ editingRuleId ? 'Guardar cambios' : 'Crear regla' }}
+        </button>
+      </template>
+    </AdminModal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { shippingHttp } from '../../../services/http'
-import AdminPageHeader from '../components/AdminPageHeader.vue'
-import AdminCard from '../components/AdminCard.vue'
-import AdminTableShimmer from '../components/AdminTableShimmer.vue'
-import AdminEmptyState from '../components/AdminEmptyState.vue'
+import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import AdminCard from '../components/AdminCard.vue'
+import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminModal from '../components/AdminModal.vue'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminStatsGrid from '../components/AdminStatsGrid.vue'
+import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
+const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
-const rules = ref([]), loading = ref(true), showModal = ref(false), editing = ref(null)
-const form = ref({ min_amount: 0, max_amount: null, shipping_cost: 0, free_shipping: false })
 
-function openModal(rule = null) {
-  editing.value = rule ? rule.id : null
-  form.value = rule
-    ? { ...rule }
-    : { min_amount: 0, max_amount: null, shipping_cost: 0, free_shipping: false }
-  showModal.value = true
+const loading = ref(true)
+const showAdvanced = ref(true)
+const rules = ref([])
+const selectedRule = ref(null)
+const showDetailModal = ref(false)
+const showEditorModal = ref(false)
+const editingRuleId = ref(null)
+
+const filters = reactive({ search: '', state: 'all' })
+const form = reactive({ min_price: 0, max_price: null, shipping_cost: 0, active: true })
+const formErrors = reactive({ min_price: '', max_price: '', shipping_cost: '' })
+
+const filteredRules = computed(() => {
+  const term = filters.search.trim().toLowerCase()
+
+  return rules.value.filter((rule) => {
+    if (filters.state === 'active' && !rule.active) return false
+    if (filters.state === 'inactive' && rule.active) return false
+    if (filters.state === 'free' && !isFreeRule(rule)) return false
+    if (filters.state === 'paid' && isFreeRule(rule)) return false
+    if (!term) return true
+    return [rangeLabel(rule), pricingNarrative(rule), rule.shipping_cost, rule.min_price, rule.max_price].join(' ').toLowerCase().includes(term)
+  })
+})
+
+const activeFilterCount = computed(() => [filters.search, filters.state !== 'all'].filter(Boolean).length)
+const previewRangeLabel = computed(() => rangeLabel(form))
+const ruleStats = computed(() => [
+  { key: 'total', label: 'Total reglas', value: rules.value.length, icon: 'fas fa-sliders-h', color: 'primary' },
+  { key: 'active', label: 'Activas', value: rules.value.filter((rule) => rule.active).length, icon: 'fas fa-check-circle', color: 'success' },
+  { key: 'free', label: 'Envio gratis', value: rules.value.filter((rule) => isFreeRule(rule)).length, icon: 'fas fa-gift', color: 'warning' },
+  { key: 'open', label: 'Sin tope', value: rules.value.filter((rule) => !rule.max_price).length, icon: 'fas fa-infinity', color: 'info' },
+])
+
+function resetForm() {
+  form.min_price = 0
+  form.max_price = null
+  form.shipping_cost = 0
+  form.active = true
+  clearErrors()
+}
+
+function clearErrors() {
+  Object.keys(formErrors).forEach((key) => {
+    formErrors[key] = ''
+  })
+}
+
+function clearFilters() {
+  filters.search = ''
+  filters.state = 'all'
+}
+
+function openCreateModal() {
+  editingRuleId.value = null
+  resetForm()
+  showEditorModal.value = true
+}
+
+function openEditModal(rule) {
+  editingRuleId.value = rule.id
+  clearErrors()
+  form.min_price = Number(rule.min_price || 0)
+  form.max_price = rule.max_price ?? null
+  form.shipping_cost = Number(rule.shipping_cost || 0)
+  form.active = Boolean(rule.active)
+  showEditorModal.value = true
+}
+
+function closeEditorModal() {
+  showEditorModal.value = false
+  editingRuleId.value = null
+  resetForm()
+}
+
+function openDetailModal(rule) {
+  selectedRule.value = rule
+  showDetailModal.value = true
+}
+
+function closeDetailModal() {
+  selectedRule.value = null
+  showDetailModal.value = false
+}
+
+function openEditFromDetail() {
+  if (!selectedRule.value) return
+  const current = selectedRule.value
+  closeDetailModal()
+  openEditModal(current)
+}
+
+function validateField(field) {
+  switch (field) {
+    case 'min_price':
+      formErrors.min_price = Number(form.min_price) >= 0 ? '' : 'El minimo no puede ser negativo.'
+      break
+    case 'max_price':
+      formErrors.max_price = ''
+      if (form.max_price !== null && form.max_price !== '' && Number(form.max_price) < 0) formErrors.max_price = 'El maximo no puede ser negativo.'
+      if (!formErrors.max_price && form.max_price !== null && form.max_price !== '' && Number(form.max_price) < Number(form.min_price || 0)) {
+        formErrors.max_price = 'El maximo debe ser mayor o igual al minimo.'
+      }
+      break
+    case 'shipping_cost':
+      formErrors.shipping_cost = Number(form.shipping_cost) >= 0 ? '' : 'El costo no puede ser negativo.'
+      break
+    default:
+      break
+  }
+}
+
+function validateForm() {
+  validateField('min_price')
+  validateField('max_price')
+  validateField('shipping_cost')
+  return Object.values(formErrors).every((value) => !value)
 }
 
 async function loadRules() {
   loading.value = true
   try {
     const { data } = await shippingHttp.get('/admin/shipping-rules')
-    rules.value = data.data || data || []
-  } catch { rules.value = [] } finally { loading.value = false }
+    rules.value = Array.isArray(data?.data) ? data.data : []
+  } catch (error) {
+    rules.value = []
+    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudieron cargar las reglas por precio.') })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function saveRule() {
+  if (!validateForm()) {
+    showSnackbar({ type: 'warning', message: 'Corrige los errores del formulario antes de guardar.' })
+    return
+  }
+
+  const payload = {
+    min_price: Number(form.min_price || 0),
+    max_price: form.max_price === null || form.max_price === '' ? null : Number(form.max_price),
+    shipping_cost: Number(form.shipping_cost || 0),
+    active: form.active,
+  }
+
   try {
-    if (editing.value) {
-      await shippingHttp.put(`/admin/shipping-rules/${editing.value}`, form.value)
-      showSnackbar({ type: 'success', message: 'Regla actualizada' })
+    if (editingRuleId.value) {
+      await shippingHttp.put(`/admin/shipping-rules/${editingRuleId.value}`, payload)
+      showSnackbar({ type: 'success', message: 'Regla actualizada correctamente.' })
     } else {
-      await shippingHttp.post('/admin/shipping-rules', form.value)
-      showSnackbar({ type: 'success', message: 'Regla creada' })
+      await shippingHttp.post('/admin/shipping-rules', payload)
+      showSnackbar({ type: 'success', message: 'Regla creada correctamente.' })
     }
-    showModal.value = false
+    closeEditorModal()
     await loadRules()
-  } catch { showSnackbar({ type: 'error', message: 'Error al guardar regla' }) }
+  } catch (error) {
+    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo guardar la regla.') })
+  }
 }
 
-async function deleteRule(id) {
-  if (!confirm('¿Eliminar esta regla?')) return
-  try {
-    await shippingHttp.delete(`/admin/shipping-rules/${id}`)
-    showSnackbar({ type: 'success', message: 'Regla eliminada' })
-    await loadRules()
-  } catch { showSnackbar({ type: 'error', message: 'Error al eliminar' }) }
+function confirmDeleteRule(rule) {
+  showAlert({
+    type: 'warning',
+    title: 'Eliminar regla',
+    message: `Vas a eliminar la regla ${rangeLabel(rule)}. Esta accion no se puede deshacer.`,
+    actions: [
+      { text: 'Cancelar', style: 'secondary' },
+      {
+        text: 'Eliminar',
+        style: 'danger',
+        callback: async () => {
+          try {
+            await shippingHttp.delete(`/admin/shipping-rules/${rule.id}`)
+            showSnackbar({ type: 'success', message: 'Regla eliminada correctamente.' })
+            if (selectedRule.value?.id === rule.id) closeDetailModal()
+            await loadRules()
+          } catch (error) {
+            showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo eliminar la regla.') })
+          }
+        },
+      },
+    ],
+  })
+}
+
+function exportRules() {
+  const rows = filteredRules.value.map((rule) => [rangeLabel(rule), pricingNarrative(rule), isFreeRule(rule) ? 'Gratis' : formatCurrency(rule.shipping_cost), rule.active ? 'Activo' : 'Inactivo'])
+  const csv = [['Rango', 'Descripcion', 'Costo', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
+  downloadCsv('reglas-envio-precio.csv', csv)
+}
+
+function isFreeRule(rule) {
+  return Number(rule.shipping_cost || 0) === 0
+}
+
+function rangeLabel(rule) {
+  const min = formatCurrency(rule.min_price || 0)
+  if (rule.max_price === null || rule.max_price === undefined || rule.max_price === '') return `Desde ${min}`
+  return `${min} a ${formatCurrency(rule.max_price)}`
+}
+
+function pricingNarrative(rule) {
+  return isFreeRule(rule)
+    ? 'El checkout mostrara envio gratis en este rango.'
+    : `Se cobraran ${formatCurrency(rule.shipping_cost)} por envio en este rango.`
+}
+
+function ruleStatusLabel(rule) {
+  if (!rule.active) return 'Inactiva'
+  return isFreeRule(rule) ? 'Envio gratis' : 'Activa'
+}
+
+function ruleStatusClass(rule) {
+  if (!rule.active) return 'rejected'
+  return isFreeRule(rule) ? 'info' : 'active'
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value || 0))
+}
+
+function extractErrorMessage(error, fallback) {
+  return error?.response?.data?.message || fallback
+}
+
+function csvSafe(value) {
+  return `"${String(value ?? '').replaceAll('"', '""')}"`
+}
+
+function downloadCsv(filename, content) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 onMounted(loadRules)
 </script>
+
+<style scoped>
+.shipping-rule-hero h3,
+.shipping-rule-preview-card h3 {
+  font-size: 2.2rem;
+}
+</style>

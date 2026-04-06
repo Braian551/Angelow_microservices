@@ -123,3 +123,36 @@ Cambios relevantes:
 - `frontend/src/modules/admin/composables/useAdminCustomerProfiles.js` centraliza la carga de perfiles para no duplicar logica entre modulos.
 - `frontend/src/modules/admin/pages/AdminReviewsPage.vue` replica la bandeja legacy con filtros, distribucion de rating, reseñas recientes, detalle modal y acciones confirmadas de publicar, verificar y eliminar.
 - `frontend/src/modules/admin/pages/AdminQuestionsPage.vue` replica la bandeja legacy con filtros, resumen de respondidas, detalle modal, timeline de respuestas, validacion en tiempo real del formulario y eliminacion confirmada.
+
+Extension 2026-04-05: modulos `Anuncios`, `Definir envios`, `Reglas por precio`, `Descuentos por cantidad` y `Codigos de descuento`
+
+Objetivo:
+- Llevar `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`, `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue` y `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue` al mismo flujo operativo de Angelow legacy, pero consumiendo `notification-service`, `shipping-service` y `discount-service` con componentes reutilizables y contratos estables.
+
+Patrones aplicados:
+- `Facade visual reutilizable`:
+  - Archivos: `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`, `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`, `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`, `frontend/src/modules/admin/components/AdminPageHeader.vue`, `frontend/src/modules/admin/components/AdminCard.vue`, `frontend/src/modules/admin/components/AdminModal.vue`, `frontend/src/modules/admin/components/AdminStatsGrid.vue`, `frontend/src/modules/admin/components/AdminTableShimmer.vue`, `frontend/src/modules/admin/components/AdminEmptyState.vue`.
+  - Problema que resuelve: conserva una experiencia administrativa coherente para filtros, estadisticas, bandejas, modales, estados vacios y loaders sin duplicar infraestructura visual por modulo.
+- `Adapter`:
+  - Archivos: `services/shipping-service/app/Http/Controllers/Admin/AdminShippingController.php`, `services/discount-service/app/Http/Controllers/Admin/AdminDiscountController.php`, `services/notification-service/app/Http/Controllers/Admin/AdminNotificationController.php`, `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`, `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`, `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`, `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`.
+  - Problema que resuelve: normaliza diferencias entre el esquema real de microservicios y los nombres que esperaba el frontend (`discount_value/value`, `start_date/expires_at`, `is_active/active`, `message/content`, `button_link/url`) para sostener compatibilidad durante la migracion.
+- `Command` para operaciones administrativas:
+  - Archivos: `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`, `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`, `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`.
+  - Problema que resuelve: encapsula crear, editar, eliminar y exportar como acciones explicitas confirmadas por alertas reutilizables, reduciendo errores operativos y evitando `confirm()` dispersos.
+- `Active Record` con Eloquent:
+  - Archivos: `services/shipping-service/app/Models/ShippingMethod.php`, `services/shipping-service/app/Models/ShippingPriceRule.php`, `services/discount-service/app/Models/DiscountCode.php`, `services/discount-service/app/Models/DiscountType.php`, `services/discount-service/app/Models/BulkDiscountRule.php`.
+  - Problema que resuelve: mueve los dominios de envios y descuentos desde Query Builder puro a modelos de dominio simples para mantener payloads consistentes, casts claros y menor acoplamiento en controladores admin.
+- `Fallback de fuente de datos`:
+  - Archivo: `services/notification-service/app/Http/Controllers/Admin/AdminNotificationController.php`.
+  - Problema que resuelve: permite que `Anuncios` siga operando aunque la tabla no exista en la base distribuida local, usando `legacy_mysql` cuando corresponde y manteniendo continuidad operativa en la migracion.
+
+Cambios relevantes:
+- `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue` replica la bandeja legacy de anuncios con filtros, metricas, preview, detalle modal, editor con validacion por campo, exportacion CSV y confirmacion centralizada al eliminar.
+- `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue` replica la gestion de metodos de envio con filtros por cobertura, metricas, detalle comercial y formulario con validacion en tiempo real de costos, dias y umbral gratis.
+- `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue` replica la gestion de tarifas por rangos con resumen comercial, detalle modal, exportacion y validacion de minimos/maximos/costo.
+- `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue` adapta el flujo legacy al esquema real de `bulk_discount_rules`, mostrando reglas globales por volumen sin inventar scopes inexistentes en la base distribuida.
+- `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue` replica la gestion de codigos promocionales con filtros, resumen de vigencia, modal detalle y formulario validado por campo.
+- `services/shipping-service/app/Http/Controllers/Admin/AdminShippingController.php` ahora expone y persiste `description`, `base_cost`, `delivery_time`, `estimated_days_min`, `estimated_days_max`, `free_shipping_minimum`, `city`, `icon` y estado normalizado.
+- `services/discount-service/app/Http/Controllers/Admin/AdminDiscountController.php` ahora soporta codigos y descuentos por cantidad usando Eloquent y normaliza tipos, valores, fechas y estados para la SPA.
+- `services/notification-service/app/Http/Controllers/Admin/AdminNotificationController.php` amplifica `announcements` con normalizacion de tipos, prioridad, upload de imagen y compatibilidad `message/content` y `button_link/url`.
+- `docker-compose.yml` agrega `AUTH_SERVICE_URL` y `AUTH_INTERNAL_TOKEN` en `shipping-service`, `discount-service` y `notification-service` para eliminar los `401` por middleware admin durante el consumo desde la SPA.

@@ -330,6 +330,8 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
     depends_on:
       - discount-db
       - redis
@@ -363,6 +365,8 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
     depends_on:
       - shipping-db
       - redis
@@ -396,6 +400,8 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
       BROADCAST_CONNECTION: log
     depends_on:
       - notification-db

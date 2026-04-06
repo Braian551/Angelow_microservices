@@ -85,6 +85,8 @@ Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     Route::post('/sliders', [AdminCatalogController::class, 'storeSlider']);
     Route::put('/sliders/{id}', [AdminCatalogController::class, 'updateSlider']);
     Route::delete('/sliders/{id}', [AdminCatalogController::class, 'destroySlider']);
+    Route::patch('/sliders/{id}/status', [AdminCatalogController::class, 'toggleSliderStatus']);
+    Route::post('/sliders/reorder', [AdminCatalogController::class, 'reorderSliders']);
     // Configuracion
     Route::get('/settings', [AdminCatalogController::class, 'settings']);
     Route::put('/settings', [AdminCatalogController::class, 'updateSettings']);

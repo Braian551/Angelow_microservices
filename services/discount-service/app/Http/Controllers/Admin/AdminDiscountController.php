@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BulkDiscountRule;
+use App\Models\DiscountCode;
+use App\Models\DiscountType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AdminDiscountController extends Controller
 {
@@ -13,82 +16,44 @@ class AdminDiscountController extends Controller
 
     public function codes(): JsonResponse
     {
-        $codes = DB::table('discount_codes')->orderByDesc('created_at')->get();
+        $codes = DiscountCode::query()
+            ->with('type')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn (DiscountCode $code) => $this->transformCode($code));
 
         return response()->json(['success' => true, 'data' => $codes]);
     }
 
     public function storeCode(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'code'             => ['required', 'string', 'max:20'],
-            'discount_type_id' => ['required', 'integer'],
-            'discount_value'   => ['required', 'numeric', 'min:0'],
-            'max_uses'         => ['nullable', 'integer', 'min:1'],
-            'start_date'       => ['nullable', 'date'],
-            'end_date'         => ['nullable', 'date'],
-            'is_active'        => ['nullable', 'boolean'],
-            'is_single_use'    => ['nullable', 'boolean'],
-        ]);
-
         $admin = $request->input('_admin_user', []);
+        $payload = $this->buildCodePayload($request, false);
+        $payload['created_by'] = $admin['id'] ?? null;
+        $payload['used_count'] = 0;
 
-        $id = DB::table('discount_codes')->insertGetId([
-            'code'             => strtoupper($data['code']),
-            'discount_type_id' => $data['discount_type_id'],
-            'discount_value'   => $data['discount_value'],
-            'max_uses'         => $data['max_uses'] ?? null,
-            'used_count'       => 0,
-            'start_date'       => $data['start_date'] ?? null,
-            'end_date'         => $data['end_date'] ?? null,
-            'is_active'        => $data['is_active'] ?? true,
-            'is_single_use'    => $data['is_single_use'] ?? false,
-            'created_by'       => $admin['id'] ?? null,
-            'created_at'       => now(),
-            'updated_at'       => now(),
-        ]);
+        $code = DiscountCode::query()->create($payload);
 
-        return response()->json(['success' => true, 'message' => 'Codigo creado.', 'id' => $id], 201);
+        return response()->json(['success' => true, 'message' => 'Codigo creado.', 'id' => $code->id], 201);
     }
 
     public function updateCode(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate([
-            'code'             => ['sometimes', 'string', 'max:20'],
-            'discount_type_id' => ['sometimes', 'integer'],
-            'discount_value'   => ['sometimes', 'numeric', 'min:0'],
-            'max_uses'         => ['nullable', 'integer', 'min:1'],
-            'start_date'       => ['nullable', 'date'],
-            'end_date'         => ['nullable', 'date'],
-            'is_active'        => ['nullable', 'boolean'],
-            'is_single_use'    => ['nullable', 'boolean'],
-        ]);
+        $code = DiscountCode::query()->find($id);
 
-        $payload = array_filter([
-            'code'             => isset($data['code']) ? strtoupper($data['code']) : null,
-            'discount_type_id' => $data['discount_type_id'] ?? null,
-            'discount_value'   => $data['discount_value'] ?? null,
-            'max_uses'         => $data['max_uses'] ?? null,
-            'start_date'       => $data['start_date'] ?? null,
-            'end_date'         => $data['end_date'] ?? null,
-            'is_active'        => $data['is_active'] ?? null,
-            'is_single_use'    => $data['is_single_use'] ?? null,
-        ], fn($v) => $v !== null);
-
-        $payload['updated_at'] = now();
-
-        $updated = DB::table('discount_codes')->where('id', $id)->update($payload);
-
-        if (!$updated) {
+        if (!$code) {
             return response()->json(['success' => false, 'message' => 'Codigo no encontrado.'], 404);
         }
+
+        $code->fill($this->buildCodePayload($request, true));
+        $code->save();
 
         return response()->json(['success' => true, 'message' => 'Codigo actualizado.']);
     }
 
     public function destroyCode(int $id): JsonResponse
     {
-        $deleted = DB::table('discount_codes')->where('id', $id)->delete();
+        $deleted = DiscountCode::query()->whereKey($id)->delete();
 
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Codigo no encontrado.'], 404);
@@ -101,67 +66,201 @@ class AdminDiscountController extends Controller
 
     public function bulkDiscounts(): JsonResponse
     {
-        $rules = DB::table('bulk_discount_rules')->orderBy('min_quantity')->get();
+        $rules = BulkDiscountRule::query()
+            ->orderBy('min_quantity')
+            ->get()
+            ->map(fn (BulkDiscountRule $rule) => $this->transformBulkDiscount($rule));
 
         return response()->json(['success' => true, 'data' => $rules]);
     }
 
     public function storeBulkDiscount(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'min_quantity'        => ['required', 'integer', 'min:1'],
-            'max_quantity'        => ['nullable', 'integer', 'min:1'],
-            'discount_percentage' => ['required', 'numeric', 'min:0', 'max:100'],
-            'is_active'           => ['nullable', 'boolean'],
-        ]);
+        $rule = BulkDiscountRule::query()->create($this->buildBulkDiscountPayload($request, false));
 
-        $id = DB::table('bulk_discount_rules')->insertGetId([
-            'min_quantity'        => $data['min_quantity'],
-            'max_quantity'        => $data['max_quantity'] ?? null,
-            'discount_percentage' => $data['discount_percentage'],
-            'is_active'           => $data['is_active'] ?? true,
-            'created_at'          => now(),
-            'updated_at'          => now(),
-        ]);
-
-        return response()->json(['success' => true, 'message' => 'Regla creada.', 'id' => $id], 201);
+        return response()->json(['success' => true, 'message' => 'Regla creada.', 'id' => $rule->id], 201);
     }
 
     public function updateBulkDiscount(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate([
-            'min_quantity'        => ['sometimes', 'integer', 'min:1'],
-            'max_quantity'        => ['nullable', 'integer', 'min:1'],
-            'discount_percentage' => ['sometimes', 'numeric', 'min:0', 'max:100'],
-            'is_active'           => ['nullable', 'boolean'],
-        ]);
+        $rule = BulkDiscountRule::query()->find($id);
 
-        $payload = array_filter([
-            'min_quantity'        => $data['min_quantity'] ?? null,
-            'max_quantity'        => $data['max_quantity'] ?? null,
-            'discount_percentage' => $data['discount_percentage'] ?? null,
-            'is_active'           => $data['is_active'] ?? null,
-        ], fn($v) => $v !== null);
-
-        $payload['updated_at'] = now();
-
-        $updated = DB::table('bulk_discount_rules')->where('id', $id)->update($payload);
-
-        if (!$updated) {
+        if (!$rule) {
             return response()->json(['success' => false, 'message' => 'Regla no encontrada.'], 404);
         }
+
+        $rule->fill($this->buildBulkDiscountPayload($request, true));
+        $rule->save();
 
         return response()->json(['success' => true, 'message' => 'Regla actualizada.']);
     }
 
     public function destroyBulkDiscount(int $id): JsonResponse
     {
-        $deleted = DB::table('bulk_discount_rules')->where('id', $id)->delete();
+        $deleted = BulkDiscountRule::query()->whereKey($id)->delete();
 
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Regla no encontrada.'], 404);
         }
 
         return response()->json(['success' => true, 'message' => 'Regla eliminada.']);
+    }
+
+    private function buildCodePayload(Request $request, bool $partial): array
+    {
+        $data = $request->validate([
+            'code' => [$partial ? 'sometimes' : 'required', 'string', 'max:20'],
+            'type' => ['nullable', 'string', 'max:30'],
+            'discount_type_id' => ['nullable', 'integer'],
+            'value' => ['nullable', 'numeric', 'min:0'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
+            'max_uses' => ['nullable', 'integer', 'min:1'],
+            'start_date' => ['nullable', 'date'],
+            'starts_at' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
+            'is_active' => ['nullable', 'boolean'],
+            'active' => ['nullable', 'boolean'],
+            'is_single_use' => ['nullable', 'boolean'],
+        ]);
+
+        $payload = [];
+
+        if (array_key_exists('code', $data)) {
+            $payload['code'] = strtoupper(trim((string) $data['code']));
+        }
+
+        if (array_key_exists('discount_type_id', $data) || array_key_exists('type', $data)) {
+            $payload['discount_type_id'] = $this->resolveDiscountTypeId(
+                $data['discount_type_id'] ?? null,
+                $data['type'] ?? null,
+            );
+        }
+
+        if (array_key_exists('value', $data) || array_key_exists('discount_value', $data)) {
+            $payload['discount_value'] = (float) ($data['value'] ?? $data['discount_value'] ?? 0);
+        }
+
+        if (array_key_exists('max_uses', $data)) {
+            $payload['max_uses'] = $data['max_uses'] ?? null;
+        }
+
+        if (array_key_exists('start_date', $data) || array_key_exists('starts_at', $data)) {
+            $payload['start_date'] = $data['start_date'] ?? $data['starts_at'] ?? null;
+        }
+
+        if (array_key_exists('end_date', $data) || array_key_exists('expires_at', $data)) {
+            $payload['end_date'] = $data['end_date'] ?? $data['expires_at'] ?? null;
+        }
+
+        if (array_key_exists('is_active', $data) || array_key_exists('active', $data)) {
+            $payload['is_active'] = (bool) ($data['is_active'] ?? $data['active'] ?? false);
+        }
+
+        if (array_key_exists('is_single_use', $data)) {
+            $payload['is_single_use'] = (bool) ($data['is_single_use'] ?? false);
+        }
+
+        return $payload;
+    }
+
+    private function buildBulkDiscountPayload(Request $request, bool $partial): array
+    {
+        $data = $request->validate([
+            'min_quantity' => [$partial ? 'sometimes' : 'required', 'integer', 'min:1'],
+            'max_quantity' => ['nullable', 'integer', 'min:1'],
+            'discount_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'is_active' => ['nullable', 'boolean'],
+            'active' => ['nullable', 'boolean'],
+        ]);
+
+        $payload = [];
+
+        if (array_key_exists('min_quantity', $data)) {
+            $payload['min_quantity'] = (int) $data['min_quantity'];
+        }
+
+        if (array_key_exists('max_quantity', $data)) {
+            $payload['max_quantity'] = $data['max_quantity'] ?? null;
+        }
+
+        if (array_key_exists('discount_percentage', $data) || array_key_exists('discount_percent', $data)) {
+            $payload['discount_percentage'] = (float) ($data['discount_percentage'] ?? $data['discount_percent'] ?? 0);
+        }
+
+        if (array_key_exists('is_active', $data) || array_key_exists('active', $data)) {
+            $payload['is_active'] = (bool) ($data['is_active'] ?? $data['active'] ?? false);
+        }
+
+        return $payload;
+    }
+
+    private function transformCode(DiscountCode $code): array
+    {
+        $typeName = strtolower((string) ($code->type?->name ?? ''));
+        $type = str_contains($typeName, 'fixed') || str_contains($typeName, 'fijo') ? 'fixed' : 'percent';
+
+        return [
+            'id' => $code->id,
+            'code' => $code->code,
+            'type' => $type,
+            'type_label' => $type === 'fixed' ? 'Monto fijo' : 'Porcentaje',
+            'discount_type_id' => $code->discount_type_id,
+            'discount_type_name' => $code->type?->name,
+            'value' => (float) ($code->discount_value ?? 0),
+            'discount_value' => (float) ($code->discount_value ?? 0),
+            'max_uses' => $code->max_uses,
+            'times_used' => (int) ($code->used_count ?? 0),
+            'used_count' => (int) ($code->used_count ?? 0),
+            'starts_at' => optional($code->start_date)?->toISOString(),
+            'start_date' => optional($code->start_date)?->toISOString(),
+            'expires_at' => optional($code->end_date)?->toISOString(),
+            'end_date' => optional($code->end_date)?->toISOString(),
+            'active' => (bool) $code->is_active,
+            'is_active' => (bool) $code->is_active,
+            'is_single_use' => (bool) $code->is_single_use,
+            'created_at' => optional($code->created_at)?->toISOString(),
+            'updated_at' => optional($code->updated_at)?->toISOString(),
+        ];
+    }
+
+    private function transformBulkDiscount(BulkDiscountRule $rule): array
+    {
+        return [
+            'id' => $rule->id,
+            'min_quantity' => (int) $rule->min_quantity,
+            'max_quantity' => $rule->max_quantity,
+            'discount_percentage' => (float) ($rule->discount_percentage ?? 0),
+            'discount_percent' => (float) ($rule->discount_percentage ?? 0),
+            'active' => (bool) $rule->is_active,
+            'is_active' => (bool) $rule->is_active,
+            'created_at' => optional($rule->created_at)?->toISOString(),
+            'updated_at' => optional($rule->updated_at)?->toISOString(),
+        ];
+    }
+
+    private function resolveDiscountTypeId(?int $discountTypeId, ?string $type): int
+    {
+        if ($discountTypeId) {
+            return $discountTypeId;
+        }
+
+        $normalizedType = Str::lower(trim((string) $type));
+        $targetName = in_array($normalizedType, ['fixed', 'monto fijo', 'fixed_amount'], true)
+            ? 'fixed_amount'
+            : 'percentage';
+
+        $discountType = DiscountType::query()->firstOrCreate(
+            ['name' => $targetName],
+            [
+                'description' => $targetName === 'fixed_amount'
+                    ? 'Descuento de valor fijo.'
+                    : 'Descuento porcentual.',
+                'is_active' => true,
+            ],
+        );
+
+        return (int) $discountType->id;
     }
 }

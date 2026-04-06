@@ -1,136 +1,587 @@
 <template>
-  <div>
-    <AdminPageHeader icon="fas fa-images" title="Sliders" subtitle="Gestiona las imagenes del carrusel principal." :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Sliders' }]">
+  <div class="admin-sliders-page">
+    <AdminPageHeader
+      icon="fas fa-images"
+      title="Sliders"
+      subtitle="Administra el carrusel principal con el mismo flujo operativo del panel y feedback centralizado."
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Sliders' }]"
+    >
       <template #actions>
-        <button class="btn btn-primary" @click="openModal()"><i class="fas fa-plus"></i> Nuevo slider</button>
+        <button class="btn btn-primary" type="button" @click="openCreateModal">
+          <i class="fas fa-plus"></i>
+          Nuevo slider
+        </button>
       </template>
     </AdminPageHeader>
 
-    <AdminCard title="Sliders del carrusel" icon="fas fa-images">
-      <div v-if="loading" class="admin-shimmer-grid">
-        <div v-for="i in 3" :key="i" class="admin-shimmer shimmer-card"></div>
+    <AdminStatsGrid :loading="loading" :count="4" :stats="sliderStats" />
+
+    <AdminCard title="Bandeja de sliders" icon="fas fa-images" :flush="true">
+      <AdminTableShimmer v-if="loading" :rows="4" :columns="['line', 'thumb', 'line', 'line', 'pill', 'btn']" />
+      <AdminEmptyState
+        v-else-if="sliders.length === 0"
+        icon="fas fa-images"
+        title="Sin sliders"
+        description="Agrega el primer slide del carrusel para mostrar promociones, colecciones o accesos directos."
+      />
+      <div v-else class="table-responsive">
+        <table class="dashboard-table sliders-table">
+          <thead>
+            <tr>
+              <th>Orden</th>
+              <th>Vista previa</th>
+              <th>Contenido</th>
+              <th>Enlace</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(slider, index) in sliders" :key="slider.id">
+              <td>
+                <div class="slider-order-controls">
+                  <strong>{{ slider.sort_order }}</strong>
+                  <div class="entity-actions entity-actions--compact">
+                    <button class="action-btn view" type="button" :disabled="index === 0 || processingOrder" title="Subir" @click="moveSlider(index, -1)">
+                      <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button class="action-btn view" type="button" :disabled="index === sliders.length - 1 || processingOrder" title="Bajar" @click="moveSlider(index, 1)">
+                      <i class="fas fa-arrow-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="slider-thumb">
+                  <img :src="resolveMediaUrl(slider.image, 'slider')" :alt="slider.title" @error="handleMediaError($event, slider.image, 'slider')">
+                </div>
+              </td>
+              <td>
+                <div class="entity-name-cell">
+                  <strong>{{ slider.title }}</strong>
+                  <span>{{ slider.subtitle || 'Sin subtítulo configurado' }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="entity-name-cell">
+                  <strong>{{ slider.link || '/tienda' }}</strong>
+                  <span>{{ slider.link ? 'Destino configurado' : 'Redirige al catálogo general' }}</span>
+                </div>
+              </td>
+              <td>
+                <button class="status-badge status-badge--button" :class="slider.active ? 'active' : 'rejected'" type="button" @click="toggleSliderStatus(slider)">
+                  {{ slider.active ? 'Activo' : 'Inactivo' }}
+                </button>
+              </td>
+              <td>
+                <div class="entity-actions">
+                  <button class="action-btn edit" type="button" title="Editar slider" @click="openEditModal(slider)">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button class="action-btn delete" type="button" title="Eliminar slider" @click="confirmDeleteSlider(slider)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <AdminEmptyState v-else-if="sliders.length === 0" icon="fas fa-images" title="Sin sliders" description="Agrega imagenes al carrusel principal de tu tienda." />
-      <div v-else class="sliders-grid">
-        <div v-for="s in sliders" :key="s.id" class="slider-card">
-          <div class="slider-image-wrapper">
-            <img :src="s.image_url || '/assets/foundnotimages/default.png'" :alt="s.title" />
-            <div class="slider-overlay">
-              <span class="status-badge" :class="s.active ? 'approved' : 'rejected'">{{ s.active ? 'Activo' : 'Inactivo' }}</span>
+    </AdminCard>
+
+    <AdminModal :show="showModal" :title="editingSliderId ? 'Editar slider' : 'Nuevo slider'" max-width="920px" @close="closeModal">
+      <div class="admin-editor-grid slider-editor-grid">
+        <div>
+          <div class="form-group">
+            <label for="slider-title">Título *</label>
+            <input id="slider-title" v-model.trim="form.title" type="text" class="form-control" :class="{ 'is-invalid': formErrors.title }" @input="validateField('title')">
+            <p v-if="formErrors.title" class="form-error">{{ formErrors.title }}</p>
+          </div>
+
+          <div class="form-group">
+            <label for="slider-subtitle">Subtítulo</label>
+            <input id="slider-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
+          </div>
+
+          <div class="form-group">
+            <label for="slider-link">URL o ruta</label>
+            <input id="slider-link" v-model.trim="form.link" type="text" class="form-control" :class="{ 'is-invalid': formErrors.link }" placeholder="/tienda o https://..." @input="validateField('link')">
+            <p v-if="formErrors.link" class="form-error">{{ formErrors.link }}</p>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="slider-order">Orden *</label>
+              <input id="slider-order" v-model.number="form.sort_order" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.sort_order }" @input="validateField('sort_order')">
+              <p v-if="formErrors.sort_order" class="form-error">{{ formErrors.sort_order }}</p>
+            </div>
+            <div class="form-group form-group--toggle" style="flex: 1; justify-content: flex-end;">
+              <label class="toggle-label">
+                <input v-model="form.active" type="checkbox">
+                Slider activo en el carrusel
+              </label>
             </div>
           </div>
-          <div class="slider-info">
-            <h4>{{ s.title || 'Sin titulo' }}</h4>
-            <p class="slider-subtitle">{{ s.subtitle || '' }}</p>
-            <p class="slider-link" v-if="s.link_url"><i class="fas fa-link"></i> {{ s.link_url }}</p>
-            <div class="slider-actions">
-              <span class="slider-order">Orden: {{ s.sort_order ?? 0 }}</span>
-              <div>
-                <button class="btn btn-sm btn-secondary" @click="openModal(s)"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-danger" @click="deleteSlider(s.id)"><i class="fas fa-trash"></i></button>
+        </div>
+
+        <div>
+          <div class="form-group">
+            <label>Imagen *</label>
+            <div class="upload-box" @click="openImagePicker">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <p>{{ imagePreviewUrl ? 'Cambiar imagen del slider' : 'Selecciona la imagen principal del slide' }}</p>
+              <small>JPG, PNG o WEBP. Máximo 4 MB.</small>
+            </div>
+            <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
+            <p v-if="formErrors.image" class="form-error">{{ formErrors.image }}</p>
+            <div v-if="imagePreviewUrl" class="slider-preview-image">
+              <img :src="imagePreviewUrl" alt="Vista previa del slider">
+              <button class="btn btn-secondary btn-sm" type="button" @click="clearSelectedImage">Quitar imagen</button>
+            </div>
+          </div>
+
+          <div class="slider-preview-card">
+            <p class="slider-preview-card__label">Vista previa</p>
+            <div class="slider-preview-card__surface">
+              <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Preview">
+              <div class="slider-preview-card__overlay">
+                <h3>{{ form.title || 'Título del slider' }}</h3>
+                <p>{{ form.subtitle || 'Añade un subtítulo para complementar el mensaje principal.' }}</p>
+                <span class="slider-preview-card__cta">{{ form.link || '/tienda' }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </AdminCard>
 
-    <!-- Modal -->
-    <div v-if="showModal" class="admin-modal-overlay" @click.self="showModal = false">
-      <div class="admin-modal" style="max-width:600px;">
-        <div class="modal-header"><h3>{{ editing ? 'Editar slider' : 'Nuevo slider' }}</h3><button class="modal-close" @click="showModal = false">&times;</button></div>
-        <div class="modal-body">
-          <div class="form-group"><label>Titulo</label><input v-model="form.title" class="form-input" /></div>
-          <div class="form-group"><label>Subtitulo</label><input v-model="form.subtitle" class="form-input" /></div>
-          <div class="form-group"><label>URL destino</label><input v-model="form.link_url" class="form-input" placeholder="/tienda o https://..." /></div>
-          <div class="form-group"><label>Imagen</label>
-            <div class="image-upload-zone" @click="$refs.fileInput.click()"><i class="fas fa-cloud-upload-alt"></i><p>Subir imagen</p></div>
-            <input ref="fileInput" type="file" accept="image/*" style="display:none;" @change="onFileSelect" />
-            <img v-if="form.image_url" :src="form.image_url" style="max-width:100%;max-height:200px;margin-top:0.5rem;border-radius:6px;" />
-          </div>
-          <div class="form-row">
-            <div class="form-group" style="flex:1;"><label>Orden</label><input v-model.number="form.sort_order" type="number" class="form-input" min="0" /></div>
-            <div class="form-group" style="flex:1;padding-top:1.5rem;"><label class="toggle-label"><input type="checkbox" v-model="form.active" /> Activo</label></div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="showModal = false">Cancelar</button>
-          <button class="btn btn-primary" @click="saveSlider">{{ editing ? 'Guardar' : 'Crear' }}</button>
-        </div>
-      </div>
-    </div>
+      <template #footer>
+        <button class="btn btn-secondary" type="button" @click="closeModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" @click="saveSlider">
+          <i class="fas fa-save"></i>
+          {{ editingSliderId ? 'Guardar cambios' : 'Crear slider' }}
+        </button>
+      </template>
+    </AdminModal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { catalogHttp } from '../../../services/http'
-import AdminPageHeader from '../components/AdminPageHeader.vue'
+import { useAlertSystem } from '../../../composables/useAlertSystem'
+import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import AdminModal from '../components/AdminModal.vue'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminStatsGrid from '../components/AdminStatsGrid.vue'
+import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
+const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
-const sliders = ref([]), loading = ref(true), showModal = ref(false), editing = ref(null)
-const emptyForm = { title: '', subtitle: '', link_url: '', image_url: '', sort_order: 0, active: true }
-const form = ref({ ...emptyForm })
 
-function openModal(slider = null) {
-  editing.value = slider ? slider.id : null
-  form.value = slider ? { ...slider } : { ...emptyForm }
+const loading = ref(true)
+const processingOrder = ref(false)
+const sliders = ref([])
+const showModal = ref(false)
+const editingSliderId = ref(null)
+const imageInputRef = ref(null)
+const selectedImageFile = ref(null)
+const imagePreviewUrl = ref('')
+
+const form = reactive({
+  title: '',
+  subtitle: '',
+  link: '',
+  image: '',
+  sort_order: 0,
+  active: true,
+})
+
+const formErrors = reactive({
+  title: '',
+  link: '',
+  image: '',
+  sort_order: '',
+})
+
+const sliderStats = computed(() => [
+  { key: 'total', label: 'Total sliders', value: sliders.value.length, icon: 'fas fa-images', color: 'primary' },
+  { key: 'active', label: 'Activos', value: sliders.value.filter((slider) => slider.active).length, icon: 'fas fa-check-circle', color: 'success' },
+  { key: 'inactive', label: 'Inactivos', value: sliders.value.filter((slider) => !slider.active).length, icon: 'fas fa-eye-slash', color: 'warning' },
+  { key: 'last-order', label: 'Último orden', value: sliders.value.length ? Math.max(...sliders.value.map((slider) => Number(slider.sort_order || 0))) : 0, icon: 'fas fa-sort-numeric-down', color: 'info' },
+])
+
+function normalizeSlider(slider) {
+  return {
+    id: Number(slider?.id || 0),
+    title: slider?.title || '',
+    subtitle: slider?.subtitle || '',
+    image: slider?.image_url || slider?.image || '',
+    link: slider?.link_url || slider?.link || '',
+    sort_order: Number(slider?.sort_order ?? slider?.order_position ?? 0),
+    active: Boolean(slider?.active ?? slider?.is_active),
+  }
+}
+
+function resetForm() {
+  form.title = ''
+  form.subtitle = ''
+  form.link = ''
+  form.image = ''
+  form.sort_order = sliders.value.length
+  form.active = true
+  clearErrors()
+  clearSelectedImage(false)
+}
+
+function clearErrors() {
+  Object.keys(formErrors).forEach((key) => {
+    formErrors[key] = ''
+  })
+}
+
+function openCreateModal() {
+  editingSliderId.value = null
+  resetForm()
   showModal.value = true
 }
 
-function onFileSelect(e) {
-  const file = e.target.files?.[0]
-  if (file) form.value.image_url = URL.createObjectURL(file)
+function openEditModal(slider) {
+  editingSliderId.value = slider.id
+  clearErrors()
+  form.title = slider.title
+  form.subtitle = slider.subtitle
+  form.link = slider.link
+  form.image = slider.image
+  form.sort_order = slider.sort_order
+  form.active = slider.active
+  selectedImageFile.value = null
+  imagePreviewUrl.value = slider.image ? resolveMediaUrl(slider.image, 'slider') : ''
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  editingSliderId.value = null
+  resetForm()
+}
+
+function openImagePicker() {
+  imageInputRef.value?.click()
+}
+
+function onImageSelected(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  selectedImageFile.value = file
+  updatePreviewUrl(URL.createObjectURL(file))
+  validateField('image')
+}
+
+function updatePreviewUrl(nextUrl) {
+  if (imagePreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(imagePreviewUrl.value)
+  }
+  imagePreviewUrl.value = nextUrl || ''
+}
+
+function clearSelectedImage(keepExisting = true) {
+  selectedImageFile.value = null
+  if (imageInputRef.value) {
+    imageInputRef.value.value = ''
+  }
+  updatePreviewUrl(keepExisting && form.image ? resolveMediaUrl(form.image, 'slider') : '')
+}
+
+function validateField(field) {
+  switch (field) {
+    case 'title':
+      formErrors.title = form.title.trim().length >= 3 ? '' : 'El título debe tener al menos 3 caracteres.'
+      break
+    case 'link':
+      formErrors.link = isValidLink(form.link) ? '' : 'Usa una ruta interna o una URL válida.'
+      break
+    case 'image':
+      formErrors.image = imagePreviewUrl.value ? '' : 'La imagen del slider es obligatoria.'
+      break
+    case 'sort_order':
+      formErrors.sort_order = Number.isInteger(Number(form.sort_order)) && Number(form.sort_order) >= 0
+        ? ''
+        : 'El orden debe ser un número igual o mayor que cero.'
+      break
+    default:
+      break
+  }
+}
+
+function validateForm() {
+  validateField('title')
+  validateField('link')
+  validateField('image')
+  validateField('sort_order')
+  return Object.values(formErrors).every((value) => !value)
 }
 
 async function loadSliders() {
   loading.value = true
   try {
     const { data } = await catalogHttp.get('/admin/sliders')
-    sliders.value = data.data || data || []
-  } catch { sliders.value = [] } finally { loading.value = false }
+    const rows = Array.isArray(data?.data) ? data.data : []
+    sliders.value = rows.map(normalizeSlider).sort((left, right) => left.sort_order - right.sort_order)
+  } catch (error) {
+    sliders.value = []
+    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudieron cargar los sliders.') })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function saveSlider() {
-  if (!form.value.title?.trim()) { showSnackbar({ type: 'warning', message: 'El titulo es requerido' }); return }
+  if (!validateForm()) {
+    showSnackbar({ type: 'warning', message: 'Corrige los errores del formulario antes de guardar.' })
+    return
+  }
+
+  const payload = new FormData()
+  payload.append('title', form.title.trim())
+  payload.append('subtitle', form.subtitle.trim())
+  payload.append('link_url', form.link.trim())
+  payload.append('sort_order', String(Number(form.sort_order || 0)))
+  payload.append('active', form.active ? '1' : '0')
+  if (selectedImageFile.value) {
+    payload.append('image_file', selectedImageFile.value)
+  } else if (form.image) {
+    payload.append('image_url', form.image)
+  }
+
   try {
-    if (editing.value) {
-      await catalogHttp.put(`/admin/sliders/${editing.value}`, form.value)
-      showSnackbar({ type: 'success', message: 'Slider actualizado' })
+    if (editingSliderId.value) {
+      await catalogHttp.put(`/admin/sliders/${editingSliderId.value}`, payload, { headers: { 'Content-Type': 'multipart/form-data' } })
+      showSnackbar({ type: 'success', message: 'Slider actualizado correctamente.' })
     } else {
-      await catalogHttp.post('/admin/sliders', form.value)
-      showSnackbar({ type: 'success', message: 'Slider creado' })
+      await catalogHttp.post('/admin/sliders', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
+      showSnackbar({ type: 'success', message: 'Slider creado correctamente.' })
     }
-    showModal.value = false
+
+    closeModal()
     await loadSliders()
-  } catch { showSnackbar({ type: 'error', message: 'Error al guardar slider' }) }
+  } catch (error) {
+    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo guardar el slider.') })
+  }
 }
 
-async function deleteSlider(id) {
-  if (!confirm('¿Eliminar este slider?')) return
+async function moveSlider(index, direction) {
+  const targetIndex = index + direction
+  if (targetIndex < 0 || targetIndex >= sliders.value.length) return
+
+  const reordered = [...sliders.value]
+  const [current] = reordered.splice(index, 1)
+  reordered.splice(targetIndex, 0, current)
+
+  const payload = reordered.map((slider, position) => ({
+    id: slider.id,
+    sort_order: position,
+  }))
+
+  processingOrder.value = true
   try {
-    await catalogHttp.delete(`/admin/sliders/${id}`)
-    showSnackbar({ type: 'success', message: 'Slider eliminado' })
+    await catalogHttp.post('/admin/sliders/reorder', { items: payload })
+    sliders.value = reordered.map((slider, position) => ({ ...slider, sort_order: position }))
+    showSnackbar({ type: 'success', message: 'Orden de sliders actualizado.' })
+  } catch (error) {
+    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo reordenar el carrusel.') })
     await loadSliders()
-  } catch { showSnackbar({ type: 'error', message: 'Error al eliminar' }) }
+  } finally {
+    processingOrder.value = false
+  }
+}
+
+async function toggleSliderStatus(slider) {
+  try {
+    await catalogHttp.patch(`/admin/sliders/${slider.id}/status`, { active: !slider.active })
+    slider.active = !slider.active
+    showSnackbar({ type: 'success', message: slider.active ? 'Slider activado.' : 'Slider desactivado.' })
+  } catch (error) {
+    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo actualizar el estado del slider.') })
+  }
+}
+
+function confirmDeleteSlider(slider) {
+  showAlert({
+    type: 'warning',
+    title: 'Eliminar slider',
+    message: `Vas a eliminar "${slider.title}". Esta acción no se puede deshacer.`,
+    actions: [
+      { text: 'Cancelar', style: 'secondary' },
+      {
+        text: 'Eliminar',
+        style: 'danger',
+        callback: async () => {
+          try {
+            await catalogHttp.delete(`/admin/sliders/${slider.id}`)
+            showSnackbar({ type: 'success', message: 'Slider eliminado correctamente.' })
+            await loadSliders()
+          } catch (error) {
+            showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo eliminar el slider.') })
+          }
+        },
+      },
+    ],
+  })
+}
+
+function isValidLink(value) {
+  const clean = String(value || '').trim()
+  if (!clean) return true
+  return clean.startsWith('/') || /^https?:\/\//i.test(clean)
+}
+
+function extractErrorMessage(error, fallback) {
+  return error?.response?.data?.message || fallback
 }
 
 onMounted(loadSliders)
+
+onBeforeUnmount(() => {
+  if (imagePreviewUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(imagePreviewUrl.value)
+  }
+})
 </script>
 
 <style scoped>
-.sliders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
-.slider-card { border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fff; }
-.slider-image-wrapper { position: relative; height: 180px; overflow: hidden; background: #f5f5f5; }
-.slider-image-wrapper img { width: 100%; height: 100%; object-fit: cover; }
-.slider-overlay { position: absolute; top: 8px; right: 8px; }
-.slider-info { padding: 1rem; }
-.slider-info h4 { margin: 0 0 0.25rem 0; font-size: 1rem; }
-.slider-subtitle { color: #666; font-size: 0.85rem; margin: 0 0 0.5rem 0; }
-.slider-link { color: #0077b6; font-size: 0.8rem; margin: 0 0 0.5rem 0; }
-.slider-actions { display: flex; justify-content: space-between; align-items: center; }
-.slider-order { font-size: 0.8rem; color: #888; }
+.sliders-table th,
+.sliders-table td {
+  vertical-align: middle;
+}
+
+.slider-order-controls {
+  display: grid;
+  gap: 0.8rem;
+  justify-items: start;
+}
+
+.entity-actions--compact {
+  gap: 0.4rem;
+}
+
+.slider-thumb {
+  width: 8.8rem;
+  height: 5.8rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #f3f7fb;
+  border: 1px solid rgba(0, 119, 182, 0.12);
+}
+
+.slider-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.status-badge--button {
+  border: none;
+  cursor: pointer;
+}
+
+.upload-box {
+  border: 1px dashed rgba(0, 119, 182, 0.32);
+  border-radius: 1.2rem;
+  padding: 1.6rem;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fbfe;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.upload-box i {
+  font-size: 2rem;
+  color: var(--admin-primary);
+}
+
+.upload-box p,
+.upload-box small {
+  margin: 0;
+}
+
+.slider-preview-image {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.slider-preview-image img {
+  width: 100%;
+  max-height: 20rem;
+  object-fit: cover;
+  border-radius: 1rem;
+}
+
+.slider-preview-card {
+  margin-top: 1rem;
+}
+
+.slider-preview-card__label {
+  margin: 0 0 0.8rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--admin-text-light);
+}
+
+.slider-preview-card__surface {
+  min-height: 24rem;
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.4rem;
+  background: #0f172a;
+}
+
+.slider-preview-card__surface img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.8;
+}
+
+.slider-preview-card__overlay {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  align-content: end;
+  gap: 0.8rem;
+  padding: 1.8rem;
+  color: #ffffff;
+  background: linear-gradient(to top, rgba(12, 21, 35, 0.88), rgba(12, 21, 35, 0.12));
+}
+
+.slider-preview-card__overlay h3,
+.slider-preview-card__overlay p {
+  margin: 0;
+}
+
+.slider-preview-card__cta {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 768px) {
+  .slider-thumb {
+    width: 100%;
+    max-width: 8.8rem;
+  }
+}
 </style>

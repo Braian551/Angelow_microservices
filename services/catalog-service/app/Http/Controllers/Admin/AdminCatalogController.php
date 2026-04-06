@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SiteSetting;
+use App\Models\Slider;
+use App\Support\SiteSettingsCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -200,6 +204,124 @@ class AdminCatalogController extends Controller
         $file->move($destination, $filename);
 
         return '/uploads/' . trim($folder, '/') . '/' . $filename;
+    }
+
+    private function nullableTrim(mixed $value): ?string
+    {
+        $clean = trim((string) $value);
+
+        return $clean === '' ? null : $clean;
+    }
+
+    private function sliderColumn(string $semantic): ?string
+    {
+        return match ($semantic) {
+            'image' => $this->firstExistingColumn('sliders', ['image_url', 'image']),
+            'link' => $this->firstExistingColumn('sliders', ['link_url', 'link']),
+            'sort_order' => $this->firstExistingColumn('sliders', ['sort_order', 'order_position']),
+            'active' => $this->firstExistingColumn('sliders', ['is_active', 'active']),
+            default => null,
+        };
+    }
+
+    private function transformSlider(object $slider): array
+    {
+        $image = $slider->image_url ?? $slider->image ?? null;
+        $link = $slider->link_url ?? $slider->link ?? null;
+        $sortOrder = $slider->sort_order ?? $slider->order_position ?? 0;
+        $active = (bool) ($slider->is_active ?? $slider->active ?? false);
+
+        return [
+            'id' => (int) $slider->id,
+            'title' => $slider->title,
+            'subtitle' => $slider->subtitle,
+            'image' => $image,
+            'image_url' => $image,
+            'link' => $link,
+            'link_url' => $link,
+            'sort_order' => (int) $sortOrder,
+            'order_position' => (int) $sortOrder,
+            'is_active' => $active,
+            'active' => $active,
+            'created_at' => $slider->created_at ?? null,
+            'updated_at' => $slider->updated_at ?? null,
+        ];
+    }
+
+    private function deletePublicUpload(?string $path, string $folder): void
+    {
+        $cleanPath = trim((string) $path);
+        if ($cleanPath === '') {
+            return;
+        }
+
+        $expectedPrefix = '/uploads/' . trim($folder, '/');
+        if (!str_starts_with($cleanPath, $expectedPrefix) && !str_starts_with($cleanPath, ltrim($expectedPrefix, '/'))) {
+            return;
+        }
+
+        $absolutePath = public_path(ltrim($cleanPath, '/'));
+        if (File::exists($absolutePath)) {
+            File::delete($absolutePath);
+        }
+    }
+
+    private function normalizeSettingValue(string $key, mixed $value, array $definition): string
+    {
+        $type = $definition['type'] ?? 'string';
+
+        if ($type === 'bool') {
+            return $this->toBoolean($value) ? '1' : '0';
+        }
+
+        if ($type === 'int') {
+            $number = (int) $value;
+            if (isset($definition['min'])) {
+                $number = max((int) $definition['min'], $number);
+            }
+            if (isset($definition['max'])) {
+                $number = min((int) $definition['max'], $number);
+            }
+
+            return (string) $number;
+        }
+
+        $clean = trim((string) $value);
+        if ($clean === '') {
+            return (string) ($definition['default'] ?? '');
+        }
+
+        if (!empty($definition['pattern']) && !preg_match($definition['pattern'], $clean)) {
+            return (string) ($definition['default'] ?? '');
+        }
+
+        if (!empty($definition['max_length'])) {
+            $clean = mb_substr($clean, 0, (int) $definition['max_length']);
+        }
+
+        return $clean;
+    }
+
+    private function settingsValuesWithDefaults(): array
+    {
+        $definitions = SiteSettingsCatalog::definitions();
+        $storedValues = SiteSetting::query()
+            ->select(['setting_key', 'setting_value'])
+            ->pluck('setting_value', 'setting_key')
+            ->all();
+
+        $values = [];
+        foreach ($definitions as $key => $definition) {
+            $storedValue = $storedValues[$key] ?? ($definition['default'] ?? '');
+            if (($definition['type'] ?? 'string') === 'bool') {
+                $values[$key] = $this->toBoolean($storedValue, (bool) ($definition['default'] ?? false));
+                continue;
+            }
+
+            $values[$key] = $storedValue;
+        }
+
+        return $values;
     }
 
     /**
@@ -544,6 +666,20 @@ class AdminCatalogController extends Controller
                         $q->{$method}("p.{$productDescriptionColumn}", $likeOperator, "%{$s}%");
                     }
                 });
+            }
+        }
+
+        if ($request->filled('ids')) {
+            $ids = collect(explode(',', $request->string('ids')->toString()))
+                ->map(static fn ($id) => trim($id))
+                ->filter(static fn ($id) => $id !== '' && ctype_digit($id))
+                ->map(static fn ($id) => (int) $id)
+                ->unique()
+                ->take(200)
+                ->values();
+
+            if ($ids->isNotEmpty()) {
+                $query->whereIn('p.id', $ids->all());
             }
         }
 
@@ -1777,7 +1913,12 @@ class AdminCatalogController extends Controller
 
     public function sliders(): JsonResponse
     {
-        $sliders = DB::table('sliders')->orderBy('sort_order')->get();
+        $sortColumn = $this->sliderColumn('sort_order') ?? 'id';
+
+        $sliders = Slider::query()
+            ->orderBy($sortColumn)
+            ->get()
+            ->map(fn (Slider $slider) => $this->transformSlider($slider));
 
         return response()->json(['success' => true, 'data' => $sliders]);
     }
@@ -1787,85 +1928,210 @@ class AdminCatalogController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'string', 'max:500'],
             'image_url' => ['nullable', 'string', 'max:500'],
+            'link' => ['nullable', 'string', 'max:500'],
             'link_url' => ['nullable', 'string', 'max:500'],
             'sort_order' => ['nullable', 'integer'],
+            'order_position' => ['nullable', 'integer'],
             'active' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'image_file' => ['nullable', 'file', 'image', 'max:4096'],
         ]);
 
-        $id = DB::table('sliders')->insertGetId([
-            'title' => $data['title'],
-            'subtitle' => $data['subtitle'] ?? null,
-            'image_url' => $data['image_url'] ?? null,
-            'link_url' => $data['link_url'] ?? null,
-            'sort_order' => $data['sort_order'] ?? 0,
-            'is_active' => $data['active'] ?? true,
+        $imagePath = $request->file('image_file') instanceof UploadedFile
+            ? $this->storeUploadedImage($request->file('image_file'), 'sliders')
+            : $this->nullableTrim($data['image_url'] ?? $data['image'] ?? null);
+
+        if ($imagePath === null) {
+            return response()->json(['success' => false, 'message' => 'La imagen es obligatoria al crear un slider.'], 422);
+        }
+
+        $payload = [
+            'title' => trim($data['title']),
+            'subtitle' => $this->nullableTrim($data['subtitle'] ?? null),
             'created_at' => now(),
             'updated_at' => now(),
-        ]);
+        ];
 
-        return response()->json(['success' => true, 'message' => 'Slider creado', 'id' => $id], 201);
+        if (($column = $this->sliderColumn('image')) !== null) {
+            $payload[$column] = $imagePath;
+        }
+        if (($column = $this->sliderColumn('link')) !== null) {
+            $payload[$column] = $this->nullableTrim($data['link_url'] ?? $data['link'] ?? null);
+        }
+        if (($column = $this->sliderColumn('sort_order')) !== null) {
+            $payload[$column] = (int) ($data['sort_order'] ?? $data['order_position'] ?? 0);
+        }
+        if (($column = $this->sliderColumn('active')) !== null) {
+            $payload[$column] = $this->toBoolean($data['active'] ?? $data['is_active'] ?? true, true);
+        }
+
+        $slider = Slider::query()->create($payload);
+
+        return response()->json(['success' => true, 'message' => 'Slider creado', 'id' => $slider->id], 201);
     }
 
     public function updateSlider(Request $request, int $id): JsonResponse
     {
+        $slider = Slider::query()->find($id);
+        if (!$slider) {
+            return response()->json(['success' => false, 'message' => 'Slider no encontrado.'], 404);
+        }
+
         $data = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'string', 'max:500'],
             'image_url' => ['nullable', 'string', 'max:500'],
+            'link' => ['nullable', 'string', 'max:500'],
             'link_url' => ['nullable', 'string', 'max:500'],
             'sort_order' => ['nullable', 'integer'],
+            'order_position' => ['nullable', 'integer'],
             'active' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+            'image_file' => ['nullable', 'file', 'image', 'max:4096'],
         ]);
 
-        $payload = array_filter([
-            'title' => $data['title'] ?? null,
-            'subtitle' => $data['subtitle'] ?? null,
-            'image_url' => $data['image_url'] ?? null,
-            'link_url' => $data['link_url'] ?? null,
-            'sort_order' => $data['sort_order'] ?? null,
-            'is_active' => $data['active'] ?? null,
-            'updated_at' => now(),
-        ], fn($v) => $v !== null);
+        $payload = ['updated_at' => now()];
 
-        DB::table('sliders')->where('id', $id)->update($payload);
+        if (array_key_exists('title', $data)) {
+            $payload['title'] = trim($data['title']);
+        }
+        if (array_key_exists('subtitle', $data)) {
+            $payload['subtitle'] = $this->nullableTrim($data['subtitle'] ?? null);
+        }
+        if (($column = $this->sliderColumn('link')) !== null && (array_key_exists('link_url', $data) || array_key_exists('link', $data))) {
+            $payload[$column] = $this->nullableTrim($data['link_url'] ?? $data['link'] ?? null);
+        }
+        if (($column = $this->sliderColumn('sort_order')) !== null && (array_key_exists('sort_order', $data) || array_key_exists('order_position', $data))) {
+            $payload[$column] = (int) ($data['sort_order'] ?? $data['order_position'] ?? 0);
+        }
+        if (($column = $this->sliderColumn('active')) !== null && (array_key_exists('active', $data) || array_key_exists('is_active', $data))) {
+            $payload[$column] = $this->toBoolean($data['active'] ?? $data['is_active'] ?? false);
+        }
+
+        if ($request->file('image_file') instanceof UploadedFile && ($column = $this->sliderColumn('image')) !== null) {
+            $this->deletePublicUpload((string) ($slider->{$column} ?? ''), 'sliders');
+            $payload[$column] = $this->storeUploadedImage($request->file('image_file'), 'sliders');
+        } elseif (($column = $this->sliderColumn('image')) !== null && (array_key_exists('image_url', $data) || array_key_exists('image', $data))) {
+            $payload[$column] = $this->nullableTrim($data['image_url'] ?? $data['image'] ?? null);
+        }
+
+        $slider->fill($payload);
+        $slider->save();
 
         return response()->json(['success' => true, 'message' => 'Slider actualizado']);
     }
 
     public function destroySlider(int $id): JsonResponse
     {
-        DB::table('sliders')->where('id', $id)->delete();
+        $slider = Slider::query()->find($id);
+        if (!$slider) {
+            return response()->json(['success' => false, 'message' => 'Slider no encontrado.'], 404);
+        }
+
+        if (($column = $this->sliderColumn('image')) !== null) {
+            $this->deletePublicUpload((string) ($slider->{$column} ?? ''), 'sliders');
+        }
+
+        $slider->delete();
 
         return response()->json(['success' => true, 'message' => 'Slider eliminado']);
+    }
+
+    public function toggleSliderStatus(Request $request, int $id): JsonResponse
+    {
+        $slider = Slider::query()->find($id);
+        if (!$slider) {
+            return response()->json(['success' => false, 'message' => 'Slider no encontrado.'], 404);
+        }
+
+        $activeColumn = $this->sliderColumn('active');
+        if ($activeColumn === null) {
+            return response()->json(['success' => false, 'message' => 'La tabla de sliders no tiene una columna de estado válida.'], 422);
+        }
+
+        $data = $request->validate([
+            'active' => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $slider->{$activeColumn} = $this->toBoolean($data['active'] ?? $data['is_active'] ?? !($slider->{$activeColumn} ?? false));
+        $slider->updated_at = now();
+        $slider->save();
+
+        return response()->json(['success' => true, 'message' => 'Estado del slider actualizado.']);
+    }
+
+    public function reorderSliders(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.id' => ['required', 'integer'],
+            'items.*.sort_order' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $sortColumn = $this->sliderColumn('sort_order');
+        if ($sortColumn === null) {
+            return response()->json(['success' => false, 'message' => 'La tabla de sliders no tiene una columna de orden válida.'], 422);
+        }
+
+        DB::transaction(function () use ($data, $sortColumn) {
+            foreach ($data['items'] as $item) {
+                Slider::query()->whereKey((int) $item['id'])->update([
+                    $sortColumn => (int) $item['sort_order'],
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        return response()->json(['success' => true, 'message' => 'Orden de sliders actualizado.']);
     }
 
     // ── Configuracion ───────────────────────────────────────────────
 
     public function settings(): JsonResponse
     {
-        $rows = DB::table('site_settings')->get();
-        $settings = [];
-
-        foreach ($rows as $row) {
-            $settings[$row->setting_key] = $row->setting_value;
-        }
-
-        return response()->json(['success' => true, 'data' => $settings]);
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'settings' => $this->settingsValuesWithDefaults(),
+                'definitions' => SiteSettingsCatalog::definitions(),
+            ],
+        ]);
     }
 
     public function updateSettings(Request $request): JsonResponse
     {
-        $settings = $request->all();
+        $definitions = SiteSettingsCatalog::definitions();
+        $existingSettings = SiteSetting::query()->get()->keyBy('setting_key');
+        $adminUser = $request->input('_admin_user', []);
 
-        foreach ($settings as $key => $value) {
-            if (str_starts_with($key, '_')) {
+        foreach ($definitions as $key => $definition) {
+            $uploadedFile = $request->file($key);
+            $hasScalarValue = $request->exists($key);
+
+            if (!$uploadedFile && !$hasScalarValue) {
                 continue;
             }
 
-            DB::table('site_settings')->updateOrInsert(
+            if (($definition['type'] ?? 'string') === 'image' && $uploadedFile instanceof UploadedFile) {
+                $currentValue = (string) optional($existingSettings->get($key))->setting_value;
+                $this->deletePublicUpload($currentValue, 'settings');
+                $value = $this->storeUploadedImage($uploadedFile, 'settings');
+            } else {
+                $value = $this->normalizeSettingValue($key, $request->input($key), $definition);
+            }
+
+            SiteSetting::query()->updateOrCreate(
                 ['setting_key' => $key],
-                ['setting_value' => $value, 'updated_at' => now()],
+                [
+                    'setting_value' => $value,
+                    'category' => $definition['category'] ?? 'general',
+                    'updated_by' => (string) ($adminUser['id'] ?? ''),
+                    'updated_at' => now(),
+                ],
             );
         }
 

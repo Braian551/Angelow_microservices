@@ -1,4 +1,4 @@
-/* ===== ADMIN PANEL - CSS (Réplica exacta de Angelow legacy) ===== */
+/* ===== ADMIN PANEL - CSS ===== */
 
 /* Variables */
 :root {
@@ -67,6 +67,60 @@
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+.admin-detail-grid--featured {
+  grid-template-columns: 1.3fr 1fr;
+}
+
+.admin-editor-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1.2rem;
+}
+
+.admin-surface-card {
+  border-radius: 1.4rem;
+  padding: 1.6rem;
+  background: #f8fbfe;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-surface-card__label {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--admin-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.admin-surface-card h3 {
+  margin: 0;
+  font-size: 2.2rem;
+}
+
+.admin-surface-card p,
+.admin-surface-card__value {
+  margin: 0;
+}
+
+.admin-surface-card__value {
+  font-size: 1.5rem;
+}
+
+@media (max-width: 960px) {
+  .admin-detail-grid,
+  .admin-detail-grid--featured,
+  .admin-editor-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ===== SIDEBAR ===== */
@@ -2345,7 +2399,6 @@
     padding: 0;
   }
 }
-. c o l o r - c i r c l e   {   d i s p l a y :   i n l i n e - b l o c k ;   w i d t h :   1 4 p x ;   h e i g h t :   1 4 p x ;   b o r d e r - r a d i u s :   5 0 % ;   b o r d e r :   1 p x   s o l i d   # d d d ;   }
 
 .color-circle {
   display: inline-block;

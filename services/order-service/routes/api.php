@@ -19,4 +19,6 @@ Route::prefix('orders')->group(function () {
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     Route::get('/orders', [AdminOrderController::class, 'recentOrders']);
     Route::get('/reports/sales', [AdminOrderController::class, 'reportSales']);
+    Route::get('/reports/products', [AdminOrderController::class, 'reportProducts']);
+    Route::get('/reports/customers', [AdminOrderController::class, 'reportCustomers']);
 });
