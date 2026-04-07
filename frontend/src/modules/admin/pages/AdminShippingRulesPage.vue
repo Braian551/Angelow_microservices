@@ -20,32 +20,16 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="ruleStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Filtros de vigencia</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input v-model.trim="filters.search" type="text" class="search-input" placeholder="Buscar por rango o valor...">
-          <button v-if="filters.search" type="button" class="search-clear" @click="filters.search = ''">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row filters-row--shipping-rules">
-          <div class="filter-group">
+    <AdminFilterCard
+      v-model="filters.search"
+      icon="fas fa-filter"
+      title="Filtros de vigencia"
+      placeholder="Buscar por rango o valor..."
+      @search="() => {}"
+    >
+      <template #advanced>
+        <div class="admin-filters__row">
+          <div class="admin-filters__group">
             <label for="shipping-rule-status"><i class="fas fa-signal"></i> Estado</label>
             <select id="shipping-rule-status" v-model="filters.state">
               <option value="all">Todos</option>
@@ -57,27 +41,21 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar filtros
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearFilters">
+              <i class="fas fa-times-circle"></i> Limpiar filtros
             </button>
           </div>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list-ul"></i>
-        <p>Mostrando {{ filteredRules.length }} reglas</p>
-      </div>
-    </div>
+    <AdminResultsBar :text="`Mostrando ${filteredRules.length} reglas`" />
 
     <AdminCard title="Bandeja de reglas" icon="fas fa-shipping-fast" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'pill', 'btn']" />
@@ -101,13 +79,13 @@
           <tbody>
             <tr v-for="rule in filteredRules" :key="rule.id">
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ rangeLabel(rule) }}</strong>
                   <span>{{ rule.max_price ? 'Rango cerrado' : 'Sin tope maximo' }}</span>
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ isFreeRule(rule) ? 'Envio gratis' : formatCurrency(rule.shipping_cost) }}</strong>
                   <span>{{ pricingNarrative(rule) }}</span>
                 </div>
@@ -117,7 +95,7 @@
                 <span class="status-badge" :class="ruleStatusClass(rule)">{{ ruleStatusLabel(rule) }}</span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal(rule)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -148,11 +126,11 @@
           </AdminCard>
 
           <AdminCard title="Configuracion" icon="fas fa-cogs">
-            <div class="summary-stack">
-              <div class="summary-row"><span>Minimo</span><strong>{{ formatCurrency(selectedRule.min_price) }}</strong></div>
-              <div class="summary-row"><span>Maximo</span><strong>{{ selectedRule.max_price ? formatCurrency(selectedRule.max_price) : 'Sin limite' }}</strong></div>
-              <div class="summary-row"><span>Costo envio</span><strong>{{ isFreeRule(selectedRule) ? 'Gratis' : formatCurrency(selectedRule.shipping_cost) }}</strong></div>
-              <div class="summary-row"><span>Estado</span><strong>{{ ruleStatusLabel(selectedRule) }}</strong></div>
+            <div class="admin-detail-summary">
+              <div class="admin-detail-summary__row"><span>Minimo</span><strong>{{ formatCurrency(selectedRule.min_price) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Maximo</span><strong>{{ selectedRule.max_price ? formatCurrency(selectedRule.max_price) : 'Sin limite' }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Costo envio</span><strong>{{ isFreeRule(selectedRule) ? 'Gratis' : formatCurrency(selectedRule.shipping_cost) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ ruleStatusLabel(selectedRule) }}</strong></div>
             </div>
           </AdminCard>
         </div>
@@ -224,8 +202,10 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -233,7 +213,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const rules = ref([])
 const selectedRule = ref(null)
 const showDetailModal = ref(false)

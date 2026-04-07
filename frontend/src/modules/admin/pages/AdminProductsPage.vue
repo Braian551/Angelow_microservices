@@ -6,36 +6,18 @@
       :breadcrumbs="[{ label: 'Productos' }]"
     />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-sliders-h"></i>
-            <h3>Filtros de búsqueda</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input v-model="search" type="text" class="search-input" placeholder="Buscar por nombre, SKU, etc..." @input="debouncedLoad">
-          <button v-if="search" type="button" class="search-clear" @click="clearSearch">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <button type="button" class="search-submit-btn" @click="applyFilters">
-          <i class="fas fa-search"></i>
-          <span>Buscar</span>
-        </button>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row">
-          <div class="filter-group">
+    <!-- Filtros de búsqueda -->
+    <AdminFilterCard
+      v-model="search"
+      icon="fas fa-sliders-h"
+      title="Filtros de busqueda"
+      placeholder="Buscar por nombre, SKU, etc..."
+      @update:model-value="debouncedLoad"
+      @search="applyFilters"
+    >
+      <template #advanced>
+        <div class="admin-filters__row">
+          <div class="admin-filters__group">
             <label for="category-filter"><i class="fas fa-tag"></i> Categoría</label>
             <select id="category-filter" v-model="categoryFilter" @change="applyFilters">
               <option value="">Todas las categorías</option>
@@ -43,7 +25,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="status-filter"><i class="fas fa-toggle-on"></i> Estado</label>
             <select id="status-filter" v-model="statusFilter" @change="applyFilters">
               <option value="">Todos los estados</option>
@@ -52,7 +34,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="gender-filter"><i class="fas fa-venus-mars"></i> Género</label>
             <select id="gender-filter" v-model="genderFilter" @change="applyFilters">
               <option value="">Todos los géneros</option>
@@ -63,7 +45,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="order-filter"><i class="fas fa-sort-amount-down"></i> Ordenar por</label>
             <select id="order-filter" v-model="sortOrder" @change="applyFilters">
               <option value="newest">Más recientes</option>
@@ -77,40 +59,38 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
             <i class="fas fa-filter"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
 
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearAllFilters">
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+            <button type="button" class="admin-filters__clear" @click="clearAllFilters">
               <i class="fas fa-times-circle"></i>
               Limpiar todo
             </button>
-            <button type="button" class="btn-apply-filters" @click="applyFilters">
+            <button type="button" class="admin-filters__apply" @click="applyFilters">
               <i class="fas fa-check-circle"></i>
               Aplicar filtros
             </button>
           </div>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-summary__info">
-        <p>Mostrando {{ paginatedProducts.length }} de {{ filteredProducts.length }} productos</p>
-        <span v-if="selectedProducts.length > 0" class="results-summary__selected">{{ selectedProducts.length }} seleccionado(s)</span>
-      </div>
-      <div class="quick-actions">
+    <!-- Barra de resultados -->
+    <AdminResultsBar :text="`Mostrando ${paginatedProducts.length} de ${filteredProducts.length} productos`">
+      <template #actions>
+        <span v-if="selectedProducts.length > 0" style="color:var(--admin-text-soft);font-size:0.95rem;font-weight:600;">{{ selectedProducts.length }} seleccionado(s)</span>
         <RouterLink :to="{ name: 'admin-product-create' }" class="btn btn-primary">
           <i class="fas fa-plus"></i> Nuevo Producto
         </RouterLink>
-        <button class="btn btn-icon" type="button" @click="exportProducts">
+        <button class="btn-icon" type="button" @click="exportProducts">
           <i class="fas fa-file-export"></i> Exportar
         </button>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <div class="products-container">
       <div v-if="loading" class="products-skeleton" aria-hidden="true">
@@ -334,9 +314,11 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminProductCard from '../components/AdminProductCard.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -349,7 +331,6 @@ const categoryFilter = ref('')
 const statusFilter = ref('')
 const genderFilter = ref('')
 const sortOrder = ref('newest')
-const showAdvanced = ref(false)
 const selectedProducts = ref([])
 const currentPage = ref(1)
 const perPage = ref(12)
@@ -547,12 +528,6 @@ function normalizeProduct(rawProduct) {
     image: productImage(rawProduct),
     is_active: typeof rawProduct.is_active === 'boolean' ? rawProduct.is_active : Boolean(Number(rawProduct.activo ?? 1)),
   }
-}
-
-function clearSearch() {
-  search.value = ''
-  currentPage.value = 1
-  loadProducts()
 }
 
 function toggleSelection({ id, checked }) {
@@ -784,286 +759,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.filters-card {
-  margin-bottom: 2rem;
-  border: 1px solid #d9e8f4;
-  border-radius: 26px;
-  box-shadow: 0 14px 32px rgba(15, 55, 96, 0.08);
-  overflow: hidden;
-}
+/* Estilos específicos de Productos — los comunes están en admin.css */
 
-.filters-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-  border-bottom: 1px solid #edf3f8;
-}
-
-.filters-title {
-  display: flex;
-  align-items: center;
-  gap: 0.95rem;
-}
-
-.filters-title i {
-  width: 3rem;
-  height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  background: #eef7ff;
-  color: #0077b6;
-}
-
-.filters-title h3 {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #24364b;
-}
-
-.filters-toggle {
-  width: 3.25rem;
-  height: 3.25rem;
-  border: 1px solid #cfe2f2;
-  background: #fff;
-  color: #45617d;
-  border-radius: 1.1rem;
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-  cursor: pointer;
-}
-
-.filters-toggle:hover {
-  border-color: #0077b6;
-  box-shadow: 0 10px 20px rgba(0, 119, 182, 0.12);
-}
-
-.filters-toggle.collapsed {
-  transform: rotate(180deg);
-}
-
-.search-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-}
-
-.search-input-wrapper {
-  position: relative;
-}
-
-.search-input {
-  width: 100%;
-  height: 4.25rem;
-  padding: 0 3.25rem;
-  border: 1px solid #cfe2f2;
-  border-radius: 1.4rem;
-  font-size: 1.08rem;
-  color: #24364b;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-}
-
-.search-input:focus,
-.filter-group select:focus {
-  outline: none;
-  border-color: #0077b6;
-  box-shadow: 0 0 0 4px rgba(0, 119, 182, 0.08);
-}
-
-.search-icon {
-  position: absolute;
-  left: 1.15rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6a96cf;
-}
-
-.search-clear {
-  position: absolute;
-  right: 0.85rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  color: #90a4b7;
-  cursor: pointer;
-}
-
-.search-submit-btn {
-  min-width: 9.5rem;
-  height: 4.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  border: 1px solid #8bc7f0;
-  background: #f3fbff;
-  color: #0077b6;
-  border-radius: 1.4rem;
-  padding: 0 1.65rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-}
-
-.search-submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 28px rgba(0, 119, 182, 0.14);
-  border-color: #0077b6;
-}
-
-.filters-advanced {
-  padding: 0 2rem 2rem;
-}
-
-.filters-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-.filter-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.filter-group select {
-  width: 100%;
-  height: 3.3rem;
-  border-radius: 1rem;
-  border: 1px solid #cde0ef;
-  padding: 0 0.95rem;
-  color: #24364b;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-}
-
-.filters-actions-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-  padding-top: 1.3rem;
-  border-top: 1px solid #edf2f7;
-}
-
-.active-filters,
-.quick-actions,
-.filters-buttons,
-.results-summary__info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.active-filters {
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.btn-clear-filters {
-  border: none;
-  background: transparent;
-  color: #0077b6;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.btn-apply-filters,
-.quick-actions .btn,
-.quick-actions button {
-  min-height: 3.15rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0 1.2rem;
-  border-radius: 1rem;
-  text-decoration: none;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease, border-color 0.25s ease;
-}
-
-.btn-apply-filters,
-.quick-actions .btn-primary {
-  border: 1px solid #0077b6;
-  background: #0077b6;
-  color: #fff;
-  box-shadow: 0 14px 24px rgba(0, 119, 182, 0.16);
-}
-
-.btn-apply-filters:hover,
-.quick-actions .btn-primary:hover {
-  background: #0068a1;
-  border-color: #0068a1;
-  transform: translateY(-2px);
-  box-shadow: 0 18px 30px rgba(0, 119, 182, 0.2);
-}
-
-.results-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  padding: 1.25rem 1.6rem;
-  background: #fff;
-  border: 1px solid #d9e8f4;
-  border-radius: 1.65rem;
-  box-shadow: 0 14px 28px rgba(15, 55, 96, 0.08);
-}
-
-.results-summary p {
-  margin: 0;
-  color: #0077b6;
-  font-size: 1.12rem;
-  font-weight: 700;
-}
-
-.results-summary__selected {
-  color: #4f657b;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.btn.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid #cde0ef;
-  background: #fff;
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #0e5f99;
-  font-weight: 600;
-}
-
-.btn.btn-icon:hover {
-  border-color: #0077b6;
-  color: #0077b6;
-  transform: translateY(-2px);
-  box-shadow: 0 16px 28px rgba(0, 119, 182, 0.12);
-}
-
+/* Grid de productos (tarjetas) */
 .products-admin-grid,
 .products-skeleton {
   display: grid;
@@ -1072,13 +770,14 @@ onMounted(() => {
   padding: 20px 0;
 }
 
+/* Skeleton de carga para tarjetas de producto */
 .product-skeleton-card {
-  border: 1px solid #b3d9ff;
-  border-radius: 12px;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-card-radius);
   overflow: hidden;
-  background: #fff;
+  background: var(--admin-bg);
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 119, 182, 0.08);
+  box-shadow: var(--admin-shadow-card);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1091,47 +790,19 @@ onMounted(() => {
   border-radius: 8px;
 }
 
-.skeleton-thumb {
-  height: 160px;
-}
-
-.skeleton-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.skeleton-line {
-  height: 12px;
-}
-
-.skeleton-tags {
-  display: flex;
-  gap: 8px;
-}
-
-.skeleton-pill {
-  height: 20px;
-  width: 90px;
-  border-radius: 999px;
-}
-
-.skeleton-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.skeleton-btn {
-  height: 36px;
-  border-radius: 10px;
-}
-
+.skeleton-thumb { height: 160px; }
+.skeleton-body { display: flex; flex-direction: column; gap: 10px; }
+.skeleton-line { height: 12px; }
+.skeleton-tags { display: flex; gap: 8px; }
+.skeleton-pill { height: 20px; width: 90px; border-radius: var(--admin-radius-pill); }
+.skeleton-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.skeleton-btn { height: 36px; border-radius: var(--admin-radius-md); }
 .w-80 { width: 80%; }
 .w-70 { width: 70%; }
 .w-60 { width: 60%; }
 .w-40 { width: 40%; }
 
+/* Paginación local (usa variables globales) */
 .pagination-container {
   margin-top: 1.5rem;
   display: flex;
@@ -1144,28 +815,28 @@ onMounted(() => {
 .pagination-item {
   min-width: 40px;
   height: 40px;
-  border: 1px solid #d5e3f0;
-  background: #fff;
-  color: #325372;
-  border-radius: 0.8rem;
+  border: 1px solid var(--admin-border-light);
+  background: var(--admin-bg);
+  color: var(--admin-text-soft);
+  border-radius: var(--admin-radius-lg);
   cursor: pointer;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0 0.7rem;
-  transition: all 0.2s ease;
+  transition: var(--admin-transition-fast);
 }
 
 .pagination-item:hover:not(:disabled):not(.active):not(.dots) {
-  border-color: #0077b6;
-  color: #0077b6;
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
 }
 
 .pagination-item.active {
-  background: #0077b6;
+  background: var(--admin-primary);
   color: #fff;
-  border-color: #0077b6;
+  border-color: var(--admin-primary);
   box-shadow: 0 12px 22px rgba(0, 119, 182, 0.18);
 }
 
@@ -1179,12 +850,13 @@ onMounted(() => {
   cursor: default;
 }
 
+/* Vista rápida de producto (modal) */
 .quick-view-loading {
   min-height: 18rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #5a6f85;
+  color: var(--admin-text-soft);
   font-size: 1.05rem;
 }
 
@@ -1214,37 +886,29 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #cde0ef;
-  background: #fff;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-bg);
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--admin-radius-pill);
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: #0077b6;
-  transition: all 0.25s ease;
+  color: var(--admin-primary);
+  transition: var(--admin-transition-fast);
 }
 
 .color-filter-btn.active,
 .color-filter-btn:hover {
-  border-color: #0077b6;
-  background: #f0f8ff;
-}
-
-.color-circle {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: inline-block;
-  border: 1px solid #c3c9d2;
+  border-color: var(--admin-primary);
+  background: var(--admin-bg-highlight);
 }
 
 .main-image {
   position: relative;
-  border-radius: 16px;
+  border-radius: var(--admin-radius-xl);
   overflow: hidden;
-  border: 1px solid #d8e4f0;
-  background: #f8fafc;
+  border: 1px solid var(--admin-border-light);
+  background: var(--admin-bg-dark);
   box-shadow: 0 4px 12px rgba(0, 119, 182, 0.15);
 }
 
@@ -1277,7 +941,7 @@ onMounted(() => {
 }
 
 .gallery-arrow {
-  border: 1px solid #c9d8e8;
+  border: 1px solid var(--admin-border-soft);
   background: rgba(255, 255, 255, 0.95);
   width: 30px;
   height: 30px;
@@ -1302,14 +966,14 @@ onMounted(() => {
   height: 60px;
   object-fit: cover;
   border: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--admin-radius-sm);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .thumbnail.active,
 .thumbnail:hover {
-  border-color: #0a74b8;
+  border-color: var(--admin-primary);
 }
 
 .quick-view-info {
@@ -1324,19 +988,19 @@ onMounted(() => {
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .product-header h2 {
   margin: 0;
   font-size: 2rem;
-  color: #2d3f54;
+  color: var(--admin-text-heading);
   font-weight: 700;
 }
 
 .product-id {
   font-size: 1rem;
-  color: #718096;
+  color: var(--admin-text-light);
   font-weight: 500;
 }
 
@@ -1344,32 +1008,32 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #f5f8fc;
-  border: 1px solid #dde7f2;
+  background: var(--admin-bg-dark);
+  border: 1px solid var(--admin-border-light);
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--admin-radius-md);
   font-size: 14px;
-  color: #506a84;
+  color: var(--admin-text-soft);
 }
 
 .product-description h4,
 .product-pricing h4,
 .variants-section h4 {
   margin: 0 0 12px;
-  color: #33475b;
+  color: var(--admin-text-heading);
   font-size: 1.1rem;
   font-weight: 700;
 }
 
 .product-description p {
-  color: #5a6f85;
+  color: var(--admin-text-soft);
   margin: 0;
   line-height: 1.6;
 }
 
 .product-pricing p {
   font-weight: 700;
-  color: #0876b6;
+  color: var(--admin-primary);
   font-size: 1.95rem;
   margin: 0;
 }
@@ -1377,7 +1041,7 @@ onMounted(() => {
 .variants-section {
   margin-top: 0.5rem;
   padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--admin-border);
 }
 
 .variant-group {
@@ -1387,7 +1051,7 @@ onMounted(() => {
 .variant-group label {
   display: block;
   font-weight: 700;
-  color: #4f657b;
+  color: var(--admin-text-soft);
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -1396,11 +1060,11 @@ onMounted(() => {
 .size-tag {
   display: inline-block;
   padding: 6px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-pill);
   font-size: 13px;
-  color: #4f657b;
-  background: #f7fafc;
+  color: var(--admin-text-soft);
+  background: var(--admin-bg-dark);
 }
 
 .variant-table {
@@ -1414,42 +1078,43 @@ onMounted(() => {
   font-size: 14px;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 119, 182, 0.08);
+  box-shadow: var(--admin-shadow-card);
 }
 
 .variant-table th {
-  background: #f0f8ff;
-  color: #1e40af;
+  background: var(--admin-bg-highlight);
+  color: var(--admin-primary);
   font-weight: 700;
   padding: 12px;
   text-align: left;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .variant-table td {
   padding: 12px;
-  border-bottom: 1px solid #edf2f7;
-  color: #2d3748;
+  border-bottom: 1px solid var(--admin-border-muted);
+  color: var(--admin-text-heading);
 }
 
 .variant-status {
   display: inline-block;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--admin-radius-pill);
   font-size: 12px;
   font-weight: 700;
 }
 
 .variant-status.active {
-  background: #e6f7eb;
-  color: #1d7a3f;
+  background: rgba(75, 181, 67, 0.12);
+  color: var(--admin-success);
 }
 
 .variant-status.inactive {
-  background: #ffe9e9;
-  color: #b52e2e;
+  background: rgba(255, 51, 51, 0.1);
+  color: var(--admin-error);
 }
 
+/* Modal de zoom de imagen */
 .zoom-body {
   text-align: center;
   min-height: 25rem;
@@ -1467,6 +1132,7 @@ onMounted(() => {
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
 }
 
+/* Transición de tarjetas */
 .card-fade-enter-active,
 .card-fade-leave-active {
   transition: all 0.24s ease;
@@ -1488,16 +1154,6 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .search-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .filters-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .results-summary,
-  .filters-actions-bar,
   .product-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1509,10 +1165,6 @@ onMounted(() => {
 }
 
 @media (max-width: 600px) {
-  .filters-row {
-    grid-template-columns: 1fr;
-  }
-
   .products-admin-grid,
   .products-skeleton {
     grid-template-columns: 1fr;

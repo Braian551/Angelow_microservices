@@ -20,32 +20,16 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="discountStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Filtros y control</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input v-model.trim="filters.search" type="text" class="search-input" placeholder="Buscar por código o tipo...">
-          <button v-if="filters.search" type="button" class="search-clear" @click="filters.search = ''">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row filters-row--discount-codes">
-          <div class="filter-group">
+    <AdminFilterCard
+      v-model="filters.search"
+      icon="fas fa-filter"
+      title="Filtros y control"
+      placeholder="Buscar por código o tipo..."
+      @search="() => {}"
+    >
+      <template #advanced>
+        <div class="admin-filters__row">
+          <div class="admin-filters__group">
             <label for="discount-code-status"><i class="fas fa-signal"></i> Estado</label>
             <select id="discount-code-status" v-model="filters.state">
               <option value="all">Todos</option>
@@ -56,7 +40,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="discount-code-type"><i class="fas fa-percent"></i> Tipo</label>
             <select id="discount-code-type" v-model="filters.type">
               <option value="all">Todos</option>
@@ -66,28 +50,21 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar filtros
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearFilters">
+              <i class="fas fa-times-circle"></i> Limpiar filtros
             </button>
           </div>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-ticket-alt"></i>
-        <p>Mostrando {{ filteredCodes.length }} códigos</p>
-      </div>
-    </div>
+    <AdminResultsBar :text="`Mostrando ${filteredCodes.length} códigos`" />
 
     <AdminCard title="Bandeja de códigos" icon="fas fa-tags" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'pill', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -113,7 +90,7 @@
           <tbody>
             <tr v-for="code in filteredCodes" :key="code.id">
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong class="discount-code-pill">{{ code.code }}</strong>
                   <span>{{ code.is_single_use ? 'Uso único' : 'Uso múltiple' }}</span>
                 </div>
@@ -121,20 +98,20 @@
               <td><span class="status-badge info">{{ code.type_label }}</span></td>
               <td><strong>{{ formatDiscountValue(code) }}</strong></td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ code.times_used }} / {{ code.max_uses || '∞' }}</strong>
                   <span>{{ code.max_uses ? remainingUsesLabel(code) : 'Sin límite de uso' }}</span>
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ code.start_date ? formatDateTime(code.start_date) : 'Inmediato' }}</strong>
                   <span>{{ code.expires_at ? `Vence ${formatDateTime(code.expires_at)}` : 'Sin expiración' }}</span>
                 </div>
               </td>
               <td><span class="status-badge" :class="codeStatusClass(code)">{{ codeStatusLabel(code) }}</span></td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal(code)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -168,13 +145,13 @@
 
           <div>
             <AdminCard title="Configuración" icon="fas fa-cogs">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Tipo</span><strong>{{ selectedCode.type_label }}</strong></div>
-                <div class="summary-row"><span>Usos máximos</span><strong>{{ selectedCode.max_uses || 'Ilimitados' }}</strong></div>
-                <div class="summary-row"><span>Usos realizados</span><strong>{{ selectedCode.times_used }}</strong></div>
-                <div class="summary-row"><span>Inicio</span><strong>{{ selectedCode.start_date ? formatDateTime(selectedCode.start_date) : 'Inmediato' }}</strong></div>
-                <div class="summary-row"><span>Expira</span><strong>{{ selectedCode.expires_at ? formatDateTime(selectedCode.expires_at) : 'Sin fecha' }}</strong></div>
-                <div class="summary-row"><span>Modo</span><strong>{{ selectedCode.is_single_use ? 'Uso único' : 'Uso repetible' }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-summary__row"><span>Tipo</span><strong>{{ selectedCode.type_label }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Usos máximos</span><strong>{{ selectedCode.max_uses || 'Ilimitados' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Usos realizados</span><strong>{{ selectedCode.times_used }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Inicio</span><strong>{{ selectedCode.start_date ? formatDateTime(selectedCode.start_date) : 'Inmediato' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Expira</span><strong>{{ selectedCode.expires_at ? formatDateTime(selectedCode.expires_at) : 'Sin fecha' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Modo</span><strong>{{ selectedCode.is_single_use ? 'Uso único' : 'Uso repetible' }}</strong></div>
               </div>
             </AdminCard>
           </div>
@@ -275,8 +252,10 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -284,7 +263,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const codes = ref([])
 const selectedCode = ref(null)
 const showDetailModal = ref(false)

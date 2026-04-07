@@ -1,24 +1,35 @@
 <template>
-  <div>
+  <div class="admin-entity-page">
     <AdminPageHeader
       icon="fas fa-credit-card"
       title="Pagos"
       subtitle="Gestiona los pagos y comprobantes de pago."
-      :breadcrumbs="[{ label: 'Pagos' }]"
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Pagos' }]"
     />
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="paymentStats" />
 
-    <div class="filters-bar">
-      <div class="filter-group"><label>Estado:</label>
-        <select v-model="statusFilter" @change="applyFilters">
-          <option value="">Todos</option><option value="pending">Pendiente</option><option value="approved">Aprobado</option><option value="rejected">Rechazado</option>
+    <div class="filters-bar admin-entity-filters">
+      <div class="filter-group">
+        <label for="payment-status">Estado</label>
+        <select id="payment-status" v-model="statusFilter">
+          <option value="">Todos</option>
+          <option value="pending">Pendiente</option>
+          <option value="approved">Aprobado</option>
+          <option value="rejected">Rechazado</option>
         </select>
       </div>
-      <div class="filter-group"><label>Metodo:</label>
-        <select v-model="methodFilter" @change="applyFilters">
-          <option value="">Todos</option><option value="transfer">Transferencia</option><option value="cash">Efectivo</option><option value="card">Tarjeta</option>
+      <div class="filter-group">
+        <label for="payment-method">Metodo</label>
+        <select id="payment-method" v-model="methodFilter">
+          <option value="">Todos</option>
+          <option value="transfer">Transferencia</option>
+          <option value="cash">Efectivo</option>
+          <option value="card">Tarjeta</option>
         </select>
+      </div>
+      <div class="admin-entity-filters__summary">
+        <span><i class="fas fa-list"></i> {{ filtered.length }} pago(s)</span>
       </div>
     </div>
 
@@ -27,7 +38,18 @@
       <AdminEmptyState v-else-if="filtered.length === 0" icon="fas fa-credit-card" title="Sin pagos registrados" description="No se encontraron pagos con los filtros actuales." />
       <div v-else class="table-responsive">
         <table class="dashboard-table">
-          <thead><tr><th>#</th><th>Orden</th><th>Cliente</th><th>Monto</th><th>Metodo</th><th>Estado</th><th>Comprobante</th><th>Acciones</th></tr></thead>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Orden</th>
+              <th>Cliente</th>
+              <th>Monto</th>
+              <th>Metodo</th>
+              <th>Estado</th>
+              <th>Comprobante</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="p in filtered" :key="p.id">
               <td>{{ p.id }}</td>
@@ -41,9 +63,13 @@
                 <span v-else>—</span>
               </td>
               <td>
-                <div style="display:flex;gap:0.25rem;">
-                  <button v-if="p.status === 'pending'" class="btn btn-sm btn-success" @click="updatePayment(p.id, 'approved')"><i class="fas fa-check"></i></button>
-                  <button v-if="p.status === 'pending'" class="btn btn-sm btn-danger" @click="updatePayment(p.id, 'rejected')"><i class="fas fa-times"></i></button>
+                <div class="admin-entity-actions">
+                  <button v-if="p.status === 'pending'" class="action-btn edit" type="button" title="Aprobar" @click="updatePayment(p.id, 'approved')">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  <button v-if="p.status === 'pending'" class="action-btn delete" type="button" title="Rechazar" @click="updatePayment(p.id, 'rejected')">
+                    <i class="fas fa-times"></i>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -66,7 +92,10 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 
 const { showSnackbar } = useSnackbarSystem()
-const payments = ref([]), loading = ref(true), statusFilter = ref(''), methodFilter = ref('')
+const payments = ref([])
+const loading = ref(true)
+const statusFilter = ref('')
+const methodFilter = ref('')
 
 const paymentStats = computed(() => [
   { key: 'total', label: 'Total pagos', value: String(payments.value.length), icon: 'fas fa-credit-card', color: 'primary' },
@@ -84,7 +113,6 @@ const filtered = computed(() => {
 
 function statusLabel(s) { return { pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado' }[s] || s }
 function methodLabel(m) { return { transfer: 'Transferencia', cash: 'Efectivo', card: 'Tarjeta' }[m] || m }
-function applyFilters() {}
 
 async function loadPayments() {
   loading.value = true

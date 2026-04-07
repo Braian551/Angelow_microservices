@@ -1,30 +1,71 @@
 /* ===== ADMIN PANEL - CSS ===== */
+/* Sistema de diseño unificado para el panel de administración.
+   Todos los colores, bordes, sombras y radios deben referirse
+   a estas variables para garantizar consistencia visual. */
 
 /* Variables */
 :root {
+  /* ── Colores principales ── */
   --admin-primary: #0077b6;
   --admin-primary-light: #90e0ef;
-  --admin-primary-dark: #6a96cf;
+  --admin-primary-dark: #0068a1;
+  --admin-primary-soft: rgba(0, 119, 182, 0.08);
+  --admin-primary-hover: rgba(0, 119, 182, 0.12);
   --admin-secondary: #48cae4;
   --admin-accent: #00b4d8;
+
+  /* ── Texto ── */
   --admin-text: #333333;
   --admin-text-light: #777777;
   --admin-text-dark: #111111;
+  --admin-text-soft: #4f657b;
+  --admin-text-heading: #24364b;
+
+  /* ── Fondos ── */
   --admin-bg: #ffffff;
   --admin-bg-dark: #f8f9fa;
+  --admin-bg-soft: #f8fbfe;
+  --admin-bg-highlight: #eef7ff;
+  --admin-panel-bg: #eef2f7;
+
+  /* ── Bordes ── */
   --admin-border: #e0e0e0;
+  --admin-border-light: #d9e8f4;
+  --admin-border-soft: #cfe2f2;
+  --admin-border-muted: #edf3f8;
+
+  /* ── Semánticos ── */
   --admin-success: #4bb543;
   --admin-error: #ff3333;
   --admin-warning: #ffcc00;
+  --admin-warning-dark: #8a6d00;
   --admin-info: #17a2b8;
+  --admin-star: #f2ab00;
+
+  /* ── Sombras ── */
   --admin-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
   --admin-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
   --admin-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
-  --admin-panel-bg: #eef2f7;
+  --admin-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --admin-shadow-elevated: 0 14px 32px rgba(15, 55, 96, 0.08);
+  --admin-shadow-hover: 0 18px 30px rgba(0, 119, 182, 0.14);
+
+  /* ── Radios ── */
+  --admin-radius-sm: 6px;
+  --admin-radius-md: 10px;
+  --admin-radius-lg: 12px;
+  --admin-radius-xl: 16px;
+  --admin-radius-2xl: 26px;
+  --admin-radius-pill: 999px;
+  --admin-card-radius: 12px;
+
+  /* ── Layout ── */
   --admin-sidebar-width: 280px;
   --admin-sidebar-collapsed: 80px;
+
+  /* ── Transiciones ── */
   --admin-transition: all 0.3s ease;
-  --admin-card-radius: 8px;
+  --admin-transition-fast: all 0.25s ease;
 }
 
 /* ===== LAYOUT ===== */
@@ -88,7 +129,7 @@
 .admin-surface-card {
   border-radius: 1.4rem;
   padding: 1.6rem;
-  background: #f8fbfe;
+  background: var(--admin-bg-soft);
   display: grid;
   gap: 0.7rem;
 }
@@ -921,7 +962,7 @@
 }
 
 .pill-success { background: rgba(75, 181, 67, 0.12); color: var(--admin-success); }
-.pill-warning { background: rgba(255, 204, 0, 0.15); color: #8a6d00; }
+.pill-warning { background: rgba(255, 204, 0, 0.15); color: var(--admin-warning-dark); }
 
 /* ===== METRICS GRID ===== */
 .metrics-grid {
@@ -1379,7 +1420,7 @@
 
 .activity-icon.order { background: rgba(0, 119, 182, 0.1); color: var(--admin-primary); }
 .activity-icon.payment { background: rgba(75, 181, 67, 0.1); color: var(--admin-success); }
-.activity-icon.review { background: rgba(255, 204, 0, 0.15); color: #8a6d00; }
+.activity-icon.review { background: rgba(255, 204, 0, 0.15); color: var(--admin-warning-dark); }
 .activity-icon.user { background: rgba(23, 162, 184, 0.1); color: var(--admin-info); }
 
 .activity-content {
@@ -1516,7 +1557,7 @@
 
 .confirm-icon.warning {
   background: rgba(255, 204, 0, 0.15);
-  color: #8a6d00;
+  color: var(--admin-warning-dark);
 }
 
 .confirm-icon.danger {
@@ -2412,11 +2453,660 @@
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  background-color: #f1f5f9;
+  background-color: var(--admin-bg-dark);
   padding: 0.8rem 1.2rem;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border);
   margin-bottom: 1.5rem;
   font-weight: 500;
-  color: #334155;
+  color: var(--admin-text-heading);
+}
+
+/* ===================================================================
+   SISTEMA DE FILTROS REUTILIZABLE
+   Usado en: Productos, Pedidos, Clientes, Reseñas, Descuentos, Envíos
+   =================================================================== */
+
+/* Tarjeta contenedora de filtros */
+.admin-filters {
+  margin-bottom: 2rem;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-2xl);
+  box-shadow: var(--admin-shadow-elevated);
+  overflow: hidden;
+  background: var(--admin-bg);
+}
+
+/* Cabecera con título e icono de colapsar */
+.admin-filters__header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.75rem 2rem;
+  border-bottom: 1px solid var(--admin-border-muted);
+}
+
+.admin-filters__title {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+}
+
+.admin-filters__title i {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-bg-highlight);
+  color: var(--admin-primary);
+}
+
+.admin-filters__title h3 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--admin-text-heading);
+}
+
+/* Botón de colapso/expansión */
+.admin-filters__toggle {
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-bg);
+  color: var(--admin-text-soft);
+  border-radius: var(--admin-radius-lg);
+  cursor: pointer;
+  transition: var(--admin-transition-fast);
+}
+
+.admin-filters__toggle:hover {
+  border-color: var(--admin-primary);
+  box-shadow: 0 10px 20px var(--admin-primary-hover);
+}
+
+.admin-filters__toggle.collapsed {
+  transform: rotate(180deg);
+}
+
+/* Barra de búsqueda principal */
+.admin-filters__search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 1.75rem 2rem;
+}
+
+.admin-filters__search-wrapper {
+  position: relative;
+}
+
+.admin-filters__search-icon {
+  position: absolute;
+  left: 1.15rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--admin-primary-dark);
+  opacity: 0.6;
+}
+
+.admin-filters__search-clear {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--admin-text-light);
+  cursor: pointer;
+}
+
+/* Input de búsqueda */
+.admin-filters__input {
+  width: 100%;
+  height: 4.25rem;
+  padding: 0 3.25rem;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-xl);
+  font-size: 1.08rem;
+  font-family: inherit;
+  color: var(--admin-text-heading);
+  transition: var(--admin-transition-fast);
+}
+
+.admin-filters__input:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 4px var(--admin-primary-soft);
+}
+
+/* Botón de búsqueda */
+.admin-filters__submit {
+  min-width: 9.5rem;
+  height: 4.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid var(--admin-secondary);
+  background: var(--admin-bg-soft);
+  color: var(--admin-primary);
+  border-radius: var(--admin-radius-xl);
+  padding: 0 1.65rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--admin-transition-fast);
+}
+
+.admin-filters__submit:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--admin-shadow-hover);
+  border-color: var(--admin-primary);
+}
+
+/* Sección de filtros avanzados (colapsable) */
+.admin-filters__advanced {
+  padding: 0 2rem 2rem;
+}
+
+/* Grid de campos de filtro */
+.admin-filters__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+/* Grupo de filtro individual (label + control) */
+.admin-filters__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-filters__group label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.95rem;
+  color: var(--admin-text-soft);
+  font-weight: 600;
+}
+
+.admin-filters__group select,
+.admin-filters__group input {
+  width: 100%;
+  height: 3.3rem;
+  border-radius: var(--admin-radius-md);
+  border: 1px solid var(--admin-border-soft);
+  padding: 0 0.95rem;
+  color: var(--admin-text-heading);
+  font-family: inherit;
+  transition: var(--admin-transition-fast);
+}
+
+.admin-filters__group select:focus,
+.admin-filters__group input:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 4px var(--admin-primary-soft);
+}
+
+/* Barra de acciones debajo de filtros */
+.admin-filters__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.3rem;
+  border-top: 1px solid var(--admin-border-muted);
+}
+
+.admin-filters__active {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+  color: var(--admin-text-soft);
+  font-weight: 600;
+}
+
+.admin-filters__clear {
+  border: none;
+  background: transparent;
+  color: var(--admin-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.admin-filters__apply {
+  min-height: 3.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0 1.2rem;
+  border-radius: var(--admin-radius-md);
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--admin-primary);
+  background: var(--admin-primary);
+  color: #fff;
+  box-shadow: 0 14px 24px rgba(0, 119, 182, 0.16);
+  transition: var(--admin-transition-fast);
+}
+
+.admin-filters__apply:hover {
+  background: var(--admin-primary-dark);
+  border-color: var(--admin-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--admin-shadow-hover);
+}
+
+/* ===================================================================
+   RESUMEN DE RESULTADOS
+   Barra informativa encima de la tabla/grid de datos
+   =================================================================== */
+.admin-results-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.6rem;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-xl);
+  box-shadow: var(--admin-shadow-elevated);
+}
+
+.admin-results-bar p {
+  margin: 0;
+  color: var(--admin-primary);
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.admin-results-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ===================================================================
+   BOTONES DEL SISTEMA DE FILTROS
+   =================================================================== */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-bg);
+  padding: 0.5rem 1rem;
+  border-radius: var(--admin-radius-md);
+  cursor: pointer;
+  color: var(--admin-primary);
+  font-weight: 600;
+  transition: var(--admin-transition-fast);
+}
+
+.btn-icon:hover {
+  border-color: var(--admin-primary);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+/* ===================================================================
+   SISTEMA DE ENTIDADES (Categorías, Colecciones, Tallas, etc.)
+   Estilos compartidos para gestión de entidades tipo catálogo
+   =================================================================== */
+
+/* Barra de filtros inline para entidades simples */
+.admin-entity-filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.admin-entity-filters__search {
+  flex: 1 1 340px;
+}
+
+.admin-entity-filters__search input {
+  width: 100%;
+}
+
+.admin-entity-filters__summary {
+  margin-left: auto;
+  color: var(--admin-text-light);
+  font-size: 1.3rem;
+}
+
+/* Miniatura de entidad (imagen en tabla) */
+.admin-entity-thumb {
+  width: 4.4rem;
+  height: 4.4rem;
+  border-radius: var(--admin-radius-md);
+  object-fit: cover;
+  background: var(--admin-bg-dark);
+}
+
+/* Celda de nombre en tabla con subtítulo */
+.admin-entity-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.admin-entity-name span {
+  color: var(--admin-text-light);
+  font-size: 1.25rem;
+}
+
+.admin-entity-description {
+  color: var(--admin-text-light);
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+/* Acciones de entidad (botones en fila) */
+.admin-entity-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-entity-actions--compact {
+  gap: 0.4rem;
+}
+
+/* Pill numérica (conteo de productos, etc.) */
+.admin-entity-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--admin-radius-pill);
+  background: var(--admin-primary-soft);
+  color: var(--admin-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Grid de formulario de entidad (2 columnas) */
+.admin-entity-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.admin-entity-form__full {
+  grid-column: 1 / -1;
+}
+
+/* Toggle de estado en formulario */
+.admin-entity-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-card-radius);
+}
+
+.admin-entity-toggle p {
+  margin: 0.3rem 0 0;
+  color: var(--admin-text-light);
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .admin-entity-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===================================================================
+   CAJA DE SUBIDA DE ARCHIVOS (reutilizable)
+   Usado en: Sliders, Configuración, Productos, Categorías
+   =================================================================== */
+.admin-upload-box {
+  border: 1px dashed rgba(0, 119, 182, 0.32);
+  border-radius: var(--admin-card-radius);
+  padding: 1.6rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--admin-bg-soft);
+  display: grid;
+  gap: 0.4rem;
+  transition: var(--admin-transition-fast);
+}
+
+.admin-upload-box:hover {
+  border-color: var(--admin-primary);
+  background: var(--admin-bg-highlight);
+}
+
+.admin-upload-box i {
+  font-size: 2rem;
+  color: var(--admin-primary);
+}
+
+.admin-upload-box p,
+.admin-upload-box small {
+  margin: 0;
+  color: var(--admin-text-light);
+}
+
+/* ===================================================================
+   PAGINACIÓN REUTILIZABLE
+   =================================================================== */
+.admin-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.admin-pagination__item {
+  min-width: 3.2rem;
+  height: 3.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--admin-border-light);
+  background: var(--admin-bg);
+  color: var(--admin-text-soft);
+  border-radius: var(--admin-radius-lg);
+  font-weight: 700;
+  font-size: 1.3rem;
+  padding: 0 0.5rem;
+  cursor: pointer;
+  transition: var(--admin-transition-fast);
+}
+
+.admin-pagination__item:hover {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+.admin-pagination__item.active {
+  background: var(--admin-primary);
+  color: #fff;
+  border-color: var(--admin-primary);
+  box-shadow: 0 12px 22px rgba(0, 119, 182, 0.18);
+}
+
+.admin-pagination__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===================================================================
+   ESTRELLAS DE CALIFICACIÓN
+   =================================================================== */
+.admin-stars {
+  display: inline-flex;
+  gap: 0.2rem;
+  color: var(--admin-star);
+}
+
+.admin-stars--muted {
+  color: var(--admin-border);
+}
+
+/* ===================================================================
+   GRID DE DETALLE (modal o vista de detalle)
+   Patron reutilizado en: Pedidos, Clientes, Reseñas, Descuentos
+   =================================================================== */
+.admin-detail-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  font-size: 1.35rem;
+}
+
+.admin-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-detail-row--stack {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.admin-detail-row--success {
+  color: var(--admin-success);
+}
+
+.admin-detail-row--total {
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+
+.admin-detail-divider {
+  border-top: 1px solid var(--admin-border);
+}
+
+/* ===================================================================
+   AVATAR (reutilizable para clientes, admins, reseñas)
+   =================================================================== */
+.admin-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--admin-bg-dark);
+  flex-shrink: 0;
+}
+
+.admin-avatar--sm {
+  width: 3.2rem;
+  height: 3.2rem;
+}
+
+.admin-avatar--lg {
+  width: 5rem;
+  height: 5rem;
+}
+
+/* ===================================================================
+   MINIATURA PARA SLIDERS
+   =================================================================== */
+.admin-slider-thumb {
+  width: 8.8rem;
+  height: 5.8rem;
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
+  background: var(--admin-bg-dark);
+  border: 1px solid var(--admin-primary-hover);
+}
+
+.admin-slider-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ===================================================================
+   BOTÓN DE BADGE/ESTADO clickeable
+   =================================================================== */
+.status-badge--button {
+  border: none;
+  cursor: pointer;
+  transition: var(--admin-transition-fast);
+}
+
+.status-badge--button:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
+/* ===================================================================
+   RESPONSIVE - sistema de filtros
+   =================================================================== */
+@media (max-width: 960px) {
+  .admin-filters__row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-filters__search {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-filters__submit {
+    width: 100%;
+  }
+
+  .admin-results-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .admin-entity-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 576px) {
+  .admin-filters__row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-filters__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+
+  .admin-pagination {
+    gap: 0.3rem;
+  }
+
+  .admin-pagination__item {
+    min-width: 2.8rem;
+    height: 2.8rem;
+    font-size: 1.1rem;
+  }
 }

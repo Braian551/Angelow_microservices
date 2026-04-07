@@ -22,14 +22,14 @@
       </template>
     </AdminPageHeader>
 
-    <AdminCard class="filters-card" :flush="true">
+    <AdminCard class="admin-filters" :flush="true">
       <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
+        <div class="admin-filters__header">
+          <div class="admin-filters__title">
             <i class="fas fa-sliders-h"></i>
             <h3>Filtros e informe activo</h3>
           </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
+          <button type="button" class="admin-filters__toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
             <i class="fas fa-chevron-down"></i>
           </button>
         </div>
@@ -49,22 +49,22 @@
         </button>
       </div>
 
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
+      <div class="admin-filters__search">
+        <div class="admin-filters__search-wrapper">
+          <i class="fas fa-search admin-filters__search-icon"></i>
           <input
             v-model.trim="activeSearchModel"
             type="text"
-            class="search-input"
+            class="admin-filters__search-input"
             :placeholder="searchPlaceholder"
           >
-          <button v-if="activeSearchModel" type="button" class="search-clear" @click="clearSearch">
+          <button v-if="activeSearchModel" type="button" class="admin-filters__search-clear" @click="clearSearch">
             <i class="fas fa-times"></i>
           </button>
         </div>
       </div>
 
-      <div v-show="showAdvanced" class="filters-advanced">
+      <div v-show="showAdvanced" class="admin-filters__body">
         <div class="filters-row filters-row--reports">
           <template v-if="activeTab === 'sales'">
             <div class="filter-group">
@@ -130,13 +130,13 @@
           </template>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__count">
             <i class="fas fa-filter"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="resetFilters">
+          <div class="admin-filters__buttons">
+            <button type="button" class="admin-filters__clear" @click="resetFilters">
               <i class="fas fa-rotate-left"></i>
               Restablecer filtros
             </button>
@@ -151,15 +151,11 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="activeStats" />
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i :class="activeTabConfig.icon"></i>
-        <p>{{ resultsLabel }}</p>
-      </div>
-      <div class="quick-actions">
+    <AdminResultsBar :text="resultsLabel">
+      <template #actions>
         <span class="results-note">{{ activeTabConfig.note }}</span>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <section v-if="activeTab === 'sales'" class="report-section">
       <div class="report-grid report-grid--sales-charts">
@@ -200,7 +196,7 @@
             <tbody>
               <tr v-for="row in groupedSalesRows" :key="row.period">
                 <td>
-                  <div class="entity-name-cell">
+                  <div class="admin-entity-name">
                     <strong>{{ formatPeriodLabel(row.period, filters.sales.groupBy) }}</strong>
                     <span>Ticket promedio {{ formatCurrency(row.avg_order_value) }}</span>
                   </div>
@@ -211,7 +207,7 @@
                 <td>{{ formatCurrency(row.discount) }}</td>
                 <td><strong>{{ formatCurrency(row.revenue) }}</strong></td>
                 <td>
-                  <div class="entity-actions">
+                  <div class="admin-entity-actions">
                     <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal('sales', row)">
                       <i class="fas fa-eye"></i>
                     </button>
@@ -276,7 +272,7 @@
                       :alt="row.name"
                       @error="handleMediaError($event, row.image, 'product')"
                     >
-                    <div class="entity-name-cell">
+                    <div class="admin-entity-name">
                       <strong>{{ row.name }}</strong>
                       <span>{{ row.slug || `Producto #${row.product_id}` }}</span>
                     </div>
@@ -288,7 +284,7 @@
                 <td>{{ formatCurrency(row.avg_price) }}</td>
                 <td><strong>{{ formatCurrency(row.total_revenue) }}</strong></td>
                 <td>
-                  <div class="entity-actions">
+                  <div class="admin-entity-actions">
                     <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal('products', row)">
                       <i class="fas fa-eye"></i>
                     </button>
@@ -347,7 +343,7 @@
                       :alt="row.name"
                       @error="handleMediaError($event, row.image, 'avatar')"
                     >
-                    <div class="entity-name-cell">
+                    <div class="admin-entity-name">
                       <strong>{{ row.name }}</strong>
                       <span>{{ row.phone || 'Sin teléfono registrado' }}</span>
                     </div>
@@ -359,7 +355,7 @@
                 <td>{{ formatCurrency(row.avg_order_value) }}</td>
                 <td>{{ formatDateTime(row.last_order) }}</td>
                 <td>
-                  <div class="entity-actions">
+                  <div class="admin-entity-actions">
                     <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal('customers', row)">
                       <i class="fas fa-eye"></i>
                     </button>
@@ -384,11 +380,11 @@
             </div>
           </AdminCard>
           <AdminCard title="Desglose financiero" icon="fas fa-wallet">
-            <div class="summary-stack">
-              <div class="summary-row"><span>Subtotal</span><strong>{{ formatCurrency(detailContext.row.subtotal) }}</strong></div>
-              <div class="summary-row"><span>Envío</span><strong>{{ formatCurrency(detailContext.row.shipping) }}</strong></div>
-              <div class="summary-row"><span>Descuentos</span><strong>{{ formatCurrency(detailContext.row.discount) }}</strong></div>
-              <div class="summary-row"><span>Total</span><strong>{{ formatCurrency(detailContext.row.revenue) }}</strong></div>
+            <div class="admin-detail-summary">
+              <div class="admin-detail-summary__row"><span>Subtotal</span><strong>{{ formatCurrency(detailContext.row.subtotal) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Envío</span><strong>{{ formatCurrency(detailContext.row.shipping) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Descuentos</span><strong>{{ formatCurrency(detailContext.row.discount) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Total</span><strong>{{ formatCurrency(detailContext.row.revenue) }}</strong></div>
             </div>
           </AdminCard>
         </div>
@@ -413,12 +409,12 @@
             </div>
           </AdminCard>
           <AdminCard title="Rendimiento" icon="fas fa-chart-column">
-            <div class="summary-stack">
-              <div class="summary-row"><span>Cantidad total</span><strong>{{ detailContext.row.total_quantity }}</strong></div>
-              <div class="summary-row"><span>Precio promedio</span><strong>{{ formatCurrency(detailContext.row.avg_price) }}</strong></div>
-              <div class="summary-row"><span>Ingresos</span><strong>{{ formatCurrency(detailContext.row.total_revenue) }}</strong></div>
-              <div class="summary-row"><span>Primera venta</span><strong>{{ formatDateTime(detailContext.row.first_order_at) }}</strong></div>
-              <div class="summary-row"><span>Última venta</span><strong>{{ formatDateTime(detailContext.row.last_order_at) }}</strong></div>
+            <div class="admin-detail-summary">
+              <div class="admin-detail-summary__row"><span>Cantidad total</span><strong>{{ detailContext.row.total_quantity }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Precio promedio</span><strong>{{ formatCurrency(detailContext.row.avg_price) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Ingresos</span><strong>{{ formatCurrency(detailContext.row.total_revenue) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Primera venta</span><strong>{{ formatDateTime(detailContext.row.first_order_at) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Última venta</span><strong>{{ formatDateTime(detailContext.row.last_order_at) }}</strong></div>
             </div>
           </AdminCard>
         </div>
@@ -443,13 +439,13 @@
             </div>
           </AdminCard>
           <AdminCard title="Actividad comercial" icon="fas fa-bag-shopping">
-            <div class="summary-stack">
-              <div class="summary-row"><span>Órdenes</span><strong>{{ detailContext.row.orders_count }}</strong></div>
-              <div class="summary-row"><span>Total gastado</span><strong>{{ formatCurrency(detailContext.row.total_spent) }}</strong></div>
-              <div class="summary-row"><span>Valor promedio</span><strong>{{ formatCurrency(detailContext.row.avg_order_value) }}</strong></div>
-              <div class="summary-row"><span>Primera compra</span><strong>{{ formatDateTime(detailContext.row.first_order) }}</strong></div>
-              <div class="summary-row"><span>Última compra</span><strong>{{ formatDateTime(detailContext.row.last_order) }}</strong></div>
-              <div class="summary-row"><span>Días desde la última compra</span><strong>{{ detailContext.row.customer_age_days ?? 'Sin dato' }}</strong></div>
+            <div class="admin-detail-summary">
+              <div class="admin-detail-summary__row"><span>Órdenes</span><strong>{{ detailContext.row.orders_count }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Total gastado</span><strong>{{ formatCurrency(detailContext.row.total_spent) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Valor promedio</span><strong>{{ formatCurrency(detailContext.row.avg_order_value) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Primera compra</span><strong>{{ formatDateTime(detailContext.row.first_order) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Última compra</span><strong>{{ formatDateTime(detailContext.row.last_order) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Días desde la última compra</span><strong>{{ detailContext.row.customer_age_days ?? 'Sin dato' }}</strong></div>
             </div>
           </AdminCard>
         </div>
@@ -488,6 +484,7 @@ import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 

@@ -41,7 +41,7 @@
               <td>
                 <div class="slider-order-controls">
                   <strong>{{ slider.sort_order }}</strong>
-                  <div class="entity-actions entity-actions--compact">
+                  <div class="admin-entity-actions admin-entity-actions--compact">
                     <button class="action-btn view" type="button" :disabled="index === 0 || processingOrder" title="Subir" @click="moveSlider(index, -1)">
                       <i class="fas fa-arrow-up"></i>
                     </button>
@@ -52,18 +52,18 @@
                 </div>
               </td>
               <td>
-                <div class="slider-thumb">
+                <div class="admin-slider-thumb">
                   <img :src="resolveMediaUrl(slider.image, 'slider')" :alt="slider.title" @error="handleMediaError($event, slider.image, 'slider')">
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ slider.title }}</strong>
                   <span>{{ slider.subtitle || 'Sin subtítulo configurado' }}</span>
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ slider.link || '/tienda' }}</strong>
                   <span>{{ slider.link ? 'Destino configurado' : 'Redirige al catálogo general' }}</span>
                 </div>
@@ -74,7 +74,7 @@
                 </button>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn edit" type="button" title="Editar slider" @click="openEditModal(slider)">
                     <i class="fas fa-edit"></i>
                   </button>
@@ -127,7 +127,7 @@
         <div>
           <div class="form-group">
             <label>Imagen *</label>
-            <div class="upload-box" @click="openImagePicker">
+            <div class="admin-upload-box" @click="openImagePicker">
               <i class="fas fa-cloud-upload-alt"></i>
               <p>{{ imagePreviewUrl ? 'Cambiar imagen del slider' : 'Selecciona la imagen principal del slide' }}</p>
               <small>JPG, PNG o WEBP. Máximo 4 MB.</small>
@@ -453,6 +453,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Estilos propios de sliders */
 .sliders-table th,
 .sliders-table td {
   vertical-align: middle;
@@ -464,49 +465,8 @@ onBeforeUnmount(() => {
   justify-items: start;
 }
 
-.entity-actions--compact {
+.admin-entity-actions--compact {
   gap: 0.4rem;
-}
-
-.slider-thumb {
-  width: 8.8rem;
-  height: 5.8rem;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: #f3f7fb;
-  border: 1px solid rgba(0, 119, 182, 0.12);
-}
-
-.slider-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.status-badge--button {
-  border: none;
-  cursor: pointer;
-}
-
-.upload-box {
-  border: 1px dashed rgba(0, 119, 182, 0.32);
-  border-radius: 1.2rem;
-  padding: 1.6rem;
-  text-align: center;
-  cursor: pointer;
-  background: #f8fbfe;
-  display: grid;
-  gap: 0.4rem;
-}
-
-.upload-box i {
-  font-size: 2rem;
-  color: var(--admin-primary);
-}
-
-.upload-box p,
-.upload-box small {
-  margin: 0;
 }
 
 .slider-preview-image {
@@ -519,7 +479,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: 20rem;
   object-fit: cover;
-  border-radius: 1rem;
+  border-radius: var(--admin-radius-lg);
 }
 
 .slider-preview-card {
@@ -539,7 +499,7 @@ onBeforeUnmount(() => {
   min-height: 24rem;
   position: relative;
   overflow: hidden;
-  border-radius: 1.4rem;
+  border-radius: var(--admin-radius-xl);
   background: #0f172a;
 }
 
@@ -574,14 +534,7 @@ onBeforeUnmount(() => {
   width: fit-content;
   align-items: center;
   padding: 0.6rem 1rem;
-  border-radius: 999px;
+  border-radius: var(--admin-radius-pill);
   background: rgba(255, 255, 255, 0.18);
-}
-
-@media (max-width: 768px) {
-  .slider-thumb {
-    width: 100%;
-    max-width: 8.8rem;
-  }
 }
 </style>

@@ -20,34 +20,20 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="bulkStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Lectura de reglas</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input v-model.trim="filters.search" type="text" class="search-input" placeholder="Buscar por cantidad o porcentaje...">
-          <button v-if="filters.search" type="button" class="search-clear" @click="filters.search = ''">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
+    <!-- Filtros de reglas -->
+    <AdminFilterCard
+      icon="fas fa-filter"
+      title="Lectura de reglas"
+      placeholder="Buscar por cantidad o porcentaje..."
+      :modelValue="filters.search"
+      @update:modelValue="filters.search = $event"
+      @search="loadRules"
+    >
+      <template #advanced>
         <div class="filters-row filters-row--bulk-discounts">
           <div class="filter-group">
             <label for="bulk-discount-status"><i class="fas fa-signal"></i> Estado</label>
-            <select id="bulk-discount-status" v-model="filters.state">
+            <select id="bulk-discount-status" v-model="filters.state" class="form-control">
               <option value="all">Todos</option>
               <option value="active">Activos</option>
               <option value="inactive">Inactivos</option>
@@ -56,27 +42,21 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__count">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar filtros
-            </button>
-          </div>
+          <button type="button" class="admin-filters__clear" @click="clearFilters">
+            <i class="fas fa-times-circle"></i>
+            Limpiar filtros
+          </button>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list-ul"></i>
-        <p>Mostrando {{ filteredRules.length }} reglas</p>
-      </div>
-    </div>
+    <!-- Barra de resultados -->
+    <AdminResultsBar :text="`Mostrando ${filteredRules.length} reglas`" />
 
     <AdminCard title="Bandeja de descuentos por cantidad" icon="fas fa-layer-group" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'pill', 'btn']" />
@@ -100,21 +80,21 @@
           <tbody>
             <tr v-for="rule in filteredRules" :key="rule.id">
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ quantityLabel(rule) }}</strong>
                   <span>{{ rule.max_quantity ? 'Tramo cerrado' : 'Escala abierta' }}</span>
                 </div>
               </td>
               <td><strong>{{ Number(rule.discount_percent || rule.discount_percentage || 0) }}%</strong></td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>Aplica a toda la tienda</strong>
                   <span>{{ quantityNarrative(rule) }}</span>
                 </div>
               </td>
               <td><span class="status-badge" :class="rule.active ? 'active' : 'rejected'">{{ rule.active ? 'Activo' : 'Inactivo' }}</span></td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal(rule)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -145,11 +125,11 @@
           </AdminCard>
 
           <AdminCard title="Detalle comercial" icon="fas fa-cogs">
-            <div class="summary-stack">
-              <div class="summary-row"><span>Cantidad minima</span><strong>{{ selectedRule.min_quantity }}</strong></div>
-              <div class="summary-row"><span>Cantidad maxima</span><strong>{{ selectedRule.max_quantity || 'Sin limite' }}</strong></div>
-              <div class="summary-row"><span>Descuento</span><strong>{{ Number(selectedRule.discount_percent || selectedRule.discount_percentage || 0) }}%</strong></div>
-              <div class="summary-row"><span>Aplicacion</span><strong>Tienda completa</strong></div>
+            <div class="admin-detail-summary">
+              <div class="admin-detail-summary__row"><span>Cantidad minima</span><strong>{{ selectedRule.min_quantity }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Cantidad maxima</span><strong>{{ selectedRule.max_quantity || 'Sin limite' }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Descuento</span><strong>{{ Number(selectedRule.discount_percent || selectedRule.discount_percentage || 0) }}%</strong></div>
+              <div class="admin-detail-summary__row"><span>Aplicacion</span><strong>Tienda completa</strong></div>
             </div>
           </AdminCard>
         </div>
@@ -221,8 +201,10 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -230,7 +212,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const rules = ref([])
 const selectedRule = ref(null)
 const showDetailModal = ref(false)

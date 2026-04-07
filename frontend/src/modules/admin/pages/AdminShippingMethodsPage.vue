@@ -20,34 +20,20 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="shippingStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Busqueda y cobertura</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input v-model.trim="filters.search" type="text" class="search-input" placeholder="Buscar por nombre, ciudad o descripcion...">
-          <button v-if="filters.search" type="button" class="search-clear" @click="filters.search = ''">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
+    <!-- Filtros de metodos de envio -->
+    <AdminFilterCard
+      icon="fas fa-filter"
+      title="Busqueda y cobertura"
+      placeholder="Buscar por nombre, ciudad o descripcion..."
+      :modelValue="filters.search"
+      @update:modelValue="filters.search = $event"
+      @search="loadMethods"
+    >
+      <template #advanced>
         <div class="filters-row filters-row--shipping-methods">
           <div class="filter-group">
             <label for="shipping-method-status"><i class="fas fa-signal"></i> Estado</label>
-            <select id="shipping-method-status" v-model="filters.state">
+            <select id="shipping-method-status" v-model="filters.state" class="form-control">
               <option value="all">Todos</option>
               <option value="active">Activos</option>
               <option value="inactive">Inactivos</option>
@@ -57,7 +43,7 @@
 
           <div class="filter-group">
             <label for="shipping-method-city"><i class="fas fa-map-marker-alt"></i> Cobertura</label>
-            <select id="shipping-method-city" v-model="filters.city">
+            <select id="shipping-method-city" v-model="filters.city" class="form-control">
               <option value="all">Todas</option>
               <option value="national">Sin ciudad fija</option>
               <option v-for="city in availableCities" :key="city" :value="city">{{ city }}</option>
@@ -65,28 +51,21 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__count">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar filtros
-            </button>
-          </div>
+          <button type="button" class="admin-filters__clear" @click="clearFilters">
+            <i class="fas fa-times-circle"></i>
+            Limpiar filtros
+          </button>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list-ul"></i>
-        <p>Mostrando {{ filteredMethods.length }} metodos</p>
-      </div>
-    </div>
+    <!-- Barra de resultados -->
+    <AdminResultsBar :text="`Mostrando ${filteredMethods.length} metodos`" />
 
     <AdminCard title="Bandeja de metodos" icon="fas fa-truck" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -111,19 +90,19 @@
           <tbody>
             <tr v-for="method in filteredMethods" :key="method.id">
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ method.name }}</strong>
                   <span>{{ method.description || 'Sin descripcion operativa' }}</span>
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ method.city || 'Cobertura general' }}</strong>
                   <span>{{ method.free_shipping_minimum ? `Gratis desde ${formatCurrency(method.free_shipping_minimum)}` : 'Sin umbral gratis' }}</span>
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ deliveryWindowLabel(method) }}</strong>
                   <span>{{ method.delivery_time || 'Sin promesa adicional' }}</span>
                 </div>
@@ -135,7 +114,7 @@
                 </span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal(method)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -157,13 +136,13 @@
       <template v-if="selectedMethod">
         <div class="shipping-detail-grid admin-detail-grid">
           <AdminCard title="Resumen operativo" icon="fas fa-shipping-fast">
-            <div class="summary-stack">
-              <div class="summary-row"><span>Descripcion</span><strong>{{ selectedMethod.description || 'Sin descripcion' }}</strong></div>
-              <div class="summary-row"><span>Costo base</span><strong>{{ formatCurrency(selectedMethod.base_cost) }}</strong></div>
-              <div class="summary-row"><span>Promesa</span><strong>{{ deliveryWindowLabel(selectedMethod) }}</strong></div>
-              <div class="summary-row"><span>Tiempo libre</span><strong>{{ selectedMethod.delivery_time || 'No definido' }}</strong></div>
-              <div class="summary-row"><span>Ciudad</span><strong>{{ selectedMethod.city || 'Cobertura general' }}</strong></div>
-              <div class="summary-row"><span>Envio gratis desde</span><strong>{{ selectedMethod.free_shipping_minimum ? formatCurrency(selectedMethod.free_shipping_minimum) : 'No aplica' }}</strong></div>
+            <div class="admin-detail-summary">
+              <div class="admin-detail-summary__row"><span>Descripcion</span><strong>{{ selectedMethod.description || 'Sin descripcion' }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Costo base</span><strong>{{ formatCurrency(selectedMethod.base_cost) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Promesa</span><strong>{{ deliveryWindowLabel(selectedMethod) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Tiempo libre</span><strong>{{ selectedMethod.delivery_time || 'No definido' }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Ciudad</span><strong>{{ selectedMethod.city || 'Cobertura general' }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Envio gratis desde</span><strong>{{ selectedMethod.free_shipping_minimum ? formatCurrency(selectedMethod.free_shipping_minimum) : 'No aplica' }}</strong></div>
             </div>
           </AdminCard>
 
@@ -284,8 +263,10 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -293,7 +274,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const methods = ref([])
 const selectedMethod = ref(null)
 const showDetailModal = ref(false)

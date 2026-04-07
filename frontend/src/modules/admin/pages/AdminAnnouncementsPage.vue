@@ -20,37 +20,17 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="announcementStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Búsqueda y estado</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input
-            v-model.trim="filters.search"
-            type="text"
-            class="search-input"
-            placeholder="Buscar por título, mensaje o botón..."
-          >
-          <button v-if="filters.search" type="button" class="search-clear" @click="filters.search = ''">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row filters-row--announcements">
-          <div class="filter-group">
+    <AdminFilterCard
+      icon="fas fa-filter"
+      title="Búsqueda y estado"
+      placeholder="Buscar por título, mensaje o botón..."
+      :model-value="filters.search"
+      @update:model-value="filters.search = $event"
+      @search="filters.search = $event"
+    >
+      <template #advanced>
+        <div class="admin-filters__row admin-filters__row--3">
+          <div class="admin-filters__group">
             <label for="announcement-state"><i class="fas fa-signal"></i> Estado</label>
             <select id="announcement-state" v-model="filters.state">
               <option value="all">Todos</option>
@@ -61,7 +41,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="announcement-type"><i class="fas fa-shapes"></i> Tipo</label>
             <select id="announcement-type" v-model="filters.type">
               <option value="all">Todos</option>
@@ -71,33 +51,26 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <span class="admin-filters__active">
             <i class="fas fa-sliders-h"></i>
-            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
-          </div>
-
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar filtros
-            </button>
-          </div>
+            {{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}
+          </span>
+          <button type="button" class="admin-filters__clear" @click="clearFilters">
+            <i class="fas fa-times-circle"></i>
+            Limpiar filtros
+          </button>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list-ul"></i>
-        <p>Mostrando {{ filteredAnnouncements.length }} anuncios</p>
-      </div>
-      <div class="quick-actions">
+    <AdminResultsBar :text="`Mostrando ${filteredAnnouncements.length} anuncios`">
+      <template #actions>
         <span class="results-note" :class="{ 'results-note--warning': !canCreateAnnouncement }">
           {{ canCreateAnnouncement ? 'Aún puedes crear anuncios adicionales.' : 'Límite alcanzado: 2 anuncios.' }}
         </span>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <AdminCard title="Bandeja de anuncios" icon="fas fa-bullhorn" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="4" :columns="['thumb', 'line', 'line', 'line', 'pill', 'pill', 'btn']" />
@@ -134,7 +107,7 @@
                 </button>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ announcement.title }}</strong>
                   <span>{{ truncateText(announcement.message || announcement.content, 78) }}</span>
                 </div>
@@ -148,7 +121,7 @@
                 </span>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ announcement.start_date ? formatDateTime(announcement.start_date) : 'Inmediato' }}</strong>
                   <span>{{ announcement.end_date ? `Finaliza ${formatDateTime(announcement.end_date)}` : 'Sin fecha de cierre' }}</span>
                 </div>
@@ -159,7 +132,7 @@
                 </span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openDetailModal(announcement)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -205,13 +178,13 @@
 
           <div>
             <AdminCard title="Configuración" icon="fas fa-cogs">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Estado</span><strong>{{ announcementStatusLabel(selectedAnnouncement) }}</strong></div>
-                <div class="summary-row"><span>Prioridad</span><strong>{{ priorityLabel(selectedAnnouncement.priority) }}</strong></div>
-                <div class="summary-row"><span>Inicio</span><strong>{{ selectedAnnouncement.start_date ? formatDateTime(selectedAnnouncement.start_date) : 'Inmediato' }}</strong></div>
-                <div class="summary-row"><span>Fin</span><strong>{{ selectedAnnouncement.end_date ? formatDateTime(selectedAnnouncement.end_date) : 'Sin cierre' }}</strong></div>
-                <div class="summary-row"><span>Botón</span><strong>{{ selectedAnnouncement.button_text || 'No configurado' }}</strong></div>
-                <div class="summary-row summary-row--stack"><span>Enlace</span><strong>{{ selectedAnnouncement.button_link || 'Sin enlace' }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ announcementStatusLabel(selectedAnnouncement) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Prioridad</span><strong>{{ priorityLabel(selectedAnnouncement.priority) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Inicio</span><strong>{{ selectedAnnouncement.start_date ? formatDateTime(selectedAnnouncement.start_date) : 'Inmediato' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Fin</span><strong>{{ selectedAnnouncement.end_date ? formatDateTime(selectedAnnouncement.end_date) : 'Sin cierre' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Botón</span><strong>{{ selectedAnnouncement.button_text || 'No configurado' }}</strong></div>
+                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Enlace</span><strong>{{ selectedAnnouncement.button_link || 'Sin enlace' }}</strong></div>
               </div>
             </AdminCard>
 
@@ -324,7 +297,7 @@
 
           <div class="form-group">
             <label>Imagen</label>
-            <div class="upload-box" @click="openImagePicker">
+            <div class="admin-upload-box" @click="openImagePicker">
               <i class="fas fa-cloud-upload-alt"></i>
               <p>{{ imagePreviewUrl ? 'Cambiar imagen del anuncio' : 'Selecciona una imagen opcional para el anuncio' }}</p>
               <small>JPG, PNG o WEBP. Máximo 3 MB.</small>
@@ -383,8 +356,10 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { resolveMediaUrl, handleMediaError } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -392,7 +367,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const announcements = ref([])
 const selectedAnnouncement = ref(null)
 const showDetailModal = ref(false)
@@ -796,12 +770,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Estilos propios de anuncios */
 .announcement-thumb {
   width: 6rem;
   height: 6rem;
-  border: 1px solid rgba(15, 122, 191, 0.16);
-  border-radius: 1rem;
-  background: #f3f7fb;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg-soft);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -822,7 +797,7 @@ onBeforeUnmount(() => {
 
 .announcement-preview-card__visual {
   min-height: 30rem;
-  border-radius: 1.6rem;
+  border-radius: var(--admin-radius-xl);
   padding: 1.8rem;
   position: relative;
   overflow: hidden;
@@ -853,7 +828,7 @@ onBeforeUnmount(() => {
   font-size: 1.2rem;
   font-weight: 700;
   padding: 0.45rem 0.9rem;
-  border-radius: 999px;
+  border-radius: var(--admin-radius-pill);
   background: rgba(255, 255, 255, 0.15);
 }
 
@@ -878,7 +853,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-width: 16rem;
   padding: 1rem 1.5rem;
-  border-radius: 999px;
+  border-radius: var(--admin-radius-pill);
   background: rgba(255, 255, 255, 0.92);
   color: #102236;
   font-weight: 700;
@@ -896,27 +871,6 @@ onBeforeUnmount(() => {
   color: var(--admin-text-soft);
 }
 
-.upload-box {
-  border: 1px dashed rgba(15, 122, 191, 0.34);
-  border-radius: 1.2rem;
-  padding: 1.6rem;
-  text-align: center;
-  cursor: pointer;
-  background: #f8fbfe;
-  display: grid;
-  gap: 0.4rem;
-}
-
-.upload-box i {
-  font-size: 2rem;
-  color: var(--admin-primary);
-}
-
-.upload-box p,
-.upload-box small {
-  margin: 0;
-}
-
 .editor-preview-image {
   margin-top: 1rem;
   display: grid;
@@ -926,7 +880,7 @@ onBeforeUnmount(() => {
 .editor-preview-image img {
   width: 100%;
   max-height: 18rem;
-  border-radius: 1rem;
+  border-radius: var(--admin-radius-lg);
   object-fit: cover;
 }
 
@@ -950,5 +904,4 @@ onBeforeUnmount(() => {
   color: var(--admin-danger);
   font-weight: 700;
 }
-
 </style>

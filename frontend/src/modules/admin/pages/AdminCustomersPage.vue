@@ -9,43 +9,18 @@
 
     <AdminStatsGrid :loading="loading" :count="5" :stats="hubStatsFormatted" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Busqueda y segmentacion</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input
-            id="admin-customers-search"
-            v-model="filters.search"
-            type="text"
-            class="search-input"
-            placeholder="Buscar por nombre, email o telefono..."
-            @input="debouncedLoadCustomers"
-          >
-          <button v-if="filters.search" type="button" class="search-clear" @click="clearSearch">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <button type="button" class="search-submit-btn" @click="loadCustomers()">
-          <i class="fas fa-search"></i>
-          <span>Buscar</span>
-        </button>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row filters-row--customers">
-          <div class="filter-group">
+    <!-- Filtros de búsqueda y segmentación -->
+    <AdminFilterCard
+      v-model="filters.search"
+      icon="fas fa-filter"
+      title="Busqueda y segmentacion"
+      placeholder="Buscar por nombre, email o telefono..."
+      @update:model-value="debouncedLoadCustomers"
+      @search="loadCustomers()"
+    >
+      <template #advanced>
+        <div class="admin-filters__row">
+          <div class="admin-filters__group">
             <label for="customer-state"><i class="fas fa-user-check"></i> Estado</label>
             <select id="customer-state" v-model="filters.state">
               <option value="all">Todos</option>
@@ -54,7 +29,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="customer-segment"><i class="fas fa-layer-group"></i> Segmento</label>
             <select id="customer-segment" v-model="filters.segment">
               <option value="all">Todos</option>
@@ -65,34 +40,29 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
 
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearAllFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar todo
-            </button>
-          </div>
+          <button type="button" class="admin-filters__clear" @click="clearAllFilters">
+            <i class="fas fa-times-circle"></i>
+            Limpiar todo
+          </button>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-address-book"></i>
-        <p>Mostrando {{ customers.length }} clientes</p>
-      </div>
-      <div class="quick-actions">
-        <button class="btn btn-icon" type="button" @click="exportCustomers">
+    <!-- Barra de resultados -->
+    <AdminResultsBar :text="`Mostrando ${customers.length} clientes`">
+      <template #actions>
+        <button class="btn-icon" type="button" @click="exportCustomers">
           <i class="fas fa-file-export"></i>
           Exportar
         </button>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['thumb', 'line', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -119,24 +89,22 @@
             <tr v-for="customer in customers" :key="customer.id">
               <td>
                 <div class="customer-cell">
-                  <div class="customer-avatar">
-                    <img :src="avatarUrl(customer)" :alt="customer.name" @error="onAvatarError($event, customer.image)">
-                  </div>
-                  <div class="customer-identity">
+                  <img class="admin-avatar" :src="avatarUrl(customer)" :alt="customer.name" @error="onAvatarError($event, customer.image)">
+                  <div class="admin-entity-name">
                     <strong>{{ customer.name }}</strong>
                     <span>{{ customer.email }}</span>
                   </div>
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ customer.phone || 'Sin telefono' }}</strong>
                   <span>Ultimo acceso: {{ formatDateTime(customer.last_access) }}</span>
                 </div>
               </td>
               <td>{{ formatDate(customer.created_at) }}</td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ customer.orders_count }}</strong>
                   <span>{{ customer.last_order_date ? `Ultimo pedido: ${formatDate(customer.last_order_date)}` : 'Sin pedidos' }}</span>
                 </div>
@@ -148,7 +116,7 @@
                 </span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver cliente" @click="openCustomerModal(customer)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -175,9 +143,7 @@
           <div>
             <AdminCard title="Perfil del cliente" icon="fas fa-id-card">
               <div class="customer-profile">
-                <div class="customer-avatar customer-avatar--large">
-                  <img :src="avatarUrl(selectedCustomer)" :alt="selectedCustomer.name" @error="onAvatarError($event, selectedCustomer.image)">
-                </div>
+                <img class="admin-avatar admin-avatar--lg" :src="avatarUrl(selectedCustomer)" :alt="selectedCustomer.name" @error="onAvatarError($event, selectedCustomer.image)">
                 <div class="customer-profile__body">
                   <h3>{{ selectedCustomer.name }}</h3>
                   <p>{{ selectedCustomer.email }}</p>
@@ -187,11 +153,11 @@
                 </div>
               </div>
 
-              <div class="summary-stack">
-                <div class="summary-row"><span>Telefono</span><strong>{{ selectedCustomer.phone || 'Sin telefono' }}</strong></div>
-                <div class="summary-row"><span>Registro</span><strong>{{ formatDate(selectedCustomer.created_at) }}</strong></div>
-                <div class="summary-row"><span>Ultimo acceso</span><strong>{{ formatDateTime(selectedCustomer.last_access) }}</strong></div>
-                <div class="summary-row"><span>Ultimo pedido</span><strong>{{ selectedCustomer.last_order_date ? formatDateTime(selectedCustomer.last_order_date) : 'Sin pedidos' }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-row"><span>Telefono</span><strong>{{ selectedCustomer.phone || 'Sin telefono' }}</strong></div>
+                <div class="admin-detail-row"><span>Registro</span><strong>{{ formatDate(selectedCustomer.created_at) }}</strong></div>
+                <div class="admin-detail-row"><span>Ultimo acceso</span><strong>{{ formatDateTime(selectedCustomer.last_access) }}</strong></div>
+                <div class="admin-detail-row"><span>Ultimo pedido</span><strong>{{ selectedCustomer.last_order_date ? formatDateTime(selectedCustomer.last_order_date) : 'Sin pedidos' }}</strong></div>
               </div>
             </AdminCard>
 
@@ -222,20 +188,20 @@
 
           <div>
             <AdminCard title="Resumen comercial" icon="fas fa-chart-line">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Pedidos totales</span><strong>{{ selectedCustomer.orders_count }}</strong></div>
-                <div class="summary-row"><span>Pedidos completados</span><strong>{{ selectedCustomer.completed_orders }}</strong></div>
-                <div class="summary-row"><span>Pedidos pendientes</span><strong>{{ selectedCustomer.pending_orders }}</strong></div>
-                <div class="summary-divider"></div>
-                <div class="summary-row summary-row--total"><span>Valor acumulado</span><strong>{{ formatCurrency(selectedCustomer.total_spent) }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-row"><span>Pedidos totales</span><strong>{{ selectedCustomer.orders_count }}</strong></div>
+                <div class="admin-detail-row"><span>Pedidos completados</span><strong>{{ selectedCustomer.completed_orders }}</strong></div>
+                <div class="admin-detail-row"><span>Pedidos pendientes</span><strong>{{ selectedCustomer.pending_orders }}</strong></div>
+                <div class="admin-detail-divider"></div>
+                <div class="admin-detail-row admin-detail-row--total"><span>Valor acumulado</span><strong>{{ formatCurrency(selectedCustomer.total_spent) }}</strong></div>
               </div>
             </AdminCard>
 
             <AdminCard title="Segmentacion" icon="fas fa-bullseye" style="margin-top: 1.2rem;">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Tipo</span><strong>{{ customerSegmentLabel(selectedCustomer) }}</strong></div>
-                <div class="summary-row"><span>Recompra</span><strong>{{ selectedCustomer.orders_count > 1 ? 'Si' : 'No' }}</strong></div>
-                <div class="summary-row"><span>Ticket promedio</span><strong>{{ formatCurrency(selectedCustomer.average_ticket) }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-row"><span>Tipo</span><strong>{{ customerSegmentLabel(selectedCustomer) }}</strong></div>
+                <div class="admin-detail-row"><span>Recompra</span><strong>{{ selectedCustomer.orders_count > 1 ? 'Si' : 'No' }}</strong></div>
+                <div class="admin-detail-row"><span>Ticket promedio</span><strong>{{ formatCurrency(selectedCustomer.average_ticket) }}</strong></div>
               </div>
             </AdminCard>
           </div>
@@ -267,8 +233,10 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -276,7 +244,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(false)
 const showDetailModal = ref(false)
 const orderRowsLoaded = ref(false)
 const rawCustomers = ref([])
@@ -529,11 +496,6 @@ function customerSegmentLabel(customer) {
   return 'Ocasional'
 }
 
-function clearSearch() {
-  filters.search = ''
-  loadCustomers()
-}
-
 function clearAllFilters() {
   filters.search = ''
   filters.state = 'all'
@@ -663,299 +625,55 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.filters-card {
-  margin-bottom: 2rem;
-  border: 1px solid #d9e8f4;
-  border-radius: 26px;
-  box-shadow: 0 14px 32px rgba(15, 55, 96, 0.08);
-  overflow: hidden;
-}
+/* Estilos específicos de Clientes — los comunes están en admin.css */
 
-.filters-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-  border-bottom: 1px solid #edf3f8;
-}
-
-.filters-title,
-.customer-cell,
-.customer-profile,
-.results-info,
-.filters-buttons,
-.active-filters,
-.entity-actions,
-.entity-name-cell {
+/* Celda de cliente con avatar + texto */
+.customer-cell {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.entity-name-cell,
-.customer-identity,
+/* Perfil dentro del modal de detalle */
+.customer-profile {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
 .customer-profile__body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 
-.customer-identity span,
-.entity-name-cell span,
+.customer-profile__body h3 {
+  margin: 0;
+}
+
 .customer-profile__body p {
   color: var(--admin-text-light);
   font-size: 1.2rem;
   margin: 0;
 }
 
-.filters-title i {
-  width: 3rem;
-  height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  background: #eef7ff;
-  color: #0077b6;
-}
-
-.filters-title h3,
-.results-summary p,
-.customer-profile__body h3 {
-  margin: 0;
-}
-
-.filters-toggle {
-  width: 3.25rem;
-  height: 3.25rem;
-  border: 1px solid #cfe2f2;
-  background: #fff;
-  color: #45617d;
-  border-radius: 1.1rem;
-  cursor: pointer;
-}
-
-.filters-toggle.collapsed {
-  transform: rotate(180deg);
-}
-
-.search-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-}
-
-.search-input-wrapper {
-  position: relative;
-}
-
-.search-input,
-.filter-group select {
-  width: 100%;
-  border: 1px solid #cfe2f2;
-  border-radius: 1.4rem;
-  color: #24364b;
-}
-
-.search-input {
-  height: 4.25rem;
-  padding: 0 3.25rem 0 3.25rem;
-  font-size: 1.08rem;
-}
-
-.filter-group select {
-  height: 3.3rem;
-  padding: 0 0.95rem;
-  border-radius: 1rem;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1.15rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6a96cf;
-}
-
-.search-clear {
-  position: absolute;
-  right: 0.85rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  color: #90a4b7;
-  cursor: pointer;
-}
-
-.search-submit-btn,
-.btn.btn-icon {
-  min-height: 3.15rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0 1.2rem;
-  border-radius: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.search-submit-btn {
-  min-width: 9.5rem;
-  height: 4.25rem;
-  border: 1px solid #8bc7f0;
-  background: #f3fbff;
-  color: #0077b6;
-}
-
-.filters-advanced {
-  padding: 0 2rem 2rem;
-}
-
-.filters-row {
-  display: grid;
-  gap: 1rem;
-}
-
-.filters-row--customers {
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-}
-
-.filter-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.filters-actions-bar,
-.results-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.filters-actions-bar {
-  margin-top: 1.5rem;
-  padding-top: 1.3rem;
-  border-top: 1px solid #edf2f7;
-}
-
-.active-filters {
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.btn-clear-filters {
-  border: none;
-  background: transparent;
-  color: #0077b6;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.results-summary {
-  margin-bottom: 1.25rem;
-  padding: 1.25rem 1.6rem;
-  background: #fff;
-  border: 1px solid #d9e8f4;
-  border-radius: 1.65rem;
-  box-shadow: 0 14px 28px rgba(15, 55, 96, 0.08);
-}
-
-.results-summary p {
-  color: #0077b6;
-  font-size: 1.12rem;
-  font-weight: 700;
-}
-
-.btn.btn-icon {
-  border: 1px solid #cde0ef;
-  background: #fff;
-  color: #0e5f99;
-}
-
-.customer-avatar {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #edf3f8;
-  flex-shrink: 0;
-}
-
-.customer-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.customer-avatar--large {
-  width: 6.4rem;
-  height: 6.4rem;
-}
-
+/* Grid del modal de detalle de cliente (2 columnas) */
 .customer-detail-grid {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
   gap: 1.6rem;
 }
 
-.customer-profile {
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-}
-
-.summary-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  font-size: 1.3rem;
-}
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.summary-row--total {
-  font-size: 1.5rem;
-}
-
-.summary-divider {
-  border-top: 1px solid var(--admin-border);
-}
-
+/* Celda vacía en detalle de pedidos */
 .detail-empty {
   padding: 1.6rem;
   color: var(--admin-text-light);
 }
 
 @media (max-width: 900px) {
-  .search-bar,
-  .filters-row--customers,
   .customer-detail-grid {
     grid-template-columns: 1fr;
-  }
-
-  .filters-actions-bar,
-  .results-summary {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 </style>

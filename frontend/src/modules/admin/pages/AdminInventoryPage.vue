@@ -9,12 +9,12 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="inventoryStats" />
 
-    <div class="filters-bar entity-filters">
-      <div class="filter-group entity-filters__search">
+    <div class="filters-bar admin-entity-filters">
+      <div class="filter-group admin-entity-filters__search">
         <label for="inventory-search">Buscar</label>
         <input id="inventory-search" v-model="search" type="text" placeholder="Producto, color, talla o SKU">
       </div>
-      <div class="entity-filters__summary">
+      <div class="admin-entity-filters__summary">
         <span><i class="fas fa-boxes"></i> {{ filteredProducts.length }} producto(s)</span>
       </div>
     </div>
@@ -56,7 +56,7 @@
                 >
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ product.name }}</strong>
                   <span>{{ product.variantCount }} variante(s) | {{ product.skuCount }} SKU(s)</span>
                 </div>
@@ -75,7 +75,7 @@
                 <span class="status-badge" :class="statusClass(product.status)">{{ statusLabel(product.status) }}</span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openDetail(product)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -127,7 +127,7 @@
                 <td><strong :class="stockTextClass(variant.quantity)">{{ variant.quantity }}</strong></td>
                 <td><span class="status-badge" :class="statusClass(stockStatus(variant.quantity))">{{ statusLabel(stockStatus(variant.quantity)) }}</span></td>
                 <td>
-                  <div class="entity-actions">
+                  <div class="admin-entity-actions">
                     <button class="action-btn edit" type="button" title="Ajustar" @click="openAdjustModal(variant)">
                       <i class="fas fa-pen"></i>
                     </button>
@@ -671,24 +671,7 @@ onMounted(loadInventory)
 </script>
 
 <style scoped>
-.entity-filters {
-  justify-content: space-between;
-}
-
-.entity-filters__search {
-  flex: 1 1 380px;
-}
-
-.entity-filters__search input {
-  width: 100%;
-}
-
-.entity-filters__summary {
-  margin-left: auto;
-  color: var(--admin-text-light);
-  font-size: 1.3rem;
-}
-
+/* Estilos propios de inventario */
 .inventory-tabs {
   margin-bottom: 1.6rem;
 }
@@ -696,25 +679,17 @@ onMounted(loadInventory)
 .inventory-thumb {
   width: 4.6rem;
   height: 4.6rem;
-  border-radius: 10px;
+  border-radius: var(--admin-radius-md);
   object-fit: cover;
   background: var(--admin-bg-dark);
 }
 
-.entity-name-cell,
-.entity-actions,
 .inventory-summary,
 .inventory-detail-pills {
   display: flex;
   gap: 0.7rem;
 }
 
-.entity-name-cell {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.entity-name-cell span,
 .inventory-summary,
 .inventory-history-header p,
 .inventory-detail-header p {
@@ -735,7 +710,7 @@ onMounted(loadInventory)
 }
 
 .inventory-stock--low {
-  color: #8a6d00;
+  color: var(--admin-warning-dark, #8a6d00);
 }
 
 .inventory-stock--out {
@@ -779,7 +754,7 @@ onMounted(loadInventory)
   width: 100%;
   padding: 1rem 1.2rem;
   border: 1px solid var(--admin-border);
-  border-radius: 12px;
+  border-radius: var(--admin-radius-lg);
   background: var(--admin-bg-dark);
   color: var(--admin-text);
 }

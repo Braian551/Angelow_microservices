@@ -9,44 +9,20 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="questionStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Bandeja de preguntas</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input
-            v-model="filters.search"
-            type="text"
-            class="search-input"
-            placeholder="Buscar por pregunta o producto..."
-            @input="debouncedLoadQuestions"
-          >
-          <button v-if="filters.search" type="button" class="search-clear" @click="clearSearch">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <button type="button" class="search-submit-btn" @click="loadQuestions">
-          <i class="fas fa-search"></i>
-          <span>Buscar</span>
-        </button>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
+    <!-- Filtros de preguntas -->
+    <AdminFilterCard
+      icon="fas fa-filter"
+      title="Bandeja de preguntas"
+      placeholder="Buscar por pregunta o producto..."
+      :modelValue="filters.search"
+      @update:modelValue="filters.search = $event; debouncedLoadQuestions()"
+      @search="loadQuestions"
+    >
+      <template #advanced>
         <div class="filters-row filters-row--questions">
           <div class="filter-group">
             <label for="question-status"><i class="fas fa-comments"></i> Estado</label>
-            <select id="question-status" v-model="filters.answered" @change="loadQuestions">
+            <select id="question-status" v-model="filters.answered" class="form-control" @change="loadQuestions">
               <option value="all">Todas</option>
               <option value="pending">Sin responder</option>
               <option value="answered">Respondidas</option>
@@ -54,20 +30,18 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__count">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearAllFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar todo
-            </button>
-          </div>
+          <button type="button" class="admin-filters__clear" @click="clearAllFilters">
+            <i class="fas fa-times-circle"></i>
+            Limpiar todo
+          </button>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
     <section class="insights-grid">
       <AdminCard title="Estado de preguntas" icon="fas fa-chart-pie">
@@ -109,18 +83,15 @@
       </AdminCard>
     </section>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list"></i>
-        <p>Mostrando {{ questions.length }} preguntas</p>
-      </div>
-      <div class="quick-actions">
+    <!-- Barra de resultados -->
+    <AdminResultsBar :text="`Mostrando ${questions.length} preguntas`">
+      <template #actions>
         <button class="btn btn-icon" type="button" @click="exportQuestions">
           <i class="fas fa-file-export"></i>
           Exportar
         </button>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'pill']" />
@@ -144,7 +115,7 @@
           <tbody>
             <tr v-for="question in questions" :key="question.id">
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ question.question }}</strong>
                   <span>{{ formatDateTime(question.created_at) }}</span>
                 </div>
@@ -153,7 +124,7 @@
               <td>
                 <div class="question-customer-cell">
                   <img :src="avatarUrl(question.customer)" :alt="question.customer.name" @error="onAvatarError($event, question.customer.image)">
-                  <div class="entity-name-cell">
+                  <div class="admin-entity-name">
                     <strong>{{ question.customer.name }}</strong>
                     <span>{{ question.customer.email || `ID ${question.user_id}` }}</span>
                   </div>
@@ -165,7 +136,7 @@
                 </span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Ver detalle" @click="openQuestionModal(question)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -187,7 +158,7 @@
             <AdminCard title="Consulta del cliente" icon="fas fa-comment">
               <div class="question-customer-cell question-customer-cell--detail">
                 <img :src="avatarUrl(selectedQuestion.customer)" :alt="selectedQuestion.customer.name" @error="onAvatarError($event, selectedQuestion.customer.image)">
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ selectedQuestion.customer.name }}</strong>
                   <span>{{ selectedQuestion.customer.email || `ID ${selectedQuestion.user_id}` }}</span>
                 </div>
@@ -209,11 +180,11 @@
 
           <div>
             <AdminCard title="Resumen" icon="fas fa-box-open">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Producto</span><strong>{{ selectedQuestion.product_name }}</strong></div>
-                <div class="summary-row"><span>Estado</span><strong>{{ selectedQuestion.answer_count > 0 ? 'Respondida' : 'Pendiente' }}</strong></div>
-                <div class="summary-row"><span>Fecha</span><strong>{{ formatDateTime(selectedQuestion.created_at) }}</strong></div>
-                <div class="summary-row"><span>Total respuestas</span><strong>{{ selectedQuestion.answer_count }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-summary__row"><span>Producto</span><strong>{{ selectedQuestion.product_name }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ selectedQuestion.answer_count > 0 ? 'Respondida' : 'Pendiente' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Fecha</span><strong>{{ formatDateTime(selectedQuestion.created_at) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Total respuestas</span><strong>{{ selectedQuestion.answer_count }}</strong></div>
               </div>
             </AdminCard>
 
@@ -262,8 +233,10 @@ import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -271,7 +244,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const showDetailModal = ref(false)
 const questions = ref([])
 const customerProfiles = ref({})
@@ -364,11 +336,6 @@ function formatDateTime(value) {
   if (!value) return 'Sin fecha'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleString('es-CO')
-}
-
-function clearSearch() {
-  filters.value.search = ''
-  loadQuestions()
 }
 
 function clearAllFilters() {
@@ -512,199 +479,7 @@ onMounted(loadQuestions)
 </script>
 
 <style scoped>
-.filters-card {
-  margin-bottom: 2rem;
-  border: 1px solid #d9e8f4;
-  border-radius: 26px;
-  box-shadow: 0 14px 32px rgba(15, 55, 96, 0.08);
-  overflow: hidden;
-}
-
-.filters-header,
-.results-summary,
-.filters-actions-bar,
-.results-info,
-.filters-buttons,
-.active-filters,
-.highlight-item,
-.highlight-meta,
-.question-customer-cell,
-.entity-actions,
-.entity-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.filters-header,
-.results-summary,
-.filters-actions-bar,
-.highlight-item {
-  justify-content: space-between;
-}
-
-.entity-name-cell {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.filters-header {
-  width: 100%;
-  padding: 1.75rem 2rem;
-  border-bottom: 1px solid #edf3f8;
-}
-
-.filters-title {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.filters-title i {
-  width: 3rem;
-  height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  background: #eef7ff;
-  color: #0077b6;
-}
-
-.filters-title h3,
-.results-summary p,
-.question-detail-text {
-  margin: 0;
-}
-
-.filters-toggle {
-  width: 3.25rem;
-  height: 3.25rem;
-  border: 1px solid #cfe2f2;
-  background: #fff;
-  color: #45617d;
-  border-radius: 1.1rem;
-  cursor: pointer;
-}
-
-.filters-toggle.collapsed {
-  transform: rotate(180deg);
-}
-
-.search-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-}
-
-.search-input-wrapper {
-  position: relative;
-}
-
-.search-input,
-.filter-group select {
-  width: 100%;
-  border: 1px solid #cfe2f2;
-  border-radius: 1.4rem;
-  color: #24364b;
-}
-
-.search-input {
-  height: 4.25rem;
-  padding: 0 3.25rem 0 3.25rem;
-  font-size: 1.08rem;
-}
-
-.filter-group select {
-  height: 3.3rem;
-  padding: 0 0.95rem;
-  border-radius: 1rem;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1.15rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6a96cf;
-}
-
-.search-clear {
-  position: absolute;
-  right: 0.85rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  color: #90a4b7;
-  cursor: pointer;
-}
-
-.search-submit-btn,
-.btn.btn-icon {
-  min-height: 3.15rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0 1.2rem;
-  border-radius: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.search-submit-btn {
-  min-width: 9.5rem;
-  height: 4.25rem;
-  border: 1px solid #8bc7f0;
-  background: #f3fbff;
-  color: #0077b6;
-}
-
-.filters-advanced {
-  padding: 0 2rem 2rem;
-}
-
-.filters-row {
-  display: grid;
-  gap: 1rem;
-}
-
-.filters-row--questions {
-  grid-template-columns: minmax(220px, 320px);
-}
-
-.filter-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.filters-actions-bar {
-  margin-top: 1.5rem;
-  padding-top: 1.3rem;
-  border-top: 1px solid #edf2f7;
-}
-
-.active-filters,
-.btn-clear-filters {
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.btn-clear-filters {
-  border: none;
-  background: transparent;
-  color: #0077b6;
-  cursor: pointer;
-}
-
+/* --- Layout de insights --- */
 .insights-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -712,11 +487,8 @@ onMounted(loadQuestions)
   margin-bottom: 1.5rem;
 }
 
-.status-split,
-.summary-stack,
-.modal-actions-stack,
-.highlights-list,
-.timeline-list {
+/* --- Pills de estado --- */
+.status-split {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -727,56 +499,65 @@ onMounted(loadQuestions)
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.1rem;
-  border-radius: 1rem;
+  border-radius: var(--admin-radius-md);
 }
 
 .status-pill--answered {
-  background: #edf8f0;
-  color: #1f7a34;
+  background: var(--admin-success-bg, #edf8f0);
+  color: var(--admin-success-dark, #1f7a34);
 }
 
 .status-pill--pending {
-  background: #fff7e8;
-  color: #946200;
+  background: var(--admin-warning-bg, #fff7e8);
+  color: var(--admin-warning-dark, #946200);
+}
+
+/* --- Highlights recientes --- */
+.highlights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
 .highlight-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   width: 100%;
   padding: 1rem 1.1rem;
-  border: 1px solid #e2edf5;
-  border-radius: 1rem;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
   background: #fff;
   cursor: pointer;
   text-align: left;
 }
 
+.highlight-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .highlight-item span,
 .highlight-item small,
-.entity-name-cell span,
 .question-detail-text,
 .timeline-item small {
   color: var(--admin-text-light);
 }
 
-.results-summary {
-  margin-bottom: 1.25rem;
-  padding: 1.25rem 1.6rem;
-  background: #fff;
-  border: 1px solid #d9e8f4;
-  border-radius: 1.65rem;
-  box-shadow: 0 14px 28px rgba(15, 55, 96, 0.08);
+/* --- Fila de filtros --- */
+.filters-row--questions {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px);
+  gap: 1rem;
 }
 
-.results-summary p {
-  color: #0077b6;
-  font-size: 1.12rem;
-  font-weight: 700;
-}
-
-.btn.btn-icon {
-  border: 1px solid #cde0ef;
-  background: #fff;
-  color: #0e5f99;
+/* --- Celda de cliente con avatar --- */
+.question-customer-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .question-customer-cell img {
@@ -784,7 +565,7 @@ onMounted(loadQuestions)
   height: 3.6rem;
   border-radius: 50%;
   object-fit: cover;
-  background: #eef3f7;
+  background: var(--admin-bg-soft);
 }
 
 .question-customer-cell--detail img {
@@ -792,6 +573,7 @@ onMounted(loadQuestions)
   height: 4.8rem;
 }
 
+/* --- Grid de detalle --- */
 .question-detail-grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
@@ -803,7 +585,11 @@ onMounted(loadQuestions)
   line-height: 1.6;
 }
 
+/* --- Timeline de respuestas --- */
 .timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -811,17 +597,18 @@ onMounted(loadQuestions)
 
 .timeline-item {
   padding: 1rem 1.1rem;
-  border: 1px solid #e2edf5;
-  border-radius: 1rem;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
-.summary-row {
+/* --- Acciones del modal --- */
+.modal-actions-stack {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
 .detail-empty {
@@ -829,16 +616,14 @@ onMounted(loadQuestions)
   padding: 0.6rem 0;
 }
 
+/* --- Responsive --- */
 @media (max-width: 980px) {
   .insights-grid,
   .question-detail-grid,
-  .search-bar,
   .filters-row--questions {
     grid-template-columns: 1fr;
   }
 
-  .filters-actions-bar,
-  .results-summary,
   .highlight-item,
   .question-customer-cell {
     flex-direction: column;

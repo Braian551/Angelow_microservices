@@ -42,7 +42,7 @@
             </template>
 
             <template v-else-if="field.type === 'image'">
-              <div class="upload-box" @click="openImagePicker(field.key)">
+              <div class="admin-upload-box" @click="openImagePicker(field.key)">
                 <i class="fas fa-cloud-upload-alt"></i>
                 <p>{{ imagePreviews[field.key] ? 'Cambiar imagen' : field.hint || 'Selecciona una imagen' }}</p>
                 <small>PNG, JPG o WEBP.</small>
@@ -323,6 +323,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Estilos propios de configuracion general */
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(32rem, 1fr));
@@ -334,24 +335,6 @@ onBeforeUnmount(() => {
   gap: 1.25rem;
 }
 
-.upload-box {
-  border: 1px dashed rgba(0, 119, 182, 0.32);
-  border-radius: 1.2rem;
-  padding: 1.6rem;
-  text-align: center;
-  cursor: pointer;
-  background: #f8fbfe;
-  display: grid;
-  gap: 0.4rem;
-}
-
-.upload-box i {
-  font-size: 2rem;
-  color: var(--admin-primary);
-}
-
-.upload-box p,
-.upload-box small,
 .form-hint {
   margin: 0;
 }
@@ -366,9 +349,9 @@ onBeforeUnmount(() => {
   width: 100%;
   max-height: 14rem;
   object-fit: contain;
-  border-radius: 1rem;
-  background: #f8fbfe;
-  border: 1px solid rgba(0, 119, 182, 0.12);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg-soft);
+  border: 1px solid var(--admin-border-light);
 }
 
 .color-input-group {
@@ -382,7 +365,7 @@ onBeforeUnmount(() => {
   min-width: 4.8rem;
   height: 4rem;
   border: 1px solid var(--admin-border);
-  border-radius: 0.8rem;
+  border-radius: var(--admin-radius-sm);
   background: #fff;
   cursor: pointer;
 }

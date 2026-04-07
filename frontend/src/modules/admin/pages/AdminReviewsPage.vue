@@ -9,42 +9,17 @@
 
     <AdminStatsGrid :loading="loading" :count="5" :stats="reviewStats" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-filter"></i>
-            <h3>Bandeja de moderación</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input
-            v-model="filters.search"
-            type="text"
-            class="search-input"
-            placeholder="Buscar por título, comentario o producto..."
-            @input="debouncedLoadReviews"
-          >
-          <button v-if="filters.search" type="button" class="search-clear" @click="clearSearch">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <button type="button" class="search-submit-btn" @click="loadReviews">
-          <i class="fas fa-search"></i>
-          <span>Buscar</span>
-        </button>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row filters-row--reviews">
-          <div class="filter-group">
+    <AdminFilterCard
+      v-model="filters.search"
+      icon="fas fa-filter"
+      title="Bandeja de moderación"
+      placeholder="Buscar por título, comentario o producto..."
+      @search="loadReviews"
+      @update:model-value="debouncedLoadReviews"
+    >
+      <template #advanced>
+        <div class="admin-filters__row admin-filters__row--3">
+          <div class="admin-filters__group">
             <label for="review-status"><i class="fas fa-flag"></i> Estado</label>
             <select id="review-status" v-model="filters.status" @change="loadReviews">
               <option value="all">Todas</option>
@@ -53,7 +28,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="review-rating"><i class="fas fa-star"></i> Rating</label>
             <select id="review-rating" v-model="filters.rating" @change="loadReviews">
               <option value="">Cualquiera</option>
@@ -65,7 +40,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="review-verified"><i class="fas fa-badge-check"></i> Compra verificada</label>
             <select id="review-verified" v-model="filters.verified" @change="loadReviews">
               <option value="all">Todas</option>
@@ -75,20 +50,19 @@
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearAllFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar todo
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearAllFilters">
+              <i class="fas fa-times-circle"></i> Limpiar todo
             </button>
           </div>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
     <section class="insights-grid">
       <AdminCard title="Distribución de rating" icon="fas fa-chart-pie">
@@ -130,18 +104,13 @@
       </AdminCard>
     </section>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list"></i>
-        <p>Mostrando {{ reviews.length }} reseñas</p>
-      </div>
-      <div class="quick-actions">
-        <button class="btn btn-icon" type="button" @click="exportReviews">
-          <i class="fas fa-file-export"></i>
-          Exportar
+    <AdminResultsBar :text="`Mostrando ${reviews.length} reseñas`">
+      <template #actions>
+        <button class="btn-icon" type="button" @click="exportReviews">
+          <i class="fas fa-file-export"></i> Exportar
         </button>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <AdminCard :flush="true">
       <div v-if="loading" class="cards-loading">
@@ -177,7 +146,7 @@
 
           <div class="review-card__footer">
             <small>{{ formatDateTime(review.created_at) }}</small>
-            <div class="entity-actions">
+            <div class="admin-entity-actions">
               <button class="action-btn view" type="button" title="Ver detalle" @click="openReviewModal(review)">
                 <i class="fas fa-eye"></i>
               </button>
@@ -237,11 +206,11 @@
 
           <div>
             <AdminCard title="Moderación" icon="fas fa-shield-halved">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Producto</span><strong>{{ selectedReview.product_name }}</strong></div>
-                <div class="summary-row"><span>Estado</span><strong>{{ reviewStatusLabel(selectedReview.status) }}</strong></div>
-                <div class="summary-row"><span>Verificación</span><strong>{{ selectedReview.is_verified ? 'Verificada' : 'Pendiente' }}</strong></div>
-                <div class="summary-row"><span>Fecha</span><strong>{{ formatDateTime(selectedReview.created_at) }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-summary__row"><span>Producto</span><strong>{{ selectedReview.product_name }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ reviewStatusLabel(selectedReview.status) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Verificación</span><strong>{{ selectedReview.is_verified ? 'Verificada' : 'Pendiente' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Fecha</span><strong>{{ formatDateTime(selectedReview.created_at) }}</strong></div>
               </div>
             </AdminCard>
 
@@ -285,8 +254,10 @@ import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -294,7 +265,6 @@ const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
-const showAdvanced = ref(true)
 const showDetailModal = ref(false)
 const reviews = ref([])
 const customerProfiles = ref({})
@@ -408,11 +378,6 @@ function renderStars(rating) {
     const filled = index < rating
     return `<i class="${filled ? 'fas' : 'far'} fa-star"></i>`
   }).join('')
-}
-
-function clearSearch() {
-  filters.value.search = ''
-  loadReviews()
 }
 
 function clearAllFilters() {
@@ -579,25 +544,12 @@ onMounted(loadReviews)
 </script>
 
 <style scoped>
-.filters-card {
-  margin-bottom: 2rem;
-  border: 1px solid #d9e8f4;
-  border-radius: 26px;
-  box-shadow: 0 14px 32px rgba(15, 55, 96, 0.08);
-  overflow: hidden;
-}
+/* Estilos específicos de Reseñas — los comunes están en admin.css */
 
-.filters-header,
-.results-summary,
-.filters-actions-bar,
 .review-card__header,
 .review-card__footer,
 .review-customer,
 .review-badges,
-.results-info,
-.filters-buttons,
-.active-filters,
-.entity-actions,
 .rating-label,
 .highlight-item,
 .highlight-meta {
@@ -606,171 +558,15 @@ onMounted(loadReviews)
   gap: 0.75rem;
 }
 
-.filters-header,
-.results-summary,
-.filters-actions-bar,
 .review-card__header,
 .review-card__footer,
 .highlight-item {
   justify-content: space-between;
 }
 
-.filters-header {
-  width: 100%;
-  padding: 1.75rem 2rem;
-  border-bottom: 1px solid #edf3f8;
-}
-
-.filters-title {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-}
-
-.filters-title i {
-  width: 3rem;
-  height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  background: #eef7ff;
-  color: #0077b6;
-}
-
-.filters-title h3,
-.results-summary p,
 .review-card__content h3,
 .review-detail-title {
   margin: 0;
-}
-
-.filters-toggle {
-  width: 3.25rem;
-  height: 3.25rem;
-  border: 1px solid #cfe2f2;
-  background: #fff;
-  color: #45617d;
-  border-radius: 1.1rem;
-  cursor: pointer;
-}
-
-.filters-toggle.collapsed {
-  transform: rotate(180deg);
-}
-
-.search-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-}
-
-.search-input-wrapper {
-  position: relative;
-}
-
-.search-input,
-.filter-group select {
-  width: 100%;
-  border: 1px solid #cfe2f2;
-  border-radius: 1.4rem;
-  color: #24364b;
-}
-
-.search-input {
-  height: 4.25rem;
-  padding: 0 3.25rem 0 3.25rem;
-  font-size: 1.08rem;
-}
-
-.filter-group select {
-  height: 3.3rem;
-  padding: 0 0.95rem;
-  border-radius: 1rem;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1.15rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6a96cf;
-}
-
-.search-clear {
-  position: absolute;
-  right: 0.85rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  color: #90a4b7;
-  cursor: pointer;
-}
-
-.search-submit-btn,
-.btn.btn-icon {
-  min-height: 3.15rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0 1.2rem;
-  border-radius: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.search-submit-btn {
-  min-width: 9.5rem;
-  height: 4.25rem;
-  border: 1px solid #8bc7f0;
-  background: #f3fbff;
-  color: #0077b6;
-}
-
-.filters-advanced {
-  padding: 0 2rem 2rem;
-}
-
-.filters-row {
-  display: grid;
-  gap: 1rem;
-}
-
-.filters-row--reviews {
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-}
-
-.filter-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.filters-actions-bar {
-  margin-top: 1.5rem;
-  padding-top: 1.3rem;
-  border-top: 1px solid #edf2f7;
-}
-
-.active-filters,
-.btn-clear-filters {
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.btn-clear-filters {
-  border: none;
-  background: transparent;
-  color: #0077b6;
-  cursor: pointer;
 }
 
 .insights-grid {
@@ -781,7 +577,6 @@ onMounted(loadReviews)
 }
 
 .rating-distribution,
-.summary-stack,
 .modal-actions-stack {
   display: flex;
   flex-direction: column;
@@ -798,14 +593,14 @@ onMounted(loadReviews)
 .rating-bar-track {
   width: 100%;
   height: 0.85rem;
-  border-radius: 999px;
-  background: #edf3f8;
+  border-radius: var(--admin-radius-pill);
+  background: var(--admin-bg-dark);
   overflow: hidden;
 }
 
 .rating-bar-fill {
   height: 100%;
-  background: #0077b6;
+  background: var(--admin-primary);
   border-radius: inherit;
 }
 
@@ -818,9 +613,9 @@ onMounted(loadReviews)
 .highlight-item {
   width: 100%;
   padding: 1rem 1.1rem;
-  border: 1px solid #e2edf5;
-  border-radius: 1rem;
-  background: #fff;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg);
   cursor: pointer;
   text-align: left;
 }
@@ -828,27 +623,6 @@ onMounted(loadReviews)
 .highlight-item span,
 .highlight-item small {
   color: var(--admin-text-light);
-}
-
-.results-summary {
-  margin-bottom: 1.25rem;
-  padding: 1.25rem 1.6rem;
-  background: #fff;
-  border: 1px solid #d9e8f4;
-  border-radius: 1.65rem;
-  box-shadow: 0 14px 28px rgba(15, 55, 96, 0.08);
-}
-
-.results-summary p {
-  color: #0077b6;
-  font-size: 1.12rem;
-  font-weight: 700;
-}
-
-.btn.btn-icon {
-  border: 1px solid #cde0ef;
-  background: #fff;
-  color: #0e5f99;
 }
 
 .cards-loading {
@@ -866,14 +640,14 @@ onMounted(loadReviews)
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  border: 1px solid #dfe9f2;
-  border-radius: 1.4rem;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: var(--admin-radius-xl);
   padding: 1.15rem;
-  background: #fff;
+  background: var(--admin-bg);
 }
 
 .review-card--admin:hover {
-  box-shadow: 0 14px 24px rgba(15, 55, 96, 0.08);
+  box-shadow: var(--admin-shadow-hover);
 }
 
 .review-customer img {
@@ -881,7 +655,7 @@ onMounted(loadReviews)
   height: 4rem;
   border-radius: 50%;
   object-fit: cover;
-  background: #eef3f7;
+  background: var(--admin-bg-dark);
 }
 
 .review-customer div,
@@ -893,7 +667,6 @@ onMounted(loadReviews)
 
 .review-customer span,
 .review-card__footer small,
-.summary-row span,
 .review-detail-comment {
   color: var(--admin-text-light);
 }
@@ -915,7 +688,7 @@ onMounted(loadReviews)
 .stars-inline {
   display: inline-flex;
   gap: 0.2rem;
-  color: #f2ab00;
+  color: var(--admin-star);
 }
 
 .review-card__rating--detail {
@@ -942,28 +715,18 @@ onMounted(loadReviews)
   font-weight: 700;
 }
 
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
 .detail-empty {
   color: var(--admin-text-light);
   padding: 0.6rem 0;
 }
 
 @media (max-width: 980px) {
-  .filters-row--reviews,
   .reviews-grid,
   .insights-grid,
-  .review-detail-grid,
-  .search-bar {
+  .review-detail-grid {
     grid-template-columns: 1fr;
   }
 
-  .filters-actions-bar,
-  .results-summary,
   .review-card__header,
   .review-card__footer,
   .highlight-item {

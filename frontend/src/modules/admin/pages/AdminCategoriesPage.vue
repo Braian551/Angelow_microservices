@@ -15,8 +15,8 @@
 
     <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
 
-    <div class="filters-bar entity-filters">
-      <div class="filter-group entity-filters__search">
+    <div class="filters-bar admin-entity-filters">
+      <div class="filter-group admin-entity-filters__search">
         <label for="category-search">Buscar</label>
         <input id="category-search" v-model="search" type="text" placeholder="Nombre, slug o descripcion">
       </div>
@@ -28,7 +28,7 @@
           <option value="inactive">Inactivas</option>
         </select>
       </div>
-      <div class="entity-filters__summary">
+      <div class="admin-entity-filters__summary">
         <span><i class="fas fa-list"></i> {{ filteredCategories.length }} resultado(s)</span>
       </div>
     </div>
@@ -59,21 +59,21 @@
                 <img
                   :src="resolveCategoryImage(category)"
                   :alt="category.name"
-                  class="entity-thumb"
+                  class="admin-entity-filters__thumb"
                   @error="onCategoryImageError($event, category.image)"
                 >
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ category.name }}</strong>
                   <span>{{ category.slug || 'Sin slug' }}</span>
                 </div>
               </td>
               <td>
-                <p class="entity-description">{{ excerpt(category.description, 120) }}</p>
+                <p class="admin-entity-name__description">{{ excerpt(category.description, 120) }}</p>
               </td>
               <td>
-                <span class="entity-count-pill">{{ category.product_count }} producto(s)</span>
+                <span class="admin-entity-filters__pill">{{ category.product_count }} producto(s)</span>
               </td>
               <td>
                 <span class="status-badge" :class="category.is_active ? 'active' : 'inactive'">
@@ -81,7 +81,7 @@
                 </span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn edit" type="button" title="Editar" @click="openModal(category)">
                     <i class="fas fa-edit"></i>
                   </button>
@@ -100,8 +100,8 @@
     </AdminCard>
 
     <AdminModal :show="showModal" :title="editing ? 'Editar categoria' : 'Nueva categoria'" max-width="720px" @close="closeModal">
-      <div class="entity-form-grid">
-        <div class="form-group entity-form-grid__full">
+      <div class="admin-entity-filters__form">
+        <div class="form-group admin-entity-filters__form--full">
           <label for="category-name">Nombre *</label>
           <input id="category-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
           <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
@@ -117,12 +117,12 @@
           <input id="category-image" v-model="form.image" class="form-control" placeholder="/uploads/categories/mi-categoria.jpg">
         </div>
 
-        <div class="form-group entity-form-grid__full">
+        <div class="form-group admin-entity-filters__form--full">
           <label for="category-description">Descripcion</label>
           <textarea id="category-description" v-model="form.description" class="form-control" rows="4" placeholder="Describe la categoria y su alcance comercial."></textarea>
         </div>
 
-        <div class="form-group entity-form-grid__full entity-form-toggle">
+        <div class="form-group admin-entity-filters__form--full admin-entity-filters__toggle">
           <div>
             <strong>Categoria activa</strong>
             <p>Permite que siga disponible para asociarla a productos.</p>
@@ -363,97 +363,9 @@ onMounted(loadCategories)
 </script>
 
 <style scoped>
-.entity-filters {
-  justify-content: space-between;
-}
-
-.entity-filters__search {
-  flex: 1 1 320px;
-}
-
-.entity-filters__search input {
-  width: 100%;
-}
-
-.entity-filters__summary {
-  margin-left: auto;
-  color: var(--admin-text-light);
-  font-size: 1.3rem;
-}
-
-.entity-thumb {
-  width: 4.4rem;
-  height: 4.4rem;
-  border-radius: 10px;
-  object-fit: cover;
-  background: var(--admin-bg-dark);
-}
-
-.entity-name-cell,
-.entity-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.entity-name-cell {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.entity-name-cell span,
-.entity-description {
-  color: var(--admin-text-light);
-  font-size: 1.25rem;
-}
-
-.entity-description {
-  margin: 0;
-}
-
-.entity-count-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(0, 119, 182, 0.08);
-  color: var(--admin-primary);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.entity-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2rem;
-}
-
-.entity-form-grid__full {
-  grid-column: 1 / -1;
-}
-
-.entity-form-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.2rem 1.4rem;
-  border: 1px solid var(--admin-border);
-  border-radius: 12px;
-}
-
-.entity-form-toggle p {
-  margin: 0.3rem 0 0;
-  color: var(--admin-text-light);
-  font-size: 1.2rem;
-}
-
+/* Estilos responsivos propios de categorias */
 @media (max-width: 768px) {
-  .entity-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .entity-actions {
+  .admin-entity-actions {
     flex-wrap: wrap;
   }
 }

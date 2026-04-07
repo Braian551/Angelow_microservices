@@ -15,12 +15,12 @@
 
     <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
 
-    <div class="filters-bar entity-filters">
-      <div class="filter-group entity-filters__search">
+    <div class="filters-bar admin-entity-filters">
+      <div class="admin-entity-filters__group admin-entity-filters__search">
         <label for="size-search">Buscar</label>
         <input id="size-search" v-model="search" type="text" placeholder="Nombre o descripcion">
       </div>
-      <div class="filter-group">
+      <div class="admin-entity-filters__group">
         <label for="size-status">Estado</label>
         <select id="size-status" v-model="statusFilter">
           <option value="">Todas</option>
@@ -28,7 +28,7 @@
           <option value="inactive">Inactivas</option>
         </select>
       </div>
-      <div class="entity-filters__summary">
+      <div class="admin-entity-filters__summary">
         <span><i class="fas fa-list"></i> {{ filteredSizes.length }} resultado(s)</span>
       </div>
     </div>
@@ -56,21 +56,21 @@
           <tbody>
             <tr v-for="size in filteredSizes" :key="size.id">
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ size.name }}</strong>
                   <span>ID #{{ size.id }}</span>
                 </div>
               </td>
-              <td><p class="entity-description">{{ excerpt(size.description, 120) }}</p></td>
+              <td><p class="admin-entity-name__description">{{ excerpt(size.description, 120) }}</p></td>
               <td>{{ size.sort_order ?? '-' }}</td>
-              <td><span class="entity-count-pill">{{ size.product_count }} variante(s)</span></td>
+              <td><span class="admin-entity-filters__pill">{{ size.product_count }} variante(s)</span></td>
               <td>
                 <span class="status-badge" :class="size.is_active ? 'active' : 'inactive'">
                   {{ size.is_active ? 'Activa' : 'Inactiva' }}
                 </span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn edit" type="button" @click="openModal(size)"><i class="fas fa-edit"></i></button>
                   <button class="action-btn view" type="button" @click="toggleStatus(size)"><i class="fas fa-power-off"></i></button>
                   <button class="action-btn delete" type="button" :disabled="size.product_count > 0" @click="confirmDelete(size)"><i class="fas fa-trash"></i></button>
@@ -83,7 +83,7 @@
     </AdminCard>
 
     <AdminModal :show="showModal" :title="editing ? 'Editar talla' : 'Nueva talla'" max-width="720px" @close="closeModal">
-      <div class="entity-form-grid">
+      <div class="admin-entity-filters__form">
         <div class="form-group">
           <label for="size-name">Nombre *</label>
           <input id="size-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
@@ -96,12 +96,12 @@
           <p v-if="errors.sort_order" class="form-error">{{ errors.sort_order }}</p>
         </div>
 
-        <div class="form-group entity-form-grid__full">
+        <div class="form-group admin-entity-filters__form--full">
           <label for="size-description">Descripcion</label>
           <textarea id="size-description" v-model="form.description" class="form-control" rows="4"></textarea>
         </div>
 
-        <div class="form-group entity-form-grid__full entity-form-toggle">
+        <div class="form-group admin-entity-filters__form--full admin-entity-filters__toggle">
           <div>
             <strong>Talla activa</strong>
             <p>Las tallas inactivas se conservan para historico, pero se excluyen del uso operativo.</p>
@@ -332,84 +332,10 @@ onMounted(loadSizes)
 </script>
 
 <style scoped>
-.entity-filters {
-  justify-content: space-between;
-}
-
-.entity-filters__search {
-  flex: 1 1 340px;
-}
-
-.entity-filters__search input {
-  width: 100%;
-}
-
-.entity-filters__summary {
-  margin-left: auto;
-  color: var(--admin-text-light);
-  font-size: 1.3rem;
-}
-
-.entity-name-cell,
-.entity-actions {
-  display: flex;
-  gap: 0.6rem;
-}
-
-.entity-name-cell {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.entity-name-cell span,
-.entity-description {
-  color: var(--admin-text-light);
-  font-size: 1.25rem;
-}
-
-.entity-description {
-  margin: 0;
-}
-
-.entity-count-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(0, 119, 182, 0.08);
-  color: var(--admin-primary);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.entity-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2rem;
-}
-
-.entity-form-grid__full {
-  grid-column: 1 / -1;
-}
-
-.entity-form-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.2rem 1.4rem;
-  border: 1px solid var(--admin-border);
-  border-radius: 12px;
-}
-
-.entity-form-toggle p {
-  margin: 0.3rem 0 0;
-  color: var(--admin-text-light);
-  font-size: 1.2rem;
-}
+/* Estilos específicos de Tallas — los comunes están en admin.css */
 
 @media (max-width: 768px) {
-  .entity-form-grid {
+  .admin-entity-filters__form {
     grid-template-columns: 1fr;
   }
 }

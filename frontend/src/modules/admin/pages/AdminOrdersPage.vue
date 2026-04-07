@@ -9,36 +9,17 @@
 
     <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
 
-    <AdminCard class="filters-card" :flush="true">
-      <template #header>
-        <div class="filters-header">
-          <div class="filters-title">
-            <i class="fas fa-sliders-h"></i>
-            <h3>Filtros de búsqueda</h3>
-          </div>
-          <button type="button" class="filters-toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
-      <div class="search-bar">
-        <div class="search-input-wrapper">
-          <i class="fas fa-search search-icon"></i>
-          <input v-model="filters.search" type="text" class="search-input" placeholder="Buscar por N° orden, cliente o email..." @input="debouncedLoad">
-          <button v-if="filters.search" type="button" class="search-clear" @click="clearSearch">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <button type="button" class="search-submit-btn" @click="applyFilters">
-          <i class="fas fa-search"></i>
-          <span>Buscar</span>
-        </button>
-      </div>
-
-      <div v-show="showAdvanced" class="filters-advanced">
-        <div class="filters-row filters-row--orders">
-          <div class="filter-group">
+    <AdminFilterCard
+      v-model="filters.search"
+      icon="fas fa-sliders-h"
+      title="Filtros de búsqueda"
+      placeholder="Buscar por N° orden, cliente o email..."
+      @search="applyFilters"
+      @update:model-value="debouncedLoad"
+    >
+      <template #advanced>
+        <div class="admin-filters__row admin-filters__row--4">
+          <div class="admin-filters__group">
             <label for="status-filter"><i class="fas fa-tag"></i> Estado de orden</label>
             <select id="status-filter" v-model="filters.status" @change="applyFilters">
               <option value="">Todos los estados</option>
@@ -51,7 +32,7 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="payment-filter"><i class="fas fa-credit-card"></i> Estado de pago</label>
             <select id="payment-filter" v-model="filters.payment_status" @change="applyFilters">
               <option value="">Todos los estados</option>
@@ -63,48 +44,41 @@
             </select>
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="from-date"><i class="fas fa-calendar-alt"></i> Fecha desde</label>
-            <input id="from-date" v-model="filters.from_date" type="date" class="filter-input" @change="validateDateRangeAndApply">
+            <input id="from-date" v-model="filters.from_date" type="date" @change="validateDateRangeAndApply">
           </div>
 
-          <div class="filter-group">
+          <div class="admin-filters__group">
             <label for="to-date"><i class="fas fa-calendar-check"></i> Fecha hasta</label>
-            <input id="to-date" v-model="filters.to_date" type="date" class="filter-input" @change="validateDateRangeAndApply">
+            <input id="to-date" v-model="filters.to_date" type="date" @change="validateDateRangeAndApply">
           </div>
         </div>
 
-        <div class="filters-actions-bar">
-          <div class="active-filters">
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
             <i class="fas fa-filter"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-
-          <div class="filters-buttons">
-            <button type="button" class="btn-clear-filters" @click="clearAllFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar todo
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearAllFilters">
+              <i class="fas fa-times-circle"></i> Limpiar todo
             </button>
-            <button type="button" class="btn-apply-filters" @click="applyFilters">
-              <i class="fas fa-check-circle"></i>
-              Aplicar filtros
+            <button type="button" class="admin-filters__apply" @click="applyFilters">
+              <i class="fas fa-check-circle"></i> Aplicar filtros
             </button>
           </div>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
-    <div class="results-summary">
-      <div class="results-info">
-        <i class="fas fa-list-ul"></i>
-        <p>Mostrando {{ orders.length }} órdenes</p>
-      </div>
-      <div class="quick-actions">
-        <button class="btn btn-icon" type="button" @click="exportOrders">
+    <AdminResultsBar :text="`Mostrando ${orders.length} órdenes`">
+      <template #actions>
+        <button class="btn-icon" type="button" @click="exportOrders">
           <i class="fas fa-file-export"></i> Exportar
         </button>
-      </div>
-    </div>
+      </template>
+    </AdminResultsBar>
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['line', 'line', 'line', 'line', 'pill', 'pill', 'btn']" />
@@ -136,7 +110,7 @@
                 </div>
               </td>
               <td>
-                <div class="entity-name-cell">
+                <div class="admin-entity-name">
                   <strong>{{ order.customer_name }}</strong>
                   <span>{{ order.customer_email || 'Sin email' }}</span>
                 </div>
@@ -152,7 +126,7 @@
                 <span class="status-badge" :class="paymentBadgeClass(order.payment_status)">{{ paymentLabel(order.payment_status) }}</span>
               </td>
               <td>
-                <div class="entity-actions">
+                <div class="admin-entity-actions">
                   <button class="action-btn view" type="button" title="Vista rápida" @click="openDetailModal(order)">
                     <i class="fas fa-eye"></i>
                   </button>
@@ -221,20 +195,20 @@
 
           <div>
             <AdminCard title="Resumen" icon="fas fa-calculator">
-              <div class="summary-stack">
-                <div class="summary-row"><span>Subtotal</span><strong>{{ formatCurrency(detailOrder.order.subtotal || 0) }}</strong></div>
-                <div class="summary-row"><span>Envío</span><strong>{{ formatCurrency(detailOrder.order.shipping_cost || 0) }}</strong></div>
-                <div v-if="Number(detailOrder.order.discount_amount || 0) > 0" class="summary-row summary-row--success"><span>Descuento</span><strong>-{{ formatCurrency(detailOrder.order.discount_amount || 0) }}</strong></div>
-                <div class="summary-divider"></div>
-                <div class="summary-row summary-row--total"><span>Total</span><strong>{{ formatCurrency(detailOrder.order.total || 0) }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-summary__row"><span>Subtotal</span><strong>{{ formatCurrency(detailOrder.order.subtotal || 0) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Envío</span><strong>{{ formatCurrency(detailOrder.order.shipping_cost || 0) }}</strong></div>
+                <div v-if="Number(detailOrder.order.discount_amount || 0) > 0" class="admin-detail-summary__row admin-detail-summary__row--success"><span>Descuento</span><strong>-{{ formatCurrency(detailOrder.order.discount_amount || 0) }}</strong></div>
+                <div class="admin-detail-summary__divider"></div>
+                <div class="admin-detail-summary__row admin-detail-summary__row--total"><span>Total</span><strong>{{ formatCurrency(detailOrder.order.total || 0) }}</strong></div>
               </div>
             </AdminCard>
 
             <AdminCard title="Cliente" icon="fas fa-user" style="margin-top: 1.2rem;">
-              <div class="summary-stack">
-                <div class="summary-row summary-row--stack"><span>{{ detailOrder.customer_name }}</span><strong>{{ detailOrder.customer_email || 'Sin email' }}</strong></div>
-                <div class="summary-row summary-row--stack"><span>Dirección</span><strong>{{ detailOrder.order.shipping_address || detailOrder.order.billing_address || 'Sin dirección' }}</strong></div>
-                <div class="summary-row"><span>Pago</span><strong>{{ paymentLabel(detailOrder.order.payment_status) }}</strong></div>
+              <div class="admin-detail-summary">
+                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>{{ detailOrder.customer_name }}</span><strong>{{ detailOrder.customer_email || 'Sin email' }}</strong></div>
+                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Dirección</span><strong>{{ detailOrder.order.shipping_address || detailOrder.order.billing_address || 'Sin dirección' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Pago</span><strong>{{ paymentLabel(detailOrder.order.payment_status) }}</strong></div>
               </div>
             </AdminCard>
           </div>
@@ -291,8 +265,10 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -301,7 +277,6 @@ const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
 const detailLoading = ref(false)
-const showAdvanced = ref(false)
 const orders = ref([])
 const orderStats = ref({ total_orders: 0, total_revenue: 0, pending_orders: 0, completed_orders: 0 })
 const showDetailModal = ref(false)
@@ -406,11 +381,6 @@ function paymentBadgeClass(status) {
   if (['paid', 'verified'].includes(status)) return 'active'
   if (['failed', 'refunded'].includes(status)) return 'cancelled'
   return 'pending'
-}
-
-function clearSearch() {
-  filters.search = ''
-  loadOrders()
 }
 
 function validateDateRangeAndApply() {
@@ -590,247 +560,17 @@ onMounted(loadOrders)
 </script>
 
 <style scoped>
-.filters-card {
-  margin-bottom: 2rem;
-  border: 1px solid #d9e8f4;
-  border-radius: 26px;
-  box-shadow: 0 14px 32px rgba(15, 55, 96, 0.08);
-  overflow: hidden;
-}
-
-.filters-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-  border-bottom: 1px solid #edf3f8;
-}
-
-.filters-title,
-.entity-actions,
-.results-info,
-.quick-actions,
-.filters-buttons,
-.active-filters,
-.entity-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.entity-name-cell {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.entity-name-cell span,
-.order-number-cell span {
-  color: var(--admin-text-light);
-  font-size: 1.2rem;
-}
-
-.filters-title i {
-  width: 3rem;
-  height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  background: #eef7ff;
-  color: #0077b6;
-}
-
-.filters-title h3,
-.results-summary p {
-  margin: 0;
-}
-
-.filters-toggle {
-  width: 3.25rem;
-  height: 3.25rem;
-  border: 1px solid #cfe2f2;
-  background: #fff;
-  color: #45617d;
-  border-radius: 1.1rem;
-  cursor: pointer;
-}
-
-.filters-toggle.collapsed {
-  transform: rotate(180deg);
-}
-
-.search-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: 1.75rem 2rem;
-}
-
-.search-input-wrapper {
-  position: relative;
-}
-
-.search-input,
-.filter-input,
-.filter-group select {
-  width: 100%;
-  height: 4.25rem;
-  padding: 0 3.25rem 0 1rem;
-  border: 1px solid #cfe2f2;
-  border-radius: 1.4rem;
-  font-size: 1.08rem;
-  color: #24364b;
-}
-
-.filter-input,
-.filter-group select {
-  height: 3.3rem;
-  padding: 0 0.95rem;
-  border-radius: 1rem;
-}
-
-.search-icon {
-  position: absolute;
-  left: 1.15rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6a96cf;
-}
-
-.search-input {
-  padding-left: 3.25rem;
-}
-
-.search-clear {
-  position: absolute;
-  right: 0.85rem;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  color: #90a4b7;
-  cursor: pointer;
-}
-
-.search-submit-btn,
-.btn-apply-filters,
-.quick-actions .btn,
-.quick-actions button {
-  min-height: 3.15rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0 1.2rem;
-  border-radius: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.search-submit-btn {
-  min-width: 9.5rem;
-  height: 4.25rem;
-  border: 1px solid #8bc7f0;
-  background: #f3fbff;
-  color: #0077b6;
-}
-
-.filters-advanced {
-  padding: 0 2rem 2rem;
-}
-
-.filters-row {
-  display: grid;
-  gap: 1rem;
-}
-
-.filters-row--orders {
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-}
-
-.filter-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.filters-actions-bar,
-.results-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.filters-actions-bar {
-  margin-top: 1.5rem;
-  padding-top: 1.3rem;
-  border-top: 1px solid #edf2f7;
-}
-
-.active-filters {
-  font-size: 0.95rem;
-  color: #4f657b;
-  font-weight: 600;
-}
-
-.btn-clear-filters {
-  border: none;
-  background: transparent;
-  color: #0077b6;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.btn-apply-filters,
-.quick-actions .btn-primary {
-  border: 1px solid #0077b6;
-  background: #0077b6;
-  color: #fff;
-}
-
-.results-summary {
-  margin-bottom: 1.25rem;
-  padding: 1.25rem 1.6rem;
-  background: #fff;
-  border: 1px solid #d9e8f4;
-  border-radius: 1.65rem;
-  box-shadow: 0 14px 28px rgba(15, 55, 96, 0.08);
-}
-
-.results-summary p {
-  color: #0077b6;
-  font-size: 1.12rem;
-  font-weight: 700;
-}
-
-.btn.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid #cde0ef;
-  background: #fff;
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #0e5f99;
-  font-weight: 600;
-}
+/* Estilos específicos de Órdenes — los comunes están en admin.css */
 
 .order-number-cell {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+}
+
+.order-number-cell span {
+  color: var(--admin-text-light);
+  font-size: 1.2rem;
 }
 
 .status-chip-button {
@@ -851,36 +591,6 @@ onMounted(loadOrders)
   color: var(--admin-text-light);
 }
 
-.summary-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  font-size: 1.35rem;
-}
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.summary-row--stack {
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.summary-row--success {
-  color: var(--admin-success);
-}
-
-.summary-row--total {
-  font-size: 1.55rem;
-}
-
-.summary-divider {
-  border-top: 1px solid var(--admin-border);
-}
-
 .status-form-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -891,7 +601,7 @@ onMounted(loadOrders)
   width: 100%;
   padding: 1rem 1.2rem;
   border: 1px solid var(--admin-border);
-  border-radius: 12px;
+  border-radius: var(--admin-radius-lg);
   background: var(--admin-bg-dark);
 }
 
@@ -900,16 +610,8 @@ onMounted(loadOrders)
 }
 
 @media (max-width: 900px) {
-  .filters-row--orders,
-  .order-detail-grid,
-  .search-bar {
+  .order-detail-grid {
     grid-template-columns: 1fr;
-  }
-
-  .filters-actions-bar,
-  .results-summary {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 </style>
