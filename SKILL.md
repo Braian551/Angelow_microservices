@@ -23,6 +23,7 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 14. Todo formulario (sin excepción) debe implementar validación en tiempo real por campo (on input/on change), mostrando errores claros y consistentes antes del submit.
 15. Al documentar patrones de diseño, se debe indicar explícitamente en qué archivo(s) se aplicó cada patrón (ruta exacta en el proyecto), además del problema que resuelve.
 16. Siempre que se agregue, actualice o use una librería (frontend/backend) o dependencia Composer para resolver una tarea, se debe registrar en un archivo .md dentro de docs indicando: nombre/version, motivo, comando usado y ruta exacta donde se aplica.
+16b. Esta documentación en docs es requisito obligatorio de cierre: no se puede dar por terminada la tarea si no quedó registrada la librería/dependencia usada.
 17. Después de cambios en endpoints/controladores, se deben ejecutar pruebas de verificación (endpoint o lógica equivalente) y eliminar al final cualquier archivo temporal de test/debug creado para esa validación.
 
 ## Arquitectura funcional (resumen)

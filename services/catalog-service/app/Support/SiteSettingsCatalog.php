@@ -34,6 +34,24 @@ class SiteSettingsCatalog
                 'hint' => 'Sube tu logo en formato PNG, JPG o WEBP.',
                 'icon' => 'fa-image',
             ],
+            'brand_logo_secondary' => [
+                'type' => 'image',
+                'category' => 'brand',
+                'default' => '',
+                'max_length' => 255,
+                'label' => 'Logo alterno',
+                'hint' => 'Se usa en el panel, menú lateral y zonas secundarias.',
+                'icon' => 'fa-images',
+            ],
+            'brand_favicon' => [
+                'type' => 'image',
+                'category' => 'brand',
+                'default' => '',
+                'max_length' => 255,
+                'label' => 'Ícono de pestaña',
+                'hint' => 'Ícono que se muestra en la pestaña del navegador.',
+                'icon' => 'fa-bookmark',
+            ],
             'primary_color' => [
                 'type' => 'color',
                 'category' => 'brand',
@@ -146,7 +164,7 @@ class SiteSettingsCatalog
             ],
             'currency_code' => [
                 'type' => 'string',
-                'category' => 'operations',
+                'category' => 'system',
                 'default' => 'COP',
                 'pattern' => '/^[A-Z]{3}$/',
                 'label' => 'Moneda',
@@ -155,7 +173,7 @@ class SiteSettingsCatalog
             ],
             'analytics_timezone' => [
                 'type' => 'string',
-                'category' => 'operations',
+                'category' => 'system',
                 'default' => 'America/Bogota',
                 'max_length' => 64,
                 'label' => 'Zona horaria',

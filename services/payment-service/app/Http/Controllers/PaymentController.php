@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,17 +30,19 @@ class PaymentController extends Controller
             'user_id' => ['nullable', 'string', 'max:20'],
             'amount' => ['required', 'numeric'],
             'reference_number' => ['nullable', 'string', 'max:50'],
-            'payment_proof' => ['nullable', 'string', 'max:255'],
+            'payment_proof_name' => ['nullable', 'string', 'max:255'],
             'bank_code' => ['nullable', 'string', 'max:30'],
             'payment_method' => ['nullable', 'string', 'max:30'],
         ]);
+
+        $paymentProofPath = $this->resolvePaymentProofInput($request, $data['user_id'] ?? null);
 
         $payload = [
             'order_id' => $data['order_id'] ?? null,
             'user_id' => $data['user_id'] ?? null,
             'amount' => $data['amount'],
             'reference_number' => $data['reference_number'] ?? null,
-            'payment_proof' => $data['payment_proof'] ?? null,
+            'payment_proof' => $paymentProofPath,
             'status' => 'pending',
             'created_at' => now(),
             'updated_at' => now(),
@@ -59,6 +62,42 @@ class PaymentController extends Controller
             'message' => 'Transaccion creada',
             'id' => $id,
         ], 201);
+    }
+
+    private function resolvePaymentProofInput(Request $request, ?string $userId): ?string
+    {
+        if ($request->hasFile('payment_proof')) {
+            $request->validate([
+                'payment_proof' => ['file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:5120'],
+            ]);
+
+            return $this->storePaymentProof($request->file('payment_proof'), $userId);
+        }
+
+        $request->validate([
+            'payment_proof' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $proofPath = trim((string) $request->input('payment_proof', ''));
+
+        return $proofPath !== '' ? $proofPath : null;
+    }
+
+    private function storePaymentProof(UploadedFile $file, ?string $userId): string
+    {
+        $directory = public_path('uploads/payment_proofs');
+
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $safeUserId = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($userId ?: 'guest')) ?: 'guest';
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
+        $fileName = sprintf('proof_%s_%s.%s', $safeUserId, time(), $extension);
+
+        $file->move($directory, $fileName);
+
+        return 'uploads/payment_proofs/' . $fileName;
     }
 
     public function verify(Request $request, int $id): JsonResponse

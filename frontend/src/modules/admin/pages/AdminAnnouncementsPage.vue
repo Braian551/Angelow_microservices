@@ -64,7 +64,7 @@
       </template>
     </AdminFilterCard>
 
-    <AdminResultsBar :text="`Mostrando ${filteredAnnouncements.length} anuncios`">
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} anuncios`">
       <template #actions>
         <span class="results-note" :class="{ 'results-note--warning': !canCreateAnnouncement }">
           {{ canCreateAnnouncement ? 'Aún puedes crear anuncios adicionales.' : 'Límite alcanzado: 2 anuncios.' }}
@@ -94,7 +94,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="announcement in filteredAnnouncements" :key="announcement.id">
+            <tr v-for="announcement in pagination.paginatedItems" :key="announcement.id">
               <td>
                 <button type="button" class="announcement-thumb" @click="openDetailModal(announcement)">
                   <img
@@ -149,6 +149,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedAnnouncement ? selectedAnnouncement.title : 'Detalle del anuncio'" max-width="1080px" @close="closeDetailModal">
       <template v-if="selectedAnnouncement">
@@ -354,10 +361,12 @@ import { notificationHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { resolveMediaUrl, handleMediaError } from '../../../utils/media'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -425,6 +434,11 @@ const filteredAnnouncements = computed(() => {
 
     return haystack.includes(term)
   })
+})
+
+const pagination = useAdminPagination(filteredAnnouncements, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
 })
 
 const canCreateAnnouncement = computed(() => announcements.value.length < 2)

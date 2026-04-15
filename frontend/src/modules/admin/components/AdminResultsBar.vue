@@ -3,10 +3,12 @@
      Patrón: Decorator — envuelve información con slot de acciones. -->
 <template>
   <div class="admin-results-bar">
-    <p>
-      <i class="fas fa-clipboard-list"></i>
-      {{ text }}
-    </p>
+    <div class="admin-results-bar__summary">
+      <span class="admin-results-bar__icon">
+        <i class="fas fa-clipboard-list"></i>
+      </span>
+      <p>{{ text }}</p>
+    </div>
     <div v-if="$slots.actions" class="admin-results-bar__actions">
       <slot name="actions"></slot>
     </div>

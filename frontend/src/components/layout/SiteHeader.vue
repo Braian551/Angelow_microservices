@@ -1,23 +1,28 @@
 <template>
   <header class="main-header">
     <div class="header-container">
-      <button class="mobile-menu-toggle" @click="toggleMobileMenu" aria-label="Menu">
-        <i class="fas" :class="isMobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
+      <!-- Botón hamburguesa (solo móvil) -->
+      <button class="mobile-menu-toggle" type="button" :aria-expanded="isMobileMenuOpen" aria-label="Menú" @click="toggleMobileMenu">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
       </button>
 
+      <!-- Logo -->
       <div class="content-logo2">
         <RouterLink to="/">
           <img :src="brandLogo" :alt="storeName" width="100" @error="onLogoError" />
         </RouterLink>
       </div>
 
+      <!-- Buscador (desktop + tablet) -->
       <div class="search-bar">
-        <form ref="searchContainer" class="search-form" @submit.prevent="onSearch" autocomplete="off">
+        <form ref="searchContainer" class="search-form" autocomplete="off" @submit.prevent="onSearch">
           <input
             ref="searchInput"
             id="angelow-site-search"
-            name="angelow_site_search_query"
             v-model="searchValue"
+            name="angelow_site_search_query"
             type="search"
             placeholder="Buscar productos..."
             autocomplete="off"
@@ -29,10 +34,7 @@
             <i class="fas fa-search" />
           </button>
 
-          <div
-            v-if="showSuggestions"
-            class="header-search-results"
-          >
+          <div v-if="showSuggestions" class="header-search-results">
             <template v-if="isSearching">
               <div class="header-search-loading"></div>
             </template>
@@ -49,7 +51,6 @@
                   </div>
                 </RouterLink>
               </div>
-
               <div v-if="searchTerms.length > 0" class="header-search-terms">
                 <button
                   v-for="(term, index) in searchTerms"
@@ -70,6 +71,7 @@
         </form>
       </div>
 
+      <!-- Iconos de cuenta / favoritos / carrito -->
       <div class="header-icons">
         <RouterLink :to="accountRoute" aria-label="Mi cuenta">
           <i class="fas fa-user" />
@@ -84,18 +86,142 @@
       </div>
     </div>
 
-    <nav class="main-nav" :class="{ 'is-open': isMobileMenuOpen }">
+    <!-- Barra de búsqueda móvil (fila inferior en móvil) -->
+    <div class="mobile-search-bar">
+      <form ref="mobileSearchContainer" class="search-form" autocomplete="off" @submit.prevent="onSearch">
+        <input
+          v-model="searchValue"
+          type="search"
+          placeholder="Buscar productos..."
+          autocomplete="off"
+          @focus="onSearchFocus"
+          @keydown.esc="hideSuggestions"
+        />
+        <button type="submit" aria-label="Buscar">
+          <i class="fas fa-search" />
+        </button>
+        <div v-if="showSuggestions" class="header-search-results">
+          <template v-if="isSearching">
+            <div class="header-search-loading"></div>
+          </template>
+          <template v-else-if="featuredSuggestion || searchTerms.length > 0">
+            <div v-if="featuredSuggestion" class="header-search-featured">
+              <RouterLink
+                :to="{ name: 'product', params: { slug: featuredSuggestion.slug } }"
+                class="header-product-item"
+                @click="onProductSuggestionClick(featuredSuggestion)"
+              >
+                <img :src="resolveImageUrl(featuredSuggestion.image_path)" :alt="featuredSuggestion.name" />
+                <div class="header-product-info">
+                  <div>{{ featuredSuggestion.name }}</div>
+                </div>
+              </RouterLink>
+            </div>
+            <div v-if="searchTerms.length > 0" class="header-search-terms">
+              <button
+                v-for="(term, index) in searchTerms"
+                :key="'term-' + index"
+                type="button"
+                class="header-suggestion-item"
+                @click="onSearchTermClick(term)"
+              >
+                <i :class="['fas', wasTermSearched(term) ? 'fa-clock' : 'fa-search']"></i>
+                <span>{{ term }}</span>
+              </button>
+            </div>
+          </template>
+          <div v-else-if="searchValue.trim().length >= 2" class="header-no-results">
+            No se encontraron resultados.
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Nav escritorio -->
+    <nav class="main-nav">
       <ul>
-        <li><RouterLink to="/">Inicio</RouterLink></li>
-        <li><RouterLink :to="{ name: 'store', query: { gender: 'nina' } }">Niñas</RouterLink></li>
-        <li><RouterLink :to="{ name: 'store', query: { gender: 'nino' } }">Niños</RouterLink></li>
-        <li><RouterLink :to="{ name: 'store', query: { gender: 'bebe' } }">Bebés</RouterLink></li>
-        <li><RouterLink :to="{ name: 'store', query: { offers: '1' } }">Ofertas</RouterLink></li>
-        <li><RouterLink :to="{ name: 'collections' }">Colecciones</RouterLink></li>
+        <li><RouterLink to="/" :class="['site-nav-link', { 'is-active': isNavActive('inicio') }]">Inicio</RouterLink></li>
+        <li><RouterLink :to="{ name: 'store', query: { gender: 'nina' } }" :class="['site-nav-link', { 'is-active': isNavActive('nina') }]">Niñas</RouterLink></li>
+        <li><RouterLink :to="{ name: 'store', query: { gender: 'nino' } }" :class="['site-nav-link', { 'is-active': isNavActive('nino') }]">Niños</RouterLink></li>
+        <li><RouterLink :to="{ name: 'store', query: { gender: 'bebe' } }" :class="['site-nav-link', { 'is-active': isNavActive('bebe') }]">Bebés</RouterLink></li>
+        <li><RouterLink :to="{ name: 'store', query: { offers: '1' } }" :class="['site-nav-link', { 'is-active': isNavActive('offers') }]">Ofertas</RouterLink></li>
+        <li><RouterLink :to="{ name: 'collections' }" :class="['site-nav-link', { 'is-active': isNavActive('collections') }]">Colecciones</RouterLink></li>
       </ul>
     </nav>
-  </header>
 
+    <!-- ══ Drawer móvil + backdrop ══ -->
+    <transition name="drawer-backdrop">
+      <div v-if="isMobileMenuOpen" class="mobile-drawer-backdrop" @click="closeMobileMenu"></div>
+    </transition>
+    <transition name="drawer-slide">
+      <nav v-if="isMobileMenuOpen" class="mobile-drawer" role="dialog" aria-modal="true" aria-label="Menú principal">
+        <!-- Cabecera del drawer -->
+        <div class="mobile-drawer__header">
+          <img :src="brandLogo" :alt="storeName" class="mobile-drawer__logo" @error="onLogoError" />
+          <button type="button" class="mobile-drawer__close" aria-label="Cerrar menú" @click="closeMobileMenu">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <!-- Navegación principal -->
+        <ul class="mobile-drawer__nav">
+          <li>
+            <RouterLink to="/" :class="['mobile-drawer__link', { 'is-active': isNavActive('inicio') }]">
+              <span class="mobile-drawer__icon"><i class="fas fa-home"></i></span>
+              Inicio
+            </RouterLink>
+          </li>
+          <li>
+            <RouterLink :to="{ name: 'store', query: { gender: 'nina' } }" :class="['mobile-drawer__link', { 'is-active': isNavActive('nina') }]">
+              <span class="mobile-drawer__icon mobile-drawer__icon--nina"><i class="fas fa-star"></i></span>
+              Niñas
+            </RouterLink>
+          </li>
+          <li>
+            <RouterLink :to="{ name: 'store', query: { gender: 'nino' } }" :class="['mobile-drawer__link', { 'is-active': isNavActive('nino') }]">
+              <span class="mobile-drawer__icon mobile-drawer__icon--nino"><i class="fas fa-rocket"></i></span>
+              Niños
+            </RouterLink>
+          </li>
+          <li>
+            <RouterLink :to="{ name: 'store', query: { gender: 'bebe' } }" :class="['mobile-drawer__link', { 'is-active': isNavActive('bebe') }]">
+              <span class="mobile-drawer__icon mobile-drawer__icon--bebe"><i class="fas fa-baby"></i></span>
+              Bebés
+            </RouterLink>
+          </li>
+          <li>
+            <RouterLink :to="{ name: 'store', query: { offers: '1' } }" :class="['mobile-drawer__link', 'mobile-drawer__link--offers', { 'is-active': isNavActive('offers') }]">
+              <span class="mobile-drawer__icon mobile-drawer__icon--offers"><i class="fas fa-tag"></i></span>
+              Ofertas
+            </RouterLink>
+          </li>
+          <li>
+            <RouterLink :to="{ name: 'collections' }" :class="['mobile-drawer__link', { 'is-active': isNavActive('collections') }]">
+              <span class="mobile-drawer__icon"><i class="fas fa-layer-group"></i></span>
+              Colecciones
+            </RouterLink>
+          </li>
+        </ul>
+
+        <!-- Acciones de usuario al pie del drawer -->
+        <div class="mobile-drawer__footer">
+          <RouterLink :to="accountRoute" class="mobile-drawer__footer-btn">
+            <i class="fas fa-user"></i>
+            Mi cuenta
+          </RouterLink>
+          <RouterLink :to="favoritesRoute" class="mobile-drawer__footer-btn">
+            <i class="fas fa-heart"></i>
+            Favoritos
+          </RouterLink>
+          <RouterLink to="/carrito" class="mobile-drawer__footer-btn mobile-drawer__footer-btn--cart">
+            <i class="fas fa-shopping-cart"></i>
+            Carrito
+            <span v-if="cartCount > 0" class="mobile-drawer__cart-badge">{{ cartCount }}</span>
+          </RouterLink>
+        </div>
+      </nav>
+    </transition>
+  </header>
 </template>
 
 <script setup>
@@ -195,7 +321,7 @@ watch(searchValue, (value) => {
 })
 
 const brandLogo = computed(() => {
-  return resolveMediaUrl(props.settings?.brand_logo, 'brand')
+  return resolveMediaUrl(props.settings?.brand_logo_secondary || props.settings?.brand_logo, 'brand')
 })
 
 const storeName = computed(() => props.settings?.store_name || 'Angelow')
@@ -310,6 +436,34 @@ function toggleMobileMenu() {
   isMobileMenuOpen.value = !isMobileMenuOpen.value
 }
 
+function closeMobileMenu() {
+  isMobileMenuOpen.value = false
+}
+
+function isNavActive(section) {
+  const routeName = String(route.name || '')
+  const gender = String(route.query?.gender || '').toLowerCase()
+  const offers = String(route.query?.offers || '')
+
+  if (section === 'inicio') {
+    return route.path === '/'
+  }
+
+  if (section === 'collections') {
+    return routeName === 'collections'
+  }
+
+  if (section === 'offers') {
+    return routeName === 'store' && offers === '1'
+  }
+
+  if (section === 'nina' || section === 'nino' || section === 'bebe') {
+    return routeName === 'store' && gender === section
+  }
+
+  return false
+}
+
 function onSearchTermClick(term) {
   searchValue.value = term
   hideSuggestions()
@@ -349,6 +503,6 @@ watch(
 )
 
 function onLogoError(event) {
-  handleMediaError(event, props.settings?.brand_logo, 'brand')
+  handleMediaError(event, props.settings?.brand_logo_secondary || props.settings?.brand_logo, 'brand')
 }
 </script>

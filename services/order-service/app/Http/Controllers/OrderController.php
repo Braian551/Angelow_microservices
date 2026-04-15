@@ -56,19 +56,16 @@ class OrderController extends Controller
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
-        $order = $this->findOrderByConnection(null, $id);
-        $sourceConnection = null;
-
-        if (!$order) {
-            $order = $this->findOrderByConnection(self::LEGACY_CONNECTION, $id);
-            $sourceConnection = self::LEGACY_CONNECTION;
-        }
+        $preferredConnection = $this->normalizeSourceConnection($request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
 
         if (!$order) {
             return response()->json(['message' => 'Orden no encontrada'], 404);
         }
+
+        $order = $this->hydrateOrderCustomerIdentity($order, $sourceConnection);
 
         $items = $this->fetchOrderItemsByConnection($sourceConnection, $id);
         $history = $this->fetchOrderHistoryByConnection($sourceConnection, $id);
@@ -214,24 +211,31 @@ class OrderController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        $order = DB::table('orders')->where('id', $id)->first();
+        $preferredConnection = $this->normalizeSourceConnection($request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
 
         if (!$order) {
             return response()->json(['message' => 'Orden no encontrada'], 404);
         }
 
-        DB::table('orders')->where('id', $id)->update([
-            'status' => $data['status'],
+        $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], $sourceConnection);
+        if (!$statusColumn) {
+            return response()->json(['message' => 'No existe columna de estado en la orden'], 422);
+        }
+
+        $this->query($sourceConnection)->table('orders')->where('id', $id)->update([
+            $statusColumn => $data['status'],
             'updated_at' => now(),
         ]);
 
-        DB::table('order_status_history')->insert([
+        $oldStatus = $order->{$statusColumn} ?? $order->status ?? $order->order_status ?? null;
+        $this->insertOrderHistory($sourceConnection, [
             'order_id' => $id,
             'changed_by' => $data['changed_by'] ?? null,
             'changed_by_name' => $data['changed_by_name'] ?? null,
             'change_type' => 'status_change',
             'field_changed' => 'status',
-            'old_value' => $order->status,
+            'old_value' => $oldStatus,
             'new_value' => $data['status'],
             'description' => $data['description'] ?? 'Cambio de estado de la orden',
             'created_at' => now(),
@@ -239,6 +243,167 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Estado actualizado',
+        ]);
+    }
+
+    public function updatePaymentStatus(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'payment_status' => ['required', 'string', 'max:20'],
+            'changed_by' => ['nullable', 'string', 'max:20'],
+            'changed_by_name' => ['nullable', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $preferredConnection = $this->normalizeSourceConnection($request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
+
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        $paymentStatusColumn = $this->firstExistingColumn('orders', ['payment_status'], $sourceConnection);
+        if (!$paymentStatusColumn) {
+            return response()->json(['message' => 'La orden no tiene columna payment_status'], 422);
+        }
+
+        $this->query($sourceConnection)->table('orders')->where('id', $id)->update([
+            $paymentStatusColumn => $data['payment_status'],
+            'updated_at' => now(),
+        ]);
+
+        $oldPaymentStatus = $order->{$paymentStatusColumn} ?? $order->payment_status ?? null;
+        $this->insertOrderHistory($sourceConnection, [
+            'order_id' => $id,
+            'changed_by' => $data['changed_by'] ?? null,
+            'changed_by_name' => $data['changed_by_name'] ?? null,
+            'change_type' => 'payment_change',
+            'field_changed' => 'payment_status',
+            'old_value' => $oldPaymentStatus,
+            'new_value' => $data['payment_status'],
+            'description' => $data['description'] ?? 'Cambio de estado de pago de la orden',
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Estado de pago actualizado',
+        ]);
+    }
+
+    public function deactivate(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'changed_by' => ['nullable', 'string', 'max:20'],
+            'changed_by_name' => ['nullable', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $preferredConnection = $this->normalizeSourceConnection($request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
+
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], $sourceConnection);
+        if (!$statusColumn) {
+            return response()->json(['message' => 'No existe columna de estado en la orden'], 422);
+        }
+
+        $oldStatus = $order->{$statusColumn} ?? $order->status ?? $order->order_status ?? null;
+        if ($oldStatus === 'cancelled') {
+            return response()->json(['message' => 'La orden ya está desactivada']);
+        }
+
+        $this->query($sourceConnection)->table('orders')->where('id', $id)->update([
+            $statusColumn => 'cancelled',
+            'updated_at' => now(),
+        ]);
+
+        $this->insertOrderHistory($sourceConnection, [
+            'order_id' => $id,
+            'changed_by' => $data['changed_by'] ?? null,
+            'changed_by_name' => $data['changed_by_name'] ?? null,
+            'change_type' => 'status_change',
+            'field_changed' => 'status',
+            'old_value' => $oldStatus,
+            'new_value' => 'cancelled',
+            'description' => $data['description'] ?? 'Orden desactivada desde administración',
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Orden desactivada',
+        ]);
+    }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'customer_name' => ['nullable', 'string', 'max:150'],
+            'customer_email' => ['nullable', 'string', 'email', 'max:255'],
+            'customer_phone' => ['nullable', 'string', 'max:30'],
+            'shipping_address' => ['nullable', 'string'],
+            'shipping_city' => ['nullable', 'string', 'max:120'],
+            'payment_method' => ['nullable', 'string', 'max:30'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $preferredConnection = $this->normalizeSourceConnection($request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
+
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        $payload = [];
+
+        $fieldMap = [
+            'customer_name' => ['user_name', 'customer_name', 'billing_name'],
+            'customer_email' => ['user_email', 'customer_email', 'billing_email'],
+            'customer_phone' => ['user_phone', 'customer_phone', 'billing_phone', 'phone'],
+            'shipping_address' => ['shipping_address'],
+            'shipping_city' => ['shipping_city'],
+            'payment_method' => ['payment_method'],
+            'notes' => ['notes'],
+        ];
+
+        foreach ($fieldMap as $inputField => $candidates) {
+            if (!$request->exists($inputField)) {
+                continue;
+            }
+
+            $column = $this->firstExistingColumn('orders', $candidates, $sourceConnection);
+            if (!$column) {
+                continue;
+            }
+
+            $value = $data[$inputField] ?? null;
+            if (is_string($value)) {
+                $value = trim($value);
+                if ($value === '') {
+                    $value = null;
+                }
+            }
+
+            $payload[$column] = $value;
+        }
+
+        if (empty($payload)) {
+            return response()->json(['message' => 'No hay campos válidos para actualizar'], 422);
+        }
+
+        $payload['updated_at'] = now();
+        $this->query($sourceConnection)->table('orders')->where('id', $id)->update($payload);
+
+        $updatedOrder = $this->findOrderByConnection($sourceConnection, $id);
+        if ($updatedOrder) {
+            $updatedOrder = $this->hydrateOrderCustomerIdentity($updatedOrder, $sourceConnection);
+        }
+
+        return response()->json([
+            'message' => 'Orden actualizada',
+            'order' => $updatedOrder ?: $order,
         ]);
     }
 
@@ -299,10 +464,16 @@ class OrderController extends Controller
     private function findOrderByConnection(?string $connection, int $orderId): ?object
     {
         try {
-            return $this->query($connection)
+            $order = $this->query($connection)
                 ->table('orders')
                 ->where('id', $orderId)
                 ->first();
+
+            if ($order) {
+                $order->order_source = $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice';
+            }
+
+            return $order;
         } catch (Throwable) {
             return null;
         }
@@ -323,6 +494,10 @@ class OrderController extends Controller
     private function fetchOrderHistoryByConnection(?string $connection, int $orderId): Collection
     {
         try {
+            if (!$this->hasTable('order_status_history', $connection)) {
+                return collect();
+            }
+
             return $this->query($connection)
                 ->table('order_status_history')
                 ->where('order_id', $orderId)
@@ -330,6 +505,62 @@ class OrderController extends Controller
                 ->get();
         } catch (Throwable) {
             return collect();
+        }
+    }
+
+    private function hydrateOrderCustomerIdentity(object $order, ?string $sourceConnection): object
+    {
+        $currentName = trim((string) ($order->user_name ?? $order->customer_name ?? $order->billing_name ?? ''));
+        $currentEmail = trim((string) ($order->user_email ?? $order->customer_email ?? $order->billing_email ?? ''));
+        $currentPhone = trim((string) ($order->user_phone ?? $order->customer_phone ?? $order->billing_phone ?? $order->phone ?? ''));
+
+        if ($currentName !== '' && $currentEmail !== '' && $currentPhone !== '') {
+            return $order;
+        }
+
+        $userId = trim((string) ($order->user_id ?? ''));
+        if ($userId === '') {
+            return $order;
+        }
+
+        $user = $this->findUserById($sourceConnection, $userId);
+        if (!$user && $sourceConnection !== self::LEGACY_CONNECTION) {
+            $user = $this->findUserById(self::LEGACY_CONNECTION, $userId);
+        }
+
+        if (!$user) {
+            return $order;
+        }
+
+        if ($currentName === '') {
+            $order->user_name = $user->name ?? null;
+        }
+
+        if ($currentEmail === '') {
+            $order->user_email = $user->email ?? null;
+        }
+
+        if ($currentPhone === '') {
+            $order->user_phone = $user->phone ?? null;
+        }
+
+        return $order;
+    }
+
+    private function findUserById(?string $connection, string $userId): ?object
+    {
+        try {
+            if (!$this->hasTable('users', $connection)) {
+                return null;
+            }
+
+            return $this->query($connection)
+                ->table('users')
+                ->select('id', 'name', 'email', 'phone')
+                ->where('id', $userId)
+                ->first();
+        } catch (Throwable) {
+            return null;
         }
     }
 
@@ -385,6 +616,68 @@ class OrderController extends Controller
     private function query(?string $connection)
     {
         return $connection ? DB::connection($connection) : DB::connection();
+    }
+
+    private function resolveOrderSource(int $orderId, ?string $preferredConnection = null): array
+    {
+        $connections = $preferredConnection === self::LEGACY_CONNECTION
+            ? [self::LEGACY_CONNECTION, null]
+            : [null, self::LEGACY_CONNECTION];
+
+        foreach ($connections as $connection) {
+            $order = $this->findOrderByConnection($connection, $orderId);
+            if ($order) {
+                return ['order' => $order, 'connection' => $connection];
+            }
+        }
+
+        return ['order' => null, 'connection' => null];
+    }
+
+    private function normalizeSourceConnection(mixed $source): ?string
+    {
+        $value = strtolower(trim((string) ($source ?? '')));
+
+        if (in_array($value, ['legacy', 'legacy_mysql'], true)) {
+            return self::LEGACY_CONNECTION;
+        }
+
+        return null;
+    }
+
+    private function resolveConnectionName(?string $connection): string
+    {
+        return $connection ?: config('database.default');
+    }
+
+    private function hasTable(string $table, ?string $connection): bool
+    {
+        return Schema::connection($this->resolveConnectionName($connection))->hasTable($table);
+    }
+
+    private function firstExistingColumn(string $table, array $candidates, ?string $connection): ?string
+    {
+        $connectionName = $this->resolveConnectionName($connection);
+        foreach ($candidates as $column) {
+            if (Schema::connection($connectionName)->hasColumn($table, $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
+    private function insertOrderHistory(?string $connection, array $payload): void
+    {
+        try {
+            if (!$this->hasTable('order_status_history', $connection)) {
+                return;
+            }
+
+            $this->query($connection)->table('order_status_history')->insert($payload);
+        } catch (Throwable) {
+            // Silenciar para no romper acciones de administración por entornos sin historial.
+        }
     }
 
     private function nullableString(mixed $value): ?string

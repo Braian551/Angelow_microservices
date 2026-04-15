@@ -9,29 +9,51 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="paymentStats" />
 
-    <div class="filters-bar admin-entity-filters">
-      <div class="filter-group">
-        <label for="payment-status">Estado</label>
-        <select id="payment-status" v-model="statusFilter">
-          <option value="">Todos</option>
-          <option value="pending">Pendiente</option>
-          <option value="approved">Aprobado</option>
-          <option value="rejected">Rechazado</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label for="payment-method">Metodo</label>
-        <select id="payment-method" v-model="methodFilter">
-          <option value="">Todos</option>
-          <option value="transfer">Transferencia</option>
-          <option value="cash">Efectivo</option>
-          <option value="card">Tarjeta</option>
-        </select>
-      </div>
-      <div class="admin-entity-filters__summary">
-        <span><i class="fas fa-list"></i> {{ filtered.length }} pago(s)</span>
-      </div>
-    </div>
+    <AdminFilterCard
+      v-model="search"
+      icon="fas fa-filter"
+      title="Busqueda y control de pagos"
+      placeholder="Buscar por orden, cliente o referencia..."
+      @search="search = search.trim()"
+    >
+      <template #advanced>
+        <div class="admin-filters__row admin-filters__row--2">
+          <div class="admin-filters__group">
+            <label for="payment-status"><i class="fas fa-signal"></i> Estado</label>
+            <select id="payment-status" v-model="statusFilter">
+              <option value="">Todos</option>
+              <option value="pending">Pendiente</option>
+              <option value="approved">Aprobado</option>
+              <option value="rejected">Rechazado</option>
+            </select>
+          </div>
+          <div class="admin-filters__group">
+            <label for="payment-method"><i class="fas fa-credit-card"></i> Metodo</label>
+            <select id="payment-method" v-model="methodFilter">
+              <option value="">Todos</option>
+              <option value="transfer">Transferencia</option>
+              <option value="cash">Efectivo</option>
+              <option value="card">Tarjeta</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
+            <i class="fas fa-sliders-h"></i>
+            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
+          </div>
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearFilters">
+              <i class="fas fa-times-circle"></i>
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      </template>
+    </AdminFilterCard>
+
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} pagos`" />
 
     <AdminCard title="Listado de pagos" icon="fas fa-list" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'line', 'line', 'pill', 'btn', 'btn']" />
@@ -51,7 +73,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in filtered" :key="p.id">
+            <tr v-for="p in pagination.paginatedItems" :key="p.id">
               <td>{{ p.id }}</td>
               <td><RouterLink :to="`/admin/ordenes/${p.order_id}`">#{{ p.order_id }}</RouterLink></td>
               <td>{{ p.customer_name || '—' }}</td>
@@ -77,6 +99,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
   </div>
 </template>
 
@@ -85,15 +114,20 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { paymentHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminCard from '../components/AdminCard.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 
 const { showSnackbar } = useSnackbarSystem()
 const payments = ref([])
 const loading = ref(true)
+const search = ref('')
 const statusFilter = ref('')
 const methodFilter = ref('')
 
@@ -105,14 +139,32 @@ const paymentStats = computed(() => [
 ])
 
 const filtered = computed(() => {
+  const term = search.value.trim().toLowerCase()
   let list = payments.value
-  if (statusFilter.value) list = list.filter(p => p.status === statusFilter.value)
-  if (methodFilter.value) list = list.filter(p => p.method === methodFilter.value)
+  if (statusFilter.value) list = list.filter((payment) => payment.status === statusFilter.value)
+  if (methodFilter.value) list = list.filter((payment) => payment.method === methodFilter.value)
+  if (term) {
+    list = list.filter((payment) => [payment.id, payment.order_id, payment.customer_name, payment.reference_number, payment.method]
+      .some((value) => String(value || '').toLowerCase().includes(term)))
+  }
   return list
 })
 
+const pagination = useAdminPagination(filtered, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+const activeFilterCount = computed(() => [search.value.trim(), statusFilter.value, methodFilter.value].filter(Boolean).length)
+
 function statusLabel(s) { return { pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado' }[s] || s }
 function methodLabel(m) { return { transfer: 'Transferencia', cash: 'Efectivo', card: 'Tarjeta' }[m] || m }
+
+function clearFilters() {
+  search.value = ''
+  statusFilter.value = ''
+  methodFilter.value = ''
+}
 
 async function loadPayments() {
   loading.value = true

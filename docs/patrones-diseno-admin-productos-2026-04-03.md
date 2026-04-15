@@ -156,3 +156,44 @@ Cambios relevantes:
 - `services/discount-service/app/Http/Controllers/Admin/AdminDiscountController.php` ahora soporta codigos y descuentos por cantidad usando Eloquent y normaliza tipos, valores, fechas y estados para la SPA.
 - `services/notification-service/app/Http/Controllers/Admin/AdminNotificationController.php` amplifica `announcements` con normalizacion de tipos, prioridad, upload de imagen y compatibilidad `message/content` y `button_link/url`.
 - `docker-compose.yml` agrega `AUTH_SERVICE_URL` y `AUTH_INTERNAL_TOKEN` en `shipping-service`, `discount-service` y `notification-service` para eliminar los `401` por middleware admin durante el consumo desde la SPA.
+
+Extension 2026-04-07: correccion de galeria y color en `Detalles del Producto`
+
+Objetivo:
+- Corregir en `frontend/src/modules/admin/pages/AdminProductsPage.vue` el caso donde el modal mostraba fallback de imagen (`No image`) aun existiendo imagen real, y recuperar visualizacion de color siguiendo el flujo de Angelow.
+
+Patron aplicado:
+- `Adapter` de payload heterogeneo:
+  - Archivo: `frontend/src/modules/admin/pages/AdminProductsPage.vue`.
+  - Problema que resuelve: unifica datos de color e imagen que llegan por rutas distintas (`variants`, `size_variants`, `images`, `variant_images`) en una sola estructura estable para la vista rapida.
+
+Decisiones de implementacion:
+- Se evita promover como imagen principal una URL fallback cuando existen imagenes reales.
+- Se prioriza imagen primaria valida y luego primera imagen no-fallback para alinear comportamiento con legacy.
+- Se normaliza el nombre de color desde campos alternos (`color_name`, `color`, `color_label`) y desde relacion por `color_variant_id`.
+- Se prioriza una sola fuente de imagenes por apertura de modal (`variant_images` -> `images` -> `variants.images`) para evitar mezclar fuentes redundantes.
+- Se deduplican miniaturas por URL resuelta para impedir repeticion visual de la misma imagen en la galeria.
+
+Extension 2026-04-15: exportación de `Todos los productos` en CSV y PDF con corrección UTF-8
+
+Objetivo:
+- Corregir problemas de codificación en la exportación CSV de productos (mojibake en acentos/ñ) y agregar exportación PDF en la misma vista admin sin romper la paridad visual.
+
+Patrones aplicados:
+- `Template Method`:
+  - Archivo: `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`.
+  - Problema que resuelve: centraliza en `productRowsForExport` la obtención y normalización de datos para que CSV y PDF compartan exactamente la misma fuente y criterios.
+- `Adapter`:
+  - Archivo: `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`.
+  - Problema que resuelve: adapta payloads heterogéneos (`name/nombre`, `is_active/activo`, rangos de precio) y corrige UTF-8 on-the-fly antes de exportar.
+- `Command`:
+  - Archivo: `frontend/src/modules/admin/pages/AdminProductsPage.vue`.
+  - Problema que resuelve: encapsula acciones de usuario `exportProductsCsv` y `exportProductsPdf` como comandos explícitos con feedback consistente por snackbar.
+
+Archivos impactados en esta extensión:
+- `services/catalog-service/routes/api.php`
+- `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`
+- `frontend/src/modules/admin/pages/AdminProductsPage.vue`
+- `frontend/src/services/http.js`
+- `services/catalog-service/composer.json`
+- `services/catalog-service/composer.lock`

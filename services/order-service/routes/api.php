@@ -12,7 +12,10 @@ Route::prefix('orders')->group(function () {
     Route::get('/', [OrderController::class, 'index']);
     Route::post('/', [OrderController::class, 'store']);
     Route::get('/{id}', [OrderController::class, 'show']);
+    Route::patch('/{id}', [OrderController::class, 'update']);
     Route::patch('/{id}/status', [OrderController::class, 'updateStatus']);
+    Route::patch('/{id}/payment-status', [OrderController::class, 'updatePaymentStatus']);
+    Route::patch('/{id}/deactivate', [OrderController::class, 'deactivate']);
 });
 
 // ── Admin ───────────────────────────────────────────────────

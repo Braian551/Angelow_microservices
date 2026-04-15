@@ -631,15 +631,20 @@ async function confirmOrder() {
       throw new Error('No se pudo crear la orden')
     }
 
-    const paymentRes = await createPayment({
-      order_id: orderId,
-      user_id: user.value?.id || shippingData.value?.user_id || null,
-      amount: summary.value.total,
-      reference_number: form.value.reference_number.trim(),
-      payment_proof: paymentProofFile.value?.name || null,
-      bank_code: form.value.bank_code,
-      payment_method: 'transfer',
-    })
+    const paymentPayload = new FormData()
+    paymentPayload.append('order_id', String(orderId))
+    paymentPayload.append('user_id', String(user.value?.id || shippingData.value?.user_id || ''))
+    paymentPayload.append('amount', String(summary.value.total))
+    paymentPayload.append('reference_number', form.value.reference_number.trim())
+    paymentPayload.append('bank_code', form.value.bank_code)
+    paymentPayload.append('payment_method', 'transfer')
+
+    if (paymentProofFile.value) {
+      paymentPayload.append('payment_proof', paymentProofFile.value)
+      paymentPayload.append('payment_proof_name', paymentProofFile.value.name)
+    }
+
+    const paymentRes = await createPayment(paymentPayload)
 
     if (user.value?.id) {
       await createNotification({

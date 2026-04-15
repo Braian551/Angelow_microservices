@@ -9,6 +9,13 @@ const baseConfig = {
   },
 }
 
+function isBinaryResponseData(data) {
+  if (!data) return false
+  if (typeof Blob !== 'undefined' && data instanceof Blob) return true
+  if (typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) return true
+  return false
+}
+
 function createClient(baseURL) {
   const client = axios.create({
     ...baseConfig,
@@ -25,11 +32,13 @@ function createClient(baseURL) {
 
   client.interceptors.response.use(
     (response) => {
-      response.data = normalizeUtf8Data(response.data)
+      if (!isBinaryResponseData(response.data)) {
+        response.data = normalizeUtf8Data(response.data)
+      }
       return response
     },
     (error) => {
-      if (error?.response?.data) {
+      if (error?.response?.data && !isBinaryResponseData(error.response.data)) {
         error.response.data = normalizeUtf8Data(error.response.data)
       }
       return Promise.reject(error)

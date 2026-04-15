@@ -5,7 +5,19 @@ import defaultCollection from '../../assets/foundnotimages/default-collection.jp
 import defaultBanner from '../../assets/foundnotimages/default-banner.jpg'
 import defaultSlider from '../../assets/foundnotimages/default-slider.jpg'
 
-const uploadsBase = String(import.meta.env.VITE_UPLOADS_BASE_URL || '/uploads').replace(/\/+$/, '')
+const configuredUploadsBase = String(import.meta.env.VITE_UPLOADS_BASE_URL || '').replace(/\/+$/, '')
+const catalogApiUrl = String(import.meta.env.VITE_CATALOG_API_URL || '').trim()
+
+function catalogUploadsBase() {
+  if (!catalogApiUrl) return ''
+  return catalogApiUrl.replace(/\/api\/?$/i, '').replace(/\/+$/, '') + '/uploads'
+}
+
+const uploadsBaseCandidates = unique([
+  configuredUploadsBase,
+  catalogUploadsBase(),
+  '/uploads',
+])
 
 const FALLBACKS = {
   avatar: defaultAvatar,
@@ -31,6 +43,10 @@ function joinUrl(base, relativePath) {
   return `${cleanBase}/${cleanRelative}`
 }
 
+function buildUploadsCandidates(relativePath) {
+  return uploadsBaseCandidates.map((base) => joinUrl(base, relativePath))
+}
+
 function unique(items) {
   const seen = new Set()
   return items.filter((item) => {
@@ -50,7 +66,7 @@ function buildAvatarCandidates(normalized, fallbackUrl) {
   if (normalized.startsWith('/uploads/')) {
     const relative = normalized.replace(/^\/+uploads\/?/, '')
     return unique([
-      joinUrl(uploadsBase, relative),
+      ...buildUploadsCandidates(relative),
       normalized,
       joinUrl('/uploads', relative),
       fallbackUrl,
@@ -60,7 +76,7 @@ function buildAvatarCandidates(normalized, fallbackUrl) {
   if (normalized.startsWith('uploads/')) {
     const relative = normalized.replace(/^uploads\/?/, '')
     return unique([
-      joinUrl(uploadsBase, relative),
+      ...buildUploadsCandidates(relative),
       joinUrl('/uploads', relative),
       `/${normalized}`,
       fallbackUrl,
@@ -81,7 +97,7 @@ function buildAvatarCandidates(normalized, fallbackUrl) {
       : `users/${clean}`
 
     return unique([
-      joinUrl(uploadsBase, fromUsers),
+      ...buildUploadsCandidates(fromUsers),
       joinUrl('/uploads', fromUsers),
       `/${clean}`,
       fallbackUrl,
@@ -90,9 +106,9 @@ function buildAvatarCandidates(normalized, fallbackUrl) {
 
   // Compatibilidad con legacy: en users.image se guarda solo el nombre del archivo.
   return unique([
-    joinUrl(uploadsBase, `users/${normalized}`),
+    ...buildUploadsCandidates(`users/${normalized}`),
     joinUrl('/uploads', `users/${normalized}`),
-    joinUrl(uploadsBase, normalized),
+    ...buildUploadsCandidates(normalized),
     joinUrl('/uploads', normalized),
     fallbackUrl,
   ])
@@ -119,7 +135,7 @@ export function getMediaCandidates(path, fallbackType = 'product') {
   if (normalized.startsWith('/uploads/')) {
     const relative = normalized.replace(/^\/+uploads\/?/, '')
     return unique([
-      joinUrl(uploadsBase, relative),
+      ...buildUploadsCandidates(relative),
       normalized,
       joinUrl('/uploads', relative),
       fallbackUrl,
@@ -129,7 +145,7 @@ export function getMediaCandidates(path, fallbackType = 'product') {
   if (normalized.startsWith('uploads/')) {
     const relative = normalized.replace(/^uploads\/?/, '')
     return unique([
-      joinUrl(uploadsBase, relative),
+      ...buildUploadsCandidates(relative),
       joinUrl('/uploads', relative),
       `/${normalized}`,
       fallbackUrl,
@@ -141,6 +157,47 @@ export function getMediaCandidates(path, fallbackType = 'product') {
   }
 
   return unique([`/${normalized}`, fallbackUrl])
+}
+
+export function getUploadCandidates(path) {
+  const normalized = normalizePath(path)
+
+  if (!normalized) return []
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return unique([normalized])
+  }
+
+  if (normalized.startsWith('/uploads/')) {
+    const relative = normalized.replace(/^\/+uploads\/?/, '')
+    return unique([
+      ...buildUploadsCandidates(relative),
+      normalized,
+      joinUrl('/uploads', relative),
+    ])
+  }
+
+  if (normalized.startsWith('uploads/')) {
+    const relative = normalized.replace(/^uploads\/?/, '')
+    return unique([
+      ...buildUploadsCandidates(relative),
+      joinUrl('/uploads', relative),
+      `/${normalized}`,
+    ])
+  }
+
+  if (normalized.startsWith('/')) {
+    return unique([normalized])
+  }
+
+  return unique([
+    ...buildUploadsCandidates(normalized),
+    `/${normalized}`,
+  ])
+}
+
+export function resolveUploadUrl(path) {
+  return getUploadCandidates(path)[0] || ''
 }
 
 export function resolveMediaUrl(path, fallbackType = 'product') {

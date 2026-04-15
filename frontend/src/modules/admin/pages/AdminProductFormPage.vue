@@ -22,10 +22,13 @@
       <form v-else class="product-form" @submit.prevent="saveProduct">
         <div class="admin-tabs product-form-tabs">
           <button type="button" class="admin-tab" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'">
+            <i class="fas fa-file-alt"></i>
             Informacion general
           </button>
           <button type="button" class="admin-tab" :class="{ active: activeTab === 'variants' }" @click="activeTab = 'variants'">
+            <i class="fas fa-swatchbook"></i>
             Variantes y precios
+            <span v-if="form.variants.length" class="tab-badge">{{ form.variants.length }}</span>
           </button>
         </div>
 
@@ -33,6 +36,13 @@
           <div class="product-form-grid">
             <div class="product-form-main">
               <div class="product-form-section">
+                <div class="section-header">
+                  <div class="section-header__icon"><i class="fas fa-tag"></i></div>
+                  <div>
+                    <h3>Identificacion</h3>
+                    <p>Nombre publico y URL del producto.</p>
+                  </div>
+                </div>
                 <div class="form-row">
                   <div class="form-group">
                     <label for="product-name">Nombre del producto *</label>
@@ -44,7 +54,16 @@
                     <input id="product-slug" v-model="form.slug" class="form-control" placeholder="se-genera-automaticamente">
                   </div>
                 </div>
+              </div>
 
+              <div class="product-form-section">
+                <div class="section-header">
+                  <div class="section-header__icon"><i class="fas fa-layer-group"></i></div>
+                  <div>
+                    <h3>Clasificacion</h3>
+                    <p>Marca, genero, categoria y coleccion.</p>
+                  </div>
+                </div>
                 <div class="form-row">
                   <div class="form-group">
                     <label for="product-brand">Marca</label>
@@ -61,7 +80,6 @@
                     </select>
                   </div>
                 </div>
-
                 <div class="form-row">
                   <div class="form-group">
                     <label for="product-category">Categoria *</label>
@@ -79,7 +97,16 @@
                     </select>
                   </div>
                 </div>
+              </div>
 
+              <div class="product-form-section">
+                <div class="section-header">
+                  <div class="section-header__icon"><i class="fas fa-dollar-sign"></i></div>
+                  <div>
+                    <h3>Precios y detalles</h3>
+                    <p>Precio base, comparativo, material y etiqueta de coleccion.</p>
+                  </div>
+                </div>
                 <div class="form-row">
                   <div class="form-group">
                     <label for="product-price">Precio base *</label>
@@ -92,7 +119,6 @@
                     <p v-if="errors.compare_price" class="form-error">{{ errors.compare_price }}</p>
                   </div>
                 </div>
-
                 <div class="form-row">
                   <div class="form-group">
                     <label for="product-material">Material</label>
@@ -103,12 +129,20 @@
                     <input id="product-collection-name" v-model="form.collection" class="form-control" placeholder="Drop verano 2026">
                   </div>
                 </div>
+              </div>
 
+              <div class="product-form-section">
+                <div class="section-header">
+                  <div class="section-header__icon"><i class="fas fa-align-left"></i></div>
+                  <div>
+                    <h3>Descripcion y cuidado</h3>
+                    <p>Texto de catalogo e instrucciones para el cliente.</p>
+                  </div>
+                </div>
                 <div class="form-group">
                   <label for="product-description">Descripcion</label>
                   <textarea id="product-description" v-model="form.description" class="form-control" rows="5" placeholder="Cuenta materiales, silueta, fit y atributos clave."></textarea>
                 </div>
-
                 <div class="form-group">
                   <label for="product-care">Instrucciones de cuidado</label>
                   <textarea id="product-care" v-model="form.care_instructions" class="form-control" rows="4" placeholder="Lavado, secado y recomendaciones de mantenimiento."></textarea>
@@ -118,12 +152,13 @@
 
             <aside class="product-form-side">
               <div class="product-form-section image-panel">
-                <div class="image-panel__header">
+                <div class="section-header">
+                  <div class="section-header__icon"><i class="fas fa-camera"></i></div>
                   <div>
                     <h3>Imagen principal</h3>
-                    <p>Sube una imagen o conserva una ruta existente.</p>
+                    <p>Sube o conserva una ruta existente.</p>
                   </div>
-                  <button type="button" class="btn btn-secondary btn-sm" title="Seleccionar imagen" @click="triggerMainImagePicker">
+                  <button type="button" class="btn btn-secondary btn-sm section-header__action" title="Seleccionar imagen" @click="triggerMainImagePicker">
                     <i class="fas fa-upload"></i>
                   </button>
                 </div>
@@ -148,7 +183,13 @@
               </div>
 
               <div class="product-form-section status-panel">
-                <h3>Visibilidad</h3>
+                <div class="section-header">
+                  <div class="section-header__icon"><i class="fas fa-eye"></i></div>
+                  <div>
+                    <h3>Visibilidad</h3>
+                    <p>Estado y destaque del producto.</p>
+                  </div>
+                </div>
                 <div class="status-option">
                   <div>
                     <strong>Producto activo</strong>
@@ -1001,6 +1042,7 @@ function onProductImageError(event, path) {
 }
 
 onMounted(async () => {
+  activeTab.value = 'general'
   initialLoading.value = true
   try {
     await loadCatalogOptions()
@@ -1047,7 +1089,13 @@ onMounted(async () => {
   align-items: start;
 }
 
-.product-form-main,
+.product-form-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
 .product-form-side {
   min-width: 0;
 }
@@ -1059,17 +1107,80 @@ onMounted(async () => {
 }
 
 .product-form-section {
-  background: #ffffff;
-  border: 1px solid rgba(0, 119, 182, 0.12);
-  border-radius: 18px;
+  background: var(--admin-bg, #ffffff);
+  border: 1px solid var(--admin-border-light, rgba(0, 119, 182, 0.12));
+  border-radius: var(--admin-card-radius, 18px);
   padding: 1.8rem;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--admin-shadow-card, 0 2px 12px rgba(15, 23, 42, 0.06));
 }
 
 .product-form-section h3 {
   margin: 0 0 0.6rem;
-  font-size: 1.7rem;
+  font-size: 1.5rem;
+  font-weight: 600;
   color: var(--admin-text-dark);
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--admin-border-light, rgba(0, 119, 182, 0.1));
+}
+
+.section-header__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(0, 119, 182, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-primary);
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.section-header h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--admin-text-dark);
+}
+
+.section-header p {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--admin-text-light);
+}
+
+.section-header__action {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(0, 119, 182, 0.15);
+  color: var(--admin-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: 0.4rem;
+}
+
+.admin-tab.active .tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: inherit;
 }
 
 .image-panel,
@@ -1079,7 +1190,6 @@ onMounted(async () => {
   gap: 1.4rem;
 }
 
-.image-panel__header,
 .variants-toolbar,
 .variant-modal__intro,
 .variant-card__header,
@@ -1093,7 +1203,6 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
-.image-panel__header p,
 .variants-toolbar p,
 .variant-modal__intro p,
 .status-option p,

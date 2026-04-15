@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\BulkDiscountRule;
 use App\Models\DiscountCode;
 use App\Models\DiscountType;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AdminDiscountController extends Controller
@@ -21,6 +24,10 @@ class AdminDiscountController extends Controller
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (DiscountCode $code) => $this->transformCode($code));
+
+        if ($codes->isEmpty()) {
+            $codes = collect($this->loadLegacyCodes());
+        }
 
         return response()->json(['success' => true, 'data' => $codes]);
     }
@@ -71,7 +78,133 @@ class AdminDiscountController extends Controller
             ->get()
             ->map(fn (BulkDiscountRule $rule) => $this->transformBulkDiscount($rule));
 
+        if ($rules->isEmpty()) {
+            $rules = collect($this->loadLegacyBulkDiscounts());
+        }
+
         return response()->json(['success' => true, 'data' => $rules]);
+    }
+
+    /**
+     * Fallback legacy para codigos cuando el microservicio aun no tiene datos.
+     */
+    private function loadLegacyCodes(): array
+    {
+        if (!$this->legacyTableExists('discount_codes')) {
+            return [];
+        }
+
+        try {
+            return DB::connection('legacy_mysql')
+                ->table('discount_codes as dc')
+                ->leftJoin('discount_types as dt', 'dc.discount_type_id', '=', 'dt.id')
+                ->select(
+                    'dc.id',
+                    'dc.code',
+                    'dc.discount_type_id',
+                    'dc.discount_value',
+                    'dc.max_uses',
+                    'dc.used_count',
+                    'dc.start_date',
+                    'dc.end_date',
+                    'dc.is_active',
+                    'dc.is_single_use',
+                    'dc.created_at',
+                    'dc.updated_at',
+                    'dt.name as discount_type_name',
+                )
+                ->orderByDesc('dc.created_at')
+                ->get()
+                ->map(fn (object $row) => $this->transformLegacyCode($row))
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Fallback legacy para reglas por cantidad cuando el microservicio aun no tiene datos.
+     */
+    private function loadLegacyBulkDiscounts(): array
+    {
+        if (!$this->legacyTableExists('bulk_discount_rules')) {
+            return [];
+        }
+
+        try {
+            return DB::connection('legacy_mysql')
+                ->table('bulk_discount_rules')
+                ->select('id', 'min_quantity', 'max_quantity', 'discount_percentage', 'is_active', 'created_at', 'updated_at')
+                ->orderBy('min_quantity')
+                ->get()
+                ->map(fn (object $row) => [
+                    'id' => (int) $row->id,
+                    'min_quantity' => (int) ($row->min_quantity ?? 0),
+                    'max_quantity' => $row->max_quantity !== null ? (int) $row->max_quantity : null,
+                    'discount_percentage' => (float) ($row->discount_percentage ?? 0),
+                    'discount_percent' => (float) ($row->discount_percentage ?? 0),
+                    'active' => (bool) ($row->is_active ?? false),
+                    'is_active' => (bool) ($row->is_active ?? false),
+                    'created_at' => $this->toIsoString($row->created_at ?? null),
+                    'updated_at' => $this->toIsoString($row->updated_at ?? null),
+                ])
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function transformLegacyCode(object $row): array
+    {
+        $typeName = Str::lower((string) ($row->discount_type_name ?? ''));
+        $type = str_contains($typeName, 'fixed') || str_contains($typeName, 'fijo') || str_contains($typeName, 'monto')
+            ? 'fixed'
+            : 'percent';
+
+        return [
+            'id' => (int) $row->id,
+            'code' => (string) ($row->code ?? ''),
+            'type' => $type,
+            'type_label' => $type === 'fixed' ? 'Monto fijo' : 'Porcentaje',
+            'discount_type_id' => $row->discount_type_id ? (int) $row->discount_type_id : null,
+            'discount_type_name' => $row->discount_type_name,
+            'value' => (float) ($row->discount_value ?? 0),
+            'discount_value' => (float) ($row->discount_value ?? 0),
+            'max_uses' => $row->max_uses !== null ? (int) $row->max_uses : null,
+            'times_used' => (int) ($row->used_count ?? 0),
+            'used_count' => (int) ($row->used_count ?? 0),
+            'starts_at' => $this->toIsoString($row->start_date ?? null),
+            'start_date' => $this->toIsoString($row->start_date ?? null),
+            'expires_at' => $this->toIsoString($row->end_date ?? null),
+            'end_date' => $this->toIsoString($row->end_date ?? null),
+            'active' => (bool) ($row->is_active ?? false),
+            'is_active' => (bool) ($row->is_active ?? false),
+            'is_single_use' => (bool) ($row->is_single_use ?? false),
+            'created_at' => $this->toIsoString($row->created_at ?? null),
+            'updated_at' => $this->toIsoString($row->updated_at ?? null),
+        ];
+    }
+
+    private function legacyTableExists(string $table): bool
+    {
+        try {
+            return Schema::connection('legacy_mysql')->hasTable($table);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function toIsoString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toISOString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function storeBulkDiscount(Request $request): JsonResponse

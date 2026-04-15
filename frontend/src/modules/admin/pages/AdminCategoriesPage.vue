@@ -15,23 +15,41 @@
 
     <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
 
-    <div class="filters-bar admin-entity-filters">
-      <div class="filter-group admin-entity-filters__search">
-        <label for="category-search">Buscar</label>
-        <input id="category-search" v-model="search" type="text" placeholder="Nombre, slug o descripcion">
-      </div>
-      <div class="filter-group">
-        <label for="category-status">Estado</label>
-        <select id="category-status" v-model="statusFilter">
-          <option value="">Todas</option>
-          <option value="active">Activas</option>
-          <option value="inactive">Inactivas</option>
-        </select>
-      </div>
-      <div class="admin-entity-filters__summary">
-        <span><i class="fas fa-list"></i> {{ filteredCategories.length }} resultado(s)</span>
-      </div>
-    </div>
+    <AdminFilterCard
+      v-model="search"
+      icon="fas fa-filter"
+      title="Busqueda y estado"
+      placeholder="Nombre, slug o descripcion"
+      @search="search = search.trim()"
+    >
+      <template #advanced>
+        <div class="admin-filters__row">
+          <div class="admin-filters__group">
+            <label for="category-status"><i class="fas fa-signal"></i> Estado</label>
+            <select id="category-status" v-model="statusFilter">
+              <option value="">Todas</option>
+              <option value="active">Activas</option>
+              <option value="inactive">Inactivas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
+            <i class="fas fa-sliders-h"></i>
+            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
+          </div>
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearFilters">
+              <i class="fas fa-times-circle"></i>
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      </template>
+    </AdminFilterCard>
+
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} categorias`" />
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['thumb', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -54,14 +72,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="category in filteredCategories" :key="category.id">
+            <tr v-for="category in pagination.paginatedItems" :key="category.id">
               <td>
-                <img
-                  :src="resolveCategoryImage(category)"
-                  :alt="category.name"
-                  class="admin-entity-filters__thumb"
-                  @error="onCategoryImageError($event, category.image)"
-                >
+                <AdminTableImage :src="resolveCategoryImage(category)" :alt="category.name" :original-path="category.image" fallback-type="category" />
               </td>
               <td>
                 <div class="admin-entity-name">
@@ -98,6 +111,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showModal" :title="editing ? 'Editar categoria' : 'Nueva categoria'" max-width="720px" @close="closeModal">
       <div class="admin-entity-filters__form">
@@ -150,10 +170,15 @@ import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
+import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -193,6 +218,13 @@ const filteredCategories = computed(() => {
     return matchesSearch && matchesStatus
   })
 })
+
+const pagination = useAdminPagination(filteredCategories, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+const activeFilterCount = computed(() => [search.value.trim(), statusFilter.value].filter(Boolean).length)
 
 const stats = computed(() => {
   const total = categories.value.length
@@ -239,6 +271,11 @@ function validateField(field) {
   if (field === 'name') {
     errors.name = form.name.trim().length >= 2 ? '' : 'El nombre es obligatorio y debe tener al menos 2 caracteres.'
   }
+}
+
+function clearFilters() {
+  search.value = ''
+  statusFilter.value = ''
 }
 
 function resetForm() {

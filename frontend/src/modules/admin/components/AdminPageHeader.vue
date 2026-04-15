@@ -1,25 +1,31 @@
 <template>
   <header class="admin-page-header">
-    <div class="admin-page-header__top">
-      <div class="admin-page-header__info">
-        <h1>
-          <i v-if="icon" :class="icon"></i>
-          {{ title }}
-        </h1>
-        <p v-if="subtitle" class="admin-page-header__subtitle">{{ subtitle }}</p>
+    <div class="admin-page-header__surface">
+      <div class="admin-page-header__top">
+        <div class="admin-page-header__info">
+          <div class="admin-page-header__heading">
+            <span v-if="icon" class="admin-page-header__icon">
+              <i :class="icon"></i>
+            </span>
+            <div class="admin-page-header__copy">
+              <h1>{{ title }}</h1>
+              <p v-if="subtitle" class="admin-page-header__subtitle">{{ subtitle }}</p>
+            </div>
+          </div>
+        </div>
+        <div v-if="$slots.actions" class="admin-page-header__actions">
+          <slot name="actions" />
+        </div>
       </div>
-      <div v-if="$slots.actions" class="admin-page-header__actions">
-        <slot name="actions" />
-      </div>
+      <nav class="admin-page-header__breadcrumb">
+        <RouterLink to="/admin">Dashboard</RouterLink>
+        <template v-for="(crumb, idx) in breadcrumbs" :key="idx">
+          <span class="admin-page-header__separator">/</span>
+          <RouterLink v-if="crumb.to" :to="crumb.to">{{ crumb.label }}</RouterLink>
+          <span v-else>{{ crumb.label }}</span>
+        </template>
+      </nav>
     </div>
-    <nav class="admin-page-header__breadcrumb">
-      <RouterLink to="/admin">Dashboard</RouterLink>
-      <template v-for="(crumb, idx) in breadcrumbs" :key="idx">
-        <span class="admin-page-header__separator">/</span>
-        <RouterLink v-if="crumb.to" :to="crumb.to">{{ crumb.label }}</RouterLink>
-        <span v-else>{{ crumb.label }}</span>
-      </template>
-    </nav>
   </header>
 </template>
 

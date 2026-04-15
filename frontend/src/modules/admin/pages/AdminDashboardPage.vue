@@ -1,233 +1,248 @@
-<template>
+﻿<template>
   <div class="admin-dashboard-page">
-    <AdminPageHeader icon="fas fa-chart-line" title="Panel de control" subtitle="Monitorea ventas, ordenes, clientes e inventario en tiempo real." :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Resumen' }]">
+    <!-- Cabecera: usa el componente global AdminPageHeader -->
+    <AdminPageHeader
+      icon="fas fa-chart-line"
+      :title="dashboardWelcome"
+      :subtitle="`${dashboardStoreName} · Ventas, órdenes, clientes e inventario en tiempo real.`"
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Resumen' }]"
+    >
       <template #actions>
-        <RouterLink to="/admin/ordenes" class="btn btn-secondary">
-          <i class="fas fa-receipt"></i> <span>Ordenes</span>
+        <RouterLink to="/admin/ordenes" class="btn btn-secondary btn-sm-icon">
+          <i class="fas fa-receipt"></i> <span class="btn-label">Ordenes</span>
         </RouterLink>
-        <RouterLink to="/admin/productos" class="btn btn-secondary">
-          <i class="fas fa-boxes"></i> <span>Productos</span>
+        <RouterLink to="/admin/productos" class="btn btn-secondary btn-sm-icon">
+          <i class="fas fa-boxes"></i> <span class="btn-label">Productos</span>
         </RouterLink>
-        <button class="btn btn-primary" @click="loadDashboard">
-          <i class="fas fa-rotate"></i> <span>Actualizar</span>
+        <button class="btn btn-primary btn-sm-icon" type="button" @click="loadDashboard">
+          <i class="fas fa-rotate"></i> <span class="btn-label">Actualizar</span>
         </button>
       </template>
     </AdminPageHeader>
 
-    <!-- Stat Cards -->
-    <section class="stats-summary">
-      <article v-for="stat in stats" :key="stat.key" class="stat-card" :data-stat-card="stat.key">
-        <div class="stat-icon" :class="stat.bgClass">
-          <i :class="stat.icon"></i>
-        </div>
-        <div class="stat-info">
-          <p class="stat-label">{{ stat.label }}</p>
-          <p class="stat-value">{{ stat.value }}</p>
-          <div v-if="stat.meta" class="stat-meta">
-            <span class="stat-change" :class="stat.meta.changeClass">{{ stat.meta.change }}</span>
-            <span class="stat-helper">{{ stat.meta.helper }}</span>
-          </div>
-          <div v-if="stat.pills" class="stat-pills">
-            <span v-for="pill in stat.pills" :key="pill.label" class="stat-pill" :class="pill.class">
-              {{ pill.label }} <strong>{{ pill.value }}</strong>
-            </span>
+    <!-- Tarjetas de estadísticas: componente compartido AdminStatsGrid -->
+    <AdminStatsGrid :stats="stats" :loading="loading" :count="4" />
+
+    <!-- Métricas secundarias: componente AdminCard reutilizable -->
+    <AdminCard :flush="false" class="dashboard-metrics-card">
+      <div class="dashboard-metrics-grid">
+        <div v-for="metric in metrics" :key="metric.key" class="dashboard-metric">
+          <p class="dashboard-metric__label">{{ metric.label }}</p>
+          <h3 class="dashboard-metric__value">{{ metric.value }}</h3>
+          <div class="dashboard-metric__foot">
+            <span class="dashboard-metric__helper">{{ metric.helper }}</span>
+            <span v-if="metric.change" class="dashboard-metric__change" :class="metric.changeClass">{{ metric.change }}</span>
           </div>
         </div>
-      </article>
-    </section>
+      </div>
+    </AdminCard>
 
-    <!-- Metrics -->
-    <section class="metrics-grid">
-      <article class="metric-card" v-for="metric in metrics" :key="metric.key">
-        <p class="metric-label">{{ metric.label }}</p>
-        <h3 class="metric-value">{{ metric.value }}</h3>
-        <p class="metric-helper">{{ metric.helper }}</p>
-        <span v-if="metric.change" class="metric-change" :class="metric.changeClass">{{ metric.change }}</span>
-      </article>
-    </section>
-
-    <!-- Charts -->
-    <section class="dashboard-grid main-charts">
-      <article class="chart-card chart-card-large">
-        <div class="chart-header">
+    <!-- Gráficos -->
+    <section class="dashboard-charts-row">
+      <AdminCard :flush="false" class="dashboard-chart-main">
+        <div class="dashboard-chart-header">
           <div>
-            <h3><i class="fas fa-chart-area"></i> Rendimiento de ventas</h3>
-            <p class="chart-subtitle">Ingresos y órdenes del período seleccionado.</p>
+            <h3 class="dashboard-chart-title"><i class="fas fa-chart-area"></i> Rendimiento de ventas</h3>
+            <p class="dashboard-chart-subtitle">Ingresos y ordenes del período seleccionado.</p>
           </div>
-          <div class="chart-controls">
-            <button v-for="r in [7, 14, 30]" :key="r" class="chart-range" :class="{ active: chartRange === r }" @click="chartRange = r">
-              {{ r }}D
-            </button>
+          <div class="dashboard-chart-controls">
+            <button
+              v-for="r in [7, 14, 30]"
+              :key="r"
+              class="dashboard-range-btn"
+              :class="{ active: chartRange === r }"
+              type="button"
+              @click="chartRange = r"
+            >{{ r }}D</button>
           </div>
         </div>
-        <div class="chart-body">
+        <div class="dashboard-chart-body">
           <canvas ref="salesChartRef"></canvas>
         </div>
-      </article>
+      </AdminCard>
 
-      <article class="chart-card">
-        <div class="chart-header">
+      <AdminCard :flush="false" class="dashboard-chart-side">
+        <div class="dashboard-chart-header">
           <div>
-            <h3><i class="fas fa-tags"></i> Estado de las órdenes</h3>
-            <p class="chart-subtitle">Distribución actual por estado.</p>
+            <h3 class="dashboard-chart-title"><i class="fas fa-tags"></i> Estado de ordenes</h3>
+            <p class="dashboard-chart-subtitle">Distribucion actual por estado.</p>
           </div>
         </div>
-        <div class="chart-body doughnut">
+        <div class="dashboard-chart-body doughnut">
           <canvas ref="statusChartRef"></canvas>
         </div>
-        <div v-if="orderStatuses.length" class="status-list">
-          <div v-for="s in orderStatuses" :key="s.label" class="status-row">
-            <div class="status-info">
-              <span class="status-dot" :style="{ backgroundColor: s.color }"></span>
+        <div v-if="orderStatuses.length" class="dashboard-status-list">
+          <div v-for="s in orderStatuses" :key="s.label" class="dashboard-status-row">
+            <div class="dashboard-status-info">
+              <span class="dashboard-status-dot" :style="{ backgroundColor: s.color }"></span>
               <span>{{ s.label }}</span>
             </div>
-            <div class="status-values">
+            <div class="dashboard-status-values">
               <strong>{{ s.count }}</strong>
               <span>{{ statusPercentage(s.count) }}</span>
             </div>
-            <div class="status-progress">
-              <div class="status-progress-bar" :style="{ width: statusPercentage(s.count), backgroundColor: s.color }"></div>
+            <div class="dashboard-status-bar">
+              <div class="dashboard-status-bar__fill" :style="{ width: statusPercentage(s.count), backgroundColor: s.color }"></div>
             </div>
           </div>
         </div>
-      </article>
+      </AdminCard>
     </section>
 
-    <!-- Recent Orders -->
-    <section class="dashboard-card recent-orders-card">
-      <div class="section-header">
-        <div>
-          <h3><i class="fas fa-list-ul"></i> Órdenes recientes</h3>
-          <p>Últimas actualizaciones registradas.</p>
+    <!-- Últimas órdenes -->
+    <AdminCard :flush="true">
+      <template #header>
+        <div class="dashboard-section-head">
+          <div>
+            <h3 class="dashboard-section-title"><i class="fas fa-list-ul"></i> Ordenes recientes</h3>
+            <p class="dashboard-section-subtitle">Ultimas actualizaciones registradas.</p>
+          </div>
+          <RouterLink to="/admin/ordenes" class="btn-link">Ver todas</RouterLink>
         </div>
-        <RouterLink to="/admin/ordenes" class="btn-link">Ver todas</RouterLink>
-      </div>
-      <div class="table-responsive">
+      </template>
+
+      <AdminEmptyState
+        v-if="!loading && recentOrders.length === 0"
+        icon="fas fa-inbox"
+        title="Sin ordenes recientes"
+        description="Las nuevas ordenes aparecen aqui en tiempo real."
+      />
+      <div v-else class="table-responsive">
         <table class="dashboard-table">
           <thead>
             <tr>
               <th>Orden</th>
               <th>Cliente</th>
-              <th>Fecha</th>
+              <th class="hide-xs">Fecha</th>
               <th>Total</th>
               <th>Estado</th>
-              <th>Pago</th>
+              <th class="hide-sm">Pago</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="recentOrders.length === 0">
-              <td colspan="6" class="empty-state" style="padding: 3rem;">
-                <i class="fas fa-inbox" style="font-size: 3rem; color: var(--admin-primary-light);"></i>
-                <p style="margin-top: 1rem;">Sin órdenes recientes.</p>
-              </td>
+            <tr v-if="loading">
+              <td colspan="6"><AdminTableShimmer :rows="5" :columns="['line','line','line','line','pill','pill']" /></td>
             </tr>
-            <tr v-for="order in recentOrders" :key="order.id">
+            <tr v-for="order in recentOrders" v-else :key="order.id">
               <td><strong>#{{ order.id }}</strong></td>
               <td>{{ order.customer }}</td>
-              <td>{{ order.date }}</td>
+              <td class="hide-xs">{{ order.date }}</td>
               <td>$ {{ order.total }}</td>
               <td><span class="status-badge" :class="order.status">{{ order.statusLabel }}</span></td>
-              <td><span class="status-badge" :class="order.paymentStatus">{{ order.paymentLabel }}</span></td>
+              <td class="hide-sm"><span class="status-badge" :class="order.paymentStatus">{{ order.paymentLabel }}</span></td>
             </tr>
           </tbody>
         </table>
       </div>
-    </section>
+    </AdminCard>
 
-    <section class="dashboard-row dashboard-row-single">
-      <article class="dashboard-card inventory-card">
-        <div class="section-header">
-          <div>
-            <h3><i class="fas fa-warehouse"></i> Inventario en riesgo</h3>
-            <p>Productos activos con stock crítico.</p>
+    <!-- Fila inferior: inventario + top productos + actividad -->
+    <div class="dashboard-bottom-row">
+      <!-- Inventario en riesgo -->
+      <AdminCard :flush="false" class="dashboard-bottom-card">
+        <template #header>
+          <div class="dashboard-section-head">
+            <div>
+              <h3 class="dashboard-section-title"><i class="fas fa-warehouse"></i> Inventario en riesgo</h3>
+              <p class="dashboard-section-subtitle">Productos activos con stock critico.</p>
+            </div>
+            <RouterLink to="/admin/inventario" class="btn-link">Ver inventario</RouterLink>
           </div>
-          <RouterLink to="/admin/inventario" class="btn-link">Ver inventario</RouterLink>
-        </div>
-        <div class="inventory-summary">
-          <div class="inventory-pill">
+        </template>
+
+        <div class="dashboard-inventory-pills">
+          <div class="dashboard-inventory-pill">
             <p>Total de productos</p>
             <strong>{{ inventoryTotal }}</strong>
           </div>
-          <div class="inventory-pill">
+          <div class="dashboard-inventory-pill">
             <p>Sin stock</p>
             <strong>{{ inventoryZero }}</strong>
           </div>
         </div>
-        <div class="low-stock-list">
-          <div v-if="lowStockItems.length === 0" class="empty-state" style="padding: 2rem;">
-            <p>Sin productos en riesgo.</p>
-          </div>
-          <div v-for="item in lowStockItems" :key="item.id" class="low-stock-item">
-            <img :src="item.image" :alt="item.name" class="low-stock-image" @error="onLowStockImageError($event, item.rawImage)">
-            <div class="low-stock-info">
+
+        <AdminEmptyState
+          v-if="!loading && lowStockItems.length === 0"
+          icon="fas fa-check-circle"
+          title="Sin productos en riesgo"
+          description="El inventario esta en buen estado."
+        />
+        <div v-else class="dashboard-low-stock">
+          <div v-for="item in lowStockItems" :key="item.id" class="dashboard-low-stock__item">
+            <AdminTableImage :src="item.image" :alt="item.name" type="product" size="sm" />
+            <div class="dashboard-low-stock__info">
               <strong>{{ item.name }}</strong>
               <span>{{ item.sku || 'Sin SKU' }}</span>
             </div>
-            <div class="low-stock-meta">
-              <span class="stock-pill warning">{{ item.stock }} uds</span>
-            </div>
+            <span class="admin-stat-card__pill pill-warning">{{ item.stock }} uds</span>
           </div>
         </div>
-      </article>
-    </section>
+      </AdminCard>
 
-    <section class="dashboard-row dashboard-row-single">
-      <article class="dashboard-card top-products-card">
-        <div class="section-header">
-          <div>
-            <h3><i class="fas fa-trophy"></i> Productos destacados</h3>
-            <p>Más vendidos en los últimos 30 días.</p>
+      <!-- Top productos -->
+      <AdminCard :flush="false" class="dashboard-bottom-card">
+        <template #header>
+          <div class="dashboard-section-head">
+            <div>
+              <h3 class="dashboard-section-title"><i class="fas fa-trophy"></i> Productos destacados</h3>
+              <p class="dashboard-section-subtitle">Mas vendidos en los ultimos 30 dias.</p>
+            </div>
+            <RouterLink to="/admin/informes/ventas" class="btn-link">Ver informe</RouterLink>
           </div>
-          <RouterLink to="/admin/informes/ventas" class="btn-link">Ver informe</RouterLink>
-        </div>
-        <div class="top-products-list">
-          <div v-if="topProducts.length === 0" class="empty-state" style="padding: 2rem;">
-            <p>Sin datos disponibles.</p>
-          </div>
-          <div v-for="(product, index) in topProducts" :key="product.id" class="top-product-item">
-            <div class="top-product-rank">{{ index + 1 }}</div>
-            <div class="top-product-info">
+        </template>
+
+        <AdminEmptyState
+          v-if="!loading && topProducts.length === 0"
+          icon="fas fa-chart-bar"
+          title="Sin datos de ventas"
+          description="Los productos con mas ventas apareceran aqui."
+        />
+        <div v-else class="dashboard-top-products">
+          <div v-for="(product, index) in topProducts" :key="product.id" class="dashboard-top-product">
+            <span class="dashboard-top-product__rank">{{ index + 1 }}</span>
+            <div class="dashboard-top-product__info">
               <strong>{{ product.name }}</strong>
               <span>{{ product.units }} vendidos</span>
             </div>
-            <span class="top-product-value">$ {{ product.revenue }}</span>
+            <span class="dashboard-top-product__revenue">$ {{ product.revenue }}</span>
           </div>
         </div>
-      </article>
-    </section>
+      </AdminCard>
 
-    <!-- Activity Feed -->
-    <section class="dashboard-row dashboard-row-single">
-      <article class="dashboard-card activity-card">
-      <div class="section-header">
-        <div>
-          <h3><i class="fas fa-bolt"></i> Actividad reciente</h3>
-          <p>Últimos eventos del sistema.</p>
-        </div>
-      </div>
-      <div class="activity-feed">
-        <div v-if="activities.length === 0" class="empty-state" style="padding: 2rem;">
-          <p>Sin actividad reciente.</p>
-        </div>
-        <div v-for="a in activities" :key="a.id" class="activity-item">
-          <div class="activity-icon" :class="a.type">
-            <i :class="a.icon"></i>
+      <!-- Actividad reciente -->
+      <AdminCard :flush="false" class="dashboard-bottom-card">
+        <template #header>
+          <div class="dashboard-section-head">
+            <div>
+              <h3 class="dashboard-section-title"><i class="fas fa-bolt"></i> Actividad reciente</h3>
+              <p class="dashboard-section-subtitle">Ultimos eventos del sistema.</p>
+            </div>
           </div>
-          <div class="activity-content">
-            <p>{{ a.title }}</p>
-            <span v-if="a.description">{{ a.description }}</span>
-            <span>{{ a.time }}</span>
+        </template>
+
+        <AdminEmptyState
+          v-if="!loading && activities.length === 0"
+          icon="fas fa-history"
+          title="Sin actividad reciente"
+          description="Los eventos del sistema apareceran aqui."
+        />
+        <div v-else class="dashboard-activity">
+          <div v-for="a in activities" :key="a.id" class="dashboard-activity__item">
+            <div class="dashboard-activity__icon" :class="a.type"><i :class="a.icon"></i></div>
+            <div class="dashboard-activity__content">
+              <p>{{ a.title }}</p>
+              <span v-if="a.description">{{ a.description }}</span>
+              <span class="dashboard-activity__time">{{ a.time }}</span>
+            </div>
           </div>
         </div>
-      </div>
-      </article>
-    </section>
+      </AdminCard>
+    </div>
   </div>
 </template>
 
 <script setup>
-import {
-  ArcElement,
+import {  ArcElement,
   BarController,
   BarElement,
   CategoryScale,
@@ -241,11 +256,22 @@ import {
   PointElement,
   Tooltip,
 } from 'chart.js'
-import { ref, onBeforeUnmount, onMounted, watch, nextTick } from 'vue'
+import { ref, onBeforeUnmount, onMounted, computed, watch, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import { authHttp, orderHttp, catalogHttp } from '../../../services/http'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAppShell } from '../../../composables/useAppShell'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminStatsGrid from '../components/AdminStatsGrid.vue'
+import AdminCard from '../components/AdminCard.vue'
+import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminTableImage from '../components/AdminTableImage.vue'
+
+const { settings: shellSettings } = useAppShell()
+// Mensaje de bienvenida y nombre de tienda desde configuración
+const dashboardWelcome = computed(() => shellSettings.value?.dashboard_welcome || 'Panel de control')
+const dashboardStoreName = computed(() => shellSettings.value?.store_name || 'Angelow')
 
 Chart.register(
   CategoryScale,
@@ -270,11 +296,14 @@ let salesChartInstance = null
 let statusChartInstance = null
 
 const chartRange = ref(7)
+const loading = ref(true)
+
+// Formato compatible con AdminStatsGrid: { key, label, value, icon, color, meta?, pills? }
 const stats = ref([
-  { key: 'orders', icon: 'fas fa-receipt', bgClass: 'bg-primary', label: 'Órdenes hoy', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
-  { key: 'revenue', icon: 'fas fa-dollar-sign', bgClass: 'bg-success', label: 'Ingresos hoy', value: '$ 0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
-  { key: 'customers', icon: 'fas fa-user-plus', bgClass: 'bg-warning', label: 'Nuevos clientes', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. últimos 7 días' } },
-  { key: 'inventory', icon: 'fas fa-boxes-stacked', bgClass: 'bg-info', label: 'Inventario activo', value: '0', pills: [
+  { key: 'orders', icon: 'fas fa-receipt', color: 'primary', label: 'Órdenes hoy', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
+  { key: 'revenue', icon: 'fas fa-dollar-sign', color: 'success', label: 'Ingresos hoy', value: '$ 0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
+  { key: 'customers', icon: 'fas fa-user-plus', color: 'warning', label: 'Nuevos clientes', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. últimos 7 días' } },
+  { key: 'inventory', icon: 'fas fa-boxes-stacked', color: 'info', label: 'Inventario activo', value: '0', pills: [
     { label: 'Activos', value: '0', class: 'pill-success' },
     { label: 'Bajo stock', value: '0', class: 'pill-warning' },
   ] },
@@ -610,6 +639,7 @@ async function loadSalesStats() {
 }
 
 async function loadDashboard() {
+  loading.value = true
   let orders = []
   let customerRows = []
   let lowStockProducts = []
@@ -789,6 +819,8 @@ async function loadDashboard() {
 
   // Cargar reportes de ventas (resiliente, no bloquea dashboard si falla)
   await loadSalesStats().catch((err) => console.warn('Error cargando reportes de ventas:', err))
+
+  loading.value = false
 }
 
 watch(chartRange, () => {

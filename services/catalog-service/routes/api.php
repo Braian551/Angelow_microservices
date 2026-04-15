@@ -45,6 +45,8 @@ Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     // Productos
     Route::get('/products', [AdminCatalogController::class, 'products']);
+    Route::get('/products/export/csv', [AdminCatalogController::class, 'exportProductsCsv']);
+    Route::get('/products/export/pdf', [AdminCatalogController::class, 'exportProductsPdf']);
     Route::get('/products/{id}', [AdminCatalogController::class, 'showProduct']);
     Route::post('/products', [AdminCatalogController::class, 'storeProduct']);
     Route::put('/products/{id}', [AdminCatalogController::class, 'updateProduct']);

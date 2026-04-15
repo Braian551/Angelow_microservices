@@ -4,7 +4,7 @@
       <button class="sidebar-toggle" type="button" aria-label="Abrir menu lateral" @click="$emit('toggle-sidebar')">
         <i class="fas fa-bars"></i>
       </button>
-      <h2>Angelow</h2>
+      <h2>{{ storeName }}</h2>
     </div>
 
     <div class="header-right">
@@ -83,12 +83,12 @@
             @click="showQuickActions = !showQuickActions"
           >
             <i class="fas fa-plus"></i>
-            <span>Accion rapida</span>
+            <span>Acción rápida</span>
           </button>
           <div v-if="showQuickActions" class="header-dropdown quick-actions-panel">
             <div class="dropdown-header">
               <div>
-                <h4>Acciones rapidas</h4>
+                <h4>Acciones rápidas</h4>
                 <p class="dropdown-subtitle">Atajo Ctrl + K</p>
               </div>
               <button type="button" class="link-button" @click="showQuickActions = false">Cerrar</button>
@@ -114,10 +114,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useAppShell } from '../../../composables/useAppShell'
 
 defineEmits(['toggle-sidebar'])
+
+const { settings } = useAppShell()
+// Nombre de la tienda reactivo desde configuración general
+const storeName = computed(() => settings.value?.store_name || 'Angelow')
 
 const searchQuery = ref('')
 const showResults = ref(false)
@@ -131,15 +136,15 @@ const showQuickActions = ref(false)
 let searchTimeout = null
 
 const quickActions = [
-  { id: 'new-product', icon: 'fa-plus-circle', label: 'Nuevo producto', description: 'Agregar producto al catalogo', path: '/admin/productos/nuevo' },
-  { id: 'new-discount', icon: 'fa-tag', label: 'Generar codigos descuento', description: 'Crear codigos promocionales', path: '/admin/descuentos/codigos' },
+  { id: 'new-product', icon: 'fa-plus-circle', label: 'Nuevo producto', description: 'Agregar producto al catálogo', path: '/admin/productos/nuevo' },
+  { id: 'new-discount', icon: 'fa-tag', label: 'Generar códigos descuento', description: 'Crear códigos promocionales', path: '/admin/descuentos/codigos' },
   { id: 'new-announcement', icon: 'fa-bullhorn', label: 'Publicar anuncio', description: 'Enviar aviso a clientes', path: '/admin/anuncios' },
   { id: 'check-payments', icon: 'fa-money-check-alt', label: 'Revisar pagos pendientes', description: 'Verificar comprobantes', path: '/admin/pagos' },
-  { id: 'view-orders', icon: 'fa-receipt', label: 'Ver ordenes', description: 'Revisar pedidos recientes', path: '/admin/ordenes' },
-  { id: 'manage-categories', icon: 'fa-folder-open', label: 'Gestionar categorias', description: 'Editar categorias de productos', path: '/admin/categorias' },
-  { id: 'manage-shipping', icon: 'fa-shipping-fast', label: 'Configurar envios', description: 'Metodos y reglas de envio', path: '/admin/envios/metodos' },
+  { id: 'view-orders', icon: 'fa-receipt', label: 'Ver órdenes', description: 'Revisar pedidos recientes', path: '/admin/ordenes' },
+  { id: 'manage-categories', icon: 'fa-folder-open', label: 'Gestionar categorías', description: 'Editar categorías de productos', path: '/admin/categorias' },
+  { id: 'manage-shipping', icon: 'fa-shipping-fast', label: 'Configurar envíos', description: 'Métodos y reglas de envío', path: '/admin/envios/metodos' },
   { id: 'manage-sliders', icon: 'fa-images', label: 'Editar sliders', description: 'Carousel de la pagina principal', path: '/admin/sliders' },
-  { id: 'view-reports', icon: 'fa-chart-bar', label: 'Ver informes', description: 'Estadisticas de ventas', path: '/admin/informes/ventas' },
+  { id: 'view-reports', icon: 'fa-chart-bar', label: 'Ver informes', description: 'Estadísticas de ventas', path: '/admin/informes/ventas' },
 ]
 
 function handleSearch() {

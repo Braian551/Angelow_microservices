@@ -55,7 +55,7 @@
     </AdminFilterCard>
 
     <!-- Barra de resultados -->
-    <AdminResultsBar :text="`Mostrando ${customers.length} clientes`">
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} clientes`">
       <template #actions>
         <button class="btn-icon" type="button" @click="exportCustomers">
           <i class="fas fa-file-export"></i>
@@ -86,7 +86,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="customer in customers" :key="customer.id">
+            <tr v-for="customer in pagination.paginatedItems" :key="customer.id">
               <td>
                 <div class="customer-cell">
                   <img class="admin-avatar" :src="avatarUrl(customer)" :alt="customer.name" @error="onAvatarError($event, customer.image)">
@@ -136,6 +136,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedCustomer ? selectedCustomer.name : 'Detalle de cliente'" max-width="1080px" @close="closeCustomerModal">
       <template v-if="selectedCustomer">
@@ -231,10 +238,12 @@ import { authHttp, orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -304,6 +313,11 @@ const customers = computed(() => enrichedCustomers.value.filter((customer) => {
 
   return true
 }))
+
+const pagination = useAdminPagination(customers, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
 
 const selectedCustomer = computed(() => customers.value.find((customer) => customer.id === selectedCustomerId.value)
   || enrichedCustomers.value.find((customer) => customer.id === selectedCustomerId.value)

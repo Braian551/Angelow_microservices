@@ -40,6 +40,8 @@
           <p><i class="fas fa-map-marker-alt" /> {{ supportAddress }}</p>
           <p><i class="fas fa-phone" /> {{ supportPhone }}</p>
           <p><i class="fas fa-envelope" /> {{ supportEmail }}</p>
+          <p v-if="supportHours"><i class="fas fa-clock" /> {{ supportHours }}</p>
+          <p v-if="supportWhatsApp"><i class="fab fa-whatsapp" /> {{ supportWhatsApp }}</p>
         </address>
         <div class="social-links">
           <a v-for="social in socialLinks" :key="social.key" :href="social.url" :aria-label="social.label" target="_blank" rel="noopener noreferrer">
@@ -50,6 +52,7 @@
     </div>
 
     <div class="footer-bottom">
+      <p v-if="storeTagline" class="footer-tagline">{{ storeTagline }}</p>
       <p class="copyright">
         &copy; {{ currentYear }} {{ storeName }}. Todos los derechos reservados.
       </p>
@@ -70,9 +73,12 @@ const props = defineProps({
 
 const currentYear = new Date().getFullYear()
 const storeName = computed(() => props.settings?.store_name || 'Angelow')
+const storeTagline = computed(() => props.settings?.store_tagline || '')
 const supportAddress = computed(() => props.settings?.support_address || 'Medellin, Colombia')
 const supportPhone = computed(() => props.settings?.support_phone || '+57 300 000 0000')
 const supportEmail = computed(() => props.settings?.support_email || 'soporte@angelow.com')
+const supportHours = computed(() => props.settings?.support_hours || '')
+const supportWhatsApp = computed(() => props.settings?.support_whatsapp || '')
 
 const socialLinks = computed(() => ([
   {

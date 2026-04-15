@@ -65,7 +65,7 @@
     </AdminFilterCard>
 
     <!-- Barra de resultados -->
-    <AdminResultsBar :text="`Mostrando ${filteredMethods.length} metodos`" />
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} metodos`" />
 
     <AdminCard title="Bandeja de metodos" icon="fas fa-truck" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -88,7 +88,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="method in filteredMethods" :key="method.id">
+            <tr v-for="method in pagination.paginatedItems" :key="method.id">
               <td>
                 <div class="admin-entity-name">
                   <strong>{{ method.name }}</strong>
@@ -131,6 +131,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedMethod ? selectedMethod.name : 'Detalle del metodo'" max-width="940px" @close="closeDetailModal">
       <template v-if="selectedMethod">
@@ -261,10 +268,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { shippingHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -316,6 +325,11 @@ const filteredMethods = computed(() => {
 
     return [method.name, method.description, method.city, method.delivery_time].join(' ').toLowerCase().includes(term)
   })
+})
+
+const pagination = useAdminPagination(filteredMethods, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
 })
 
 const activeFilterCount = computed(() => [filters.search, filters.state !== 'all', filters.city !== 'all'].filter(Boolean).length)

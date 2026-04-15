@@ -11,7 +11,11 @@ export async function getPayments(params = {}) {
 }
 
 export async function createPayment(payload) {
-  const { data } = await paymentHttp.post('/payments', payload)
+  const requestConfig = payload instanceof FormData
+    ? { headers: { 'Content-Type': 'multipart/form-data' } }
+    : undefined
+
+  const { data } = await paymentHttp.post('/payments', payload, requestConfig)
   return data
 }
 

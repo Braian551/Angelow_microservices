@@ -104,7 +104,7 @@
       </AdminCard>
     </section>
 
-    <AdminResultsBar :text="`Mostrando ${reviews.length} reseñas`">
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} reseñas`">
       <template #actions>
         <button class="btn-icon" type="button" @click="exportReviews">
           <i class="fas fa-file-export"></i> Exportar
@@ -123,7 +123,7 @@
         description="No se encontraron reseñas con los filtros actuales."
       />
       <div v-else class="reviews-grid">
-        <article v-for="review in reviews" :key="review.id" class="review-card review-card--admin">
+        <article v-for="review in pagination.paginatedItems" :key="review.id" class="review-card review-card--admin">
           <div class="review-card__header">
             <div class="review-customer">
               <img :src="avatarUrl(review.customer)" :alt="review.customer.name" @error="onAvatarError($event, review.customer.image)">
@@ -185,6 +185,13 @@
         </article>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedReview ? selectedReview.title || 'Detalle de reseña' : 'Detalle de reseña'" max-width="980px" @close="closeReviewModal">
       <template v-if="selectedReview">
@@ -252,10 +259,12 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -277,6 +286,11 @@ const filters = ref({
 })
 
 const selectedReview = computed(() => reviews.value.find((review) => review.id === selectedReviewId.value) || null)
+
+const pagination = useAdminPagination(reviews, {
+  initialPageSize: 8,
+  pageSizeOptions: [8, 16, 24],
+})
 
 const activeFilterCount = computed(() => {
   let count = 0

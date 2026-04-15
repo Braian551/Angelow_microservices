@@ -84,7 +84,7 @@
     </section>
 
     <!-- Barra de resultados -->
-    <AdminResultsBar :text="`Mostrando ${questions.length} preguntas`">
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} preguntas`">
       <template #actions>
         <button class="btn btn-icon" type="button" @click="exportQuestions">
           <i class="fas fa-file-export"></i>
@@ -113,7 +113,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="question in questions" :key="question.id">
+            <tr v-for="question in pagination.paginatedItems" :key="question.id">
               <td>
                 <div class="admin-entity-name">
                   <strong>{{ question.question }}</strong>
@@ -150,6 +150,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedQuestion ? `Pregunta #${selectedQuestion.id}` : 'Detalle de pregunta'" max-width="1040px" @close="closeQuestionModal">
       <template v-if="selectedQuestion">
@@ -231,10 +238,12 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -278,6 +287,11 @@ const activeFilterCount = computed(() => {
   if (filters.value.search.trim()) count++
   if (filters.value.answered !== 'all') count++
   return count
+})
+
+const pagination = useAdminPagination(questions, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
 })
 
 function normalizeAnswer(answer) {

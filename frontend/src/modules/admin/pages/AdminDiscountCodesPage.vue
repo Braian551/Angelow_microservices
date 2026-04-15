@@ -64,7 +64,7 @@
       </template>
     </AdminFilterCard>
 
-    <AdminResultsBar :text="`Mostrando ${filteredCodes.length} códigos`" />
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} códigos`" />
 
     <AdminCard title="Bandeja de códigos" icon="fas fa-tags" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'pill', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -88,7 +88,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="code in filteredCodes" :key="code.id">
+            <tr v-for="code in pagination.paginatedItems" :key="code.id">
               <td>
                 <div class="admin-entity-name">
                   <strong class="discount-code-pill">{{ code.code }}</strong>
@@ -128,6 +128,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedCode ? `Código ${selectedCode.code}` : 'Detalle del código'" max-width="960px" @close="closeDetailModal">
       <template v-if="selectedCode">
@@ -250,10 +257,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { discountHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -294,6 +303,11 @@ const filteredCodes = computed(() => {
 
     return [code.code, code.type_label, code.discount_type_name].join(' ').toLowerCase().includes(term)
   })
+})
+
+const pagination = useAdminPagination(filteredCodes, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
 })
 
 const activeFilterCount = computed(() => [filters.search, filters.state !== 'all', filters.type !== 'all'].filter(Boolean).length)

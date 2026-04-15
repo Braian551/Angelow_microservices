@@ -80,14 +80,23 @@
     </AdminFilterCard>
 
     <!-- Barra de resultados -->
-    <AdminResultsBar :text="`Mostrando ${paginatedProducts.length} de ${filteredProducts.length} productos`">
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} productos`">
       <template #actions>
-        <span v-if="selectedProducts.length > 0" style="color:var(--admin-text-soft);font-size:0.95rem;font-weight:600;">{{ selectedProducts.length }} seleccionado(s)</span>
-        <RouterLink :to="{ name: 'admin-product-create' }" class="btn btn-primary">
-          <i class="fas fa-plus"></i> Nuevo Producto
+        <div v-if="selectedProducts.length > 0" class="results-action-btn results-action-btn--neutral" style="cursor:default;">
+          <span class="results-action-btn__icon"><i class="fas fa-check-double"></i></span>
+          <span>{{ selectedProducts.length }} seleccionado<span v-if="selectedProducts.length !== 1">s</span></span>
+        </div>
+        <RouterLink :to="{ name: 'admin-product-create' }" class="results-action-btn results-action-btn--primary">
+          <span class="results-action-btn__icon"><i class="fas fa-plus"></i></span>
+          <span>Nuevo Producto</span>
         </RouterLink>
-        <button class="btn-icon" type="button" @click="exportProducts">
-          <i class="fas fa-file-export"></i> Exportar
+        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportProductsCsv">
+          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
+          <span>Exportar CSV</span>
+        </button>
+        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportProductsPdf">
+          <span class="results-action-btn__icon"><i class="fas fa-file-pdf"></i></span>
+          <span>Exportar PDF</span>
         </button>
       </template>
     </AdminResultsBar>
@@ -126,7 +135,7 @@
 
       <TransitionGroup v-else name="card-fade" tag="div" class="products-admin-grid">
         <AdminProductCard
-          v-for="product in paginatedProducts"
+          v-for="product in pagination.paginatedItems"
           :key="product.id"
           :product="product"
           :selected="selectedProducts.includes(product.id)"
@@ -138,28 +147,12 @@
       </TransitionGroup>
     </div>
 
-    <div v-if="totalPages > 1" class="pagination-container">
-      <button class="pagination-item" :disabled="currentPage === 1" @click="goToPage(1)">
-        <i class="fas fa-angle-double-left"></i>
-      </button>
-      <button class="pagination-item" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">
-        <i class="fas fa-angle-left"></i>
-      </button>
-
-      <template v-for="item in paginationItems" :key="String(item)">
-        <span v-if="item === '...'" class="pagination-item dots">...</span>
-        <button v-else class="pagination-item" :class="{ active: Number(item) === currentPage }" @click="goToPage(Number(item))">
-          {{ item }}
-        </button>
-      </template>
-
-      <button class="pagination-item" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">
-        <i class="fas fa-angle-right"></i>
-      </button>
-      <button class="pagination-item" :disabled="currentPage === totalPages" @click="goToPage(totalPages)">
-        <i class="fas fa-angle-double-right"></i>
-      </button>
-    </div>
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showQuickView" title="Detalles del Producto" max-width="1110px" @close="closeQuickView">
       <div v-if="quickViewLoading" class="quick-view-loading">
@@ -311,11 +304,13 @@ import { RouterLink } from 'vue-router'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
-import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { getFallbackMediaUrl, handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminProductCard from '../components/AdminProductCard.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
@@ -332,8 +327,6 @@ const statusFilter = ref('')
 const genderFilter = ref('')
 const sortOrder = ref('newest')
 const selectedProducts = ref([])
-const currentPage = ref(1)
-const perPage = ref(12)
 
 const showQuickView = ref(false)
 const quickViewLoading = ref(false)
@@ -351,7 +344,16 @@ const showZoom = ref(false)
 const zoomImage = ref('')
 const zoomTitle = ref('')
 
-const quickColors = computed(() => [...new Set(quickSizeVariants.value.map((variant) => variant.color_name).filter(Boolean))])
+const productFallbackImage = getFallbackMediaUrl('product')
+
+const quickColors = computed(() => {
+  const fromVariants = quickSizeVariants.value.map((variant) => variant.color_name).filter(Boolean)
+  const fromFilters = colorFilters.value
+    .map((filter) => filter.color)
+    .filter((color) => color && color !== 'General')
+
+  return [...new Set([...fromVariants, ...fromFilters])]
+})
 const quickSizes = computed(() => [...new Set(quickSizeVariants.value.map((variant) => variant.size_name).filter(Boolean))])
 const quickVariantCount = computed(() => quickSizeVariants.value.length || Number(quickProduct.value?.variant_count || 0))
 const showVariantTable = computed(() => quickSizeVariants.value.length > 1 || quickColors.value.length > 1 || quickSizes.value.length > 1)
@@ -437,27 +439,9 @@ const filteredProducts = computed(() => {
   return sortedRows
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredProducts.value.length / perPage.value)))
-const paginatedProducts = computed(() => filteredProducts.value.slice((currentPage.value - 1) * perPage.value, currentPage.value * perPage.value))
-
-const paginationItems = computed(() => {
-  const pages = totalPages.value
-  const current = currentPage.value
-
-  if (pages <= 7) {
-    return Array.from({ length: pages }, (_, index) => index + 1)
-  }
-
-  const items = [1]
-  const start = Math.max(2, current - 1)
-  const end = Math.min(pages - 1, current + 1)
-
-  if (start > 2) items.push('...')
-  for (let page = start; page <= end; page += 1) items.push(page)
-  if (end < pages - 1) items.push('...')
-  items.push(pages)
-
-  return items
+const pagination = useAdminPagination(filteredProducts, {
+  initialPageSize: 12,
+  pageSizeOptions: [12, 24, 48],
 })
 
 function normalizeGender(value) {
@@ -475,11 +459,24 @@ function productImage(product) {
   return resolveMediaUrl(product.primary_image || product.image || product.product_image || product.imagen || product.image_url, 'product')
 }
 
+function extractColorName(raw) {
+  if (!raw) return ''
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'object') {
+    return String(raw.name || raw.nombre || raw.color_name || raw.label || '').trim()
+  }
+  return ''
+}
+
 function normalizeVariant(rawVariant) {
+  const colorName = extractColorName(rawVariant.color_name || rawVariant.color || rawVariant.color_label || rawVariant.variant_color)
+
   return {
     ...rawVariant,
     id: rawVariant.id || `${rawVariant.color_name || rawVariant.color || 'general'}-${rawVariant.size_name || rawVariant.size || 'unica'}-${rawVariant.price || rawVariant.precio || 0}`,
-    color_name: rawVariant.color_name || rawVariant.color || '',
+    color_name: colorName,
+    color_variant_id: Number(rawVariant.color_variant_id || rawVariant.variant_id || rawVariant.product_color_variant_id || 0) || null,
+    hex_code: rawVariant.hex_code || rawVariant.color_hex || rawVariant.hex || null,
     size_name: rawVariant.size_name || rawVariant.size || '',
     price: Number(rawVariant.price ?? rawVariant.precio ?? 0),
     quantity: Number(rawVariant.quantity ?? rawVariant.stock ?? rawVariant.cantidad ?? 0),
@@ -491,15 +488,38 @@ function buildQuickImages(product, imageRows) {
   const normalizedImages = imageRows
     .map((image) => ({
       ...image,
-      color_name: image.color_name || 'General',
+      color_name: extractColorName(image.color_name || image.color || image.color_label || image.variant_color) || 'General',
+      hex_code: image.hex_code || image.color_hex || image.hex || null,
       resolvedUrl: resolveMediaUrl(image.url || image.image_path || image.image, 'product'),
       is_primary: Boolean(Number(image.is_primary ?? 0)),
     }))
-    .filter((image) => image.resolvedUrl)
+    .filter((image) => image.resolvedUrl && image.resolvedUrl !== productFallbackImage)
 
-  const productImageUrl = product.image || resolveMediaUrl(product.rawImage, 'product')
-  if (productImageUrl && !normalizedImages.some((image) => image.resolvedUrl === productImageUrl)) {
-    normalizedImages.unshift({
+  // Evita miniaturas duplicadas cuando backend devuelve la misma imagen desde varias fuentes.
+  const dedupedByUrl = []
+  const byUrl = new Map()
+  normalizedImages.forEach((image) => {
+    const key = image.resolvedUrl
+    const existing = byUrl.get(key)
+
+    if (!existing) {
+      byUrl.set(key, image)
+      dedupedByUrl.push(image)
+      return
+    }
+
+    // Priorizar primaria, color especifico y hex real sobre copia general.
+    if (!existing.is_primary && image.is_primary) existing.is_primary = true
+    if ((existing.color_name === 'General' || !existing.color_name) && image.color_name && image.color_name !== 'General') {
+      existing.color_name = image.color_name
+    }
+    if (!existing.hex_code && image.hex_code) existing.hex_code = image.hex_code
+    if (!existing.alt_text && image.alt_text) existing.alt_text = image.alt_text
+  })
+
+  const productImageUrl = product.rawImage ? resolveMediaUrl(product.rawImage, 'product') : ''
+  if (productImageUrl && !dedupedByUrl.some((image) => image.resolvedUrl === productImageUrl)) {
+    dedupedByUrl.unshift({
       id: 'primary-image',
       color_name: 'General',
       resolvedUrl: productImageUrl,
@@ -508,7 +528,7 @@ function buildQuickImages(product, imageRows) {
     })
   }
 
-  return normalizedImages
+  return dedupedByUrl
 }
 
 function normalizeProduct(rawProduct) {
@@ -553,13 +573,8 @@ function scrollThumbs(direction) {
   }
 }
 
-function goToPage(page) {
-  currentPage.value = Math.min(Math.max(1, page), totalPages.value)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
 function applyFilters() {
-  currentPage.value = 1
+  pagination.currentPage = 1
   loadProducts()
 }
 
@@ -570,7 +585,7 @@ function clearAllFilters() {
   genderFilter.value = ''
   sortOrder.value = 'newest'
   selectedProducts.value = []
-  currentPage.value = 1
+  pagination.currentPage = 1
   loadProducts()
 }
 
@@ -586,7 +601,7 @@ let debounceTimer = null
 function debouncedLoad() {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
-    currentPage.value = 1
+    pagination.currentPage = 1
     loadProducts()
   }, 400)
 }
@@ -636,9 +651,87 @@ async function openQuickView(product) {
     const response = await catalogHttp.get(`/admin/products/${product.id}`)
     const payload = response.data?.data || {}
     const productData = payload.product || product
-    const imageRows = Array.isArray(payload.images) ? payload.images : []
-    const sizeVariants = (Array.isArray(payload.size_variants) ? payload.size_variants : (Array.isArray(payload.variants) ? payload.variants : []))
-      .map(normalizeVariant)
+    const variantsPayload = Array.isArray(payload.variants) ? payload.variants : []
+    const variantColorMap = new Map()
+    const variantHexMap = new Map()
+
+    variantsPayload.forEach((variant) => {
+      const variantId = Number(variant?.id || variant?.color_variant_id || 0)
+      const colorName = extractColorName(variant?.color_name || variant?.color || variant?.name)
+      const hexCode = variant?.hex_code || variant?.color_hex || null
+
+      if (variantId > 0) {
+        if (colorName) variantColorMap.set(variantId, colorName)
+        if (hexCode) variantHexMap.set(variantId, hexCode)
+      }
+    })
+
+    const sizeVariantsRaw = []
+    if (Array.isArray(payload.size_variants) && payload.size_variants.length > 0) {
+      sizeVariantsRaw.push(...payload.size_variants)
+    } else {
+      variantsPayload.forEach((variant) => {
+        if (Array.isArray(variant?.size_variants)) {
+          variant.size_variants.forEach((sizeVariant) => {
+            sizeVariantsRaw.push({
+              ...sizeVariant,
+              color_variant_id: sizeVariant.color_variant_id || variant.id || variant.color_variant_id,
+              color_name: sizeVariant.color_name || variant.color_name,
+              hex_code: sizeVariant.hex_code || variant.hex_code || variant.color_hex,
+            })
+          })
+        }
+      })
+    }
+
+    const sizeVariants = sizeVariantsRaw
+      .map((variant) => {
+        const normalized = normalizeVariant(variant)
+        const variantId = Number(normalized.color_variant_id || 0)
+
+        if (!normalized.color_name && variantId > 0 && variantColorMap.has(variantId)) {
+          normalized.color_name = variantColorMap.get(variantId)
+        }
+        if (!normalized.hex_code && variantId > 0 && variantHexMap.has(variantId)) {
+          normalized.hex_code = variantHexMap.get(variantId)
+        }
+
+        return normalized
+      })
+
+    const imageRows = []
+    const hasVariantImages = Array.isArray(payload.variant_images) && payload.variant_images.length > 0
+    const hasProductImages = Array.isArray(payload.images) && payload.images.length > 0
+
+    if (hasVariantImages) {
+      imageRows.push(...payload.variant_images)
+    } else if (hasProductImages) {
+      imageRows.push(...payload.images)
+    } else {
+      variantsPayload.forEach((variant) => {
+        if (Array.isArray(variant?.images)) {
+          variant.images.forEach((image) => {
+            imageRows.push({
+              ...image,
+              color_variant_id: image.color_variant_id || variant.id || variant.color_variant_id,
+              color_name: image.color_name || variant.color_name,
+              hex_code: image.hex_code || variant.hex_code || variant.color_hex,
+            })
+          })
+        }
+      })
+    }
+
+    const enrichedImageRows = imageRows.map((image) => {
+      const variantId = Number(image.color_variant_id || 0)
+      const colorName = extractColorName(image.color_name || image.color || image.color_label)
+
+      return {
+        ...image,
+        color_name: colorName || (variantId > 0 ? (variantColorMap.get(variantId) || '') : ''),
+        hex_code: image.hex_code || image.color_hex || (variantId > 0 ? (variantHexMap.get(variantId) || null) : null),
+      }
+    })
 
     quickProduct.value = normalizeProduct(productData)
     quickSizeVariants.value = sizeVariants
@@ -646,11 +739,19 @@ async function openQuickView(product) {
     quickMinPrice.value = Number(payload.min_price ?? quickProduct.value.min_price ?? quickProduct.value.price ?? 0)
     quickMaxPrice.value = Number(payload.max_price ?? quickProduct.value.max_price ?? quickProduct.value.price ?? 0)
 
-    quickImages.value = buildQuickImages(quickProduct.value, imageRows)
+    quickImages.value = buildQuickImages(quickProduct.value, enrichedImageRows)
     if (quickImages.value.length === 0) {
-      quickImages.value = [{ id: 0, resolvedUrl: quickProduct.value.image, color_name: 'General', is_primary: true }]
+      const fallbackSafeImage = quickProduct.value.rawImage
+        ? resolveMediaUrl(quickProduct.value.rawImage, 'product')
+        : quickProduct.value.image
+
+      quickImages.value = [{ id: 0, resolvedUrl: fallbackSafeImage, color_name: 'General', is_primary: true }]
     }
-    mainQuickImage.value = quickImages.value[0]?.resolvedUrl || quickProduct.value.image
+    const preferredImage = quickImages.value.find((image) => image.is_primary && image.resolvedUrl !== productFallbackImage)
+      || quickImages.value.find((image) => image.resolvedUrl !== productFallbackImage)
+      || quickImages.value[0]
+
+    mainQuickImage.value = preferredImage?.resolvedUrl || quickProduct.value.image
   } catch {
     quickProduct.value = normalizeProduct(product)
     quickImages.value = [{ id: 0, resolvedUrl: quickProduct.value.image, color_name: 'General', is_primary: true }]
@@ -720,36 +821,84 @@ async function toggleProductStatus(product) {
   }
 }
 
-function exportProducts() {
-  const rows = filteredProducts.value
-  if (rows.length === 0) {
+function buildExportParams() {
+  const params = {}
+
+  if (search.value) params.search = search.value
+  if (categoryFilter.value) params.category = categoryFilter.value
+  if (statusFilter.value) params.status = statusFilter.value
+
+  const ids = filteredProducts.value
+    .map((product) => Number(product.id))
+    .filter((id) => Number.isFinite(id) && id > 0)
+
+  if (ids.length > 0) {
+    params.ids = ids.join(',')
+  }
+
+  return params
+}
+
+function extractFileName(contentDisposition, fallbackName) {
+  if (!contentDisposition) return fallbackName
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1])
+  }
+
+  const simpleMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+  if (simpleMatch?.[1]) {
+    return simpleMatch[1]
+  }
+
+  return fallbackName
+}
+
+function triggerBlobDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+async function exportProductsByFormat(format) {
+  if (filteredProducts.value.length === 0) {
     showSnackbar({ type: 'info', message: 'No hay productos para exportar' })
     return
   }
 
-  const header = ['ID', 'Nombre', 'Categoría', 'Stock', 'Precio Min', 'Precio Max', 'Estado']
-  const csvRows = [header.join(',')]
+  const isPdf = format === 'pdf'
+  const endpoint = isPdf ? '/admin/products/export/pdf' : '/admin/products/export/csv'
+  const fallbackName = isPdf ? 'productos.pdf' : 'productos.csv'
 
-  rows.forEach((product) => {
-    csvRows.push([
-      product.id,
-      `"${(product.name || '').replace(/"/g, '""')}"`,
-      `"${(product.category_name || '').replace(/"/g, '""')}"`,
-      product.stock,
-      product.min_price || product.price || 0,
-      product.max_price || product.price || 0,
-      product.is_active ? 'Activo' : 'Inactivo',
-    ].join(','))
-  })
+  try {
+    const response = await catalogHttp.get(endpoint, {
+      params: buildExportParams(),
+      responseType: 'blob',
+      headers: {
+        Accept: isPdf ? 'application/pdf' : 'text/csv',
+      },
+    })
 
-  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'productos.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Exportación generada correctamente' })
+    const fileName = extractFileName(response.headers?.['content-disposition'], fallbackName)
+    triggerBlobDownload(response.data, fileName)
+    showSnackbar({ type: 'success', message: `Exportación ${isPdf ? 'PDF' : 'CSV'} generada correctamente` })
+  } catch {
+    showSnackbar({ type: 'error', message: `No fue posible exportar productos en ${isPdf ? 'PDF' : 'CSV'}` })
+  }
+}
+
+function exportProductsCsv() {
+  return exportProductsByFormat('csv')
+}
+
+function exportProductsPdf() {
+  return exportProductsByFormat('pdf')
 }
 
 onMounted(() => {

@@ -1,7 +1,7 @@
 <template>
   <aside class="admin-sidebar" :class="{ collapsed: collapsed, mobile: isMobile }">
     <div class="sidebar-header">
-      <img src="/logo.png" alt="Angelow Logo" class="admin-logo">
+      <img :src="adminLogo" alt="Angelow Logo" class="admin-logo" @error="onLogoError">
       <h1>Panel</h1>
       <button class="close-sidebar" @click="$emit('close')">&times;</button>
     </div>
@@ -9,7 +9,7 @@
     <nav class="sidebar-nav">
       <ul class="nav-menu">
         <li class="nav-item" :class="{ active: isDashboardActive }">
-          <RouterLink to="/admin">
+          <RouterLink to="/admin" @click="handleNavigate">
             <i class="fas fa-tachometer-alt"></i>
             <span>Dashboard</span>
           </RouterLink>
@@ -22,17 +22,17 @@
             <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.productos ? 'rotate(180deg)' : '' }"></i>
           </div>
           <ul class="submenu" v-show="openMenus.productos">
-            <li><RouterLink to="/admin/productos">Todos los productos</RouterLink></li>
-            <li><RouterLink to="/admin/productos/nuevo">Agregar nuevo</RouterLink></li>
-            <li><RouterLink to="/admin/categorias">Categorías</RouterLink></li>
-            <li><RouterLink to="/admin/colecciones">Colecciones</RouterLink></li>
-            <li><RouterLink to="/admin/tallas">Tallas</RouterLink></li>
-            <li><RouterLink to="/admin/inventario">Inventario</RouterLink></li>
+            <li><RouterLink to="/admin/productos" @click="handleNavigate">Todos los productos</RouterLink></li>
+            <li><RouterLink to="/admin/productos/nuevo" @click="handleNavigate">Agregar nuevo</RouterLink></li>
+            <li><RouterLink to="/admin/categorias" @click="handleNavigate">Categorías</RouterLink></li>
+            <li><RouterLink to="/admin/colecciones" @click="handleNavigate">Colecciones</RouterLink></li>
+            <li><RouterLink to="/admin/tallas" @click="handleNavigate">Tallas</RouterLink></li>
+            <li><RouterLink to="/admin/inventario" @click="handleNavigate">Inventario</RouterLink></li>
           </ul>
         </li>
 
         <li class="nav-item" :class="{ active: isActive('/admin/ordenes') }">
-          <RouterLink to="/admin/ordenes">
+          <RouterLink to="/admin/ordenes" @click="handleNavigate">
             <i class="fas fa-shopping-bag"></i>
             <span>Órdenes</span>
             <span v-if="newOrdersCount > 0" class="badge">{{ newOrdersCount }}</span>
@@ -40,7 +40,7 @@
         </li>
 
         <li class="nav-item" :class="{ active: isActive('/admin/clientes') }">
-          <RouterLink to="/admin/clientes">
+          <RouterLink to="/admin/clientes" @click="handleNavigate">
             <i class="fas fa-users"></i>
             <span>Clientes</span>
           </RouterLink>
@@ -53,13 +53,13 @@
             <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.resenas ? 'rotate(180deg)' : '' }"></i>
           </div>
           <ul class="submenu" v-show="openMenus.resenas">
-            <li><RouterLink to="/admin/resenas">Reseñas</RouterLink></li>
-            <li><RouterLink to="/admin/preguntas">Preguntas</RouterLink></li>
+            <li><RouterLink to="/admin/resenas" @click="handleNavigate">Reseñas</RouterLink></li>
+            <li><RouterLink to="/admin/preguntas" @click="handleNavigate">Preguntas</RouterLink></li>
           </ul>
         </li>
 
         <li class="nav-item" :class="{ active: isActive('/admin/pagos') }">
-          <RouterLink to="/admin/pagos">
+          <RouterLink to="/admin/pagos" @click="handleNavigate">
             <i class="fas fa-money-bill-wave"></i>
             <span>Pagos</span>
           </RouterLink>
@@ -72,8 +72,8 @@
             <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.envios ? 'rotate(180deg)' : '' }"></i>
           </div>
           <ul class="submenu" v-show="openMenus.envios">
-            <li><RouterLink to="/admin/envios/reglas">Reglas por precio</RouterLink></li>
-            <li><RouterLink to="/admin/envios/metodos">Definir envíos</RouterLink></li>
+            <li><RouterLink to="/admin/envios/reglas" @click="handleNavigate">Reglas por precio</RouterLink></li>
+            <li><RouterLink to="/admin/envios/metodos" @click="handleNavigate">Definir envíos</RouterLink></li>
           </ul>
         </li>
 
@@ -84,13 +84,13 @@
             <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.descuentos ? 'rotate(180deg)' : '' }"></i>
           </div>
           <ul class="submenu" v-show="openMenus.descuentos">
-            <li><RouterLink to="/admin/descuentos/cantidad">Descuentos por cantidad</RouterLink></li>
-            <li><RouterLink to="/admin/descuentos/codigos">Códigos de Descuento</RouterLink></li>
+            <li><RouterLink to="/admin/descuentos/cantidad" @click="handleNavigate">Descuentos por cantidad</RouterLink></li>
+            <li><RouterLink to="/admin/descuentos/codigos" @click="handleNavigate">Códigos de Descuento</RouterLink></li>
           </ul>
         </li>
 
         <li class="nav-item" :class="{ active: isActive('/admin/anuncios') }">
-          <RouterLink to="/admin/anuncios">
+          <RouterLink to="/admin/anuncios" @click="handleNavigate">
             <i class="fas fa-bullhorn"></i>
             <span>Anuncios</span>
           </RouterLink>
@@ -103,9 +103,9 @@
             <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.informes ? 'rotate(180deg)' : '' }"></i>
           </div>
           <ul class="submenu" v-show="openMenus.informes">
-            <li><RouterLink to="/admin/informes/ventas">Ventas</RouterLink></li>
-            <li><RouterLink to="/admin/informes/productos">Productos populares</RouterLink></li>
-            <li><RouterLink to="/admin/informes/clientes">Clientes recurrentes</RouterLink></li>
+            <li><RouterLink to="/admin/informes/ventas" @click="handleNavigate">Ventas</RouterLink></li>
+            <li><RouterLink to="/admin/informes/productos" @click="handleNavigate">Productos populares</RouterLink></li>
+            <li><RouterLink to="/admin/informes/clientes" @click="handleNavigate">Clientes recurrentes</RouterLink></li>
           </ul>
         </li>
 
@@ -116,13 +116,13 @@
             <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.configuracion ? 'rotate(180deg)' : '' }"></i>
           </div>
           <ul class="submenu" v-show="openMenus.configuracion">
-            <li><RouterLink to="/admin/sliders">Sliders</RouterLink></li>
-            <li><RouterLink to="/admin/configuracion/general">General</RouterLink></li>
+            <li><RouterLink to="/admin/sliders" @click="handleNavigate">Sliders</RouterLink></li>
+            <li><RouterLink to="/admin/configuracion/general" @click="handleNavigate">General</RouterLink></li>
           </ul>
         </li>
 
         <li class="nav-item" :class="{ active: isActive('/admin/administradores') }">
-          <RouterLink to="/admin/administradores">
+          <RouterLink to="/admin/administradores" @click="handleNavigate">
             <i class="fas fa-user-shield"></i>
             <span>Administradores</span>
           </RouterLink>
@@ -147,26 +147,29 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { catalogHttp } from '../../../services/http'
+import { SITE_SETTINGS_UPDATED_EVENT } from '../../../constants/siteSettingsEvents'
 import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
-import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { getFallbackMediaUrl, handleMediaError, resolveMediaUrl } from '../../../utils/media'
 
 const props = defineProps({
   collapsed: Boolean,
+  isMobile: Boolean,
   user: Object,
 })
 
-defineEmits(['toggle', 'close'])
+const emit = defineEmits(['toggle', 'close'])
 
 const route = useRoute()
 const router = useRouter()
 const { clearSession } = useSession()
 const { showSnackbar } = useSnackbarSystem()
 
-const isMobile = ref(window.innerWidth <= 768)
 const newOrdersCount = ref(0)
+const sidebarSettings = ref({})
 
 const openMenus = reactive({
   productos: false,
@@ -183,8 +186,17 @@ const avatarUrl = computed(() => {
   return resolveMediaUrl(props.user?.image, 'avatar')
 })
 
+const adminLogo = computed(() => {
+  return resolveMediaUrl(sidebarSettings.value?.brand_logo_secondary || sidebarSettings.value?.brand_logo, 'brand')
+})
+
 function onAvatarError(event) {
   handleMediaError(event, props.user?.image, 'avatar')
+}
+
+function onLogoError(event) {
+  const logoPath = sidebarSettings.value?.brand_logo_secondary || sidebarSettings.value?.brand_logo || ''
+  handleMediaError(event, logoPath, 'brand')
 }
 
 function isActive(path) {
@@ -222,17 +234,44 @@ async function handleLogout() {
   router.push({ name: 'login' })
 }
 
-function handleResize() {
-  isMobile.value = window.innerWidth <= 768
+function handleNavigate() {
+  if (props.isMobile) {
+    emit('close')
+  }
+}
+
+async function loadSidebarSettings() {
+  try {
+    const { data } = await catalogHttp.get('/settings')
+    sidebarSettings.value = data?.data || {}
+  } catch {
+    sidebarSettings.value = {
+      brand_logo_secondary: getFallbackMediaUrl('brand'),
+    }
+  }
+}
+
+function handleSiteSettingsUpdated(event) {
+  const incomingSettings = event?.detail?.settings
+  if (!incomingSettings || typeof incomingSettings !== 'object') {
+    loadSidebarSettings()
+    return
+  }
+
+  sidebarSettings.value = {
+    ...sidebarSettings.value,
+    ...incomingSettings,
+  }
 }
 
 watch(() => route.path, autoOpenSubmenu, { immediate: true })
 
 onMounted(() => {
-  window.addEventListener('resize', handleResize)
+  loadSidebarSettings()
+  window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
+onBeforeUnmount(() => {
+  window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 </script>

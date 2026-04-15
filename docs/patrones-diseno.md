@@ -1,5 +1,188 @@
 # Patrones de diseño aplicados
 
+## 2026-04-14 - Refresco en caliente de ajustes e imágenes admin
+
+- Patrón: Observer (Refactoring Guru)
+- Aplicación: el guardado de Ajustes emite un evento global para sincronizar en caliente sidebar admin, shell público y favicon sin recargar la página completa.
+- Ubicación: frontend/src/modules/admin/pages/AdminSettingsPage.vue, frontend/src/modules/admin/components/AdminSidebar.vue, frontend/src/App.vue, frontend/src/constants/siteSettingsEvents.js
+- Problema resuelto: los cambios de configuración (logo/favicon) solo se reflejaban tras recarga manual del navegador.
+
+- Patrón: Command (Refactoring Guru)
+- Aplicación: el backend de configuración ejecuta comandos explícitos de reemplazo/eliminación de imagen por campo (`subir`, `reemplazar`, `eliminar`) y responde estado consolidado.
+- Ubicación: services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php, frontend/src/modules/admin/pages/AdminSettingsPage.vue
+- Problema resuelto: evitar acumulación de archivos huérfanos y permitir que “Quitar imagen” persista realmente en base de datos.
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: resolución de URLs de media con múltiples candidatos de host/base antes de caer al fallback visual.
+- Ubicación: frontend/src/utils/media.js
+- Problema resuelto: reducir falsos “imagen rota” cuando la ruta existe pero cambia el host/base de uploads entre frontend y API.
+
+## 2026-04-14 - Drag and Drop para orden de sliders
+
+- Patrón: Command (Refactoring Guru)
+- Aplicación: el reordenamiento del carrusel en admin se ejecuta como comando explícito de arrastre y persistencia, con operación única de actualización de orden.
+- Ubicación: frontend/src/modules/admin/pages/AdminSlidersPage.vue
+- Problema resuelto: mejorar la comodidad de ordenado de sliders evitando clicks repetidos en flechas para subir o bajar.
+
+## 2026-04-14 - Ajustes generales proyectados al sitio
+
+- Patrón: Facade (Refactoring Guru)
+- Aplicación: la capa de shell aplica en un solo punto configuración global de marca (favicon, colores y nombre) para el sitio público.
+- Ubicación: frontend/src/App.vue
+- Problema resuelto: los cambios de ajustes generales no impactaban de forma inmediata y consistente elementos globales visibles del sitio.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: adaptación de settings de marca para consumir logo alterno en encabezado público y menú lateral administrativo con fallback al logo principal.
+- Ubicación: frontend/src/components/layout/SiteHeader.vue, frontend/src/modules/admin/components/AdminSidebar.vue, services/catalog-service/app/Support/SiteSettingsCatalog.php
+- Problema resuelto: el logo secundario no tenía canal configurable y varias zonas seguían atadas a recursos estáticos.
+
+## 2026-04-14 - Fallback legacy para envios admin
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: los endpoints administrativos de métodos y reglas de envío consultan primero la base distribuida y, cuando no hay filas, continúan con lectura desde la fuente legacy sin romper el contrato del frontend.
+- Ubicación: services/shipping-service/app/Http/Controllers/Admin/AdminShippingController.php
+- Problema resuelto: las vistas de envíos en admin quedaban vacías durante la migración porque shipping-db no tenía datos, aunque sí existían registros en la base legacy.
+
+# 2026-04-14 - Responsive fino para header y barra de resultados admin
+
+- **Patrón:** Design System + Responsive Adaptation
+- **Problema resuelto:** en móvil estrecho el header principal del dashboard admin dejaba la campana y la acción rápida en bloques visualmente desbalanceados, y la barra de resultados quedaba demasiado aireada para el ancho disponible.
+- **Solución aplicada:** se refinó el breakpoint `max-width: 480px` para compactar el `AdminHeader` y agrupar `notification-btn` + `quick-action-btn` en una sola fila útil; además se densificó `AdminResultsBar` para reducir padding, iconografía y separación visual en móviles pequeños.
+- **Archivos:** `frontend/src/modules/admin/styles/admin.css`
+
+## 2026-04-14 - Responsive transversal para header y filtros admin
+
+- Patrón: Design System / Template Method (Refactoring Guru)
+- Aplicación: ajuste de breakpoints compartidos para header global del admin, encabezado de página y filtro reutilizable, de modo que las vistas administrativas hereden el mismo comportamiento en móvil sin overrides locales por pantalla.
+- Ubicación: frontend/src/modules/admin/styles/admin.css, frontend/src/modules/admin/components/AdminHeader.vue, frontend/src/modules/admin/components/AdminPageHeader.vue, frontend/src/modules/admin/components/AdminFilterCard.vue
+- Problema resuelto: evitar recortes horizontales, acciones comprimidas y controles de búsqueda/filtro mal apilados en móvil, como en la vista de tallas y el resto del dashboard admin.
+
+- Patrón: Adapter visual (Refactoring Guru)
+- Aplicación: variante de tabla ancha (`dashboard-table--sizes`) para conservar legibilidad en móvil mediante scroll horizontal controlado, evitando que las columnas de Tallas se aplasten.
+- Ubicación: frontend/src/modules/admin/styles/admin.css, frontend/src/modules/admin/pages/AdminSizesPage.vue
+- Problema resuelto: en pantallas pequeñas, la tabla de tallas comprimía celdas y reducía lectura; ahora mantiene ancho mínimo coherente y navegación horizontal táctil.
+
+- Patrón: Drawer / Overlay Layout
+- Aplicación: el aside del dashboard admin en móvil ahora se comporta como drawer superpuesto con overlay, bloqueo de scroll del fondo y cierre automático al navegar.
+- Ubicación: frontend/src/modules/admin/layouts/AdminLayout.vue, frontend/src/modules/admin/components/AdminSidebar.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: el menú hamburguesa dejaba un espacio blanco lateral y mostraba el contenido como si el aside siguiera siendo una columna fija; ahora el panel móvil se monta encima del contenido sin romper el layout.
+
+- Patrón: Workflow Rule / Operational Guardrail
+- Aplicación: la skill operativa ahora exige que toda sección intervenida quede validada en los breakpoints afectados antes de cerrar la tarea, no solo el layout general.
+- Ubicación: .agents/skills/skill/SKILL.md
+- Problema resuelto: hacer explícita la obligación de revisar responsive por sección trabajada y evitar regresiones visuales parciales en tareas futuras.
+
+## 2026-04-14 - Paginación reusable para vistas admin
+
+- Patrón: Facade (Refactoring Guru)
+- Aplicación: `useAdminPagination` expone una interfaz única de paginación local para listas administrativas filtradas, desacoplando a cada vista del cálculo de páginas, rangos visibles y recorte de datos.
+- Ubicación: frontend/src/modules/admin/composables/useAdminPagination.js, frontend/src/modules/admin/pages/AdminProductsPage.vue, frontend/src/modules/admin/pages/AdminOrdersPage.vue, frontend/src/modules/admin/pages/AdminCategoriesPage.vue, frontend/src/modules/admin/pages/AdminCollectionsPage.vue, frontend/src/modules/admin/pages/AdminSizesPage.vue, frontend/src/modules/admin/pages/AdminSlidersPage.vue, frontend/src/modules/admin/pages/AdminAdministratorsPage.vue, frontend/src/modules/admin/pages/AdminPaymentsPage.vue, frontend/src/modules/admin/pages/AdminCustomersPage.vue, frontend/src/modules/admin/pages/AdminQuestionsPage.vue, frontend/src/modules/admin/pages/AdminReviewsPage.vue, frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue, frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue, frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue, frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue, frontend/src/modules/admin/pages/AdminShippingRulesPage.vue, frontend/src/modules/admin/pages/AdminInventoryPage.vue, frontend/src/modules/admin/pages/AdminReportsPage.vue
+- Problema resuelto: evitar implementaciones aisladas o ausencia total de paginación en tablas y grids del panel, manteniendo un comportamiento homogéneo según filtros y volumen de registros.
+
+- Patrón: Reuse Component / Composition (Refactoring Guru - composición sobre duplicación)
+- Aplicación: `AdminPagination` centraliza la interfaz visual de navegación por páginas, selector de tamaño y resumen de resultados para todas las vistas admin.
+- Ubicación: frontend/src/modules/admin/components/AdminPagination.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: unificar la experiencia visual y reducir duplicación de markup/estilos de paginación entre módulos operativos, catálogos, inventario e informes.
+
+- Patrón: Reuse Component / Adapter visual
+- Aplicación: `AdminTableImage` encapsula thumbnails de tabla con contenedor fijo, recorte consistente y fallback controlado para categorías, colecciones e inventario.
+- Ubicación: frontend/src/modules/admin/components/AdminTableImage.vue, frontend/src/modules/admin/styles/admin.css, frontend/src/modules/admin/pages/AdminCategoriesPage.vue, frontend/src/modules/admin/pages/AdminCollectionsPage.vue, frontend/src/modules/admin/pages/AdminInventoryPage.vue
+- Problema resuelto: evitar desbordes por imágenes de tamaño irregular dentro de tablas y mantener una jerarquía visual consistente en todas las listas administrativas.
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: adopción del componente compartido `AdminFilterCard` como estructura única de búsqueda y filtros para las vistas admin que aún conservaban barras legacy.
+- Ubicación: frontend/src/modules/admin/components/AdminFilterCard.vue, frontend/src/modules/admin/pages/AdminCategoriesPage.vue, frontend/src/modules/admin/pages/AdminCollectionsPage.vue, frontend/src/modules/admin/pages/AdminSizesPage.vue, frontend/src/modules/admin/pages/AdminInventoryPage.vue, frontend/src/modules/admin/pages/AdminPaymentsPage.vue
+- Problema resuelto: eliminar divergencias visuales y espaciamientos inconsistentes entre vistas con búsqueda/filtros, asegurando la misma secuencia de interacción en todo el panel.
+
+## 2026-04-14 - Redireccion inicial por rol y guard de rutas admin/cuenta
+
+- Patrón: Strategy (Refactoring Guru)
+- Aplicación: estrategia de resolución de rol de sesión (role, rol, user_role, tipo_usuario y arreglo roles) para decidir la navegación inicial y los accesos por dominio de ruta.
+- Ubicación: frontend/src/router/index.js
+- Problema resuelto: la raíz pública no enviaba automáticamente al panel cuando la sesión era admin y se permitían cruces inconsistentes entre rutas de cliente y administración.
+
+- Patrón: Guard Clause (Refactoring Guru - simplificación de flujo condicional)
+- Aplicación: salidas tempranas en el guard global del router para redirección desde `/`, protección de `/admin` y bloqueo de `/mi-cuenta` para sesiones admin.
+- Ubicación: frontend/src/router/index.js
+- Problema resuelto: eliminar ramas ambiguas en autorización y asegurar comportamiento consistente de rutas según rol autenticado.
+
+## 2026-04-12 - Unificación visual de filtros admin + protocolo anti-caché frontend
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: estructura compartida para filtros admin con barra principal, búsqueda, contenido contextual y filtros avanzados reusables.
+- Ubicación: frontend/src/modules/admin/components/AdminFilterCard.vue, frontend/src/modules/admin/styles/admin.css, frontend/src/modules/admin/pages/AdminReportsPage.vue
+- Problema resuelto: eliminar implementaciones duplicadas de filtros en vistas de administración y asegurar una misma secuencia visual/interactiva en órdenes, informes y demás módulos.
+
+- Patrón: Observer (Refactoring Guru)
+- Aplicación: transiciones reactivas de aparición/colapso del contenido del filtro según el estado local `expanded` del componente.
+- Ubicación: frontend/src/modules/admin/components/AdminFilterCard.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: evitar cambios bruscos de layout al mostrar u ocultar bloques del filtro y dar continuidad visual al componente compartido.
+
+- Patrón: Workflow Rule / Operational Guardrail
+- Aplicación: protocolo explícito de invalidación de caché Vite/HMR y hard refresh cuando un cambio frontend no se refleja en navegador.
+- Ubicación: .agents/skills/skill/SKILL.md
+- Problema resuelto: evitar falsos negativos de despliegue local donde el código sí cambió pero la UI sigue mostrando una versión cacheada del frontend.
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: encabezado compartido de administración con la misma estructura visual tipo card usada por Angelow en las vistas legacy.
+- Ubicación: frontend/src/modules/admin/components/AdminPageHeader.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: evitar divergencia visual entre el encabezado del dashboard SPA y el encabezado operativo de Angelow en todas las vistas de administración.
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: resolución de órdenes admin priorizando base distribuida y complementando con legacy durante migración, con soporte explícito por fuente (`microservice` o `legacy`) en detalle y acciones.
+- Ubicación: services/order-service/app/Http/Controllers/Admin/AdminOrderController.php, services/order-service/app/Http/Controllers/OrderController.php, frontend/src/modules/admin/pages/AdminOrdersPage.vue, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue
+- Problema resuelto: mostrar todas las órdenes disponibles durante una migración parcial sin perder trazabilidad de la fuente real de cada pedido ni romper acciones administrativas por colisión de IDs.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: enriquecimiento de órdenes admin con identidad del cliente (`name`, `email`, `phone`) a partir de `user_id` cuando la tabla `orders` no guarda esos campos de forma denormalizada.
+- Ubicación: services/order-service/app/Http/Controllers/Admin/AdminOrderController.php, services/order-service/app/Http/Controllers/OrderController.php
+- Problema resuelto: las órdenes mostraban `Cliente` y `Sin email` aunque existía información real del usuario en las fuentes disponibles durante la migración.
+
+- Patrón: Design System / Template Method (Refactoring Guru)
+- Aplicación: rebalanceo del lenguaje visual compartido del admin para filtros, tablas, barra de resultados, botones de acción y acciones rápidas con colores sólidos suaves y glass sutil aplicados desde estilos globales.
+- Ubicación: frontend/src/modules/admin/styles/admin.css, frontend/src/modules/admin/components/AdminHeader.vue, frontend/src/modules/admin/components/AdminFilterCard.vue, frontend/src/modules/admin/components/AdminResultsBar.vue
+- Problema resuelto: había desproporción entre controles del filtro, tablas con acciones muy duras/pequeñas y botones rápidos demasiado planos, generando inconsistencia visual entre vistas administrativas.
+
+- Patrón: State (Refactoring Guru)
+- Aplicación: el filtro admin compartido ahora separa el estado base de búsqueda del estado expandido de filtros avanzados, dejando visible siempre el buscador y ocultando por defecto solo los bloques adicionales.
+- Ubicación: frontend/src/modules/admin/components/AdminFilterCard.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: al colapsar el componente se ocultaba también el buscador, rompiendo la paridad visual y funcional con Angelow y dificultando el acceso rápido a la búsqueda.
+
+- Patrón: Design System / Adapter visual
+- Aplicación: los checkboxes de selección dentro de tablas admin se normalizan con un estilo único inspirado en Angelow, sin depender del checkbox nativo del navegador ni de overrides locales por vista.
+- Ubicación: frontend/src/modules/admin/styles/admin.css, frontend/src/modules/admin/pages/AdminOrdersPage.vue
+- Problema resuelto: la selección masiva en tablas se veía pequeña e inconsistente respecto a Angelow, especialmente en órdenes.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: capa de presentación para traducir estados, métodos de pago y transiciones crudas provenientes de base de datos al español antes de pintarlas en la IU de órdenes admin.
+- Ubicación: frontend/src/modules/admin/utils/orderPresentation.js, frontend/src/modules/admin/pages/AdminOrdersPage.vue, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue
+- Problema resuelto: el usuario veía valores técnicos en inglés como `pending`, `paid` o `transfer` dentro de tablas, historial y detalle de órdenes.
+
+- Patrón: Facade (Refactoring Guru)
+- Aplicación: el detalle de órdenes consulta el dominio de pagos mediante un acceso encapsulado para recuperar comprobante y metadatos del pago asociado por `order_id`.
+- Ubicación: services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue
+- Problema resuelto: el detalle admin de microservicios no mostraba el comprobante de pago ni la referencia asociada, a diferencia de Angelow.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: adaptación de la navegación pública de detalle de órdenes para ocultar términos internos de migración en la URL, manteniendo internamente la resolución de fuente real (`legacy` o distribuida).
+- Ubicación: frontend/src/modules/admin/pages/AdminOrdersPage.vue, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue, .agents/skills/skill/SKILL.md
+- Problema resuelto: la URL del admin exponía `microservice` al usuario final, rompiendo la regla de no mostrar detalles de implementación en la interfaz.
+
+- Patrón: Facade (Refactoring Guru)
+- Aplicación: flujo unificado de carga de comprobantes entre checkout, servicio de pagos y detalle admin para persistir la ruta física real del archivo y resolver su acceso público desde `/uploads`.
+- Ubicación: frontend/src/modules/checkout/pages/PaymentPage.vue, frontend/src/services/paymentApi.js, frontend/src/utils/media.js, services/payment-service/app/Http/Controllers/PaymentController.php, services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue
+- Problema resuelto: se estaba guardando solo el nombre original del comprobante en la BD, lo que impedía encontrar el archivo real en uploads y terminaba en imágenes rotas en el detalle administrativo.
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: resolución escalonada de comprobantes admin probando ruta persistida, variantes relativas y búsqueda por basename antes de declarar el adjunto como no disponible.
+- Ubicación: services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue, .agents/skills/skill/SKILL.md
+- Problema resuelto: algunos registros heredados podían traer nombres parciales o rutas incompletas, generando falsos negativos al validar el comprobante y mensajes demasiado técnicos en la IU.
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: reconstrucción del historial de cambios del detalle de órdenes siguiendo la misma secuencia visual de Angelow legacy: sección independiente de ancho completo, timeline vertical, tarjeta de evento, actor/rol, valores anterior y nuevo, y expansión progresiva del listado.
+- Ubicación: frontend/src/modules/admin/pages/AdminOrderDetailPage.vue, angelow/admin/order/detail.php
+- Problema resuelto: el historial en SPA se veía como una tabla genérica y no mantenía la jerarquía, lectura ni la narrativa visual del módulo legacy de órdenes.
+
 ## 2026-04-02 - Favoritos (CORS) + Carrito (paridad legacy)
 
 - Patrón: Strategy (Refactoring Guru)

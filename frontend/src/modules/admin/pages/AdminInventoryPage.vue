@@ -9,21 +9,36 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="inventoryStats" />
 
-    <div class="filters-bar admin-entity-filters">
-      <div class="filter-group admin-entity-filters__search">
-        <label for="inventory-search">Buscar</label>
-        <input id="inventory-search" v-model="search" type="text" placeholder="Producto, color, talla o SKU">
-      </div>
-      <div class="admin-entity-filters__summary">
-        <span><i class="fas fa-boxes"></i> {{ filteredProducts.length }} producto(s)</span>
-      </div>
-    </div>
+    <AdminFilterCard
+      v-model="search"
+      icon="fas fa-filter"
+      title="Busqueda de inventario"
+      placeholder="Producto, color, talla o SKU"
+      @search="search = search.trim()"
+    >
+      <template #advanced>
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
+            <i class="fas fa-sliders-h"></i>
+            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
+          </div>
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearFilters">
+              <i class="fas fa-times-circle"></i>
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      </template>
+    </AdminFilterCard>
 
     <div class="admin-tabs inventory-tabs">
       <button type="button" class="admin-tab" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">Todo</button>
       <button type="button" class="admin-tab" :class="{ active: activeTab === 'low' }" @click="activeTab = 'low'">Bajo stock</button>
       <button type="button" class="admin-tab" :class="{ active: activeTab === 'out' }" @click="activeTab = 'out'">Sin stock</button>
     </div>
+
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} productos`" />
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['thumb', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -46,14 +61,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="product in filteredProducts" :key="product.id">
+            <tr v-for="product in pagination.paginatedItems" :key="product.id">
               <td>
-                <img
-                  :src="product.image"
-                  :alt="product.name"
-                  class="inventory-thumb"
-                  @error="onInventoryImageError($event, product.rawImage)"
-                >
+                <AdminTableImage :src="product.image" :alt="product.name" :original-path="product.rawImage" fallback-type="product" variant="square" />
               </td>
               <td>
                 <div class="admin-entity-name">
@@ -89,6 +99,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="detailModalTitle" max-width="1180px" @close="closeDetailModal">
       <div v-if="detailLoading" class="inventory-detail-loading">
@@ -265,11 +282,16 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { catalogHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
+import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showSnackbar } = useSnackbarSystem()
@@ -363,6 +385,13 @@ const filteredProducts = computed(() => {
   })
 })
 
+const pagination = useAdminPagination(filteredProducts, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+const activeFilterCount = computed(() => [search.value.trim(), activeTab.value !== 'all'].filter(Boolean).length)
+
 const inventoryStats = computed(() => {
   const totalProducts = groupedProducts.value.length
   const totalUnits = groupedProducts.value.reduce((sum, product) => sum + product.totalStock, 0)
@@ -451,6 +480,11 @@ function formatDateTime(value) {
 
 function onInventoryImageError(event, imagePath) {
   handleMediaError(event, imagePath, 'product')
+}
+
+function clearFilters() {
+  search.value = ''
+  activeTab.value = 'all'
 }
 
 function normalizeProductDetail(productId, payload) {
@@ -674,14 +708,6 @@ onMounted(loadInventory)
 /* Estilos propios de inventario */
 .inventory-tabs {
   margin-bottom: 1.6rem;
-}
-
-.inventory-thumb {
-  width: 4.6rem;
-  height: 4.6rem;
-  border-radius: var(--admin-radius-md);
-  object-fit: cover;
-  background: var(--admin-bg-dark);
 }
 
 .inventory-summary,

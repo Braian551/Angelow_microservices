@@ -15,23 +15,41 @@
 
     <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
 
-    <div class="filters-bar admin-entity-filters">
-      <div class="admin-entity-filters__group admin-entity-filters__search">
-        <label for="size-search">Buscar</label>
-        <input id="size-search" v-model="search" type="text" placeholder="Nombre o descripcion">
-      </div>
-      <div class="admin-entity-filters__group">
-        <label for="size-status">Estado</label>
-        <select id="size-status" v-model="statusFilter">
-          <option value="">Todas</option>
-          <option value="active">Activas</option>
-          <option value="inactive">Inactivas</option>
-        </select>
-      </div>
-      <div class="admin-entity-filters__summary">
-        <span><i class="fas fa-list"></i> {{ filteredSizes.length }} resultado(s)</span>
-      </div>
-    </div>
+    <AdminFilterCard
+      v-model="search"
+      icon="fas fa-filter"
+      title="Busqueda y estado"
+      placeholder="Nombre o descripcion"
+      @search="search = search.trim()"
+    >
+      <template #advanced>
+        <div class="admin-filters__row">
+          <div class="admin-filters__group">
+            <label for="size-status"><i class="fas fa-signal"></i> Estado</label>
+            <select id="size-status" v-model="statusFilter">
+              <option value="">Todas</option>
+              <option value="active">Activas</option>
+              <option value="inactive">Inactivas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-filters__actions">
+          <div class="admin-filters__active">
+            <i class="fas fa-sliders-h"></i>
+            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
+          </div>
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearFilters">
+              <i class="fas fa-times-circle"></i>
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      </template>
+    </AdminFilterCard>
+
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} tallas`" />
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['line', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -42,7 +60,7 @@
         description="Crea una talla nueva o ajusta los filtros actuales."
       />
       <div v-else class="table-responsive">
-        <table class="dashboard-table">
+        <table class="dashboard-table dashboard-table--sizes">
           <thead>
             <tr>
               <th>Nombre</th>
@@ -54,7 +72,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="size in filteredSizes" :key="size.id">
+            <tr v-for="size in pagination.paginatedItems" :key="size.id">
               <td>
                 <div class="admin-entity-name">
                   <strong>{{ size.name }}</strong>
@@ -81,6 +99,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showModal" :title="editing ? 'Editar talla' : 'Nueva talla'" max-width="720px" @close="closeModal">
       <div class="admin-entity-filters__form">
@@ -126,10 +151,14 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
+import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -169,6 +198,13 @@ const filteredSizes = computed(() => {
     return matchesSearch && matchesStatus
   })
 })
+
+const pagination = useAdminPagination(filteredSizes, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+const activeFilterCount = computed(() => [search.value.trim(), statusFilter.value].filter(Boolean).length)
 
 const stats = computed(() => {
   const total = sizes.value.length
@@ -212,6 +248,11 @@ function validateField(field) {
       ? ''
       : 'El orden no puede ser negativo.'
   }
+}
+
+function clearFilters() {
+  search.value = ''
+  statusFilter.value = ''
 }
 
 function resetForm() {

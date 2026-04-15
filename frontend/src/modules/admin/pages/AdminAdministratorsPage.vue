@@ -23,7 +23,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="a in admins" :key="a.id">
+            <tr v-for="a in pagination.paginatedItems" :key="a.id">
               <td>
                 <div class="admin-avatar">
                   <img :src="a.avatar_url || '/assets/foundnotimages/user-default.png'" :alt="a.name">
@@ -53,6 +53,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <!-- Modal de administrador -->
     <AdminModal :show="showModal" :title="editing ? 'Editar administrador' : 'Nuevo administrador'" max-width="560px" @close="closeModal">
@@ -102,14 +109,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { authHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSession } from '../../../composables/useSession'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
@@ -124,6 +133,11 @@ const editing = ref(null)
 const errors = ref({})
 const emptyForm = { name: '', email: '', password: '', role: 'admin', active: true }
 const form = ref({ ...emptyForm })
+
+const pagination = useAdminPagination(admins, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
 
 function validateField(field) {
   errors.value[field] = ''

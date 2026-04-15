@@ -22,19 +22,14 @@
       </template>
     </AdminPageHeader>
 
-    <AdminCard class="admin-filters" :flush="true">
-      <template #header>
-        <div class="admin-filters__header">
-          <div class="admin-filters__title">
-            <i class="fas fa-sliders-h"></i>
-            <h3>Filtros e informe activo</h3>
-          </div>
-          <button type="button" class="admin-filters__toggle" :class="{ collapsed: !showAdvanced }" @click="showAdvanced = !showAdvanced">
-            <i class="fas fa-chevron-down"></i>
-          </button>
-        </div>
-      </template>
-
+    <AdminFilterCard
+      v-model="activeSearchModel"
+      icon="fas fa-sliders-h"
+      title="Filtros e informe activo"
+      :placeholder="searchPlaceholder"
+      @search="loadCurrentReport"
+    >
+      <!-- Pestañas de sección: siempre visibles al expandir -->
       <div class="report-tabs" role="tablist" aria-label="Secciones de informes">
         <button
           v-for="tab in tabs"
@@ -49,35 +44,20 @@
         </button>
       </div>
 
-      <div class="admin-filters__search">
-        <div class="admin-filters__search-wrapper">
-          <i class="fas fa-search admin-filters__search-icon"></i>
-          <input
-            v-model.trim="activeSearchModel"
-            type="text"
-            class="admin-filters__search-input"
-            :placeholder="searchPlaceholder"
-          >
-          <button v-if="activeSearchModel" type="button" class="admin-filters__search-clear" @click="clearSearch">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-
-      <div v-show="showAdvanced" class="admin-filters__body">
-        <div class="filters-row filters-row--reports">
+      <template #advanced>
+        <div class="admin-filters__row admin-filters__row--4">
           <template v-if="activeTab === 'sales'">
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-sales-from"><i class="fas fa-calendar-alt"></i> Fecha inicio</label>
-              <input id="report-sales-from" v-model="filters.sales.from" type="date" class="form-control">
+              <input id="report-sales-from" v-model="filters.sales.from" type="date">
             </div>
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-sales-to"><i class="fas fa-calendar-check"></i> Fecha fin</label>
-              <input id="report-sales-to" v-model="filters.sales.to" type="date" class="form-control">
+              <input id="report-sales-to" v-model="filters.sales.to" type="date">
             </div>
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-sales-status"><i class="fas fa-signal"></i> Estado</label>
-              <select id="report-sales-status" v-model="filters.sales.status" class="form-control">
+              <select id="report-sales-status" v-model="filters.sales.status">
                 <option value="">Todos</option>
                 <option value="pending">Pendiente</option>
                 <option value="processing">En proceso</option>
@@ -86,9 +66,9 @@
                 <option value="cancelled">Cancelado</option>
               </select>
             </div>
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-sales-group"><i class="fas fa-layer-group"></i> Agrupar por</label>
-              <select id="report-sales-group" v-model="filters.sales.groupBy" class="form-control" @change="renderCharts()">
+              <select id="report-sales-group" v-model="filters.sales.groupBy" @change="renderCharts()">
                 <option value="day">Día</option>
                 <option value="week">Semana</option>
                 <option value="month">Mes</option>
@@ -98,17 +78,17 @@
           </template>
 
           <template v-else-if="activeTab === 'products'">
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-products-from"><i class="fas fa-calendar-alt"></i> Fecha inicio</label>
-              <input id="report-products-from" v-model="filters.products.from" type="date" class="form-control">
+              <input id="report-products-from" v-model="filters.products.from" type="date">
             </div>
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-products-to"><i class="fas fa-calendar-check"></i> Fecha fin</label>
-              <input id="report-products-to" v-model="filters.products.to" type="date" class="form-control">
+              <input id="report-products-to" v-model="filters.products.to" type="date">
             </div>
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-products-limit"><i class="fas fa-list-ol"></i> Top</label>
-              <select id="report-products-limit" v-model.number="filters.products.limit" class="form-control">
+              <select id="report-products-limit" v-model.number="filters.products.limit">
                 <option :value="10">Top 10</option>
                 <option :value="20">Top 20</option>
                 <option :value="50">Top 50</option>
@@ -118,9 +98,9 @@
           </template>
 
           <template v-else>
-            <div class="filter-group">
+            <div class="admin-filters__group">
               <label for="report-customers-min"><i class="fas fa-repeat"></i> Mínimo de órdenes</label>
-              <select id="report-customers-min" v-model.number="filters.customers.minOrders" class="form-control">
+              <select id="report-customers-min" v-model.number="filters.customers.minOrders">
                 <option :value="2">2+ órdenes</option>
                 <option :value="3">3+ órdenes</option>
                 <option :value="5">5+ órdenes</option>
@@ -131,23 +111,23 @@
         </div>
 
         <div class="admin-filters__actions">
-          <div class="admin-filters__count">
+          <div class="admin-filters__active">
             <i class="fas fa-filter"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <div class="admin-filters__buttons">
+          <div class="admin-filters__actions-buttons">
             <button type="button" class="admin-filters__clear" @click="resetFilters">
               <i class="fas fa-rotate-left"></i>
               Restablecer filtros
             </button>
-            <button type="button" class="btn btn-primary" @click="loadCurrentReport">
+            <button type="button" class="admin-filters__apply" @click="loadCurrentReport">
               <i class="fas fa-magnifying-glass"></i>
               Aplicar
             </button>
           </div>
         </div>
-      </div>
-    </AdminCard>
+      </template>
+    </AdminFilterCard>
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="activeStats" />
 
@@ -194,7 +174,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in groupedSalesRows" :key="row.period">
+              <tr v-for="row in salesPagination.paginatedItems" :key="row.period">
                 <td>
                   <div class="admin-entity-name">
                     <strong>{{ formatPeriodLabel(row.period, filters.sales.groupBy) }}</strong>
@@ -218,6 +198,13 @@
           </table>
         </div>
       </AdminCard>
+
+      <AdminPagination
+        v-model:page="salesPagination.currentPage"
+        v-model:page-size="salesPagination.pageSize"
+        :total-items="salesPagination.totalItems"
+        :page-size-options="salesPagination.pageSizeOptions"
+      />
     </section>
 
     <section v-else-if="activeTab === 'products'" class="report-section">
@@ -263,7 +250,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in filteredProductsRows" :key="row.product_id">
+              <tr v-for="row in productsPagination.paginatedItems" :key="row.product_id">
                 <td>
                   <div class="report-product-cell">
                     <img
@@ -295,6 +282,13 @@
           </table>
         </div>
       </AdminCard>
+
+      <AdminPagination
+        v-model:page="productsPagination.currentPage"
+        v-model:page-size="productsPagination.pageSize"
+        :total-items="productsPagination.totalItems"
+        :page-size-options="productsPagination.pageSizeOptions"
+      />
     </section>
 
     <section v-else class="report-section">
@@ -334,7 +328,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in filteredCustomerRows" :key="row.id">
+              <tr v-for="row in customersPagination.paginatedItems" :key="row.id">
                 <td>
                   <div class="report-customer-cell">
                     <img
@@ -366,6 +360,13 @@
           </table>
         </div>
       </AdminCard>
+
+      <AdminPagination
+        v-model:page="customersPagination.currentPage"
+        v-model:page-size="customersPagination.pageSize"
+        :total-items="customersPagination.totalItems"
+        :page-size-options="customersPagination.pageSizeOptions"
+      />
     </section>
 
     <AdminModal :show="showDetailModal" :title="detailTitle" max-width="980px" @close="closeDetailModal">
@@ -480,9 +481,12 @@ import { authHttp, catalogHttp, orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
+import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -516,7 +520,6 @@ const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-const showAdvanced = ref(true)
 const activeTab = ref('sales')
 const showDetailModal = ref(false)
 const detailContext = ref(null)
@@ -630,6 +633,21 @@ const filteredCustomerRows = computed(() => {
     .sort((a, b) => Number(b.total_spent || 0) - Number(a.total_spent || 0))
 })
 
+const salesPagination = useAdminPagination(groupedSalesRows, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+const productsPagination = useAdminPagination(filteredProductsRows, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+const customersPagination = useAdminPagination(filteredCustomerRows, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
 const salesStats = computed(() => [
   { key: 'revenue', label: 'Ingresos totales', value: formatCurrency(salesReport.value.total_revenue || salesReport.value.totalRevenue || 0), icon: 'fas fa-dollar-sign', color: 'success' },
   { key: 'orders', label: 'Total órdenes', value: Number(salesReport.value.total_orders || salesReport.value.totalOrders || 0), icon: 'fas fa-shopping-cart', color: 'primary' },
@@ -701,9 +719,9 @@ const activeFilterCount = computed(() => {
 })
 
 const resultsLabel = computed(() => {
-  if (activeTab.value === 'sales') return `Mostrando ${groupedSalesRows.value.length} períodos agrupados`
-  if (activeTab.value === 'products') return `Mostrando ${filteredProductsRows.value.length} productos del ranking`
-  return `Mostrando ${filteredCustomerRows.value.length} clientes recurrentes`
+  if (activeTab.value === 'sales') return `Mostrando ${salesPagination.visibleCount} de ${salesPagination.totalItems} períodos agrupados`
+  if (activeTab.value === 'products') return `Mostrando ${productsPagination.visibleCount} de ${productsPagination.totalItems} productos del ranking`
+  return `Mostrando ${customersPagination.visibleCount} de ${customersPagination.totalItems} clientes recurrentes`
 })
 
 const detailTitle = computed(() => {
@@ -1086,11 +1104,6 @@ function resetFilters() {
   loadCurrentReport()
 }
 
-function clearSearch() {
-  activeSearchModel.value = ''
-  renderCharts()
-}
-
 function goToTab(tabId) {
   const tab = tabs.find((item) => item.id === tabId)
   if (!tab) return
@@ -1246,7 +1259,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
-  padding: 1.6rem 1.6rem 0;
+  padding: 1.25rem 1.75rem;
 }
 
 .report-tab {

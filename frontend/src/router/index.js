@@ -167,23 +167,56 @@ const router = createRouter({
   },
 })
 
+const ADMIN_ROLES = new Set(['admin', 'super_admin', 'superadmin', 'administrator'])
+
+function readSessionUser() {
+  try {
+    return JSON.parse(localStorage.getItem('angelow_user') || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function normalizeRole(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+}
+
+function resolveUserRole(userData) {
+  const directRole = normalizeRole(userData?.role || userData?.rol || userData?.user_role || userData?.tipo_usuario)
+  if (directRole) {
+    return directRole
+  }
+
+  const firstRole = Array.isArray(userData?.roles) ? normalizeRole(userData.roles[0]) : ''
+  return firstRole
+}
+
+function isAdminSession(userData) {
+  return ADMIN_ROLES.has(resolveUserRole(userData))
+}
+
 router.beforeEach((to) => {
   const token = localStorage.getItem('angelow_token')
   const isAuthenticated = Boolean(token)
+  const userData = readSessionUser()
+  const sessionIsAdmin = isAdminSession(userData)
   const routePath = String(to.path || '')
+
+  // Si existe sesion admin y entra a la raiz publica, redirige directo al panel.
+  if (routePath === '/' && isAuthenticated && sessionIsAdmin) {
+    return { name: 'admin-dashboard' }
+  }
 
   // Proteger rutas admin: requiere autenticacion + rol admin
   if (to.meta?.requiresAdmin || routePath.startsWith('/admin')) {
     if (!isAuthenticated) {
       return { name: 'login', query: { redirect: to.fullPath } }
     }
-    // Verificar rol admin desde el token o localStorage
-    try {
-      const userData = JSON.parse(localStorage.getItem('angelow_user') || '{}')
-      if (userData.role !== 'admin' && userData.role !== 'super_admin') {
-        return { name: 'account-dashboard' }
-      }
-    } catch {
+
+    if (!sessionIsAdmin) {
       return { name: 'account-dashboard' }
     }
   }
@@ -195,6 +228,11 @@ router.beforeEach((to) => {
       name: 'login',
       query: { redirect: to.fullPath || '/mi-cuenta/resumen' },
     }
+  }
+
+  // Evita mezclar sesiones admin con rutas de cuenta cliente.
+  if (requiresAccount && sessionIsAdmin) {
+    return { name: 'admin-dashboard' }
   }
 
   return true

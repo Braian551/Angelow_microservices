@@ -6,13 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\SiteSetting;
 use App\Models\Slider;
 use App\Support\SiteSettingsCatalog;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use League\Csv\Writer;
 
 /**
  * Controlador admin para productos, categorias, colecciones,
@@ -1447,7 +1451,8 @@ class AdminCatalogController extends Controller
 
         $likeOperator = $this->likeOperator();
         $productNameColumn = $this->firstExistingColumn('products', ['nombre', 'name']);
-        $productImageColumn = $this->firstExistingColumn('products', ['imagen', 'image', 'image_url']);
+        $productImageColumn = $this->firstExistingColumn('products', ['imagen', 'image', 'image_url', 'main_image_path']);
+        $hasProductImagesTable = Schema::hasTable('product_images');
         $colorNameColumn = $this->firstExistingColumn('product_color_variants', ['color_name', 'name']);
         $sizeNameColumn = $this->firstExistingColumn('sizes', ['name', 'nombre', 'size_label']);
         $stockColumn = $this->firstExistingColumn('product_size_variants', ['stock', 'quantity']);
@@ -1472,8 +1477,24 @@ class AdminCatalogController extends Controller
                 DB::raw($hasSku ? 'psv.sku' : 'NULL as sku'),
             );
 
+        if ($hasProductImagesTable) {
+            $query->selectSub(
+                DB::table('product_images as pi')
+                    ->select('pi.image_path')
+                    ->whereColumn('pi.product_id', 'p.id')
+                    ->orderByDesc('pi.is_primary')
+                    ->orderBy('pi.id')
+                    ->limit(1),
+                'primary_image',
+            );
+        } else {
+            $query->addSelect(DB::raw('NULL as primary_image'));
+        }
+
         if ($productImageColumn) {
-            $query->addSelect("p.{$productImageColumn} as image");
+            $query->addSelect("p.{$productImageColumn} as product_image");
+        } else {
+            $query->addSelect(DB::raw('NULL as product_image'));
         }
 
         if ($hasSizeId && Schema::hasTable('sizes')) {
@@ -2109,17 +2130,23 @@ class AdminCatalogController extends Controller
         $adminUser = $request->input('_admin_user', []);
 
         foreach ($definitions as $key => $definition) {
+            $isImageField = ($definition['type'] ?? 'string') === 'image';
             $uploadedFile = $request->file($key);
             $hasScalarValue = $request->exists($key);
+            $removeImage = $isImageField && $this->toBoolean($request->input($key . '_remove'));
 
-            if (!$uploadedFile && !$hasScalarValue) {
+            if (!$uploadedFile && !$hasScalarValue && !$removeImage) {
                 continue;
             }
 
-            if (($definition['type'] ?? 'string') === 'image' && $uploadedFile instanceof UploadedFile) {
+            if ($isImageField && $uploadedFile instanceof UploadedFile) {
                 $currentValue = (string) optional($existingSettings->get($key))->setting_value;
                 $this->deletePublicUpload($currentValue, 'settings');
                 $value = $this->storeUploadedImage($uploadedFile, 'settings');
+            } elseif ($isImageField && $removeImage) {
+                $currentValue = (string) optional($existingSettings->get($key))->setting_value;
+                $this->deletePublicUpload($currentValue, 'settings');
+                $value = (string) ($definition['default'] ?? '');
             } else {
                 $value = $this->normalizeSettingValue($key, $request->input($key), $definition);
             }
@@ -2135,7 +2162,234 @@ class AdminCatalogController extends Controller
             );
         }
 
-        return response()->json(['success' => true, 'message' => 'Configuracion guardada']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Configuracion guardada',
+            'data' => [
+                'settings' => $this->settingsValuesWithDefaults(),
+                'definitions' => $definitions,
+            ],
+        ]);
+    }
+
+    private function requestedProductIds(Request $request)
+    {
+        return collect(explode(',', $request->string('ids')->toString()))
+            ->map(static fn ($id) => trim($id))
+            ->filter(static fn ($id) => $id !== '' && ctype_digit($id))
+            ->map(static fn ($id) => (int) $id)
+            ->unique()
+            ->take(200)
+            ->values();
+    }
+
+    private function normalizeUtf8ExportText(mixed $value): string
+    {
+        $text = str_replace("\xEF\xBB\xBF", '', trim((string) ($value ?? '')));
+
+        if ($text === '') {
+            return '';
+        }
+
+        $detectedEncoding = mb_detect_encoding($text, ['UTF-8', 'Windows-1252', 'ISO-8859-1'], true);
+        if ($detectedEncoding && strtoupper($detectedEncoding) !== 'UTF-8') {
+            $text = mb_convert_encoding($text, 'UTF-8', $detectedEncoding);
+        }
+
+        $cleanUtf8 = @iconv('UTF-8', 'UTF-8//IGNORE', $text);
+        if (is_string($cleanUtf8) && $cleanUtf8 !== '') {
+            $text = $cleanUtf8;
+        }
+
+        // Corrección on-the-fly para valores mojibake de orígenes legacy.
+        $text = strtr($text, [
+            'Ã¡' => 'á',
+            'Ã©' => 'é',
+            'Ã­' => 'í',
+            'Ã³' => 'ó',
+            'Ãº' => 'ú',
+            'ÃÁ' => 'Á',
+            'Ã‰' => 'É',
+            'ÃÍ' => 'Í',
+            'Ã“' => 'Ó',
+            'Ãš' => 'Ú',
+            'Ã±' => 'ñ',
+            'Ã‘' => 'Ñ',
+            'Â¿' => '¿',
+            'Â¡' => '¡',
+            'Â' => '',
+        ]);
+
+        $regexReplacements = [
+            '/Ni\?{1,2}o/u' => 'Niño',
+            '/ni\?{1,2}o/u' => 'niño',
+            '/Ni\?{1,2}a/u' => 'Niña',
+            '/ni\?{1,2}a/u' => 'niña',
+            '/Beb\?{1,2}/u' => 'Bebé',
+            '/ba\?{1,2}o/u' => 'baño',
+            '/Ba\?{1,2}o/u' => 'Baño',
+            '/Categor\?{1,2}a/u' => 'Categoría',
+            '/colecci\?{1,2}n/u' => 'colección',
+            '/Colecci\?{1,2}n/u' => 'Colección',
+        ];
+
+        foreach ($regexReplacements as $pattern => $replacement) {
+            $text = preg_replace($pattern, $replacement, $text) ?? $text;
+        }
+
+        return trim($text);
+    }
+
+    private function formatExportPrice(mixed $value): string
+    {
+        $amount = (float) ($value ?? 0);
+
+        if (abs($amount - round($amount)) < 0.00001) {
+            return (string) ((int) round($amount));
+        }
+
+        return number_format($amount, 2, '.', '');
+    }
+
+    private function productRowsForExport(Request $request)
+    {
+        $productsResponse = $this->products($request)->getData(true);
+        $products = collect($productsResponse['data'] ?? []);
+
+        $requestedIds = $this->requestedProductIds($request);
+        if ($requestedIds->isNotEmpty()) {
+            $productsById = $products->keyBy(static fn ($product) => (int) ($product['id'] ?? 0));
+            $products = $requestedIds
+                ->map(static fn ($id) => $productsById->get((int) $id))
+                ->filter()
+                ->values();
+        }
+
+        return $products->map(function ($product) {
+            $minPrice = $product['min_price'] ?? $product['price'] ?? $product['precio'] ?? 0;
+            $maxPrice = $product['max_price'] ?? $product['price'] ?? $product['precio'] ?? 0;
+
+            return [
+                'id' => (int) ($product['id'] ?? 0),
+                'name' => $this->normalizeUtf8ExportText($product['name'] ?? $product['nombre'] ?? 'Sin nombre'),
+                'category' => $this->normalizeUtf8ExportText($product['category_name'] ?? $product['categoria_nombre'] ?? 'Sin categoría'),
+                'stock' => (int) ($product['total_stock'] ?? $product['stock'] ?? 0),
+                'min_price' => $this->formatExportPrice($minPrice),
+                'max_price' => $this->formatExportPrice($maxPrice),
+                'status' => $this->toBoolean($product['is_active'] ?? $product['activo'] ?? true, true) ? 'Activo' : 'Inactivo',
+            ];
+        })->values();
+    }
+
+    private function productsPdfHtml($rows): string
+    {
+        $renderedRows = $rows->map(function ($row) {
+            return sprintf(
+                '<tr><td>%d</td><td>%s</td><td>%s</td><td class="num">%d</td><td class="num">%s</td><td class="num">%s</td><td>%s</td></tr>',
+                (int) $row['id'],
+                e((string) $row['name']),
+                e((string) $row['category']),
+                (int) $row['stock'],
+                e((string) $row['min_price']),
+                e((string) $row['max_price']),
+                e((string) $row['status']),
+            );
+        })->implode('');
+
+        if ($renderedRows === '') {
+            $renderedRows = '<tr><td colspan="7" class="empty">No hay productos para exportar.</td></tr>';
+        }
+
+        $generatedAt = now()->format('d/m/Y H:i');
+
+        return '<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: DejaVu Sans, Arial, sans-serif; color: #163046; font-size: 11px; margin: 24px; }
+    .header { margin-bottom: 16px; }
+    .title { font-size: 24px; font-weight: 700; margin: 0 0 6px; color: #0f3146; }
+    .meta { margin: 0; color: #4d6779; font-size: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    th, td { border: 1px solid #d3dde5; padding: 8px; vertical-align: top; }
+    th { background: #eef4f8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.02em; }
+    td.num { text-align: right; white-space: nowrap; }
+    tr:nth-child(even) td { background: #f9fcff; }
+    .empty { text-align: center; color: #5f7787; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <p class="title">Reporte de Productos</p>
+    <p class="meta">Generado: ' . e($generatedAt) . '</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Categoría</th>
+        <th>Stock</th>
+        <th>Precio Min</th>
+        <th>Precio Max</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody>' . $renderedRows . '</tbody>
+  </table>
+</body>
+</html>';
+    }
+
+    public function exportProductsCsv(Request $request): Response
+    {
+        $rows = $this->productRowsForExport($request);
+
+        $csvWriter = Writer::createFromString('');
+        $csvWriter->setOutputBOM(Writer::BOM_UTF8);
+        $csvWriter->setDelimiter(';');
+        $csvWriter->insertOne(['ID', 'Nombre', 'Categoría', 'Stock', 'Precio Min', 'Precio Max', 'Estado']);
+        $csvWriter->insertAll($rows->map(static fn ($row) => [
+            $row['id'],
+            $row['name'],
+            $row['category'],
+            $row['stock'],
+            $row['min_price'],
+            $row['max_price'],
+            $row['status'],
+        ])->all());
+
+        $fileName = 'productos_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        return response($csvWriter->toString(), 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
+    }
+
+    public function exportProductsPdf(Request $request): Response
+    {
+        $rows = $this->productRowsForExport($request);
+
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans');
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($this->productsPdfHtml($rows), 'UTF-8');
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        $fileName = 'productos_' . now()->format('Y-m-d_H-i-s') . '.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
     }
 
     // ── Reportes de productos ───────────────────────────────────────

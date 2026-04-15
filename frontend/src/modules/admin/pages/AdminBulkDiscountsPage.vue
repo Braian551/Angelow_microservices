@@ -56,7 +56,7 @@
     </AdminFilterCard>
 
     <!-- Barra de resultados -->
-    <AdminResultsBar :text="`Mostrando ${filteredRules.length} reglas`" />
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} reglas`" />
 
     <AdminCard title="Bandeja de descuentos por cantidad" icon="fas fa-layer-group" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="5" :columns="['line', 'line', 'line', 'pill', 'btn']" />
@@ -78,7 +78,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="rule in filteredRules" :key="rule.id">
+            <tr v-for="rule in pagination.paginatedItems" :key="rule.id">
               <td>
                 <div class="admin-entity-name">
                   <strong>{{ quantityLabel(rule) }}</strong>
@@ -111,6 +111,13 @@
         </table>
       </div>
     </AdminCard>
+
+    <AdminPagination
+      v-model:page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total-items="pagination.totalItems"
+      :page-size-options="pagination.pageSizeOptions"
+    />
 
     <AdminModal :show="showDetailModal" :title="selectedRule ? quantityLabel(selectedRule) : 'Detalle de la regla'" max-width="920px" @close="closeDetailModal">
       <template v-if="selectedRule">
@@ -199,10 +206,12 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { discountHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
@@ -232,6 +241,11 @@ const filteredRules = computed(() => {
     if (!term) return true
     return [quantityLabel(rule), quantityNarrative(rule), rule.discount_percent, rule.discount_percentage].join(' ').toLowerCase().includes(term)
   })
+})
+
+const pagination = useAdminPagination(filteredRules, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
 })
 
 const activeFilterCount = computed(() => [filters.search, filters.state !== 'all'].filter(Boolean).length)

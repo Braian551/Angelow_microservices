@@ -1,0 +1,1 @@
+export const SITE_SETTINGS_UPDATED_EVENT = 'angelow:site-settings-updated'

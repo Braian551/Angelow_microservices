@@ -37,18 +37,27 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(slider, index) in sliders" :key="slider.id">
-              <td>
-                <div class="slider-order-controls">
-                  <strong>{{ slider.sort_order }}</strong>
-                  <div class="admin-entity-actions admin-entity-actions--compact">
-                    <button class="action-btn view" type="button" :disabled="index === 0 || processingOrder" title="Subir" @click="moveSlider(index, -1)">
-                      <i class="fas fa-arrow-up"></i>
-                    </button>
-                    <button class="action-btn view" type="button" :disabled="index === sliders.length - 1 || processingOrder" title="Bajar" @click="moveSlider(index, 1)">
-                      <i class="fas fa-arrow-down"></i>
-                    </button>
-                  </div>
+            <tr
+              v-for="slider in sliders"
+              :key="slider.id"
+              draggable="true"
+              class="slider-row"
+              :class="{
+                'slider-row--dragging': dragState.draggingId === slider.id,
+                'slider-row--over': dragState.overId === slider.id && dragState.draggingId !== slider.id,
+              }"
+              @dragstart="onRowDragStart(slider, $event)"
+              @dragenter.prevent="onRowDragEnter(slider)"
+              @dragover.prevent="onRowDragOver(slider)"
+              @drop.prevent="onRowDrop(slider)"
+              @dragend="onRowDragEnd"
+            >
+              <td class="slider-td-order">
+                <div class="slider-order-cell">
+                  <button class="slider-drag-handle" type="button" title="Arrastra para mover" aria-label="Arrastra para mover">
+                    <i class="fas fa-grip-vertical"></i>
+                  </button>
+                  <span class="slider-order-num">{{ slider.sort_order }}</span>
                 </div>
               </td>
               <td>
@@ -189,6 +198,10 @@ const editingSliderId = ref(null)
 const imageInputRef = ref(null)
 const selectedImageFile = ref(null)
 const imagePreviewUrl = ref('')
+const dragState = reactive({
+  draggingId: null,
+  overId: null,
+})
 
 const form = reactive({
   title: '',
@@ -373,23 +386,20 @@ async function saveSlider() {
   }
 }
 
-async function moveSlider(index, direction) {
-  const targetIndex = index + direction
-  if (targetIndex < 0 || targetIndex >= sliders.value.length) return
-
-  const reordered = [...sliders.value]
-  const [current] = reordered.splice(index, 1)
-  reordered.splice(targetIndex, 0, current)
-
-  const payload = reordered.map((slider, position) => ({
+function createReorderPayload(orderedRows) {
+  return orderedRows.map((slider, position) => ({
     id: slider.id,
     sort_order: position,
   }))
+}
+
+async function persistSliderOrder(orderedRows) {
+  const payload = createReorderPayload(orderedRows)
 
   processingOrder.value = true
   try {
     await catalogHttp.post('/admin/sliders/reorder', { items: payload })
-    sliders.value = reordered.map((slider, position) => ({ ...slider, sort_order: position }))
+    sliders.value = orderedRows.map((slider, position) => ({ ...slider, sort_order: position }))
     showSnackbar({ type: 'success', message: 'Orden de sliders actualizado.' })
   } catch (error) {
     showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo reordenar el carrusel.') })
@@ -397,6 +407,61 @@ async function moveSlider(index, direction) {
   } finally {
     processingOrder.value = false
   }
+}
+
+function reorderLocalRows(sourceId, targetId) {
+  const sourceIndex = sliders.value.findIndex((item) => Number(item.id) === Number(sourceId))
+  const targetIndex = sliders.value.findIndex((item) => Number(item.id) === Number(targetId))
+
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+    return null
+  }
+
+  const reordered = [...sliders.value]
+  const [current] = reordered.splice(sourceIndex, 1)
+  reordered.splice(targetIndex, 0, current)
+
+  return reordered
+}
+
+function onRowDragStart(slider, event) {
+  if (processingOrder.value) {
+    event.preventDefault()
+    return
+  }
+
+  dragState.draggingId = slider.id
+  dragState.overId = slider.id
+
+  if (event?.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', String(slider.id))
+  }
+}
+
+function onRowDragEnter(slider) {
+  if (dragState.draggingId === null) return
+  dragState.overId = slider.id
+}
+
+function onRowDragOver(slider) {
+  if (dragState.draggingId === null) return
+  dragState.overId = slider.id
+}
+
+async function onRowDrop(slider) {
+  if (dragState.draggingId === null) return
+
+  const reordered = reorderLocalRows(dragState.draggingId, slider.id)
+  onRowDragEnd()
+  if (!reordered) return
+
+  await persistSliderOrder(reordered)
+}
+
+function onRowDragEnd() {
+  dragState.draggingId = null
+  dragState.overId = null
 }
 
 async function toggleSliderStatus(slider) {
@@ -459,10 +524,48 @@ onBeforeUnmount(() => {
   vertical-align: middle;
 }
 
-.slider-order-controls {
-  display: grid;
-  gap: 0.8rem;
-  justify-items: start;
+/* Columna de orden: ancho mínimo y centrado */
+.slider-td-order {
+  width: 7rem;
+  text-align: center;
+}
+
+/* Celda compacta: handle + número alineados horizontalmente */
+.slider-order-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.slider-order-num {
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--admin-text-dark);
+  min-width: 1.4rem;
+  text-align: center;
+}
+
+.slider-drag-handle {
+  width: 3.2rem;
+  height: 3.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 119, 182, 0.2);
+  background: rgba(0, 119, 182, 0.1);
+  color: var(--admin-primary);
+  cursor: grab;
+}
+
+.slider-row--dragging {
+  opacity: 0.55;
+}
+
+.slider-row--over td {
+  background: rgba(0, 119, 182, 0.08);
 }
 
 .admin-entity-actions--compact {

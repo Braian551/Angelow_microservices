@@ -39,30 +39,28 @@ class AdminOrderController extends Controller
     public function recentOrders(Request $request): JsonResponse
     {
         $limit = max(1, min((int) $request->input('limit', 12), 500));
-        $connection = null;
+        $statsLimit = max($limit, 1000);
 
-        $query = $this->buildOrdersQuery($connection, $request);
+        $distributedRows = $this->fetchAdminOrdersRows(null, $request, $statsLimit);
+        $legacyRows = $this->fetchAdminOrdersRows(self::LEGACY_CONNECTION, $request, $statsLimit);
+        $mergedRows = $this->enrichAdminOrdersWithCustomerData(
+            $this->mergeAdminOrderRows($distributedRows, $legacyRows)
+        );
 
-        if ((clone $query)->count() === 0) {
-            $connection = self::LEGACY_CONNECTION;
-            $query = $this->buildOrdersQuery($connection, $request);
-        }
+        $rows = $mergedRows
+            ->take($limit)
+            ->values();
 
-        $dbConnection = $connection ?: config('database.default');
-
-        $statusCol = $this->firstExistingColumn('orders', ['status', 'order_status'], $connection) ?: 'status';
-        $customerNameCol = $this->firstExistingColumn('orders', ['user_name', 'customer_name', 'billing_name'], $connection);
-        $customerEmailCol = $this->firstExistingColumn('orders', ['user_email', 'customer_email', 'billing_email'], $connection);
-
-        $rows = $query
-            ->orderByDesc('created_at')
-            ->limit($limit)
-            ->get();
-
-        $totalOrders = (clone $query)->count();
-        $totalRevenue = (clone $query)->sum('total');
-        $pendingOrders = (clone $query)->where($statusCol, 'pending')->count();
-        $completedOrders = (clone $query)->whereIn($statusCol, ['delivered', 'completed'])->count();
+        $totalOrders = $mergedRows->count();
+        $totalRevenue = $mergedRows->sum(static fn ($row) => (float) ($row->total ?? 0));
+        $pendingOrders = $mergedRows->filter(static function ($row): bool {
+            $status = strtolower((string) ($row->status ?? $row->order_status ?? 'pending'));
+            return $status === 'pending';
+        })->count();
+        $completedOrders = $mergedRows->filter(static function ($row): bool {
+            $status = strtolower((string) ($row->status ?? $row->order_status ?? 'pending'));
+            return in_array($status, ['delivered', 'completed'], true);
+        })->count();
 
         return response()->json([
             'success' => true,
@@ -73,8 +71,6 @@ class AdminOrderController extends Controller
                     'total_revenue' => round((float) $totalRevenue, 2),
                     'pending_orders' => $pendingOrders,
                     'completed_orders' => $completedOrders,
-                    'customer_name_column' => $customerNameCol,
-                    'customer_email_column' => $customerEmailCol,
                 ],
             ],
         ]);
@@ -396,6 +392,105 @@ class AdminOrderController extends Controller
         }
 
         return $query;
+    }
+
+    private function fetchAdminOrdersRows(?string $connection, Request $request, int $limit): \Illuminate\Support\Collection
+    {
+        try {
+            $source = $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice';
+
+            return $this->buildOrdersQuery($connection, $request)
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(static function ($row) use ($source) {
+                    $row->order_source = $source;
+                    return $row;
+                })
+                ->values();
+        } catch (Throwable) {
+            return collect();
+        }
+    }
+
+    private function mergeAdminOrderRows(\Illuminate\Support\Collection $distributedRows, \Illuminate\Support\Collection $legacyRows): \Illuminate\Support\Collection
+    {
+        return $distributedRows
+            ->concat($legacyRows)
+            ->unique(function ($row): string {
+                $orderNumber = strtolower(trim((string) ($row->order_number ?? '')));
+
+                if ($orderNumber !== '') {
+                    return 'order_number:' . $orderNumber;
+                }
+
+                $source = strtolower((string) ($row->order_source ?? 'microservice'));
+                return 'source:' . $source . ':id:' . (string) ($row->id ?? '');
+            })
+            ->sortByDesc(static function ($row): int {
+                $rawDate = $row->created_at ?? null;
+                $timestamp = is_string($rawDate) ? strtotime($rawDate) : null;
+                return $timestamp ?: 0;
+            })
+            ->values();
+    }
+
+    private function enrichAdminOrdersWithCustomerData(\Illuminate\Support\Collection $rows): \Illuminate\Support\Collection
+    {
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
+
+        $userIds = $rows
+            ->map(static fn ($row) => trim((string) ($row->user_id ?? '')))
+            ->filter(static fn ($userId) => $userId !== '')
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return $rows;
+        }
+
+        $usersById = collect();
+
+        try {
+            if (Schema::connection(self::LEGACY_CONNECTION)->hasTable('users')) {
+                $usersById = DB::connection(self::LEGACY_CONNECTION)
+                    ->table('users')
+                    ->select('id', 'name', 'email', 'phone')
+                    ->whereIn('id', $userIds->all())
+                    ->get()
+                    ->keyBy(static fn ($user) => (string) $user->id);
+            }
+        } catch (Throwable) {
+            $usersById = collect();
+        }
+
+        return $rows->map(static function ($row) use ($usersById) {
+            $user = $usersById->get((string) ($row->user_id ?? ''));
+
+            if (!$user) {
+                return $row;
+            }
+
+            $customerName = trim((string) ($row->user_name ?? $row->customer_name ?? $row->billing_name ?? ''));
+            $customerEmail = trim((string) ($row->user_email ?? $row->customer_email ?? $row->billing_email ?? ''));
+            $customerPhone = trim((string) ($row->user_phone ?? $row->customer_phone ?? $row->billing_phone ?? $row->phone ?? ''));
+
+            if ($customerName === '') {
+                $row->user_name = $user->name ?? null;
+            }
+
+            if ($customerEmail === '') {
+                $row->user_email = $user->email ?? null;
+            }
+
+            if ($customerPhone === '') {
+                $row->user_phone = $user->phone ?? null;
+            }
+
+            return $row;
+        })->values();
     }
 
     private function buildOrdersQuery(?string $connection, Request $request)

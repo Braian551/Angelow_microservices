@@ -55,6 +55,17 @@ async function refreshCartCount() {
   }
 }
 
+async function refreshShellSettings() {
+  try {
+    const homeResponse = await getHomeData()
+    settings.value = homeResponse?.data?.settings || {}
+    topBar.value = homeResponse?.data?.top_bar || null
+    shellLoaded.value = true
+  } catch {
+    // Se mantiene la ultima configuracion valida del shell si falla el refresco.
+  }
+}
+
 async function refreshShellData() {
   if (!shellLoaded.value) {
     await loadShellData()
@@ -80,6 +91,7 @@ export function useAppShell() {
     cartCount,
     loadShellData,
     refreshCartCount,
+    refreshShellSettings,
     refreshShellData,
     setCartCount,
     invalidateShell,

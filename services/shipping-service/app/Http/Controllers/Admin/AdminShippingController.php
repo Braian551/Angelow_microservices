@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ShippingMethod;
 use App\Models\ShippingPriceRule;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdminShippingController extends Controller
 {
@@ -20,6 +23,10 @@ class AdminShippingController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn (ShippingMethod $method) => $this->transformMethod($method));
+
+        if ($methods->isEmpty()) {
+            $methods = collect($this->loadLegacyMethods());
+        }
 
         return response()->json(['success' => true, 'data' => $methods]);
     }
@@ -65,7 +72,120 @@ class AdminShippingController extends Controller
             ->get()
             ->map(fn (ShippingPriceRule $rule) => $this->transformRule($rule));
 
+        if ($rules->isEmpty()) {
+            $rules = collect($this->loadLegacyRules());
+        }
+
         return response()->json(['success' => true, 'data' => $rules]);
+    }
+
+    /**
+     * Fallback legacy para metodos cuando la base distribuida aun no tiene datos.
+     */
+    private function loadLegacyMethods(): array
+    {
+        if (!$this->legacyTableExists('shipping_methods')) {
+            return [];
+        }
+
+        try {
+            return DB::connection('legacy_mysql')
+                ->table('shipping_methods')
+                ->select(
+                    'id',
+                    'name',
+                    'description',
+                    'base_cost',
+                    'delivery_time',
+                    'estimated_days_min',
+                    'estimated_days_max',
+                    'free_shipping_minimum',
+                    'icon',
+                    'city',
+                    'is_active',
+                    'created_at',
+                    'updated_at',
+                )
+                ->orderByDesc('is_active')
+                ->orderBy('base_cost')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (object $row) => [
+                    'id' => (int) $row->id,
+                    'name' => (string) ($row->name ?? ''),
+                    'description' => $row->description,
+                    'base_cost' => (float) ($row->base_cost ?? 0),
+                    'delivery_time' => $row->delivery_time,
+                    'estimated_days_min' => $row->estimated_days_min !== null ? (int) $row->estimated_days_min : null,
+                    'estimated_days_max' => $row->estimated_days_max !== null ? (int) $row->estimated_days_max : null,
+                    'estimated_days' => $row->estimated_days_max !== null
+                        ? (int) $row->estimated_days_max
+                        : ($row->estimated_days_min !== null ? (int) $row->estimated_days_min : null),
+                    'free_shipping_minimum' => $row->free_shipping_minimum !== null ? (float) $row->free_shipping_minimum : null,
+                    'icon' => $row->icon,
+                    'city' => $row->city,
+                    'is_active' => (bool) ($row->is_active ?? false),
+                    'active' => (bool) ($row->is_active ?? false),
+                    'created_at' => $this->toIsoString($row->created_at ?? null),
+                    'updated_at' => $this->toIsoString($row->updated_at ?? null),
+                ])
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Fallback legacy para reglas por precio cuando la base distribuida aun no tiene datos.
+     */
+    private function loadLegacyRules(): array
+    {
+        if (!$this->legacyTableExists('shipping_price_rules')) {
+            return [];
+        }
+
+        try {
+            return DB::connection('legacy_mysql')
+                ->table('shipping_price_rules')
+                ->select('id', 'min_price', 'max_price', 'shipping_cost', 'is_active', 'created_at', 'updated_at')
+                ->orderBy('min_price')
+                ->get()
+                ->map(fn (object $row) => [
+                    'id' => (int) $row->id,
+                    'min_price' => (float) ($row->min_price ?? 0),
+                    'max_price' => $row->max_price !== null ? (float) $row->max_price : null,
+                    'shipping_cost' => (float) ($row->shipping_cost ?? 0),
+                    'is_active' => (bool) ($row->is_active ?? false),
+                    'active' => (bool) ($row->is_active ?? false),
+                    'created_at' => $this->toIsoString($row->created_at ?? null),
+                    'updated_at' => $this->toIsoString($row->updated_at ?? null),
+                ])
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function legacyTableExists(string $table): bool
+    {
+        try {
+            return Schema::connection('legacy_mysql')->hasTable($table);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function toIsoString(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toISOString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function storeRule(Request $request): JsonResponse

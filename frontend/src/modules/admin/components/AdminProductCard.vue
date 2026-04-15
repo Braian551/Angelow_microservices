@@ -128,11 +128,40 @@ const priceLabel = computed(() => {
   z-index: 3;
 }
 
+/* Checkbox con el mismo diseño que los de la tabla de órdenes */
 .product-admin-select input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.8rem;
+  border: 2px solid #a9d7f7;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 16px rgba(15, 55, 96, 0.08);
   cursor: pointer;
-  accent-color: #0077b6;
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.product-admin-select input[type="checkbox"]:hover {
+  transform: translateY(-1px);
+  border-color: #78c3ef;
+  box-shadow: 0 12px 22px rgba(15, 55, 96, 0.12);
+}
+
+.product-admin-select input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(120, 195, 239, 0.2);
+}
+
+.product-admin-select input[type="checkbox"]:checked {
+  border-color: #1783be;
+  background-color: #1783be;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.3' d='M3.5 8.5 6.6 11.6 12.8 4.7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1.5rem 1.5rem;
 }
 
 .product-admin-status {
