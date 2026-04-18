@@ -2,9 +2,9 @@
   <div class="admin-shipping-rules-page">
     <AdminPageHeader
       icon="fas fa-dollar-sign"
-      title="Reglas por precio"
-      subtitle="Configura la misma logica operativa de tarifas por rangos con modales, resumen y validacion en tiempo real."
-      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Reglas por precio' }]"
+      title="Recargos por rango"
+      subtitle="Define cargos adicionales por subtotal. Estos valores se suman al costo base del método de envío."
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Recargos por rango' }]"
     >
       <template #actions>
         <button class="btn btn-secondary" type="button" @click="exportRules">
@@ -24,7 +24,7 @@
       v-model="filters.search"
       icon="fas fa-filter"
       title="Filtros de vigencia"
-      placeholder="Buscar por rango o valor..."
+      placeholder="Buscar por rango o recargo..."
       @search="() => {}"
     >
       <template #advanced>
@@ -35,8 +35,8 @@
               <option value="all">Todos</option>
               <option value="active">Activos</option>
               <option value="inactive">Inactivos</option>
-              <option value="free">Envio gratis</option>
-              <option value="paid">Con cobro</option>
+              <option value="free">Sin recargo</option>
+              <option value="paid">Con recargo</option>
             </select>
           </div>
         </div>
@@ -71,7 +71,7 @@
             <tr>
               <th>Rango</th>
               <th>Lectura comercial</th>
-              <th>Costo</th>
+              <th>Cargo adicional</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -81,16 +81,16 @@
               <td>
                 <div class="admin-entity-name">
                   <strong>{{ rangeLabel(rule) }}</strong>
-                  <span>{{ rule.max_price ? 'Rango cerrado' : 'Sin tope maximo' }}</span>
+                  <span>{{ rule.max_price ? 'Rango cerrado' : 'Sin tope máximo' }}</span>
                 </div>
               </td>
               <td>
                 <div class="admin-entity-name">
-                  <strong>{{ isFreeRule(rule) ? 'Envio gratis' : formatCurrency(rule.shipping_cost) }}</strong>
+                  <strong>{{ isFreeRule(rule) ? 'Sin recargo adicional' : `+${formatCurrency(rule.shipping_cost)}` }}</strong>
                   <span>{{ pricingNarrative(rule) }}</span>
                 </div>
               </td>
-              <td><strong>{{ isFreeRule(rule) ? 'Gratis' : formatCurrency(rule.shipping_cost) }}</strong></td>
+              <td><strong>{{ isFreeRule(rule) ? 'Sin recargo' : `+${formatCurrency(rule.shipping_cost)}` }}</strong></td>
               <td>
                 <span class="status-badge" :class="ruleStatusClass(rule)">{{ ruleStatusLabel(rule) }}</span>
               </td>
@@ -123,7 +123,7 @@
     <AdminModal :show="showDetailModal" :title="selectedRule ? rangeLabel(selectedRule) : 'Detalle de la regla'" max-width="920px" @close="closeDetailModal">
       <template v-if="selectedRule">
         <div class="shipping-rule-detail-grid admin-detail-grid">
-          <AdminCard title="Resumen de tarifa" icon="fas fa-money-bill-wave">
+          <AdminCard title="Resumen del recargo" icon="fas fa-money-bill-wave">
             <div class="shipping-rule-hero admin-surface-card">
               <p class="shipping-rule-hero__label admin-surface-card__label">Rango aplicado</p>
               <h3>{{ rangeLabel(selectedRule) }}</h3>
@@ -132,11 +132,11 @@
             </div>
           </AdminCard>
 
-          <AdminCard title="Configuracion" icon="fas fa-cogs">
+          <AdminCard title="Configuración" icon="fas fa-cogs">
             <div class="admin-detail-summary">
-              <div class="admin-detail-summary__row"><span>Minimo</span><strong>{{ formatCurrency(selectedRule.min_price) }}</strong></div>
-              <div class="admin-detail-summary__row"><span>Maximo</span><strong>{{ selectedRule.max_price ? formatCurrency(selectedRule.max_price) : 'Sin limite' }}</strong></div>
-              <div class="admin-detail-summary__row"><span>Costo envio</span><strong>{{ isFreeRule(selectedRule) ? 'Gratis' : formatCurrency(selectedRule.shipping_cost) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Mínimo</span><strong>{{ formatCurrency(selectedRule.min_price) }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Máximo</span><strong>{{ selectedRule.max_price ? formatCurrency(selectedRule.max_price) : 'Sin límite' }}</strong></div>
+              <div class="admin-detail-summary__row"><span>Cargo adicional</span><strong>{{ isFreeRule(selectedRule) ? 'Sin recargo' : `+${formatCurrency(selectedRule.shipping_cost)}` }}</strong></div>
               <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ ruleStatusLabel(selectedRule) }}</strong></div>
             </div>
           </AdminCard>
@@ -156,36 +156,57 @@
         <div>
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="shipping-rule-min">Precio minimo *</label>
+              <label for="shipping-rule-min">
+                Precio mínimo *
+                <AdminInfoTooltip text="Monto mínimo del pedido que activa esta regla de envío." />
+              </label>
               <input id="shipping-rule-min" v-model.number="form.min_price" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.min_price }" @input="validateField('min_price')">
               <p v-if="formErrors.min_price" class="form-error">{{ formErrors.min_price }}</p>
             </div>
             <div class="form-group" style="flex: 1;">
-              <label for="shipping-rule-max">Precio maximo</label>
+              <label for="shipping-rule-max">
+                Precio máximo
+                <AdminInfoTooltip text="Monto máximo del pedido cubierto por esta regla. Dejar vacío si no hay límite superior." />
+              </label>
               <input id="shipping-rule-max" v-model.number="form.max_price" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.max_price }" @input="validateField('max_price')">
               <p v-if="formErrors.max_price" class="form-error">{{ formErrors.max_price }}</p>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="shipping-rule-cost">Costo de envio *</label>
+            <label for="shipping-rule-cost">
+              Cargo adicional por rango *
+              <AdminInfoTooltip text="Valor adicional que se suma al costo base del método cuando el pedido cae en este rango." />
+            </label>
             <input id="shipping-rule-cost" v-model.number="form.shipping_cost" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.shipping_cost }" @input="validateField('shipping_cost')">
             <p v-if="formErrors.shipping_cost" class="form-error">{{ formErrors.shipping_cost }}</p>
           </div>
 
-          <div class="form-group form-group--toggle">
-            <label class="toggle-label">
-              <input v-model="form.active" type="checkbox">
-              Regla activa para checkout
-            </label>
-          </div>
+          <AdminToggleSwitch
+            id="shipping-rule-active"
+            v-model="form.active"
+            title="Regla activa"
+            description="Si está activa, este recargo se suma al costo base del método de envío durante el checkout."
+          />
         </div>
 
         <div>
           <div class="shipping-rule-preview-card admin-surface-card">
-            <p class="shipping-rule-preview-card__label admin-surface-card__label">Previsualizacion</p>
-            <h3>{{ previewRangeLabel }}</h3>
-            <p>{{ Number(form.shipping_cost || 0) === 0 ? 'Envio gratis' : formatCurrency(form.shipping_cost) }}</p>
+            <p class="shipping-rule-preview-card__label admin-surface-card__label">Vista previa del cliente</p>
+            <div class="shipping-rule-mock-summary">
+              <div class="shipping-rule-mock-row">
+                <span>Envío base (método)</span>
+                <strong>según método</strong>
+              </div>
+              <div :class="['shipping-rule-mock-row', isFreeRule(form) ? 'shipping-rule-mock-row--free' : 'shipping-rule-mock-row--highlight']">
+                <span>{{ isFreeRule(form) ? 'Sin recargo adicional' : `Ajuste por rango (${previewRangeLabel})` }}</span>
+                <strong>{{ isFreeRule(form) ? '—' : `+${formatCurrency(form.shipping_cost)}` }}</strong>
+              </div>
+              <div class="shipping-rule-mock-row shipping-rule-mock-row--total">
+                <span>Envío total</span>
+                <strong>{{ isFreeRule(form) ? 'base del método' : `base + ${formatCurrency(form.shipping_cost)}` }}</strong>
+              </div>
+            </div>
             <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
@@ -211,12 +232,14 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -255,7 +278,7 @@ const previewRangeLabel = computed(() => rangeLabel(form))
 const ruleStats = computed(() => [
   { key: 'total', label: 'Total reglas', value: rules.value.length, icon: 'fas fa-sliders-h', color: 'primary' },
   { key: 'active', label: 'Activas', value: rules.value.filter((rule) => rule.active).length, icon: 'fas fa-check-circle', color: 'success' },
-  { key: 'free', label: 'Envio gratis', value: rules.value.filter((rule) => isFreeRule(rule)).length, icon: 'fas fa-gift', color: 'warning' },
+  { key: 'free', label: 'Sin recargo', value: rules.value.filter((rule) => isFreeRule(rule)).length, icon: 'fas fa-gift', color: 'warning' },
   { key: 'open', label: 'Sin tope', value: rules.value.filter((rule) => !rule.max_price).length, icon: 'fas fa-infinity', color: 'info' },
 ])
 
@@ -320,17 +343,17 @@ function openEditFromDetail() {
 function validateField(field) {
   switch (field) {
     case 'min_price':
-      formErrors.min_price = Number(form.min_price) >= 0 ? '' : 'El minimo no puede ser negativo.'
+      formErrors.min_price = Number(form.min_price) >= 0 ? '' : 'El mínimo no puede ser negativo.'
       break
     case 'max_price':
       formErrors.max_price = ''
-      if (form.max_price !== null && form.max_price !== '' && Number(form.max_price) < 0) formErrors.max_price = 'El maximo no puede ser negativo.'
+      if (form.max_price !== null && form.max_price !== '' && Number(form.max_price) < 0) formErrors.max_price = 'El máximo no puede ser negativo.'
       if (!formErrors.max_price && form.max_price !== null && form.max_price !== '' && Number(form.max_price) < Number(form.min_price || 0)) {
-        formErrors.max_price = 'El maximo debe ser mayor o igual al minimo.'
+        formErrors.max_price = 'El máximo debe ser mayor o igual al mínimo.'
       }
       break
     case 'shipping_cost':
-      formErrors.shipping_cost = Number(form.shipping_cost) >= 0 ? '' : 'El costo no puede ser negativo.'
+      formErrors.shipping_cost = Number(form.shipping_cost) >= 0 ? '' : 'El recargo no puede ser negativo.'
       break
     default:
       break
@@ -389,7 +412,7 @@ function confirmDeleteRule(rule) {
   showAlert({
     type: 'warning',
     title: 'Eliminar regla',
-    message: `Vas a eliminar la regla ${rangeLabel(rule)}. Esta accion no se puede deshacer.`,
+    message: `Vas a eliminar el recargo del rango ${rangeLabel(rule)}. Esta accion no se puede deshacer.`,
     actions: [
       { text: 'Cancelar', style: 'secondary' },
       {
@@ -411,8 +434,13 @@ function confirmDeleteRule(rule) {
 }
 
 function exportRules() {
-  const rows = filteredRules.value.map((rule) => [rangeLabel(rule), pricingNarrative(rule), isFreeRule(rule) ? 'Gratis' : formatCurrency(rule.shipping_cost), rule.active ? 'Activo' : 'Inactivo'])
-  const csv = [['Rango', 'Descripcion', 'Costo', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
+  const rows = filteredRules.value.map((rule) => [
+    rangeLabel(rule),
+    pricingNarrative(rule),
+    isFreeRule(rule) ? 'Sin recargo' : `+${formatCurrency(rule.shipping_cost)}`,
+    rule.active ? 'Activo' : 'Inactivo',
+  ])
+  const csv = [['Rango', 'Descripción', 'Cargo adicional', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
   downloadCsv('reglas-envio-precio.csv', csv)
 }
 
@@ -428,13 +456,13 @@ function rangeLabel(rule) {
 
 function pricingNarrative(rule) {
   return isFreeRule(rule)
-    ? 'El checkout mostrara envio gratis en este rango.'
-    : `Se cobraran ${formatCurrency(rule.shipping_cost)} por envio en este rango.`
+    ? 'En este rango no se suma recargo adicional al costo base del método.'
+    : `En este rango se suma un recargo adicional de ${formatCurrency(rule.shipping_cost)} sobre el costo base.`
 }
 
 function ruleStatusLabel(rule) {
   if (!rule.active) return 'Inactiva'
-  return isFreeRule(rule) ? 'Envio gratis' : 'Activa'
+  return isFreeRule(rule) ? 'Sin recargo' : 'Con recargo'
 }
 
 function ruleStatusClass(rule) {
@@ -470,8 +498,70 @@ onMounted(loadRules)
 </script>
 
 <style scoped>
-.shipping-rule-hero h3,
-.shipping-rule-preview-card h3 {
+.shipping-rule-hero h3 {
   font-size: 2.2rem;
+}
+
+/* Mock resumen: réplica de las filas de envío del resumen de pago en checkout */
+.shipping-rule-mock-summary {
+  display: grid;
+  gap: 0;
+  margin-bottom: 1.2rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 1.2rem;
+  overflow: hidden;
+}
+
+.shipping-rule-mock-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1.2rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 1.28rem;
+}
+
+.shipping-rule-mock-row:last-child {
+  border-bottom: none;
+}
+
+.shipping-rule-mock-row span {
+  color: #5c6773;
+}
+
+.shipping-rule-mock-row strong {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.shipping-rule-mock-row--highlight {
+  background: #f0f8ff;
+}
+
+.shipping-rule-mock-row--highlight span,
+.shipping-rule-mock-row--highlight strong {
+  color: #005b8c !important;
+  font-weight: 700;
+}
+
+.shipping-rule-mock-row--free span,
+.shipping-rule-mock-row--free strong {
+  color: #4bb543 !important;
+  font-weight: 600;
+}
+
+.shipping-rule-mock-row--total {
+  background: #f8f8f8;
+}
+
+.shipping-rule-mock-row--total span {
+  color: #1a1a2e;
+  font-weight: 700;
+}
+
+.shipping-rule-mock-row--total strong {
+  color: #0077b6;
+  font-weight: 700;
 }
 </style>

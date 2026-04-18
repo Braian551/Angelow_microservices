@@ -40,6 +40,11 @@
               verificación manual del pago.
             </p>
 
+            <p v-if="checkoutWarning" class="confirmation-warning-banner">
+              <i class="fas fa-circle-info" />
+              {{ checkoutWarning }}
+            </p>
+
             <div class="confirmation-success-grid">
               <div class="confirmation-success-item">
                 <span>Número de orden</span>
@@ -230,6 +235,7 @@ import {
 } from '../utils/checkoutHelpers'
 
 const result = ref(null)
+const checkoutWarning = ref('')
 
 const normalizedItems = computed(() => {
   const items = Array.isArray(result.value?.items) ? result.value.items : []
@@ -274,6 +280,9 @@ onMounted(() => {
   if (raw) {
     result.value = parseStoredJson(raw)
   }
+
+  checkoutWarning.value = localStorage.getItem('angelow_checkout_warning') || ''
+  localStorage.removeItem('angelow_checkout_warning')
 })
 
 function onItemImageError(event, originalPath) {
@@ -359,6 +368,20 @@ function parseStoredJson(rawValue) {
   color: #55616d;
   font-size: 1.5rem;
   line-height: 1.65;
+}
+
+.confirmation-warning-banner {
+  margin-top: 1rem !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #f4d38b;
+  background: #fff8e8;
+  color: #9a6700 !important;
+  padding: 0.5rem 1rem;
+  font-size: 1.22rem !important;
+  font-weight: 600;
 }
 
 .confirmation-success-grid,

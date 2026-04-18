@@ -1,5 +1,208 @@
 # Patrones de diseño aplicados
 
+## 2026-04-18 - Persistencia robusta de direcciones ante caida de legacy
+
+- Patron: Chain of Responsibility (Refactoring Guru)
+- Aplicacion: el CRUD de direcciones en `shipping-service` intenta primero persistir en `legacy_mysql` y, si esa conexion falla, aplica fallback automatico a `shipping-db` sin romper el contrato JSON consumido por la SPA.
+- Ubicacion: services/shipping-service/app/Http/Controllers/ShippingController.php
+- Problema resuelto: en `/mi-cuenta/direcciones` el guardado devolvia `500 Server Error` cuando `legacy_mysql` no estaba disponible.
+
+- Patron: Template Method (Refactoring Guru)
+- Aplicacion: se centralizo la secuencia comun de escritura (crear/actualizar/eliminar/establecer principal) en helpers reutilizables por origen de datos para mantener la regla "una direccion principal" en legacy y distribuido.
+- Ubicacion: services/shipping-service/app/Http/Controllers/ShippingController.php, services/shipping-service/app/Models/UserAddress.php
+- Problema resuelto: evitar divergencias funcionales entre operaciones de direcciones al cambiar de fuente durante la migracion.
+
+## 2026-04-17 - Reserva temporal de stock, confirmacion diferida y anti-duplicidad en ordenes
+
+- Patron: Saga (orquestacion distribuida)
+- Aplicacion: la creacion de orden ahora orquesta reserva temporal en Redis + persistencia en `stock_reservations`, y la validacion administrativa confirma o libera reserva de forma idempotente.
+- Ubicacion: services/order-service/app/Http/Controllers/OrderController.php, services/order-service/app/Services/StockReservationService.php, services/order-service/app/Models/StockReservation.php, services/order-service/database/migrations/2026_04_17_180000_create_stock_reservations_table.php
+- Problema resuelto: evitar sobreventa y estados incoherentes cuando se crean multiples ordenes antes de la validacion manual del pago.
+
+- Patron: Command (cola de trabajos)
+- Aplicacion: jobs dedicados para expirar reservas y reconciliar contadores de stock reservado en Redis, ejecutados por worker y scheduler.
+- Ubicacion: services/order-service/app/Jobs/ExpireStockReservationJob.php, services/order-service/app/Jobs/ReconcileStockReservationsJob.php, services/order-service/app/Console/Commands/ReconcileStockReservationsCommand.php, services/order-service/routes/console.php, docker-compose.yml
+- Problema resuelto: liberar stock automaticamente al vencer TTL y corregir desviaciones Redis/PostgreSQL sin intervencion manual.
+
+- Patron: Observer (eventos realtime)
+- Aplicacion: publicacion de eventos de reserva/confirmacion/liberacion sobre canales Redis pub/sub para consumo por websocket gateway y sincronizacion de UI en tiempo real.
+- Ubicacion: services/order-service/app/Services/StockReservationRealtimePublisher.php, services/order-service/app/Services/StockReservationService.php
+- Problema resuelto: propagar cambios de disponibilidad de inmediato y reducir ventanas de duplicidad por latencia de actualizacion.
+
+- Patron: Adapter
+- Aplicacion: endpoint interno de catalogo para commit atomico de inventario por variante, manteniendo contrato de ordenes existente y aislando la logica de descuento real de stock.
+- Ubicacion: services/catalog-service/app/Http/Controllers/InternalCatalogController.php, services/catalog-service/routes/api.php
+- Problema resuelto: confirmar stock real en PostgreSQL al aprobar pago sin romper APIs publicas existentes.`r`n`r`n## 2026-04-17 - Cancelación de pedidos de cliente, reembolso asistido y actualización en vivo
+
+- Patrón: Command (Refactoring Guru)
+- Aplicación: se incorporó una operación explícita de cancelación desde cliente con validación de propietario, transición controlada de estado, trazabilidad en historial y payload de salida estandarizado para UI.
+- Ubicación: services/order-service/routes/api.php, services/order-service/app/Http/Controllers/OrderController.php, frontend/src/services/orderApi.js, frontend/src/modules/account/pages/OrdersPage.vue, frontend/src/modules/account/pages/OrderDetailPage.vue
+- Problema resuelto: el cliente no tenía una acción formal para cancelar pedidos en proceso con manejo operativo consistente.
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: la cancelación ejecuta una secuencia fija: validar elegibilidad -> actualizar estado -> registrar historial -> disparar notificación/correo al cliente -> notificar correo interno de reembolsos cuando aplica.
+- Ubicación: services/order-service/app/Http/Controllers/OrderController.php, services/order-service/config/services.php, services/order-service/.env.example, services/order-service/tests/Feature/OrderApiTest.php
+- Problema resuelto: faltaba un flujo confiable para iniciar y comunicar el proceso de reembolso tras una cancelación.
+
+- Patrón: Facade (Refactoring Guru)
+- Aplicación: el endpoint de detalle de orden encapsula la resolución de imagen por item consumiendo catálogo interno y devolviendo `product_image` listo para renderizar en cuenta cliente.
+- Ubicación: services/order-service/app/Http/Controllers/OrderController.php, frontend/src/modules/account/pages/OrderDetailPage.vue
+- Problema resuelto: en el detalle de pedido no se mostraba la imagen de productos y se dificultaba la validación visual.
+
+- Patrón: Observer (Refactoring Guru)
+- Aplicación: la vista de direcciones sincroniza cambios en caliente con listeners de foco/visibilidad, polling sobrio y señales de sincronización (`storage` + evento de ventana) para refrescar tarjetas sin recargar página.
+- Ubicación: frontend/src/modules/account/pages/AddressesPage.vue
+- Problema resuelto: los cambios de direcciones no se reflejaban de inmediato en la vista activa sin hard refresh.
+
+## 2026-04-17 - Campaña específica en vista dedicada, tiempo relativo y avisos de órdenes
+
+- Patrón: Facade / Composition (Refactoring Guru)
+- Aplicación: el flujo de campaña a usuarios específicos pasó de modal a vista dedicada SPA, reutilizando componentes compartidos del dashboard admin en lugar de markup ad hoc.
+- Ubicación: frontend/src/modules/admin/pages/AdminDiscountSpecificCampaignPage.vue, frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue, frontend/src/router/index.js
+- Problema resuelto: el modal tenía exceso de información y baja legibilidad para selección operativa de clientes.
+
+- Patrón: Observer (Refactoring Guru)
+- Aplicación: la vista de notificaciones ahora refresca el tiempo relativo en vivo mediante reloj reactivo, evitando valores congelados como “Hace 0 segundos”.
+- Ubicación: frontend/src/modules/account/pages/NotificationsPage.vue
+- Problema resuelto: los timestamps relativos no evolucionaban al pasar el tiempo y podían quedar congelados.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: normalización de timestamps de notificaciones sin zona horaria a UTC antes del cálculo relativo.
+- Ubicación: frontend/src/modules/account/pages/NotificationsPage.vue
+- Problema resuelto: fechas sin offset llegaban como futuras en cliente y mostraban tiempos incorrectos.
+
+- Patrón: Template Method + Observer (Refactoring Guru)
+- Aplicación: al cambiar estado de orden o pago, el backend ejecuta una secuencia estable de comunicación (normalizar mensaje, enviar notificación interna y correo, registrar fallos sin romper la operación principal).
+- Ubicación: services/order-service/app/Http/Controllers/OrderController.php, services/order-service/config/services.php, services/order-service/.env.example, services/order-service/tests/Feature/OrderApiTest.php
+- Problema resuelto: los cambios operativos de orden/pago no generaban aviso al cliente.
+
+## 2026-04-17 - Campañas de descuentos y sincronización de anuncios
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: flujo unificado para campañas de descuento masivas y específicas, con resumen operativo por canal.
+- Ubicación: services/discount-service/app/Http/Controllers/Admin/AdminDiscountController.php
+- Problema resuelto: evitar duplicación de lógica entre envíos masivos/específicos y garantizar validación consistente de canales y destinatarios.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: fallback de anuncios en home hacia la fuente legacy usada por administración.
+- Ubicación: services/catalog-service/app/Repositories/QueryBuilderSiteRepository.php
+- Problema resuelto: el anuncio superior/inferior no reflejaba cambios recientes porque lectura y escritura consultaban fuentes distintas.
+
+- Referencia detallada:
+	docs/patrones-diseno-admin-descuentos-2026-04-17.md
+
+## 2026-04-17 - Vista previa en vivo en modales y checkbox unificado
+
+- Patrón: Reuse Component / Composition (Refactoring Guru - composición sobre duplicación)
+- Aplicación: se creó un componente reusable de switch (`AdminToggleSwitch`) para estandarizar el comportamiento visual y funcional de los checkbox en modales admin, evitando implementaciones ad hoc por vista.
+- Ubicación: frontend/src/modules/admin/components/AdminToggleSwitch.vue, frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue, frontend/src/modules/admin/pages/AdminShippingRulesPage.vue, frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue, frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue, frontend/src/modules/admin/pages/AdminPaymentsPage.vue, frontend/src/modules/admin/pages/AdminSlidersPage.vue, frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue, frontend/src/modules/admin/pages/AdminCategoriesPage.vue, frontend/src/modules/admin/pages/AdminCollectionsPage.vue, frontend/src/modules/admin/pages/AdminSizesPage.vue, frontend/src/modules/admin/pages/AdminAdministratorsPage.vue, frontend/src/modules/admin/pages/AdminProductFormPage.vue
+- Problema resuelto: separación/desalineación visual entre texto y checkbox en varios modales y falta de consistencia transversal en la UI admin.
+
+- Patrón: Strategy (Refactoring Guru)
+- Aplicación: el nuevo componente `AdminToggleSwitch` permite estrategia de layout (`card` e `inline`) para cubrir escenarios distintos de formulario sin duplicar markup ni CSS por modal.
+- Ubicación: frontend/src/modules/admin/components/AdminToggleSwitch.vue
+- Problema resuelto: variaciones de diseño de checkbox entre modales que obligaban estilos locales repetidos y difíciles de mantener.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: en pagos admin se adaptó la vista previa para consumir el estado editable del formulario (`accountForm`) combinado con el catálogo de bancos, de modo que el resumen cambie en tiempo real antes de guardar.
+- Ubicación: frontend/src/modules/admin/pages/AdminPaymentsPage.vue
+- Problema resuelto: la vista previa de cuenta mostraba datos persistidos y no reflejaba inmediatamente los cambios digitados en el modal.
+
+## 2026-04-17 - Códigos de descuento y descuentos por cantidad funcionales
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: la validación pública de descuentos en `discount-service` ahora consulta primero la base distribuida y, cuando no encuentra datos activos, aplica fallback a legacy para mantener continuidad operativa durante la migración.
+- Ubicación: services/discount-service/app/Http/Controllers/DiscountController.php
+- Problema resuelto: códigos visibles en admin no se podían validar en checkout cuando aún residían en base legacy.
+
+- Patrón: Strategy (Refactoring Guru)
+- Aplicación: el cálculo del descuento se resuelve por estrategia según tipo (`percent` o `fixed`) y se complementa con estrategia de descuento por cantidad (regla por rango de unidades) para devolver monto aplicable en checkout y persistirlo en la creación de la orden.
+- Ubicación: services/discount-service/app/Http/Controllers/DiscountController.php, services/order-service/app/Http/Controllers/OrderController.php, frontend/src/services/discountApi.js, frontend/src/modules/checkout/pages/ShippingPage.vue, frontend/src/modules/checkout/pages/PaymentPage.vue
+- Problema resuelto: checkout no aplicaba de forma confiable los códigos y no tenía flujo funcional de descuento por cantidad.
+
+## 2026-04-17 - Ajuste de prioridad en total de envío (base + rango)
+
+- Patrón: Strategy (Refactoring Guru)
+- Aplicación: se reforzó la estrategia de cálculo en checkout para que el total de envío se derive siempre del desglose explícito (costo base del método + ajuste por rango), dejando cualquier `applied_cost` previo solo como dato informativo y no como fuente de verdad del total.
+- Ubicación: frontend/src/modules/checkout/pages/ShippingPage.vue, frontend/src/modules/checkout/pages/PaymentPage.vue
+- Problema resuelto: en algunos escenarios el checkout mostraba 20.000 como total de envío aunque el método tuviera costo base adicional; ahora la UI y el payload de pago mantienen valores separados y total consistente.
+
+## 2026-04-16 - Paridad de envíos en checkout + imagen en productos de orden
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: los endpoints públicos de envíos (`methods`, `rules`, `estimate`) consultan primero la base distribuida y, cuando no hay datos activos, aplican fallback a la conexión legacy sin cambiar el contrato JSON.
+- Ubicación: services/shipping-service/app/Http/Controllers/ShippingController.php
+- Problema resuelto: checkout mostraba envío gratis o método de respaldo aunque en admin sí existían métodos y reglas de envío cargados en legacy.
+
+- Patrón: Strategy (Refactoring Guru)
+- Aplicación: el checkout y el servicio de envíos resuelven un desglose explícito del envío (costo base del método + recargo adicional por regla de rango + total), conservando la estrategia de prioridad para calcular cada componente.
+- Ubicación: services/shipping-service/app/Http/Controllers/ShippingController.php, frontend/src/modules/checkout/pages/ShippingPage.vue, frontend/src/modules/checkout/pages/PaymentPage.vue, frontend/src/modules/checkout/utils/checkoutHelpers.js, frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue, frontend/src/modules/admin/pages/AdminShippingRulesPage.vue
+- Problema resuelto: el cliente veía el valor de la regla como costo total de envío y no como adicional; ahora checkout y admin muestran separación clara entre base, recargo y total.
+
+- Patrón: Facade (Refactoring Guru)
+- Aplicación: el detalle de orden encapsula la obtención de miniaturas de producto consultando el catálogo admin por `product_id` y resolviendo rutas de imagen con fallback reutilizable.
+- Ubicación: frontend/src/modules/admin/pages/AdminOrderDetailPage.vue, frontend/src/modules/admin/components/AdminTableImage.vue
+- Problema resuelto: en "Productos del pedido" solo se mostraba el nombre y no la imagen del producto, dificultando la validación visual del pedido.
+
+- Patrón: Reuse Component / Composition
+- Aplicación: los modales de métodos y reglas de envío reemplazan el checkbox ad hoc por el bloque compartido `admin-entity-toggle` con `toggle-switch`.
+- Ubicación: frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue, frontend/src/modules/admin/pages/AdminShippingRulesPage.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: el checkbox de activación quedaba muy separado del texto y rompía la consistencia visual del formulario.
+
+## 2026-04-16 - Cuenta de pago compartida y estado sincronizado entre pagos y órdenes
+
+- Patrón: Reuse Component / Composition (Refactoring Guru - composición sobre duplicación)
+- Aplicación: `PaymentAccountSummaryCard` centraliza la cuenta activa de transferencias que ve el cliente y la reutiliza tanto en checkout como en el modal de ajustes de pagos admin.
+- Ubicación: frontend/src/components/payments/PaymentAccountSummaryCard.vue, frontend/src/modules/checkout/pages/PaymentPage.vue, frontend/src/modules/admin/pages/AdminPaymentsPage.vue
+- Problema resuelto: evitar duplicación de markup y asegurar que administración vea exactamente la misma cuenta activa que se presenta al cliente.
+
+- Patrón: Reuse Component / Facade visual
+- Aplicación: `AdminPaymentProofModal` encapsula la vista del comprobante con zoom, fallback para PDF/archivo y acceso externo, y se reutiliza en pagos admin y detalle de orden admin.
+- Ubicación: frontend/src/modules/admin/components/AdminPaymentProofModal.vue, frontend/src/modules/admin/pages/AdminPaymentsPage.vue, frontend/src/modules/admin/pages/AdminOrderDetailPage.vue
+- Problema resuelto: eliminar implementaciones separadas para revisar comprobantes y mantener la misma experiencia de validación en todo admin.
+
+- Patrón: Orchestration / Command
+- Aplicación: la aprobación o rechazo administrativo del pago ejecuta primero el cambio en `payment-service` y luego sincroniza `order-service` para reflejar `verified` o `failed` en la orden.
+- Ubicación: frontend/src/modules/admin/pages/AdminPaymentsPage.vue, services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, services/order-service/app/Http/Controllers/OrderController.php
+- Problema resuelto: antes el pago cambiaba de estado en su dominio, pero la orden seguía desalineada y el cliente veía un estado inconsistente.
+
+- Patrón: Chain of Responsibility (Refactoring Guru)
+- Aplicación: los endpoints de pagos y cuenta bancaria consultan primero la base distribuida y, si no hay datos, hacen fallback a la conexión legacy para no vaciar comprobantes ni configuración durante migración.
+- Ubicación: services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, services/payment-service/app/Http/Controllers/PaymentController.php, services/payment-service/config/database.php, docker-compose.yml
+- Problema resuelto: el admin veía lista de pagos vacía y la cuenta de transferencias en blanco cuando la data aún residía en la base legacy.
+
+- Patrón: Template Method (Refactoring Guru)
+- Aplicación: el modal de cuenta en pagos admin sigue un flujo único de carga, validación por campo en tiempo real y guardado para editar la cuenta visible al cliente desde la misma vista.
+- Ubicación: frontend/src/modules/admin/pages/AdminPaymentsPage.vue, frontend/src/services/paymentApi.js, services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, services/payment-service/routes/api.php
+- Problema resuelto: desde la vista de pagos no existía una forma operativa de configurar la cuenta mostrada al cliente en checkout.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: se adaptó la traducción de estados entre contrato UI (`approved`/`rejected`/`pending`) y persistencia legacy (`verified`/`rejected`/`pending`), además de normalizar estados vacíos para la vista administrativa.
+- Ubicación: services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php, frontend/src/modules/admin/pages/AdminPaymentsPage.vue
+- Problema resuelto: al verificar pagos en admin, algunos registros legacy quedaban en estado vacío y la tabla seguía mostrándolos como pendientes aunque la acción reportaba éxito.
+
+- Patrón: Reuse Component / Composition
+- Aplicación: el bloque de activación de cuenta en el modal de pagos admin ahora usa la estructura visual compartida de toggle (`admin-entity-toggle` + `toggle-switch`) en lugar de un armado ad hoc.
+- Ubicación: frontend/src/modules/admin/pages/AdminPaymentsPage.vue, frontend/src/modules/admin/styles/admin.css
+- Problema resuelto: el checkbox de activación quedaba desalineado y alejado de su texto, afectando legibilidad y consistencia visual en el formulario.
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: el listado de pagos administra una adaptación de datos para enriquecer `customer_name` desde la tabla `users` cuando el registro de pago no trae nombre explícito, manteniendo el mismo contrato de respuesta del endpoint.
+- Ubicación: services/payment-service/app/Http/Controllers/Admin/AdminPaymentController.php
+- Problema resuelto: en pagos admin la columna Cliente quedaba en blanco (`—`) aunque el `user_id` sí existía en base legacy.
+
+- Patrón: Command (Refactoring Guru)
+- Aplicación: se agregó una acción explícita de navegación en la columna Acciones para abrir de forma directa el detalle de la orden asociada al pago.
+- Ubicación: frontend/src/modules/admin/pages/AdminPaymentsPage.vue
+- Problema resuelto: el operador debía salir de contexto para ubicar la orden; ahora puede ir al detalle en un clic desde la fila del pago.
+
+## 2026-04-15 - Limpieza de copy técnico visible en admin
+
+- Patrón: Adapter (Refactoring Guru)
+- Aplicación: adaptación del copy visible del panel administrativo para traducir términos internos o demasiado técnicos (`feedback`, `snackbar`, `previsualización`, `checkout`, `control centralizado`) a lenguaje operativo claro.
+- Ubicación: frontend/src/modules/admin/pages/AdminOrdersPage.vue, frontend/src/modules/admin/pages/AdminSlidersPage.vue, frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue, frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue, frontend/src/modules/admin/pages/AdminShippingRulesPage.vue, frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue, frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue
+- Problema resuelto: algunos modales, subtítulos y ayudas del admin mostraban copy técnico o interno que no corresponde a usuarios operativos no técnicos.
+
 ## 2026-04-14 - Refresco en caliente de ajustes e imágenes admin
 
 - Patrón: Observer (Refactoring Guru)

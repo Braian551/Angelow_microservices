@@ -1,51 +1,69 @@
 <template>
   <section class="dashboard-header notifications-header-panel">
-    <h1><i class="fas fa-bell" /> Mis notificaciones</h1>
-    <p>Mantente al día con tus pedidos y actualizaciones.</p>
+    <div class="notifications-header-panel__copy">
+      <h1>
+        <i class="fas fa-bell"></i>
+        Mis notificaciones
+      </h1>
+      <p>Mantente al día con tus pedidos, novedades y movimientos importantes de tu cuenta.</p>
+    </div>
+
+    <button
+      v-if="unreadCount > 0 && !loading"
+      type="button"
+      class="btn-outline-small notifications-header-panel__action"
+      :disabled="loadingAction"
+      @click="markAllAsRead"
+    >
+      <i class="fas fa-check-double"></i>
+      Marcar todas como leídas
+    </button>
   </section>
 
-  <section class="account-grid-2">
-    <article class="account-card">
-      <div class="summary-card">
-        <div class="summary-icon"><i class="fas fa-envelope" /></div>
-        <div class="summary-content">
-          <h3>Total</h3>
-          <p>{{ notifications.length }}</p>
-        </div>
+  <section class="account-grid-2 notifications-summary-grid">
+    <article class="summary-card notification-summary-card">
+      <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--total">
+        <i class="fas fa-envelope"></i>
+      </div>
+      <div class="summary-content">
+        <h3>Total</h3>
+        <p>{{ notifications.length }} notificación{{ notifications.length === 1 ? '' : 'es' }}</p>
       </div>
     </article>
 
-    <article class="account-card">
-      <div class="summary-card">
-        <div class="summary-icon"><i class="fas fa-envelope-open" /></div>
-        <div class="summary-content">
-          <h3>Sin leer</h3>
-          <p>{{ unreadCount }}</p>
-        </div>
+    <article class="summary-card notification-summary-card">
+      <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--unread">
+        <i class="fas fa-envelope-open-text"></i>
+      </div>
+      <div class="summary-content">
+        <h3>Sin leer</h3>
+        <p>{{ unreadCount }} pendiente{{ unreadCount === 1 ? '' : 's' }}</p>
       </div>
     </article>
 
-    <article class="account-card">
-      <div class="summary-card">
-        <div class="summary-icon"><i class="fas fa-check-double" /></div>
-        <div class="summary-content">
-          <h3>Leídas</h3>
-          <p>{{ readCount }}</p>
-        </div>
+    <article class="summary-card notification-summary-card">
+      <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--read">
+        <i class="fas fa-check-double"></i>
+      </div>
+      <div class="summary-content">
+        <h3>Leídas</h3>
+        <p>{{ readCount }} revisada{{ readCount === 1 ? '' : 's' }}</p>
       </div>
     </article>
   </section>
 
-  <section class="account-card">
-    <div class="notifications-toolbar">
-      <div class="filters">
-        <select v-model="statusFilter" class="filter-select">
-          <option value="all">Todas</option>
-          <option value="unread">No leídas</option>
-          <option value="read">Leídas</option>
-        </select>
+  <section class="account-card notifications-board">
+    <header class="section-header notifications-board__header">
+      <div class="notifications-board__heading">
+        <h2>Bandeja de notificaciones</h2>
+        <p class="notifications-board__meta">
+          {{ filteredNotifications.length }} resultado{{ filteredNotifications.length === 1 ? '' : 's' }} visibles
+        </p>
+      </div>
 
-        <select v-model="typeFilter" class="filter-select">
+      <div class="notif-type-select-wrap">
+        <i class="fas fa-filter notif-type-select-icon"></i>
+        <select v-model="typeFilter" class="notif-type-select">
           <option value="all">Todos los tipos</option>
           <option value="order">Órdenes</option>
           <option value="product">Productos</option>
@@ -54,65 +72,105 @@
           <option value="account">Cuenta</option>
         </select>
       </div>
+    </header>
 
-      <button type="button" class="btn-primary-small" @click="markAllAsRead" :disabled="unreadCount === 0 || loadingAction">
-        Marcar todas como leídas
+    <div class="notifications-toolbar">
+      <button
+        v-for="opt in statusOptions"
+        :key="opt.value"
+        type="button"
+        class="notifications-status-pill"
+        :class="{ 'is-active': statusFilter === opt.value }"
+        @click="statusFilter = opt.value"
+      >
+        {{ opt.label }}
+        <span v-if="opt.value === 'unread' && unreadCount > 0" class="notifications-status-pill__badge">{{ unreadCount }}</span>
       </button>
     </div>
 
-    <p v-if="loading" class="loading-box">Cargando notificaciones...</p>
-    <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
-
-    <div v-else-if="filteredNotifications.length === 0" class="empty-state">
-      <i class="fas fa-bell-slash" />
-      <p>No tienes notificaciones para este filtro.</p>
+    <div v-if="loading" class="notifications-loading">
+      <div v-for="n in 4" :key="n" class="notifications-skeleton">
+        <div class="notifications-skeleton__icon"></div>
+        <div class="notifications-skeleton__body">
+          <div class="notifications-skeleton__line notifications-skeleton__line--title"></div>
+          <div class="notifications-skeleton__line notifications-skeleton__line--text"></div>
+        </div>
+      </div>
     </div>
 
-    <div v-else class="notifications-list">
+    <div v-else-if="errorMessage" class="empty-state notifications-empty-state">
+      <i class="fas fa-exclamation-circle"></i>
+      <p>{{ errorMessage }}</p>
+    </div>
+
+    <div v-else-if="filteredNotifications.length === 0" class="empty-state notifications-empty-state">
+      <i class="fas fa-bell-slash"></i>
+      <p>No tienes notificaciones para este filtro.</p>
+      <span>Cuando haya novedades relevantes las verás aquí.</span>
+    </div>
+
+    <transition-group v-else name="notifications-list" tag="div" class="notifications-list">
       <article
         v-for="notification in filteredNotifications"
         :key="notification.id"
-        class="notification-item"
-        :class="{ unread: !notification.is_read, read: !!notification.is_read }"
+        class="notifications-item"
+        :class="{ 'is-unread': !notification.is_read }"
+        @click="handleOpenNotification(notification)"
       >
-        <div class="notification-icon" :class="notificationType(notification)">
-          <i :class="notificationIcon(notification)" />
+        <div class="notifications-item__leading">
+          <span v-if="!notification.is_read" class="notifications-item__unread-dot" title="No leída"></span>
+          <div class="notifications-item__icon" :class="`notifications-item__icon--${notificationType(notification)}`">
+            <i :class="notificationIcon(notification)"></i>
+          </div>
         </div>
 
-        <div class="notification-content" @click="handleOpenNotification(notification)">
-          <div class="notification-header">
-            <h3>
-              {{ notification.title }}
-              <span class="notification-type">{{ notificationTypeLabel(notification) }}</span>
-            </h3>
-            <span class="notification-time">
-              <i class="far fa-clock" />
+        <div class="notifications-item__body">
+          <div class="notifications-item__top">
+            <div class="notifications-item__headline">
+              <h3>{{ notification.title }}</h3>
+              <span :class="`notifications-type-badge notifications-type-badge--${notificationType(notification)}`">
+                {{ notificationTypeLabel(notification) }}
+              </span>
+            </div>
+
+            <span class="notifications-item__time">
+              <i class="far fa-clock"></i>
               {{ formatTimeAgo(notification.created_at) }}
             </span>
           </div>
-          <p class="notification-message">{{ notification.message }}</p>
+
+          <p class="notifications-item__message">{{ notification.message }}</p>
         </div>
 
-        <div class="notification-actions">
+        <div class="notifications-item__actions" @click.stop>
           <button
             v-if="!notification.is_read"
             type="button"
-            class="btn-outline-small"
-            @click.stop="markAsRead(notification.id)"
+            class="btn-outline-small notifications-item__btn notifications-item__btn--read"
+            :disabled="loadingAction"
+            @click="markAsRead(notification.id)"
           >
-            Marcar leída
+            <i class="fas fa-check"></i>
+            <span>Marcar leída</span>
           </button>
-          <button type="button" class="btn-outline-small" @click.stop="deleteOne(notification.id)">
-            Eliminar
+
+          <button
+            type="button"
+            class="btn-outline-small notifications-item__btn notifications-item__btn--delete"
+            :disabled="loadingAction"
+            @click="deleteOne(notification.id)"
+          >
+            <i class="fas fa-trash-alt"></i>
+            <span>Eliminar</span>
           </button>
         </div>
       </article>
-    </div>
+    </transition-group>
   </section>
 </template>
 
 <script setup>
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   deleteNotification,
@@ -134,6 +192,16 @@ const errorMessage = ref('')
 const notifications = ref([])
 const statusFilter = ref('all')
 const typeFilter = ref('all')
+const relativeNow = ref(Date.now())
+const NOTIFICATIONS_POLLING_MS = 20000
+let relativeClockTimer = null
+let notificationsRefreshTimer = null
+
+const statusOptions = [
+  { value: 'all', label: 'Todas' },
+  { value: 'unread', label: 'Sin leer' },
+  { value: 'read', label: 'Leídas' },
+]
 
 const unreadCount = computed(() => notifications.value.filter((item) => !item?.is_read).length)
 const readCount = computed(() => notifications.value.filter((item) => !!item?.is_read).length)
@@ -152,27 +220,70 @@ const filteredNotifications = computed(() => {
 })
 
 onMounted(async () => {
-  loading.value = true
-  errorMessage.value = ''
+  relativeClockTimer = window.setInterval(() => {
+    relativeNow.value = Date.now()
+  }, 1000)
+
+  await refreshNotifications({ showLoader: true })
+  startNotificationsPolling()
+})
+
+onUnmounted(() => {
+  if (relativeClockTimer !== null) {
+    window.clearInterval(relativeClockTimer)
+    relativeClockTimer = null
+  }
+
+  stopNotificationsPolling()
+})
+
+async function refreshNotifications({ showLoader = false } = {}) {
+  if (showLoader) {
+    loading.value = true
+    errorMessage.value = ''
+  }
 
   try {
     if (!isLoggedIn.value) {
+      notifications.value = []
       setAccountUnreadNotifications(0)
       return
     }
 
     const userId = String(user.value?.id || '').trim()
     const userEmail = String(user.value?.email || '').trim()
-
     const response = await getNotifications(userId, userEmail)
     notifications.value = Array.isArray(response?.data) ? response.data : []
     setAccountUnreadNotifications(unreadCount.value)
   } catch {
-    errorMessage.value = 'No se pudieron cargar las notificaciones.'
+    if (showLoader) {
+      errorMessage.value = 'No se pudieron cargar las notificaciones.'
+    }
   } finally {
-    loading.value = false
+    if (showLoader) {
+      loading.value = false
+    }
   }
-})
+}
+
+function startNotificationsPolling() {
+  stopNotificationsPolling()
+
+  notificationsRefreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'hidden') {
+      return
+    }
+
+    refreshNotifications()
+  }, NOTIFICATIONS_POLLING_MS)
+}
+
+function stopNotificationsPolling() {
+  if (notificationsRefreshTimer !== null) {
+    window.clearInterval(notificationsRefreshTimer)
+    notificationsRefreshTimer = null
+  }
+}
 
 async function markAsRead(notificationId) {
   try {
@@ -303,10 +414,12 @@ function notificationIcon(notification) {
 function formatTimeAgo(value) {
   if (!value) return 'Ahora'
 
-  const createdAt = new Date(value)
-  if (Number.isNaN(createdAt.getTime())) return 'Ahora'
+  // Fuerza lectura UTC cuando llega timestamp sin zona horaria (paridad con backend UTC).
+  const createdAt = parseNotificationDate(value)
+  if (!createdAt) return 'Ahora'
 
-  const seconds = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / 1000))
+  const seconds = Math.max(0, Math.floor((relativeNow.value - createdAt.getTime()) / 1000))
+  if (seconds < 5) return 'Hace unos segundos'
 
   if (seconds < 60) return `Hace ${seconds} segundo${seconds === 1 ? '' : 's'}`
 
@@ -325,145 +438,461 @@ function formatTimeAgo(value) {
     year: 'numeric',
   })
 }
+
+function parseNotificationDate(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+
+  const iso = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  const hasTimezone = /(Z|[+-]\d{2}:?\d{2})$/i.test(iso)
+  const normalized = hasTimezone ? iso : `${iso}Z`
+
+  const parsed = new Date(normalized)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed
+  }
+
+  const fallback = new Date(raw)
+  return Number.isNaN(fallback.getTime()) ? null : fallback
+}
 </script>
 
 <style scoped>
-.notifications-header-panel h1 {
+.notifications-header-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+}
+
+.notifications-header-panel__copy h1 {
   display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.85rem;
 }
 
-.notifications-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.6rem;
-}
-
-.filters {
-  display: flex;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.filter-select {
-  padding: 0.8rem 1.2rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1.6rem;
-  background: #fff;
-}
-
-.notifications-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.notification-item {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  padding: 1.4rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.notification-item.unread {
-  border-left: 4px solid #0077b6;
-  background: #f8fbff;
-}
-
-.notification-icon {
-  width: 52px;
-  height: 52px;
+.notifications-header-panel__copy h1 i {
+  width: 4.2rem;
+  height: 4.2rem;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
+  background: rgba(0, 119, 182, 0.1);
+  color: #0077b6;
+  font-size: 1.9rem;
 }
 
-.notification-icon.order {
-  background: rgba(0, 119, 182, 0.12);
+.notifications-header-panel__action {
+  flex-shrink: 0;
+}
+
+.notification-summary-card {
+  min-height: 9.2rem;
+}
+
+.notification-summary-card__icon--total {
+  background: #dff4fb;
   color: #0077b6;
 }
 
-.notification-icon.product {
-  background: rgba(72, 202, 228, 0.15);
-  color: #0284c7;
+.notification-summary-card__icon--unread {
+  background: #fff3df;
+  color: #d97706;
 }
 
-.notification-icon.promotion {
-  background: rgba(236, 72, 153, 0.12);
-  color: #db2777;
+.notification-summary-card__icon--read {
+  background: #e3f8e8;
+  color: #16a34a;
 }
 
-.notification-icon.account {
-  background: rgba(147, 51, 234, 0.12);
-  color: #9333ea;
+.notifications-board__header {
+  align-items: flex-end;
 }
 
-.notification-icon.system {
-  background: rgba(100, 116, 139, 0.12);
-  color: #475569;
-}
-
-.notification-content {
-  flex: 1;
-  cursor: pointer;
-}
-
-.notification-header {
+.notifications-board__heading {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.notifications-board__meta {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #6b7280;
+}
+
+.notifications-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-bottom: 1.6rem;
+}
+
+.notifications-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid #d5dbe3;
+  background: #fff;
+  color: #475569;
+  font-size: 1.35rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.notifications-status-pill:hover {
+  border-color: #90e0ef;
+  color: #0077b6;
+}
+
+.notifications-status-pill.is-active {
+  background: #0077b6;
+  border-color: #0077b6;
+  color: #fff;
+}
+
+.notifications-status-pill__badge {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: rgba(0, 119, 182, 0.08);
+}
+
+.notifications-status-pill.is-active .notifications-status-pill__badge {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.notif-type-select-wrap {
+  position: relative;
+}
+
+.notif-type-select-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 1.2rem;
+  pointer-events: none;
+}
+
+.notif-type-select {
+  min-width: 18rem;
+  padding: 0.75rem 1rem 0.75rem 2.7rem;
+  border: 1px solid #d5dbe3;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 1.4rem;
+  color: #475569;
+  appearance: none;
+}
+
+.notifications-loading {
+  display: grid;
   gap: 1rem;
 }
 
-.notification-header h3 {
-  font-size: 2.6rem;
-  margin-bottom: 0.5rem;
+.notifications-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.4rem;
+  border: 1px solid #e5edf5;
+  border-radius: 12px;
+  background: #f9fbfd;
+  animation: notifications-pulse 1.35s ease-in-out infinite;
 }
 
-.notification-type {
-  margin-left: 0.6rem;
-  padding: 0.2rem 0.7rem;
+.notifications-skeleton__icon {
+  width: 4.4rem;
+  height: 4.4rem;
+  border-radius: 50%;
   background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.notifications-skeleton__body {
+  flex: 1;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.notifications-skeleton__line {
+  height: 1.1rem;
   border-radius: 999px;
-  font-size: 1.4rem;
+  background: #e2e8f0;
+}
+
+.notifications-skeleton__line--title {
+  width: 36%;
+}
+
+.notifications-skeleton__line--text {
+  width: 72%;
+}
+
+@keyframes notifications-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.58; }
+}
+
+.notifications-empty-state span {
+  display: block;
+  color: #94a3b8;
+  font-size: 1.35rem;
+}
+
+.notifications-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.notifications-list-enter-active,
+.notifications-list-leave-active {
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+.notifications-list-enter-from,
+.notifications-list-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.notifications-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1.2rem;
+  align-items: flex-start;
+  padding: 1.45rem;
+  border: 1px solid #d5dbe3;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.notifications-item:hover {
+  border-color: #90e0ef;
+  box-shadow: 0 3px 10px rgba(0, 119, 182, 0.08);
+}
+
+.notifications-item.is-unread {
+  background: #f8fbff;
+  border-left: 4px solid #0077b6;
+}
+
+.notifications-item__leading {
+  position: relative;
+}
+
+.notifications-item__unread-dot {
+  position: absolute;
+  top: -0.15rem;
+  left: -0.1rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  background: #0077b6;
+}
+
+.notifications-item__icon {
+  width: 4.6rem;
+  height: 4.6rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+}
+
+.notifications-item__icon--order {
+  background: #dff4fb;
+  color: #0077b6;
+}
+
+.notifications-item__icon--product {
+  background: #e8f7fb;
+  color: #0284c7;
+}
+
+.notifications-item__icon--promotion {
+  background: #fce7f3;
+  color: #db2777;
+}
+
+.notifications-item__icon--account {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+.notifications-item__icon--system {
+  background: #eef2f7;
   color: #475569;
 }
 
-.notification-time {
-  color: #64748b;
-  font-size: 1.5rem;
+.notifications-item__body {
+  min-width: 0;
+}
+
+.notifications-item__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.notifications-item__headline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.notifications-item__headline h3 {
+  margin: 0;
+  font-size: 1.9rem;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.notifications-type-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.notifications-type-badge--order {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.notifications-type-badge--product {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.notifications-type-badge--promotion {
+  background: #fce7f3;
+  color: #db2777;
+}
+
+.notifications-type-badge--account {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+.notifications-type-badge--system {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.notifications-item__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #94a3b8;
+  font-size: 1.28rem;
   white-space: nowrap;
 }
 
-.notification-message {
-  font-size: 2.2rem;
+.notifications-item__message {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.5;
   color: #475569;
 }
 
-.notification-actions {
+.notifications-item__actions {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
+.notifications-item__btn {
+  min-width: 17rem;
+  justify-content: center;
+  padding: 0.8rem 1.2rem;
+}
+
+.notifications-item__btn--delete {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.notifications-item__btn--delete:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.06);
+}
+
 @media (max-width: 980px) {
-  .notification-item {
+  .notifications-header-panel,
+  .notifications-board__header,
+  .notifications-item,
+  .notifications-item__top {
+    grid-template-columns: unset;
     flex-direction: column;
   }
 
-  .notification-actions {
+  .notifications-header-panel,
+  .notifications-board__header,
+  .notifications-item__top {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .notifications-item {
+    display: flex;
+  }
+
+  .notifications-item__actions {
     width: 100%;
     flex-direction: row;
+  }
+
+  .notifications-item__btn {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .notifications-toolbar {
+    gap: 0.6rem;
+  }
+
+  .notifications-status-pill {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .notif-type-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .notifications-item__headline h3 {
+    font-size: 1.65rem;
+  }
+
+  .notifications-item__message {
+    font-size: 1.45rem;
+  }
+
+  .notifications-item__actions {
+    flex-direction: column;
   }
 }
 </style>

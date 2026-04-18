@@ -21,6 +21,7 @@ class AuthService
 {
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
+        private readonly WelcomeEmailService $welcomeEmailService,
     ) {}
 
     /**
@@ -53,6 +54,9 @@ class AuthService
 
         // Generate API token
         $token = $user->createToken('auth-token')->plainTextToken;
+
+        // El registro no debe fallar si el correo presenta un problema temporal.
+        $this->welcomeEmailService->send((string) $user->email, (string) $user->name);
 
         return [
             'user'  => $user,
@@ -153,6 +157,8 @@ class AuthService
 
         $user = $this->userRepository->findByEmail($email);
 
+        $createdFromGoogle = false;
+
         if (!$user) {
             $displayName = trim((string) ($firebaseUser['displayName'] ?? ''));
             $name = $displayName !== '' ? $displayName : explode('@', $email)[0];
@@ -170,6 +176,8 @@ class AuthService
                 'password' => Str::random(40),
                 'role'     => 'customer',
             ]);
+
+            $createdFromGoogle = true;
         } else {
             if ($user->isBlocked()) {
                 throw new AuthException(
@@ -182,6 +190,11 @@ class AuthService
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
+
+        if ($createdFromGoogle) {
+            // Solo se envía en la primera creación de cuenta vía Google.
+            $this->welcomeEmailService->send((string) $user->email, (string) $user->name);
+        }
 
         return [
             'user'  => $user,

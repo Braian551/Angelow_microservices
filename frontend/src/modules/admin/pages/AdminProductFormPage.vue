@@ -3,7 +3,7 @@
     <AdminPageHeader
       :icon="isEditing ? 'fas fa-edit' : 'fas fa-plus-circle'"
       :title="isEditing ? 'Editar producto' : 'Nuevo producto'"
-      :subtitle="isEditing ? 'Actualiza la ficha, variantes y precios del producto.' : 'Crea un producto completo con informacion, variantes e inventario.'"
+      :subtitle="isEditing ? 'Actualiza la ficha, variantes y precios del producto.' : 'Crea un producto completo con información, variantes e inventario.'"
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Productos', to: '/admin/productos' }, { label: isEditing ? 'Editar' : 'Nuevo' }]"
     >
       <template #actions>
@@ -23,7 +23,7 @@
         <div class="admin-tabs product-form-tabs">
           <button type="button" class="admin-tab" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'">
             <i class="fas fa-file-alt"></i>
-            Informacion general
+            Información general
           </button>
           <button type="button" class="admin-tab" :class="{ active: activeTab === 'variants' }" @click="activeTab = 'variants'">
             <i class="fas fa-swatchbook"></i>
@@ -39,19 +39,25 @@
                 <div class="section-header">
                   <div class="section-header__icon"><i class="fas fa-tag"></i></div>
                   <div>
-                    <h3>Identificacion</h3>
-                    <p>Nombre publico y URL del producto.</p>
+                    <h3>Identificación</h3>
+                    <p>Nombre público y URL del producto.</p>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="product-name">Nombre del producto *</label>
+                    <label for="product-name">
+                      Nombre del producto *
+                      <AdminInfoTooltip text="Nombre público del producto visible en la tienda y el catálogo. Sé descriptivo y claro." />
+                    </label>
                     <input id="product-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
                     <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
                   </div>
                   <div class="form-group">
-                    <label for="product-slug">Slug</label>
-                    <input id="product-slug" v-model="form.slug" class="form-control" placeholder="se-genera-automaticamente">
+                    <label for="product-slug">
+                      Slug
+                      <AdminInfoTooltip text="Identificador único del producto en la URL. Se genera automáticamente desde el nombre o puedes editarlo manualmente." />
+                    </label>
+                    <input id="product-slug" v-model="form.slug" class="form-control" placeholder="se-genera-automaticamente" @input="handleSlugInput">
                   </div>
                 </div>
               </div>
@@ -60,29 +66,38 @@
                 <div class="section-header">
                   <div class="section-header__icon"><i class="fas fa-layer-group"></i></div>
                   <div>
-                    <h3>Clasificacion</h3>
-                    <p>Marca, genero, categoria y coleccion.</p>
+                    <h3>Clasificación</h3>
+                    <p>Marca, género, categoría y colección.</p>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="product-brand">Marca</label>
+                    <label for="product-brand">
+                      Marca
+                      <AdminInfoTooltip text="Marca o fabricante del producto. Aparece en la ficha del catálogo." />
+                    </label>
                     <input id="product-brand" v-model="form.brand" class="form-control" placeholder="Angelow">
                   </div>
                   <div class="form-group">
-                    <label for="product-gender">Genero</label>
+                    <label for="product-gender">
+                      Género
+                      <AdminInfoTooltip text="Público objetivo del producto. Permite filtrar y clasificar en el catálogo." />
+                    </label>
                     <select id="product-gender" v-model="form.gender" class="form-control">
                       <option value="unisex">Unisex</option>
                       <option value="mujer">Mujer</option>
                       <option value="hombre">Hombre</option>
-                      <option value="nina">Nina</option>
-                      <option value="nino">Nino</option>
+                      <option value="nina">Niña</option>
+                      <option value="nino">Niño</option>
                     </select>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="product-category">Categoria *</label>
+                    <label for="product-category">
+                      Categoría *
+                      <AdminInfoTooltip text="Categoría principal a la que pertenece el producto. Es obligatoria para guardarlo." />
+                    </label>
                     <select id="product-category" v-model="form.category_id" class="form-control" :class="{ 'is-invalid': errors.category_id }" @change="validateField('category_id')">
                       <option value="">Seleccionar...</option>
                       <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
@@ -90,9 +105,12 @@
                     <p v-if="errors.category_id" class="form-error">{{ errors.category_id }}</p>
                   </div>
                   <div class="form-group">
-                    <label for="product-collection-id">Coleccion</label>
+                    <label for="product-collection-id">
+                      Colección
+                      <AdminInfoTooltip text="Colección o temporada a la que pertenece el producto. Opcional." />
+                    </label>
                     <select id="product-collection-id" v-model="form.collection_id" class="form-control">
-                      <option value="">Sin coleccion</option>
+                      <option value="">Sin colección</option>
                       <option v-for="collection in collections" :key="collection.id" :value="collection.id">{{ collection.name }}</option>
                     </select>
                   </div>
@@ -104,28 +122,40 @@
                   <div class="section-header__icon"><i class="fas fa-dollar-sign"></i></div>
                   <div>
                     <h3>Precios y detalles</h3>
-                    <p>Precio base, comparativo, material y etiqueta de coleccion.</p>
+                    <p>Precio base, comparativo, material y etiqueta de colección.</p>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="product-price">Precio base *</label>
+                    <label for="product-price">
+                      Precio base *
+                      <AdminInfoTooltip text="Precio de venta principal del producto en pesos. Las variantes pueden tener su propio precio." />
+                    </label>
                     <input id="product-price" v-model="form.price" type="number" step="0.01" min="0" class="form-control" :class="{ 'is-invalid': errors.price }" @input="validateField('price')">
                     <p v-if="errors.price" class="form-error">{{ errors.price }}</p>
                   </div>
                   <div class="form-group">
-                    <label for="product-compare-price">Precio comparativo</label>
+                    <label for="product-compare-price">
+                      Precio comparativo
+                      <AdminInfoTooltip text="Precio original o tachado que muestra el descuento al cliente. Deja vacío si no aplica." />
+                    </label>
                     <input id="product-compare-price" v-model="form.compare_price" type="number" step="0.01" min="0" class="form-control" :class="{ 'is-invalid': errors.compare_price }" @input="validateField('compare_price')">
                     <p v-if="errors.compare_price" class="form-error">{{ errors.compare_price }}</p>
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="product-material">Material</label>
-                    <input id="product-material" v-model="form.material" class="form-control" placeholder="Algodon, denim, cuero...">
+                    <label for="product-material">
+                      Material
+                      <AdminInfoTooltip text="Composición textil o material principal del producto. Visible en la ficha del catálogo." />
+                    </label>
+                    <input id="product-material" v-model="form.material" class="form-control" placeholder="Algodón, denim, cuero...">
                   </div>
                   <div class="form-group">
-                    <label for="product-collection-name">Etiqueta de coleccion</label>
+                    <label for="product-collection-name">
+                      Etiqueta de colección
+                      <AdminInfoTooltip text="Texto libre de etiqueta para el producto. Ejemplo: «Drop verano 2026». Complementa el nombre de la colección." />
+                    </label>
                     <input id="product-collection-name" v-model="form.collection" class="form-control" placeholder="Drop verano 2026">
                   </div>
                 </div>
@@ -135,16 +165,22 @@
                 <div class="section-header">
                   <div class="section-header__icon"><i class="fas fa-align-left"></i></div>
                   <div>
-                    <h3>Descripcion y cuidado</h3>
-                    <p>Texto de catalogo e instrucciones para el cliente.</p>
+                    <h3>Descripción y cuidado</h3>
+                    <p>Texto de catálogo e instrucciones para el cliente.</p>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label for="product-description">Descripcion</label>
+                  <label for="product-description">
+                    Descripción
+                    <AdminInfoTooltip text="Texto de venta visible al cliente en la ficha del producto. Describe materiales, silueta, fit y atributos clave." />
+                  </label>
                   <textarea id="product-description" v-model="form.description" class="form-control" rows="5" placeholder="Cuenta materiales, silueta, fit y atributos clave."></textarea>
                 </div>
                 <div class="form-group">
-                  <label for="product-care">Instrucciones de cuidado</label>
+                  <label for="product-care">
+                    Instrucciones de cuidado
+                    <AdminInfoTooltip text="Indicaciones de lavado, secado y mantenimiento para el cliente. Visibles en la ficha del producto." />
+                  </label>
                   <textarea id="product-care" v-model="form.care_instructions" class="form-control" rows="4" placeholder="Lavado, secado y recomendaciones de mantenimiento."></textarea>
                 </div>
               </div>
@@ -190,27 +226,21 @@
                     <p>Estado y destaque del producto.</p>
                   </div>
                 </div>
-                <div class="status-option">
-                  <div>
-                    <strong>Producto activo</strong>
-                    <p>Visible para catalogo y procesos internos.</p>
-                  </div>
-                  <label class="toggle-switch">
-                    <input v-model="form.is_active" type="checkbox">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
+                <AdminToggleSwitch
+                  id="product-active"
+                  class="status-option"
+                  v-model="form.is_active"
+                  title="Producto activo"
+                  description="Visible para catálogo y procesos internos."
+                />
 
-                <div class="status-option">
-                  <div>
-                    <strong>Producto destacado</strong>
-                    <p>Permite resaltarlo en vitrinas o listados especiales.</p>
-                  </div>
-                  <label class="toggle-switch">
-                    <input v-model="form.is_featured" type="checkbox">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
+                <AdminToggleSwitch
+                  id="product-featured"
+                  class="status-option"
+                  v-model="form.is_featured"
+                  title="Producto destacado"
+                  description="Permite resaltarlo en vitrinas o listados especiales."
+                />
               </div>
             </aside>
           </div>
@@ -220,7 +250,7 @@
           <div class="variants-toolbar">
             <div>
               <h3>Variantes configuradas</h3>
-              <p>Replica el flujo de Angelow: color, imagen y tallas con precio, stock, SKU y codigo de barras.</p>
+              <p>Replica el flujo de Angelow: color, imagen y tallas con precio, stock, SKU y código de barras.</p>
             </div>
             <button type="button" class="btn btn-primary" @click="addVariant">
               <i class="fas fa-plus"></i> Agregar variante
@@ -258,7 +288,7 @@
                     <span>Principal</span>
                   </label>
 
-                  <button type="button" class="btn btn-secondary btn-sm" title="Tallas y precios" @click="openVariantModal(variant.key)">
+                  <button type="button" class="btn btn-primary btn-sm" title="Tallas y precios" @click="openVariantModal(variant.key)">
                     <i class="fas fa-tags"></i>
                   </button>
 
@@ -275,7 +305,10 @@
                 </div>
 
                 <div class="form-group">
-                  <label :for="`variant-color-${variant.key}`">Color *</label>
+                  <label :for="`variant-color-${variant.key}`">
+                    Color *
+                    <AdminInfoTooltip text="Color de esta variante. Cada variante corresponde a un color distinto del producto." />
+                  </label>
                   <select :id="`variant-color-${variant.key}`" v-model="variant.color_id" class="form-control">
                     <option value="">Seleccionar color...</option>
                     <option v-for="color in colors" :key="color.id" :value="color.id">{{ color.name }}</option>
@@ -283,24 +316,31 @@
                 </div>
 
                 <div class="variant-card__media">
-                  <div class="variant-card__preview" :class="{ empty: !variant.image_preview }">
-                    <img v-if="variant.image_preview" :src="variant.image_preview" :alt="`Variante ${index + 1}`" @error="onProductImageError($event, variant.image_path)">
-                    <div v-else>
-                      <i class="fas fa-swatchbook"></i>
-                      <p>Sin imagen</p>
+                  <div class="variant-image-grid">
+                    <div
+                      v-for="(img, imgIndex) in variant.images"
+                      :key="imgIndex"
+                      class="variant-image-thumb"
+                      :class="{ 'is-primary': img.is_primary }"
+                    >
+                      <img :src="img.preview" :alt="`Imagen ${imgIndex + 1}`" @error="onProductImageError($event, img.path)">
+                      <div class="variant-image-thumb__overlay">
+                        <button type="button" class="vit-action vit-action--star" :title="img.is_primary ? 'Principal' : 'Marcar como principal'" @click="setVariantImagePrimary(variant.key, imgIndex)">
+                          <i class="fas fa-star"></i>
+                        </button>
+                        <button type="button" class="vit-action vit-action--remove" title="Quitar imagen" @click="removeVariantImageItem(variant.key, imgIndex)">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </div>
+                      <span v-if="img.is_primary" class="vit-primary-badge">Principal</span>
                     </div>
-                  </div>
 
-                  <div class="variant-card__media-actions">
-                    <button type="button" class="btn btn-secondary btn-sm" title="Subir imagen" @click="triggerVariantImagePicker(variant.key)">
-                      <i class="fas fa-upload"></i>
+                    <button type="button" class="variant-image-add-btn" title="Agregar imágenes" @click="triggerVariantImagePicker(variant.key)">
+                      <i class="fas fa-plus"></i>
+                      <span v-if="!variant.images.length">Agregar imágenes</span>
                     </button>
-
-                    <button type="button" class="btn btn-secondary btn-sm text-danger" title="Quitar" @click="removeVariantImage(variant.key)">
-                      <i class="fas fa-times"></i>
-                    </button>
-                    <input :ref="(element) => setVariantImageInputRef(variant.key, element)" type="file" accept="image/*" class="visually-hidden" @change="(event) => handleVariantImageUpload(variant.key, event)">
                   </div>
+                  <input :ref="(element) => setVariantImageInputRef(variant.key, element)" type="file" accept="image/*" multiple class="visually-hidden" @change="(event) => handleVariantImageUpload(variant.key, event)">
                 </div>
 
                 <div class="variant-size-summary">
@@ -316,7 +356,7 @@
                     </span>
                   </div>
 
-                  <p v-else class="variant-size-summary__empty">Abre el modal para cargar precios, stock y codigos.</p>
+                  <p v-else class="variant-size-summary__empty">Abre el modal para cargar precios, stock y códigos.</p>
                 </div>
               </div>
             </article>
@@ -335,12 +375,12 @@
       </form>
     </AdminCard>
 
-    <AdminModal :show="variantModalOpen" title="Configuracion de tallas y precios" max-width="980px" @close="closeVariantModal">
+    <AdminModal :show="variantModalOpen" title="Configuración de tallas y precios" icon="fas fa-tags" subtitle="Color, tallas, precios e inventario de la variante." max-width="980px" @close="closeVariantModal">
       <div v-if="activeVariant" class="variant-modal">
         <div class="variant-modal__intro">
           <div>
             <h3>{{ colorName(activeVariant.color_id) || 'Variante sin color' }}</h3>
-            <p>Define tallas, precios comparativos, stock, SKU y codigo de barras.</p>
+            <p>Define tallas, precios comparativos, stock, SKU y código de barras.</p>
             
             <div v-if="activeVariant.color_id" class="color-preview-banner mt-3">
               <span class="color-circle" :style="{ backgroundColor: colorHex(activeVariant.color_id) }"></span>
@@ -370,40 +410,59 @@
 
             <div class="variant-modal__grid">
               <div class="form-group">
-                <label>Talla *</label>
+                <label>
+                  Talla *
+                  <AdminInfoTooltip text="Talla a la que corresponde este precio e inventario." />
+                </label>
                 <select v-model="sizeRow.size_id" class="form-control">
                   <option value="">Seleccionar...</option>
                   <option v-for="size in sizes" :key="size.id" :value="size.id">{{ size.name }}</option>
                 </select>
               </div>
               <div class="form-group">
-                <label>Precio *</label>
+                <label>
+                  Precio *
+                  <AdminInfoTooltip text="Precio de venta de esta combinación color + talla. Valor en pesos." />
+                </label>
                 <input v-model="sizeRow.price" type="number" step="0.01" min="0" class="form-control">
               </div>
               <div class="form-group">
-                <label>Precio comparativo</label>
+                <label>
+                  Precio comparativo
+                  <AdminInfoTooltip text="Precio original o tachado que muestra el descuento al cliente. Deja vacío si no hay precio anterior." />
+                </label>
                 <input v-model="sizeRow.compare_price" type="number" step="0.01" min="0" class="form-control">
               </div>
               <div class="form-group">
-                <label>Stock</label>
+                <label>
+                  Stock
+                  <AdminInfoTooltip text="Unidades disponibles en inventario para esta variante." />
+                </label>
                 <input v-model="sizeRow.quantity" type="number" step="1" min="0" class="form-control">
               </div>
               <div class="form-group">
-                <label>SKU</label>
-                <input v-model="sizeRow.sku" class="form-control" placeholder="SKU-001">
+                <label>
+                  SKU
+                  <AdminInfoTooltip text="Código único interno de la variante. Se genera automáticamente al completar los datos o puedes editarlo." />
+                </label>
+                <input v-model="sizeRow.sku" class="form-control" placeholder="ANG-PIJA-GRL-DULC-ROS-XS" @input="handleSizeSkuInput(activeVariant, sizeRow)">
               </div>
               <div class="form-group">
-                <label>Codigo de barras</label>
+                <label>
+                  Código de barras
+                  <AdminInfoTooltip text="Código de barras del producto para uso en escaneos físicos o etiquetado." />
+                </label>
                 <input v-model="sizeRow.barcode" class="form-control" placeholder="7700000000000">
               </div>
             </div>
 
             <div class="variant-modal__row-footer">
-              <label class="toggle-switch">
-                <input v-model="sizeRow.is_active" type="checkbox">
-                <span class="toggle-slider"></span>
-              </label>
-              <span>{{ sizeRow.is_active ? 'Talla activa' : 'Talla inactiva' }}</span>
+              <AdminToggleSwitch
+                :id="`variant-size-active-${sizeRow.key}`"
+                v-model="sizeRow.is_active"
+                layout="inline"
+                :label="sizeRow.is_active ? 'Talla activa' : 'Talla inactiva'"
+              />
             </div>
           </article>
         </div>
@@ -422,15 +481,17 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { catalogHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminShimmer from '../components/AdminShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -454,9 +515,26 @@ const variantImageInputs = ref({})
 const variantModalOpen = ref(false)
 const activeVariantKey = ref('')
 const selectedSizeId = ref('')
+const slugManuallyEdited = ref(false)
 
 let variantSeed = 0
 let sizeSeed = 0
+
+const SPANISH_STOPWORDS = new Set(['a', 'al', 'con', 'de', 'del', 'el', 'en', 'la', 'las', 'los', 'para', 'por', 'sin', 'un', 'una', 'y'])
+const GENDER_SLUG_LABELS = {
+  unisex: 'unisex',
+  mujer: 'mujer',
+  hombre: 'hombre',
+  nina: 'nina',
+  nino: 'nino',
+}
+const GENDER_SKU_CODES = {
+  unisex: 'UNI',
+  mujer: 'WMN',
+  hombre: 'MEN',
+  nina: 'GRL',
+  nino: 'BOY',
+}
 
 const form = reactive({
   name: '',
@@ -509,6 +587,218 @@ function nextSizeKey() {
   return `size-${sizeSeed}`
 }
 
+function normalizePlainText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function slugifyText(value) {
+  return normalizePlainText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function buildWordSignature(value) {
+  const normalized = slugifyText(value).replace(/-/g, '')
+
+  if (normalized.length > 4 && normalized.endsWith('es')) {
+    return normalized.slice(0, -2)
+  }
+
+  if (normalized.length > 3 && normalized.endsWith('s')) {
+    return normalized.slice(0, -1)
+  }
+
+  return normalized
+}
+
+function extractMeaningfulWords(value) {
+  return slugifyText(value)
+    .split('-')
+    .filter(Boolean)
+    .filter((word) => !SPANISH_STOPWORDS.has(word))
+}
+
+function uniqueMeaningfulWords(sources) {
+  const seen = new Set()
+  const words = []
+
+  for (const source of sources) {
+    for (const word of extractMeaningfulWords(source)) {
+      const signature = buildWordSignature(word)
+      if (!signature || seen.has(signature)) {
+        continue
+      }
+
+      seen.add(signature)
+      words.push(word)
+    }
+  }
+
+  return words
+}
+
+function normalizeGenderKey(value) {
+  const normalized = slugifyText(value).replace(/-/g, '')
+  return GENDER_SLUG_LABELS[normalized] ? normalized : 'unisex'
+}
+
+function genderSlugLabel(value) {
+  return GENDER_SLUG_LABELS[normalizeGenderKey(value)] || 'unisex'
+}
+
+function genderSkuCode(value) {
+  return GENDER_SKU_CODES[normalizeGenderKey(value)] || 'UNI'
+}
+
+function categoryOption(categoryId) {
+  return categories.value.find((item) => Number(item.id) === Number(categoryId)) || null
+}
+
+function categorySource(categoryId) {
+  const category = categoryOption(categoryId)
+  return category?.slug || category?.name || ''
+}
+
+function buildCodeSegment(value, length, fallback) {
+  const words = extractMeaningfulWords(value)
+
+  if (!words.length) {
+    return fallback
+  }
+
+  if (words.length === 1) {
+    const singleWord = words[0].replace(/[^a-z0-9]/g, '')
+    if (!singleWord) {
+      return fallback
+    }
+
+    return singleWord.substring(0, length).toUpperCase().padEnd(length, singleWord.charAt(0).toUpperCase())
+  }
+
+  const compact = words.map((word) => word.slice(0, 2)).join('').replace(/[^a-z0-9]/g, '')
+  if (!compact) {
+    return fallback
+  }
+
+  return compact.substring(0, length).toUpperCase().padEnd(length, compact.charAt(0).toUpperCase())
+}
+
+function buildBrandSkuToken() {
+  return buildCodeSegment(form.brand || 'Angelow', 3, 'ANG')
+}
+
+function buildCategorySkuToken() {
+  return buildCodeSegment(categorySource(form.category_id), 4, 'CATG')
+}
+
+function buildStyleSource() {
+  const excludedSignatures = new Set([
+    ...extractMeaningfulWords(form.brand),
+    ...extractMeaningfulWords(categorySource(form.category_id)),
+    ...extractMeaningfulWords(genderSlugLabel(form.gender)),
+  ].map((word) => buildWordSignature(word)))
+
+  const styleWords = extractMeaningfulWords(form.name)
+    .filter((word) => !excludedSignatures.has(buildWordSignature(word)))
+
+  return styleWords.join(' ') || form.name
+}
+
+function buildStyleSkuToken() {
+  return buildCodeSegment(buildStyleSource(), 4, 'MODE')
+}
+
+function buildColorSkuToken(colorId) {
+  return buildCodeSegment(colorName(colorId), 3, 'COL')
+}
+
+function buildSizeSkuToken(sizeId) {
+  const normalizedSize = normalizePlainText(sizeName(sizeId))
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+
+  if (!normalizedSize) {
+    return 'TAL'
+  }
+
+  return normalizedSize.substring(0, 4)
+}
+
+function buildGeneratedSku(variant, sizeRow) {
+  if (!String(form.name || '').trim() || !form.category_id || !variant.color_id || !sizeRow.size_id) {
+    return ''
+  }
+
+  return [
+    buildBrandSkuToken(),
+    buildCategorySkuToken(),
+    genderSkuCode(form.gender),
+    buildStyleSkuToken(),
+    buildColorSkuToken(variant.color_id),
+    buildSizeSkuToken(sizeRow.size_id),
+  ].join('-')
+}
+
+function normalizeSkuValue(value) {
+  return normalizePlainText(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function shouldTreatExistingSkuAsManual(value) {
+  const normalizedSku = normalizeSkuValue(value)
+  return Boolean(normalizedSku) && normalizedSku !== '-' && normalizedSku.length > 2
+}
+
+function shouldTreatExistingSlugAsManual(value) {
+  const normalizedSlug = slugifyText(value)
+  if (!normalizedSlug) {
+    return false
+  }
+
+  const basicNameSlug = slugifyText(form.name)
+  return normalizedSlug !== generatedSlug.value && normalizedSlug !== basicNameSlug
+}
+
+const generatedSlug = computed(() => {
+  if (!String(form.name || '').trim()) {
+    return ''
+  }
+
+  const words = uniqueMeaningfulWords([
+    categorySource(form.category_id),
+    form.name,
+    genderSlugLabel(form.gender),
+  ])
+
+  return words.length ? words.join('-') : slugifyText(form.name)
+})
+
+const skuGenerationSignature = computed(() => JSON.stringify({
+  name: form.name,
+  brand: form.brand,
+  category_id: form.category_id,
+  category_source: categorySource(form.category_id),
+  gender: form.gender,
+  colors: colors.value.map((color) => `${color.id}:${color.name}`),
+  sizes: sizes.value.map((size) => `${size.id}:${size.name}`),
+  variants: form.variants.map((variant) => ({
+    key: variant.key,
+    color_id: variant.color_id,
+    sizes: variant.sizes.map((size) => ({
+      key: size.key,
+      size_id: size.size_id,
+      manual: Boolean(size.sku_manually_edited),
+    })),
+  })),
+}))
+
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === 'boolean') return value
   if (value === null || value === undefined || value === '') return fallback
@@ -524,21 +814,38 @@ function createSizeRow(partial = {}) {
     compare_price: partial.compare_price ?? form.compare_price ?? '',
     quantity: Number(partial.quantity ?? 0),
     sku: partial.sku || '',
+    sku_manually_edited: partial.sku_manually_edited ?? shouldTreatExistingSkuAsManual(partial.sku),
     barcode: partial.barcode || '',
     is_active: normalizeBoolean(partial.is_active, true),
   }
 }
 
 function createVariant(partial = {}) {
-  const imagePath = partial.image_path || ''
+  // Construir array de imágenes desde partial.images[] o partial.image_path (retrocompat)
+  const images = []
+
+  if (Array.isArray(partial.images) && partial.images.length > 0) {
+    for (const img of partial.images) {
+      const path = img.image_path || img.url || img.path || ''
+      images.push({
+        id: img.id || null,
+        path,
+        preview: path ? resolveMediaUrl(path, 'product') : '',
+        file: null,
+        is_primary: normalizeBoolean(img.is_primary, images.length === 0),
+      })
+    }
+  } else if (partial.image_path) {
+    const path = partial.image_path
+    images.push({ id: null, path, preview: resolveMediaUrl(path, 'product'), file: null, is_primary: true })
+  }
+
   return {
     id: partial.id || null,
     key: partial.key || nextVariantKey(),
     color_id: partial.color_id ? Number(partial.color_id) : '',
     is_default: normalizeBoolean(partial.is_default, form.variants.length === 0),
-    image_path: imagePath,
-    image_preview: imagePath ? resolveMediaUrl(imagePath, 'product') : '',
-    image_file: null,
+    images,
     sizes: (partial.size_variants || partial.sizes || []).map((size) => createSizeRow(size)),
   }
 }
@@ -599,39 +906,49 @@ function removeMainImage() {
 }
 
 function handleVariantImageUpload(key, event) {
-  const file = event.target.files?.[0]
-  if (!file) return
+  const files = Array.from(event.target.files || [])
+  if (!files.length) return
 
   const variant = form.variants.find((item) => item.key === key)
   if (!variant) return
 
-  revokePreview(variant.image_preview)
-  variant.image_file = file
-  variant.image_preview = URL.createObjectURL(file)
-}
-
-function refreshVariantPreview(key) {
-  const variant = form.variants.find((item) => item.key === key)
-  if (!variant) return
-
-  if (!variant.image_file) {
-    revokePreview(variant.image_preview)
-    variant.image_preview = variant.image_path ? resolveMediaUrl(variant.image_path, 'product') : ''
+  // Agregar todas las imágenes seleccionadas al array de la variante
+  for (const file of files) {
+    variant.images.push({
+      id: null,
+      path: '',
+      preview: URL.createObjectURL(file),
+      file,
+      is_primary: variant.images.length === 0,
+    })
   }
-}
 
-function removeVariantImage(key) {
-  const variant = form.variants.find((item) => item.key === key)
-  if (!variant) return
-
-  revokePreview(variant.image_preview)
-  variant.image_path = ''
-  variant.image_file = null
-  variant.image_preview = ''
-
+  // Resetear input para permitir re-selección de los mismos archivos
   if (variantImageInputs.value[key]) {
     variantImageInputs.value[key].value = ''
   }
+}
+
+function removeVariantImageItem(variantKey, imgIndex) {
+  const variant = form.variants.find((item) => item.key === variantKey)
+  if (!variant) return
+
+  const [removed] = variant.images.splice(imgIndex, 1)
+  revokePreview(removed?.preview)
+
+  // Reasignar principal si la imagen eliminada era la principal
+  if (removed?.is_primary && variant.images.length > 0) {
+    variant.images[0].is_primary = true
+  }
+}
+
+function setVariantImagePrimary(variantKey, imgIndex) {
+  const variant = form.variants.find((item) => item.key === variantKey)
+  if (!variant) return
+
+  variant.images.forEach((img, idx) => {
+    img.is_primary = idx === imgIndex
+  })
 }
 
 function colorName(colorId) {
@@ -711,6 +1028,7 @@ function addSizeRowToActiveVariant() {
   }
 
   activeVariant.value.sizes.push(createSizeRow({ size_id: sizeId }))
+  syncVariantSkus()
   selectedSizeId.value = ''
 }
 
@@ -734,7 +1052,7 @@ function validateField(field) {
   }
 
   if (field === 'category_id') {
-    errors.category_id = form.category_id ? '' : 'Selecciona una categoria.'
+    errors.category_id = form.category_id ? '' : 'Selecciona una categoría.'
   }
 
   if (field === 'compare_price') {
@@ -744,6 +1062,51 @@ function validateField(field) {
       ? 'El precio comparativo debe ser mayor al precio base.'
       : ''
   }
+}
+
+function syncSlugValue() {
+  if (!slugManuallyEdited.value || !String(form.slug || '').trim()) {
+    form.slug = generatedSlug.value
+  }
+}
+
+function syncVariantSkus() {
+  form.variants.forEach((variant) => {
+    variant.sizes.forEach((sizeRow) => {
+      if (sizeRow.sku_manually_edited && String(sizeRow.sku || '').trim()) {
+        return
+      }
+
+      sizeRow.sku = buildGeneratedSku(variant, sizeRow)
+    })
+  })
+}
+
+function handleSlugInput() {
+  const normalizedSlug = slugifyText(form.slug)
+
+  if (!normalizedSlug) {
+    slugManuallyEdited.value = false
+    form.slug = generatedSlug.value
+    return
+  }
+
+  slugManuallyEdited.value = normalizedSlug !== generatedSlug.value
+  form.slug = normalizedSlug
+}
+
+function handleSizeSkuInput(variant, sizeRow) {
+  const normalizedSku = normalizeSkuValue(sizeRow.sku)
+
+  if (!normalizedSku) {
+    sizeRow.sku_manually_edited = false
+    sizeRow.sku = buildGeneratedSku(variant, sizeRow)
+    return
+  }
+
+  const generatedSku = buildGeneratedSku(variant, sizeRow)
+  sizeRow.sku_manually_edited = normalizedSku !== generatedSku
+  sizeRow.sku = normalizedSku
 }
 
 function validateVariants() {
@@ -820,7 +1183,15 @@ function buildVariantPayload() {
     key: variant.key,
     color_id: Number(variant.color_id),
     is_default: Boolean(variant.is_default),
-    image_path: variant.image_path?.trim() || null,
+    // Imágenes ya persistidas (sin archivo nuevo) — el backend las re-inserta
+    images: variant.images
+      .filter((img) => img.path && !img.file)
+      .map((img, order) => ({
+        id: img.id,
+        path: img.path,
+        is_primary: img.is_primary,
+        order,
+      })),
     sizes: variant.sizes.map((size) => ({
       id: size.id,
       key: size.key,
@@ -859,7 +1230,7 @@ function buildPayload() {
 }
 
 function buildRequestBody(payload) {
-  const hasFiles = Boolean(mainImageFile.value) || form.variants.some((variant) => variant.image_file)
+  const hasFiles = Boolean(mainImageFile.value) || form.variants.some((variant) => variant.images.some((img) => img.file))
 
   if (!hasFiles) {
     return { body: payload, config: undefined }
@@ -880,9 +1251,12 @@ function buildRequestBody(payload) {
   }
 
   form.variants.forEach((variant) => {
-    if (variant.image_file) {
-      formData.append(`variant_image_files[${variant.key}]`, variant.image_file)
-    }
+    // Adjuntar nuevas imágenes de la variante con índice para soporte de múltiples archivos
+    variant.images.forEach((img, imgIndex) => {
+      if (img.file) {
+        formData.append(`variant_image_files[${variant.key}][${imgIndex}]`, img.file)
+      }
+    })
   })
 
   return {
@@ -901,7 +1275,7 @@ function extractErrorMessage(error) {
 
 async function saveProduct() {
   if (!validateForm()) {
-    showSnackbar({ type: 'error', message: 'Revisa la informacion del producto antes de guardar.' })
+    showSnackbar({ type: 'error', message: 'Revisa la información del producto antes de guardar.' })
     return
   }
 
@@ -981,6 +1355,7 @@ async function loadProduct() {
   const variants = Array.isArray(data.variants) ? data.variants : []
   const productImages = Array.isArray(data.images) ? data.images : []
 
+  slugManuallyEdited.value = true
   form.name = product.name || product.nombre || ''
   form.slug = product.slug || ''
   form.brand = product.brand || product.marca || ''
@@ -1007,16 +1382,21 @@ async function loadProduct() {
   }
 
   form.variants = variants.map((variant) => {
-    const variantImage = (variant.images || []).find((image) => normalizeBoolean(image.is_primary, true))
-      || (variant.images || [])[0]
-      || productImages.find((image) => Number(image.color_variant_id) === Number(variant.id))
+    // Usar todas las imágenes de la variante; fallback a product_images si no hay
+    const variantImgList = (variant.images || []).length > 0
+      ? variant.images
+      : productImages.filter((img) => Number(img.color_variant_id) === Number(variant.id))
 
     return createVariant({
       id: variant.id,
       key: `variant-${variant.id || nextVariantKey()}`,
       color_id: variant.color_id,
       is_default: normalizeBoolean(variant.is_default, false),
-      image_path: variantImage?.image_path || variantImage?.url || '',
+      images: variantImgList.map((img) => ({
+        id: img.id || null,
+        image_path: img.image_path || img.url || '',
+        is_primary: normalizeBoolean(img.is_primary, false),
+      })),
       size_variants: (variant.size_variants || []).map((size) => ({
         id: size.id,
         size_id: size.size_id,
@@ -1034,19 +1414,31 @@ async function loadProduct() {
     addVariant()
   }
 
+  slugManuallyEdited.value = shouldTreatExistingSlugAsManual(form.slug)
+  syncSlugValue()
   ensureDefaultVariant()
+  syncVariantSkus()
 }
 
 function onProductImageError(event, path) {
   handleMediaError(event, path, 'product')
 }
 
+watch(generatedSlug, () => {
+  syncSlugValue()
+}, { immediate: true })
+
+watch(skuGenerationSignature, () => {
+  syncVariantSkus()
+}, { immediate: true })
+
 onMounted(async () => {
-  activeTab.value = 'general'
   initialLoading.value = true
   try {
     await loadCatalogOptions()
     await loadProduct()
+    // Siempre abrir en pestaña general al entrar al formulario
+    activeTab.value = 'general'
   } catch (error) {
     showSnackbar({ type: 'error', message: extractErrorMessage(error) || 'No se pudo cargar el formulario.' })
   } finally {
@@ -1213,8 +1605,7 @@ onMounted(async () => {
   font-size: 1.25rem;
 }
 
-.image-panel__preview,
-.variant-card__preview {
+.image-panel__preview {
   min-height: 220px;
   border-radius: 16px;
   border: 1px dashed rgba(0, 119, 182, 0.28);
@@ -1225,37 +1616,157 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.variant-card__preview {
-  min-height: 180px;
-}
-
-.image-panel__preview img,
-.variant-card__preview img {
+.image-panel__preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.image-panel__preview.empty,
-.variant-card__preview.empty {
+.image-panel__preview.empty {
   color: var(--admin-text-light);
   text-align: center;
 }
 
 .image-panel__preview i,
-.variant-card__preview i,
 .variant-modal__empty i {
   font-size: 2.8rem;
   margin-bottom: 0.8rem;
 }
 
 .image-panel__actions,
-.variant-card__media-actions,
-.variant-card__header-actions,
-.variant-modal__add-size {
+.variant-card__header-actions {
   display: flex;
   gap: 0.8rem;
   flex-wrap: wrap;
+}
+
+.variant-modal__add-size {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.variant-modal__add-size .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.variant-modal__add-size .btn {
+  flex-shrink: 0;
+}
+
+/* ── Galería compacta de imágenes por variante ── */
+.variant-image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.variant-image-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  transition: border-color 0.18s ease;
+}
+
+.variant-image-thumb.is-primary {
+  border-color: var(--admin-primary);
+}
+
+.variant-image-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.variant-image-thumb__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.variant-image-thumb:hover .variant-image-thumb__overlay {
+  opacity: 1;
+}
+
+.vit-action {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.vit-action--star {
+  background: rgba(255, 193, 7, 0.92);
+  color: #4a3a00;
+}
+
+.vit-action--remove {
+  background: rgba(220, 53, 69, 0.92);
+  color: white;
+}
+
+.vit-primary-badge {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--admin-primary);
+  color: white;
+  font-size: 0.9rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+.variant-image-add-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  border: 2px dashed rgba(0, 119, 182, 0.35);
+  background: rgba(0, 119, 182, 0.04);
+  color: var(--admin-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.variant-image-add-btn span {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.variant-image-add-btn:hover {
+  background: rgba(0, 119, 182, 0.1);
+  border-color: rgba(0, 119, 182, 0.55);
 }
 
 .status-option {

@@ -13,17 +13,24 @@ class UserAddress extends Model
 
     protected $fillable = [
         'user_id',
+        'address_type',
+        'alias',
         'recipient_name',
-        'phone',
-        'address_line_1',
-        'address_line_2',
-        'city',
-        'department',
-        'postal_code',
-        'country',
-        'notes',
+        'recipient_phone',
+        'address',
+        'complement',
+        'neighborhood',
+        'building_type',
+        'building_name',
+        'apartment_number',
+        'delivery_instructions',
         'is_default',
         'is_active',
+        'gps_latitude',
+        'gps_longitude',
+        'gps_accuracy',
+        'gps_timestamp',
+        'gps_used',
     ];
 
     protected function casts(): array
@@ -31,6 +38,11 @@ class UserAddress extends Model
         return [
             'is_default' => 'boolean',
             'is_active' => 'boolean',
+            'gps_used' => 'boolean',
+            'gps_latitude' => 'float',
+            'gps_longitude' => 'float',
+            'gps_accuracy' => 'float',
+            'gps_timestamp' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

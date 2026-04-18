@@ -2,13 +2,13 @@
   <div class="admin-entity-page">
     <AdminPageHeader
       icon="fas fa-folder-open"
-      title="Categorias"
-      subtitle="Gestiona estructura, estado y contenido descriptivo de las categorias del catalogo."
-      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Categorias' }]"
+      title="Categorías"
+      subtitle="Gestiona estructura, estado y contenido descriptivo de las categorías del catálogo."
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Categorías' }]"
     >
       <template #actions>
         <button class="btn btn-primary" type="button" @click="openModal()">
-          <i class="fas fa-plus"></i> Nueva categoria
+          <i class="fas fa-plus"></i> Nueva categoría
         </button>
       </template>
     </AdminPageHeader>
@@ -18,8 +18,8 @@
     <AdminFilterCard
       v-model="search"
       icon="fas fa-filter"
-      title="Busqueda y estado"
-      placeholder="Nombre, slug o descripcion"
+      title="Búsqueda y estado"
+      placeholder="Nombre, slug o descripción"
       @search="search = search.trim()"
     >
       <template #advanced>
@@ -49,15 +49,15 @@
       </template>
     </AdminFilterCard>
 
-    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} categorias`" />
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} categorías`" />
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['thumb', 'line', 'line', 'line', 'pill', 'btn']" />
       <AdminEmptyState
         v-else-if="filteredCategories.length === 0"
         icon="fas fa-folder-open"
-        title="Sin categorias visibles"
-        description="Ajusta los filtros o crea una nueva categoria para empezar."
+        title="Sin categorías visibles"
+        description="Ajusta los filtros o crea una nueva categoría para empezar."
       />
       <div v-else class="table-responsive">
         <table class="dashboard-table">
@@ -65,7 +65,7 @@
             <tr>
               <th>Imagen</th>
               <th>Nombre</th>
-              <th>Descripcion</th>
+              <th>Descripción</th>
               <th>Productos</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -101,7 +101,7 @@
                   <button class="action-btn view" type="button" :title="category.is_active ? 'Desactivar' : 'Activar'" @click="toggleStatus(category)">
                     <i class="fas fa-power-off"></i>
                   </button>
-                  <button class="action-btn delete" type="button" title="Eliminar" :disabled="category.product_count > 0" @click="confirmDelete(category)">
+                  <button v-if="category.product_count === 0" class="action-btn delete" type="button" title="Eliminar" @click="confirmDelete(category)">
                     <i class="fas fa-trash"></i>
                   </button>
                 </div>
@@ -119,45 +119,101 @@
       :page-size-options="pagination.pageSizeOptions"
     />
 
-    <AdminModal :show="showModal" :title="editing ? 'Editar categoria' : 'Nueva categoria'" max-width="720px" @close="closeModal">
-      <div class="admin-entity-filters__form">
-        <div class="form-group admin-entity-filters__form--full">
-          <label for="category-name">Nombre *</label>
-          <input id="category-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
-          <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
-        </div>
-
-        <div class="form-group">
-          <label for="category-slug">Slug</label>
-          <input id="category-slug" v-model="form.slug" class="form-control" placeholder="se-genera-automaticamente">
-        </div>
-
-        <div class="form-group">
-          <label for="category-image">Ruta de imagen</label>
-          <input id="category-image" v-model="form.image" class="form-control" placeholder="/uploads/categories/mi-categoria.jpg">
-        </div>
-
-        <div class="form-group admin-entity-filters__form--full">
-          <label for="category-description">Descripcion</label>
-          <textarea id="category-description" v-model="form.description" class="form-control" rows="4" placeholder="Describe la categoria y su alcance comercial."></textarea>
-        </div>
-
-        <div class="form-group admin-entity-filters__form--full admin-entity-filters__toggle">
-          <div>
-            <strong>Categoria activa</strong>
-            <p>Permite que siga disponible para asociarla a productos.</p>
+    <AdminModal
+      :show="showModal"
+      :icon="editing ? 'fas fa-edit' : 'fas fa-plus'"
+      :title="editing ? 'Editar categoría' : 'Nueva categoría'"
+      :subtitle="editing ? 'Actualiza los datos de esta categoría.' : 'Completa los datos para crear una nueva categoría.'"
+      max-width="860px"
+      @close="closeModal"
+    >
+      <div class="admin-editor-grid">
+        <!-- Columna izquierda: datos principales -->
+        <div>
+          <div class="form-group">
+            <label for="category-name">
+              Nombre *
+              <AdminInfoTooltip text="Nombre visible de la categoría en la tienda y en el panel de administración. Debe ser claro y reconocible para el equipo." />
+            </label>
+            <input
+              id="category-name"
+              v-model="form.name"
+              class="form-control"
+              :class="{ 'is-invalid': errors.name }"
+              placeholder="Ej. Vestidos, Pijamas, Ropa Deportiva"
+              @input="onNameInput"
+            >
+            <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
           </div>
-          <label class="toggle-switch">
-            <input v-model="form.is_active" type="checkbox">
-            <span class="toggle-slider"></span>
-          </label>
+
+          <div class="form-group">
+            <label for="category-slug">
+              Identificador (slug)
+              <AdminInfoTooltip text="Clave única que identifica la categoría en las URLs. Se genera automáticamente al escribir el nombre. Solo letras minúsculas, números y guiones." />
+            </label>
+            <input
+              id="category-slug"
+              v-model="form.slug"
+              class="form-control"
+              placeholder="se-genera-automaticamente"
+              @input="onSlugInput"
+            >
+            <p v-if="form.slug" class="admin-field-hint">URL: <code>/tienda/categoria/{{ form.slug }}</code></p>
+          </div>
+
+          <div class="form-group">
+            <label for="category-description">
+              Descripción
+              <AdminInfoTooltip text="Descripción interna del alcance y contenido de la categoría. No es visible al cliente en la tienda." />
+            </label>
+            <textarea
+              id="category-description"
+              v-model="form.description"
+              class="form-control"
+              rows="4"
+              placeholder="Describe el tipo de prendas que incluye esta categoría."
+            ></textarea>
+          </div>
+
+          <AdminToggleSwitch
+            id="category-active"
+            v-model="form.is_active"
+            title="Categoría activa"
+            description="Si está activa, puede asociarse a productos y aparece disponible en los filtros del catálogo."
+          />
+        </div>
+
+        <!-- Columna derecha: imagen -->
+        <div>
+          <div class="form-group">
+            <label>
+              Imagen de la categoría
+              <AdminInfoTooltip text="Imagen representativa que se muestra en la tienda y el catálogo. Formatos admitidos: JPG, PNG o WEBP. Máximo 4 MB." />
+            </label>
+            <div class="admin-upload-box" @click="openImagePicker">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <p>{{ imagePreviewUrl ? 'Cambiar imagen' : 'Selecciona la imagen de la categoría' }}</p>
+              <small>JPG, PNG o WEBP · Máximo 4 MB</small>
+            </div>
+            <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
+            <p v-if="errors.image" class="form-error">{{ errors.image }}</p>
+            <div v-if="imagePreviewUrl" class="admin-image-preview">
+              <img :src="imagePreviewUrl" alt="Vista previa de la imagen de categoría">
+              <div class="admin-image-preview__actions">
+                <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeModal">Cancelar</button>
         <button class="btn btn-primary" type="button" @click="saveCategory">
-          {{ editing ? 'Actualizar categoria' : 'Crear categoria' }}
+          <i :class="editing ? 'fas fa-save' : 'fas fa-plus'"></i>
+          {{ editing ? 'Guardar cambios' : 'Crear categoría' }}
         </button>
       </template>
     </AdminModal>
@@ -165,7 +221,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -174,6 +230,7 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
@@ -181,6 +238,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -192,17 +250,48 @@ const statusFilter = ref('')
 const showModal = ref(false)
 const editing = ref(null)
 
+// Referencias para carga de imagen
+const imageInputRef = ref(null)
+const selectedImageFile = ref(null)
+const imagePreviewUrl = ref('')
+const slugManuallyEdited = ref(false)
+
 const form = reactive({
   name: '',
   slug: '',
   description: '',
-  image: '',
   is_active: true,
 })
 
 const errors = reactive({
   name: '',
+  image: '',
 })
+
+// Genera slug a partir de texto (normaliza, quita acentos, convierte a kebab-case)
+function slugifyText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function onNameInput() {
+  validateField('name')
+  if (!slugManuallyEdited.value) {
+    form.slug = slugifyText(form.name)
+  }
+}
+
+function onSlugInput() {
+  slugManuallyEdited.value = form.slug.trim() !== ''
+  form.slug = slugifyText(form.slug)
+}
 
 const filteredCategories = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -233,9 +322,9 @@ const stats = computed(() => {
   const linkedProducts = categories.value.reduce((sum, category) => sum + Number(category.product_count || 0), 0)
 
   return [
-    { key: 'total', label: 'Categorias totales', value: String(total), icon: 'fas fa-tags', color: 'primary' },
-    { key: 'active', label: 'Categorias activas', value: String(active), icon: 'fas fa-check-circle', color: 'success' },
-    { key: 'inactive', label: 'Categorias inactivas', value: String(inactive), icon: 'fas fa-pause-circle', color: 'warning' },
+    { key: 'total', label: 'Categorías totales', value: String(total), icon: 'fas fa-tags', color: 'primary' },
+    { key: 'active', label: 'Categorías activas', value: String(active), icon: 'fas fa-check-circle', color: 'success' },
+    { key: 'inactive', label: 'Categorías inactivas', value: String(inactive), icon: 'fas fa-pause-circle', color: 'warning' },
     { key: 'products', label: 'Productos asociados', value: String(linkedProducts), icon: 'fas fa-box-open', color: 'info' },
   ]
 })
@@ -263,7 +352,7 @@ function onCategoryImageError(event, imagePath) {
 
 function excerpt(value, max = 100) {
   const text = String(value || '').trim()
-  if (!text) return 'Sin descripcion'
+  if (!text) return 'Sin descripción'
   return text.length > max ? `${text.slice(0, max).trim()}...` : text
 }
 
@@ -278,13 +367,38 @@ function clearFilters() {
   statusFilter.value = ''
 }
 
+function openImagePicker() {
+  imageInputRef.value?.click()
+}
+
+function onImageSelected(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  selectedImageFile.value = file
+  imagePreviewUrl.value = URL.createObjectURL(file)
+  errors.image = ''
+}
+
+function clearSelectedImage(resetInput = true) {
+  if (imagePreviewUrl.value?.startsWith('blob:')) {
+    URL.revokeObjectURL(imagePreviewUrl.value)
+  }
+  imagePreviewUrl.value = ''
+  selectedImageFile.value = null
+  if (resetInput && imageInputRef.value) {
+    imageInputRef.value.value = ''
+  }
+}
+
 function resetForm() {
   form.name = ''
   form.slug = ''
   form.description = ''
-  form.image = ''
   form.is_active = true
   errors.name = ''
+  errors.image = ''
+  slugManuallyEdited.value = false
+  clearSelectedImage(false)
 }
 
 function openModal(category = null) {
@@ -293,16 +407,26 @@ function openModal(category = null) {
 
   if (category) {
     form.name = category.name
-    form.slug = category.slug
     form.description = category.description
-    form.image = category.image || ''
     form.is_active = category.is_active
+
+    // Slug: si existe uno ya guardado, tratar como editado manualmente
+    if (category.slug) {
+      form.slug = category.slug
+      slugManuallyEdited.value = true
+    }
+
+    // Pre-cargar vista previa si la categoría ya tiene imagen
+    if (category.image) {
+      imagePreviewUrl.value = resolveCategoryImage(category)
+    }
   }
 
   showModal.value = true
 }
 
 function closeModal() {
+  clearSelectedImage()
   showModal.value = false
   editing.value = null
 }
@@ -315,7 +439,7 @@ async function loadCategories() {
     const rows = Array.isArray(data) ? data : (data.data || [])
     categories.value = rows.map(normalizeCategory)
   } catch {
-    showSnackbar({ type: 'error', message: 'Error cargando categorias' })
+    showSnackbar({ type: 'error', message: 'Error cargando categorías' })
   } finally {
     loading.value = false
   }
@@ -325,37 +449,41 @@ async function saveCategory() {
   validateField('name')
   if (errors.name) return
 
-  const payload = {
-    nombre: form.name.trim(),
-    slug: form.slug?.trim() || null,
-    descripcion: form.description?.trim() || null,
-    imagen: form.image?.trim() || null,
-    activo: form.is_active,
+  const payload = new FormData()
+  payload.append('nombre', form.name.trim())
+  payload.append('slug', form.slug?.trim() || '')
+  payload.append('descripcion', form.description?.trim() || '')
+  payload.append('activo', form.is_active ? '1' : '0')
+
+  if (selectedImageFile.value) {
+    payload.append('image_file', selectedImageFile.value)
   }
+
+  const headers = { 'Content-Type': 'multipart/form-data' }
 
   try {
     if (editing.value?.id) {
-      await catalogHttp.put(`/admin/categories/${editing.value.id}`, payload)
-      showSnackbar({ type: 'success', message: 'Categoria actualizada' })
+      await catalogHttp.put(`/admin/categories/${editing.value.id}`, payload, { headers })
+      showSnackbar({ type: 'success', message: 'Categoría actualizada' })
     } else {
-      await catalogHttp.post('/admin/categories', payload)
-      showSnackbar({ type: 'success', message: 'Categoria creada' })
+      await catalogHttp.post('/admin/categories', payload, { headers })
+      showSnackbar({ type: 'success', message: 'Categoría creada' })
     }
 
     closeModal()
     await loadCategories()
   } catch (error) {
-    showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error guardando categoria' })
+    showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error guardando categoría' })
   }
 }
 
 function confirmDelete(category) {
   showAlert({
     type: 'warning',
-    title: 'Eliminar categoria',
+    title: 'Eliminar categoría',
     message: category.product_count > 0
-      ? `La categoria ${category.name} tiene productos asociados y no se puede eliminar.`
-      : `¿Deseas eliminar la categoria ${category.name}?`,
+      ? `La categoría ${category.name} tiene productos asociados y no se puede eliminar.`
+      : `¿Deseas eliminar la categoría ${category.name}?`,
     actions: category.product_count > 0
       ? [{ text: 'Entendido', style: 'primary' }]
       : [
@@ -366,10 +494,10 @@ function confirmDelete(category) {
             callback: async () => {
               try {
                 await catalogHttp.delete(`/admin/categories/${category.id}`)
-                showSnackbar({ type: 'success', message: 'Categoria eliminada' })
+                showSnackbar({ type: 'success', message: 'Categoría eliminada' })
                 await loadCategories()
               } catch (error) {
-                showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error eliminando categoria' })
+                showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error eliminando categoría' })
               }
             },
           },
@@ -383,12 +511,11 @@ async function toggleStatus(category) {
       nombre: category.name,
       slug: category.slug || null,
       descripcion: category.description || null,
-      imagen: category.image || null,
       activo: !category.is_active,
     })
     showSnackbar({
       type: 'success',
-      message: !category.is_active ? 'Categoria activada' : 'Categoria desactivada',
+      message: !category.is_active ? 'Categoría activada' : 'Categoría desactivada',
     })
     await loadCategories()
   } catch (error) {
@@ -400,8 +527,12 @@ onMounted(loadCategories)
 </script>
 
 <style scoped>
-/* Estilos responsivos propios de categorias */
+/* Estilos responsivos propios de categorías */
 @media (max-width: 768px) {
+  .admin-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
   .admin-entity-actions {
     flex-wrap: wrap;
   }

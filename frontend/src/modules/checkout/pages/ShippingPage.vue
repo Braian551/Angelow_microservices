@@ -160,10 +160,20 @@
                       <i class="fas fa-clock" />
                       {{ method.delivery_time }}
                     </span>
+
+                    <div class="shipping-method-breakdown">
+                      <span>
+                        Costo base: {{ methodBaseCost(method) > 0 ? formatCheckoutPrice(methodBaseCost(method)) : 'Gratis' }}
+                      </span>
+                      <span v-if="methodRangeAdditionalCost(method) > 0" class="shipping-method-breakdown__extra">
+                        +{{ formatCheckoutPrice(methodRangeAdditionalCost(method)) }} por rango {{ methodRangeRuleLabel(method) || 'de compra' }}
+                      </span>
+                    </div>
                   </div>
 
                   <div class="shipping-method-cost">
-                    {{ method.base_cost > 0 ? formatCheckoutPrice(method.base_cost) : 'Gratis' }}
+                    <small>Total envío</small>
+                    <strong>{{ methodBaseCost(method) > 0 ? formatCheckoutPrice(methodBaseCost(method)) : 'Gratis' }}</strong>
                   </div>
                 </button>
               </div>
@@ -243,12 +253,22 @@
                 </div>
 
                 <div class="shipping-summary-row">
-                  <span>Envío</span>
+                  <span>Envío base (método)</span>
+                  <strong>{{ shippingMethodBaseCost > 0 ? formatCheckoutPrice(shippingMethodBaseCost) : 'Gratis' }}</strong>
+                </div>
+
+                <div v-if="shippingRangeAdditionalCost > 0" class="shipping-summary-row shipping-summary-row--highlight">
+                  <span>{{ shippingRangeSummaryLabel }}</span>
+                  <strong>+{{ formatCheckoutPrice(shippingRangeAdditionalCost) }}</strong>
+                </div>
+
+                <div class="shipping-summary-row">
+                  <span>Envío total</span>
                   <strong>{{ shippingCost > 0 ? formatCheckoutPrice(shippingCost) : 'Gratis' }}</strong>
                 </div>
 
                 <div v-if="discountAmount > 0" class="shipping-summary-row shipping-summary-row--discount">
-                  <span>Descuento {{ discountCode ? `(${discountCode})` : '' }}</span>
+                  <span>{{ discountSummaryLabel }}</span>
                   <strong>-{{ formatCheckoutPrice(discountAmount) }}</strong>
                 </div>
 
@@ -277,11 +297,11 @@
                       :disabled="applyingDiscount"
                       @click="applyDiscount"
                     >
-                      {{ applyingDiscount ? 'Validando...' : discountAmount > 0 ? 'Cambiar' : 'Aplicar' }}
+                      {{ applyingDiscount ? 'Validando...' : discountSource === 'code' && discountAmount > 0 ? 'Cambiar' : 'Aplicar' }}
                     </button>
 
                     <button
-                      v-if="discountAmount > 0"
+                      v-if="discountSource === 'code' && discountAmount > 0"
                       type="button"
                       class="shipping-discount-remove"
                       aria-label="Eliminar descuento"
@@ -335,8 +355,8 @@ import CheckoutFlowHeader from '../components/CheckoutFlowHeader.vue'
 import { useAppShell } from '../../../composables/useAppShell'
 import { useSession } from '../../../composables/useSession'
 import { getCart } from '../../../services/cartApi'
-import { validateDiscountCode } from '../../../services/discountApi'
-import { estimateShipping, getShippingMethods, getUserAddresses } from '../../../services/shippingApi'
+import { validateBulkDiscount, validateDiscountCode } from '../../../services/discountApi'
+import { estimateShipping, getShippingMethods, getShippingRules, getUserAddresses } from '../../../services/shippingApi'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import {
   buildCheckoutAddressLine,
@@ -366,6 +386,8 @@ const errorMessage = ref('')
 const orderNotes = ref('')
 const discountCode = ref('')
 const discountAmount = ref(0)
+const discountSource = ref('none')
+const bulkDiscountMeta = ref(null)
 const discountFeedback = ref('')
 const discountFeedbackType = ref('success')
 const applyingDiscount = ref(false)
@@ -373,6 +395,7 @@ const applyingDiscount = ref(false)
 const cart = ref({ ...EMPTY_CART })
 const addresses = ref([])
 const methods = ref([])
+const rules = ref([])
 const selectedAddressId = ref(null)
 const selectedShippingMethodId = ref(null)
 const selectionErrors = ref({
@@ -396,7 +419,31 @@ const selectedShippingMethod = computed(() => {
   return methods.value.find((method) => method.id === selectedShippingMethodId.value) || null
 })
 
-const shippingCost = computed(() => Number(selectedShippingMethod.value?.base_cost || 0))
+const activeShippingRule = computed(() => findMatchingShippingRule(subtotal.value, rules.value))
+const selectedShippingBreakdown = computed(() => resolveMethodShippingBreakdown(
+  selectedShippingMethod.value,
+  subtotal.value,
+  activeShippingRule.value,
+))
+const shippingMethodBaseCost = computed(() => selectedShippingBreakdown.value.method_cost)
+const shippingRangeAdditionalCost = computed(() => selectedShippingBreakdown.value.range_rule_additional_cost)
+const shippingRangeSummaryLabel = computed(() => {
+  const ruleLabel = String(selectedShippingBreakdown.value.range_rule_label || '').trim()
+  return ruleLabel ? `Ajuste por rango (${ruleLabel})` : 'Ajuste por rango de compra'
+})
+const shippingCost = computed(() => selectedShippingBreakdown.value.total_cost)
+const discountSummaryLabel = computed(() => {
+  if (discountSource.value === 'code' && discountCode.value) {
+    return `Descuento (${discountCode.value})`
+  }
+
+  if (discountSource.value === 'bulk') {
+    const label = String(bulkDiscountMeta.value?.label || '').trim()
+    return label ? `Descuento por cantidad (${label})` : 'Descuento por cantidad'
+  }
+
+  return discountCode.value ? `Descuento (${discountCode.value})` : 'Descuento'
+})
 const orderTotal = computed(() => Math.max(0, subtotal.value + shippingCost.value - discountAmount.value))
 
 onMounted(loadPage)
@@ -406,13 +453,13 @@ async function loadPage() {
   errorMessage.value = ''
 
   try {
-    const [cartRes, addressesRes, methodsRes] = await Promise.all([
+    const [cartRes, addressesRes, rulesRes] = await Promise.all([
       getCart({
         user_id: user.value?.id || undefined,
         session_id: user.value?.id ? undefined : sessionId.value,
       }),
       getUserAddresses(user.value?.id || undefined, user.value?.email || ''),
-      getShippingMethods(),
+      getShippingRules().catch(() => ({ data: [] })),
     ])
 
     cart.value = cartRes?.data && typeof cartRes.data === 'object'
@@ -422,6 +469,15 @@ async function loadPage() {
     addresses.value = Array.isArray(addressesRes?.data)
       ? addressesRes.data.map(normalizeCheckoutAddress)
       : []
+
+    rules.value = Array.isArray(rulesRes?.data)
+      ? rulesRes.data.map(normalizeShippingRule)
+      : []
+
+    const methodsRes = await getShippingMethods({
+      subtotal: Number(cart.value?.subtotal || 0),
+      city: preferredShippingCity(),
+    })
 
     let nextMethods = Array.isArray(methodsRes?.data)
       ? methodsRes.data.map(normalizeCheckoutMethod)
@@ -433,13 +489,23 @@ async function loadPage() {
         city: 'Medellín',
       })
 
+      const rangeRuleAdditionalCost = Number(
+        estimateRes?.range_rule_additional_cost
+        ?? estimateRes?.shipping_cost
+        ?? 0,
+      )
+
       nextMethods = [
         normalizeCheckoutMethod({
           id: -1,
           name: 'Envío estándar',
-          description: 'Costo estimado automáticamente mientras se sincronizan los métodos reales.',
+          description: 'Costo estimado según el total actual de tu pedido.',
           delivery_time: 'Coordinaremos el despacho contigo',
-          base_cost: Number(estimateRes?.shipping_cost || 0),
+          base_cost: 0,
+          method_cost: 0,
+          range_rule_additional_cost: rangeRuleAdditionalCost,
+          range_rule_label: String(estimateRes?.range_rule_label || '').trim(),
+          applied_cost: rangeRuleAdditionalCost,
         }),
       ]
     }
@@ -448,6 +514,7 @@ async function loadPage() {
 
     setCartCount(cart.value.item_count || 0)
     restoreSavedState()
+    await syncAutomaticBulkDiscount()
   } catch {
     errorMessage.value = 'No se pudo cargar el checkout de envío.'
     cart.value = { ...EMPTY_CART }
@@ -463,6 +530,12 @@ function restoreSavedState() {
 
   discountCode.value = String(saved?.discount_code || '').trim()
   discountAmount.value = Number(saved?.discount_amount || 0)
+  discountSource.value = ['code', 'bulk'].includes(String(saved?.discount_source || '').trim())
+    ? String(saved.discount_source).trim()
+    : (discountCode.value ? 'code' : 'none')
+  bulkDiscountMeta.value = saved?.bulk_discount && typeof saved.bulk_discount === 'object'
+    ? saved.bulk_discount
+    : null
   orderNotes.value = String(saved?.notes || '').trim()
 
   const savedAddressId = Number(saved?.selected_address_id || saved?.selected_address?.id || 0)
@@ -486,6 +559,13 @@ function preferredShippingMethodId() {
   return prioritizedMethod?.id || methods.value[0]?.id || null
 }
 
+function preferredShippingCity() {
+  const defaultAddress = addresses.value.find((address) => Boolean(address.is_default))
+  const firstAddress = defaultAddress || addresses.value[0] || null
+  const city = String(firstAddress?.city || '').trim()
+  return city || undefined
+}
+
 function selectAddress(addressId) {
   selectedAddressId.value = addressId
   selectionErrors.value.address = ''
@@ -496,12 +576,174 @@ function selectShippingMethod(methodId) {
   selectionErrors.value.shipping = ''
 }
 
+function normalizeShippingRule(rule = {}) {
+  const hasMaxPrice = rule?.max_price !== null && rule?.max_price !== undefined && rule?.max_price !== ''
+  const minPrice = Number(rule?.min_price || 0)
+  const maxPrice = hasMaxPrice ? Number(rule.max_price) : null
+  const rangeLabel = String(rule?.range_label || '').trim()
+
+  return {
+    id: Number(rule?.id || 0),
+    min_price: minPrice,
+    max_price: maxPrice,
+    shipping_cost: Math.max(0, Number(rule?.shipping_cost || 0)),
+    range_label: rangeLabel || formatRuleRangeLabel(minPrice, maxPrice),
+    active: Boolean(rule?.active ?? rule?.is_active ?? true),
+  }
+}
+
+function formatRuleRangeLabel(minPrice, maxPrice) {
+  const minLabel = formatCheckoutPrice(minPrice || 0)
+  if (maxPrice === null || maxPrice === undefined || maxPrice === '') {
+    return `desde ${minLabel}`
+  }
+
+  return `${minLabel} a ${formatCheckoutPrice(maxPrice)}`
+}
+
+function findMatchingShippingRule(orderSubtotal, availableRules = []) {
+  if (!Array.isArray(availableRules) || availableRules.length === 0) {
+    return null
+  }
+
+  const subtotalAmount = Number(orderSubtotal || 0)
+
+  return availableRules
+    .filter((rule) => Boolean(rule?.active))
+    .filter((rule) => subtotalAmount >= Number(rule?.min_price || 0))
+    .filter((rule) => rule?.max_price === null || subtotalAmount <= Number(rule.max_price || 0))
+    .sort((left, right) => Number(right?.min_price || 0) - Number(left?.min_price || 0))[0] || null
+}
+
+function resolveMethodShippingBreakdown(method, orderSubtotal, activeRule) {
+  if (!method) {
+    return {
+      method_cost: 0,
+      range_rule_additional_cost: 0,
+      range_rule_applied: false,
+      range_rule_label: '',
+      total_cost: 0,
+    }
+  }
+
+  const subtotalAmount = Number(orderSubtotal || 0)
+  const methodBaseCost = Math.max(0, Number(method?.base_cost || 0))
+  const freeThresholdAmount = Number(method?.free_shipping_minimum || 0)
+  const hasFreeThreshold = Number.isFinite(freeThresholdAmount) && freeThresholdAmount > 0
+
+  const hasStoredMethodCost = method?.method_cost !== null
+    && method?.method_cost !== undefined
+    && method?.method_cost !== ''
+
+  const methodCost = hasStoredMethodCost
+    ? Math.max(0, Number(method.method_cost || 0))
+    : (hasFreeThreshold && subtotalAmount >= freeThresholdAmount ? 0 : methodBaseCost)
+
+  const hasStoredRuleAdditional = method?.range_rule_additional_cost !== null
+    && method?.range_rule_additional_cost !== undefined
+    && method?.range_rule_additional_cost !== ''
+
+  const rangeRuleAdditionalCost = hasStoredRuleAdditional
+    ? Math.max(0, Number(method.range_rule_additional_cost || 0))
+    : (activeRule ? Math.max(0, Number(activeRule.shipping_cost || 0)) : 0)
+
+  const hasStoredAppliedCost = method?.applied_cost !== null
+    && method?.applied_cost !== undefined
+    && method?.applied_cost !== ''
+
+  const fallbackTotalCost = Math.max(0, methodCost + rangeRuleAdditionalCost)
+  const storedAppliedCost = hasStoredAppliedCost
+    ? Math.max(0, Number(method.applied_cost || 0))
+    : null
+
+  // Priorizamos el desglose explícito (base + adicional) para evitar mostrar totales legacy incorrectos.
+  const totalCost = fallbackTotalCost
+
+  const storedRuleLabel = String(method?.range_rule_label || '').trim()
+  const ruleLabel = storedRuleLabel || (activeRule ? formatRuleRangeLabel(activeRule.min_price, activeRule.max_price) : '')
+
+  return {
+    method_cost: methodCost,
+    range_rule_additional_cost: rangeRuleAdditionalCost,
+    range_rule_applied: Boolean(
+      method?.range_rule_applied
+      || method?.rule_id
+      || activeRule,
+    ),
+    range_rule_label: ruleLabel,
+    total_cost: totalCost,
+    stored_applied_cost: storedAppliedCost,
+  }
+}
+
+function methodBaseCost(method) {
+  return resolveMethodShippingBreakdown(method, subtotal.value, activeShippingRule.value).method_cost
+}
+
+function methodRangeAdditionalCost(method) {
+  return resolveMethodShippingBreakdown(method, subtotal.value, activeShippingRule.value).range_rule_additional_cost
+}
+
+function methodRangeRuleLabel(method) {
+  return resolveMethodShippingBreakdown(method, subtotal.value, activeShippingRule.value).range_rule_label
+}
+
+async function syncAutomaticBulkDiscount() {
+  if (discountCode.value) {
+    discountSource.value = 'code'
+    return
+  }
+
+  const subtotalAmount = Math.max(0, Number(subtotal.value || 0))
+  const quantityAmount = Math.max(0, Number(itemCount.value || 0))
+
+  if (subtotalAmount <= 0 || quantityAmount <= 0) {
+    bulkDiscountMeta.value = null
+    discountAmount.value = 0
+    discountSource.value = 'none'
+    return
+  }
+
+  try {
+    const result = await validateBulkDiscount({
+      item_count: quantityAmount,
+      order_total: subtotalAmount,
+    })
+
+    if (result?.valid && result?.bulk_discount) {
+      const bulkDiscountAmount = Math.max(0, Math.round(Number(result.bulk_discount.discount_amount || 0)))
+      bulkDiscountMeta.value = result.bulk_discount
+      discountAmount.value = bulkDiscountAmount
+      discountSource.value = bulkDiscountAmount > 0 ? 'bulk' : 'none'
+      return
+    }
+
+    bulkDiscountMeta.value = null
+    discountAmount.value = 0
+    discountSource.value = 'none'
+  } catch {
+    bulkDiscountMeta.value = null
+    if (!discountCode.value) {
+      discountAmount.value = 0
+      discountSource.value = 'none'
+    }
+  }
+}
+
+function extractDiscountErrorMessage(error, fallbackMessage) {
+  return String(error?.response?.data?.message || fallbackMessage)
+}
+
 async function applyDiscount() {
   if (!discountCode.value) {
     discountFeedback.value = 'Ingresa un código para validarlo.'
     discountFeedbackType.value = 'error'
     return
   }
+
+  const previousDiscountAmount = discountAmount.value
+  const previousDiscountSource = discountSource.value
+  const previousBulkDiscountMeta = bulkDiscountMeta.value
 
   applyingDiscount.value = true
   discountFeedback.value = ''
@@ -511,32 +753,77 @@ async function applyDiscount() {
       code: discountCode.value,
       user_id: user.value?.id || null,
       order_total: subtotal.value,
+      item_count: itemCount.value,
     })
 
     if (!result?.valid || !result?.discount) {
-      discountAmount.value = 0
-      discountFeedback.value = 'El código no es válido o ya no está disponible.'
+      if (previousDiscountSource === 'bulk') {
+        discountAmount.value = previousDiscountAmount
+        discountSource.value = 'bulk'
+        bulkDiscountMeta.value = previousBulkDiscountMeta
+      } else {
+        discountAmount.value = 0
+        discountSource.value = 'none'
+      }
+
+      discountFeedback.value = String(result?.message || 'El código no es válido o ya no está disponible.')
       discountFeedbackType.value = 'error'
       return
     }
 
-    const discountValue = Number(result.discount.discount_value || 0)
-    discountAmount.value = Math.round((subtotal.value * discountValue) / 100)
+    const discountData = result.discount
+    const discountAmountFromApi = Number(discountData?.discount_amount)
+
+    let resolvedDiscountAmount = 0
+
+    if (Number.isFinite(discountAmountFromApi) && discountAmountFromApi > 0) {
+      resolvedDiscountAmount = discountAmountFromApi
+    } else {
+      const discountValue = Number(discountData?.discount_value || 0)
+      const discountType = String(discountData?.discount_type || discountData?.type || '').toLowerCase()
+
+      resolvedDiscountAmount = discountType === 'fixed'
+        ? Math.min(subtotal.value, Math.max(0, discountValue))
+        : Math.round((subtotal.value * Math.max(0, Math.min(100, discountValue))) / 100)
+    }
+
+    discountAmount.value = Math.max(0, Math.round(resolvedDiscountAmount))
+    discountSource.value = 'code'
+    bulkDiscountMeta.value = result?.bulk_discount && typeof result.bulk_discount === 'object'
+      ? result.bulk_discount
+      : previousBulkDiscountMeta
     discountFeedback.value = `¡Descuento aplicado! Ahorras ${formatCheckoutPrice(discountAmount.value)}.`
     discountFeedbackType.value = 'success'
-  } catch {
-    discountAmount.value = 0
-    discountFeedback.value = 'No fue posible validar el descuento en este momento.'
+  } catch (error) {
+    if (previousDiscountSource === 'bulk') {
+      discountAmount.value = previousDiscountAmount
+      discountSource.value = 'bulk'
+      bulkDiscountMeta.value = previousBulkDiscountMeta
+    } else {
+      discountAmount.value = 0
+      discountSource.value = 'none'
+    }
+
+    discountFeedback.value = extractDiscountErrorMessage(error, 'No fue posible validar el descuento en este momento.')
     discountFeedbackType.value = 'error'
   } finally {
     applyingDiscount.value = false
   }
 }
 
-function removeDiscount() {
+async function removeDiscount() {
   discountCode.value = ''
   discountAmount.value = 0
-  discountFeedback.value = 'El descuento fue removido del resumen.'
+  discountSource.value = 'none'
+
+  await syncAutomaticBulkDiscount()
+
+  if (discountSource.value === 'bulk' && discountAmount.value > 0) {
+    discountFeedback.value = `Se aplicó el descuento por cantidad. Ahorras ${formatCheckoutPrice(discountAmount.value)}.`
+  } else {
+    discountFeedback.value = 'El descuento fue removido del resumen.'
+  }
+
   discountFeedbackType.value = 'success'
 }
 
@@ -544,7 +831,7 @@ function clearDiscountFeedback() {
   discountFeedback.value = ''
 }
 
-function continueToPayment() {
+async function continueToPayment() {
   let hasError = false
 
   if (!selectedAddress.value) {
@@ -567,16 +854,40 @@ function continueToPayment() {
     return
   }
 
+  if (!discountCode.value.trim()) {
+    await syncAutomaticBulkDiscount()
+  }
+
   errorMessage.value = ''
+
+  const shippingBreakdown = selectedShippingBreakdown.value
 
   localStorage.setItem('angelow_checkout_shipping', JSON.stringify({
     selected_address_id: selectedAddress.value?.id || null,
     selected_address: selectedAddress.value,
     selected_shipping_method_id: selectedShippingMethod.value?.id || null,
-    selected_shipping_method: selectedShippingMethod.value,
+    selected_shipping_method: selectedShippingMethod.value
+      ? {
+          ...selectedShippingMethod.value,
+          applied_cost: shippingCost.value,
+          method_cost: shippingBreakdown.method_cost,
+          range_rule_additional_cost: shippingBreakdown.range_rule_additional_cost,
+          range_rule_applied: shippingBreakdown.range_rule_applied,
+          range_rule_label: shippingBreakdown.range_rule_label,
+        }
+      : null,
+    shipping_breakdown: {
+      method_cost: shippingBreakdown.method_cost,
+      range_rule_additional_cost: shippingBreakdown.range_rule_additional_cost,
+      range_rule_applied: shippingBreakdown.range_rule_applied,
+      range_rule_label: shippingBreakdown.range_rule_label,
+      shipping_cost: shippingCost.value,
+    },
     notes: orderNotes.value.trim(),
     discount_code: discountCode.value.trim(),
     discount_amount: discountAmount.value,
+    discount_source: discountSource.value,
+    bulk_discount: bulkDiscountMeta.value,
     subtotal: subtotal.value,
     shipping_cost: shippingCost.value,
     total: orderTotal.value,
@@ -893,12 +1204,40 @@ function parseStoredJson(rawValue) {
   font-weight: 600;
 }
 
+.shipping-method-breakdown {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.35rem;
+  color: #5c6773;
+  font-size: 1.22rem;
+  line-height: 1.45;
+}
+
+.shipping-method-breakdown__extra {
+  color: #0077b6;
+  font-weight: 700;
+}
+
 .shipping-method-cost {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.shipping-method-cost small {
+  color: #6b7280;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.shipping-method-cost strong {
   color: #0077b6;
   font-size: 1.8rem;
   font-weight: 700;
-  flex-shrink: 0;
-  text-align: right;
 }
 
 .shipping-notes-field textarea {
@@ -1067,6 +1406,16 @@ function parseStoredJson(rawValue) {
 
 .shipping-summary-row--discount strong {
   color: #4bb543;
+}
+
+.shipping-summary-row--highlight span {
+  color: #005b8c;
+  font-weight: 600;
+}
+
+.shipping-summary-row--highlight strong {
+  color: #005b8c;
+  font-weight: 700;
 }
 
 .shipping-summary-row--total {

@@ -19,3 +19,8 @@ export async function updateOrderStatus(orderId, payload) {
   const { data } = await orderHttp.patch(`/orders/${orderId}/status`, payload)
   return data
 }
+
+export async function cancelOrder(orderId, payload) {
+  const { data } = await orderHttp.patch(`/orders/${orderId}/cancel`, payload)
+  return data
+}

@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-bullhorn"
       title="Anuncios"
-      subtitle="Gestiona anuncios con búsqueda, validación, previsualización y control centralizado de estados."
+      subtitle="Gestiona anuncios con búsqueda, revisión, vista previa y control del estado de publicación."
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Anuncios' }]"
     >
       <template #actions>
@@ -217,7 +217,10 @@
       <div class="editor-grid admin-editor-grid">
         <div>
           <div class="form-group">
-            <label for="announcement-type-editor">Tipo *</label>
+            <label for="announcement-type-editor">
+              Tipo *
+              <AdminInfoTooltip text="«Barra superior» aparece en la franja de la parte alta de la tienda. «Banner promocional» se muestra como bloque destacado." />
+            </label>
             <select id="announcement-type-editor" v-model="form.type" class="form-control" @change="validateField('type')">
               <option value="top_bar">Barra superior</option>
               <option value="promo_banner">Banner promocional</option>
@@ -226,30 +229,56 @@
           </div>
 
           <div class="form-group">
-            <label for="announcement-title">Título *</label>
+            <label for="announcement-title">
+              Título *
+              <AdminInfoTooltip text="Título breve del anuncio. Visible en la barra o banner según el tipo seleccionado." />
+            </label>
             <input id="announcement-title" v-model.trim="form.title" type="text" class="form-control" :class="{ 'is-invalid': formErrors.title }" @input="validateField('title')">
             <p v-if="formErrors.title" class="form-error">{{ formErrors.title }}</p>
           </div>
 
           <div class="form-group">
-            <label for="announcement-message">Mensaje *</label>
+            <label for="announcement-message">
+              Mensaje *
+              <AdminInfoTooltip text="Texto principal del anuncio visible al usuario. Sé claro y directo." />
+            </label>
             <textarea id="announcement-message" v-model.trim="form.message" rows="4" class="form-control" :class="{ 'is-invalid': formErrors.message }" @input="validateField('message')"></textarea>
             <p v-if="formErrors.message" class="form-error">{{ formErrors.message }}</p>
           </div>
 
           <div class="form-group">
-            <label for="announcement-subtitle">Subtítulo</label>
+            <label for="announcement-subtitle">
+              Subtítulo
+              <AdminInfoTooltip text="Texto secundario opcional que complementa el mensaje principal." />
+            </label>
             <input id="announcement-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
           </div>
 
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-button-text">Texto del botón</label>
+              <label for="announcement-button-text">
+                Texto del botón
+                <AdminInfoTooltip text="Etiqueta del botón de acción del anuncio. Ejemplo: «Ver oferta», «Ir a la tienda»." />
+              </label>
               <input id="announcement-button-text" v-model.trim="form.button_text" type="text" class="form-control" @input="validateField('button_text')">
             </div>
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-link">URL o ruta</label>
-              <input id="announcement-link" v-model.trim="form.button_link" type="text" class="form-control" :class="{ 'is-invalid': formErrors.button_link }" @input="validateField('button_link')">
+              <label for="announcement-link">
+                Destino del botón
+                <AdminInfoTooltip text="Página de la tienda a la que lleva el botón al hacer clic. Elige «Otro enlace personalizado» si necesitas una URL específica." />
+              </label>
+              <select id="announcement-link" v-model="selectedLinkOption" class="form-control" @change="onLinkOptionChange(selectedLinkOption)">
+                <option v-for="page in STORE_PAGES" :key="page.value" :value="page.value">{{ page.label }}</option>
+              </select>
+              <input
+                v-if="selectedLinkOption === '__custom__'"
+                v-model.trim="form.button_link"
+                type="url"
+                class="form-control mt-1"
+                :class="{ 'is-invalid': formErrors.button_link }"
+                placeholder="https://... o /ruta/interna"
+                @input="validateField('button_link')"
+              >
               <p v-if="formErrors.button_link" class="form-error">{{ formErrors.button_link }}</p>
             </div>
           </div>
@@ -258,7 +287,10 @@
         <div>
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-icon">Icono *</label>
+              <label for="announcement-icon">
+                Icono *
+                <AdminInfoTooltip text="Ícono visual que acompaña el anuncio. Elige el que mejor represente el tipo de comunicación." />
+              </label>
               <select id="announcement-icon" v-model="form.icon" class="form-control" :class="{ 'is-invalid': formErrors.icon }" @change="validateField('icon')">
                 <option value="fa-bullhorn">Megáfono</option>
                 <option value="fa-tags">Ofertas</option>
@@ -272,7 +304,10 @@
             </div>
 
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-priority">Prioridad *</label>
+              <label for="announcement-priority">
+                Prioridad *
+                <AdminInfoTooltip text="Número de orden para mostrar los anuncios cuando hay varios activos. Mayor número = mayor prioridad." />
+              </label>
               <input id="announcement-priority" v-model.number="form.priority" type="number" min="0" max="100" class="form-control" :class="{ 'is-invalid': formErrors.priority }" @input="validateField('priority')">
               <p v-if="formErrors.priority" class="form-error">{{ formErrors.priority }}</p>
             </div>
@@ -280,12 +315,18 @@
 
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-start">Inicio</label>
+              <label for="announcement-start">
+                Inicio
+                <AdminInfoTooltip text="Fecha y hora desde cuando el anuncio es visible en la tienda. Dejar vacío para que sea inmediato." />
+              </label>
               <input id="announcement-start" v-model="form.start_date" type="datetime-local" class="form-control" :class="{ 'is-invalid': formErrors.start_date }" @change="validateField('start_date')">
               <p v-if="formErrors.start_date" class="form-error">{{ formErrors.start_date }}</p>
             </div>
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-end">Fin</label>
+              <label for="announcement-end">
+                Fin
+                <AdminInfoTooltip text="Fecha y hora en que el anuncio deja de mostrarse. Dejar vacío para que no expire." />
+              </label>
               <input id="announcement-end" v-model="form.end_date" type="datetime-local" class="form-control" :class="{ 'is-invalid': formErrors.end_date }" @change="validateField('end_date')">
               <p v-if="formErrors.end_date" class="form-error">{{ formErrors.end_date }}</p>
             </div>
@@ -293,17 +334,48 @@
 
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-bg">Color de fondo</label>
-              <input id="announcement-bg" v-model.trim="form.background_color" type="text" class="form-control" placeholder="#0f7abf">
+              <label for="announcement-bg">
+                Color de fondo
+                <AdminInfoTooltip text="Elige el color principal del anuncio. Los colores disponibles están registrados en el catálogo de la tienda." />
+              </label>
+              <div class="color-select-wrapper">
+                <span
+                  class="color-select-swatch"
+                  :style="{ background: form.background_color || '#0f7abf' }"
+                  :title="selectedColorInfo ? selectedColorInfo.name : form.background_color"
+                ></span>
+                <select id="announcement-bg" v-model="form.background_color" class="form-control">
+                  <option v-if="availableColors.length === 0" value="#0f7abf">Cargando colores...</option>
+                  <option
+                    v-for="color in availableColors.filter(c => c.hex_code)"
+                    :key="color.id"
+                    :value="color.hex_code"
+                  >{{ color.name }} — {{ color.hex_code }}</option>
+                </select>
+              </div>
             </div>
             <div class="form-group" style="flex: 1;">
-              <label for="announcement-text-color">Color de texto</label>
-              <input id="announcement-text-color" v-model.trim="form.text_color" type="text" class="form-control" placeholder="#ffffff">
+              <label for="announcement-text-color">
+                Color del texto
+                <AdminInfoTooltip text="Color de las letras sobre el fondo del anuncio. Elige un color con buen contraste." />
+              </label>
+              <div class="color-select-wrapper">
+                <span
+                  class="color-select-swatch"
+                  :style="{ background: form.text_color || '#ffffff', border: form.text_color === '#ffffff' ? '1px solid #ccc' : undefined }"
+                ></span>
+                <select id="announcement-text-color" v-model="form.text_color" class="form-control">
+                  <option v-for="tc in TEXT_COLOR_OPTIONS" :key="tc.value" :value="tc.value">{{ tc.label }}</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <div class="form-group">
-            <label>Imagen</label>
+            <label>
+              Imagen
+              <AdminInfoTooltip text="Imagen opcional para el anuncio tipo banner. JPG, PNG o WEBP. Máximo 3 MB." />
+            </label>
             <div class="admin-upload-box" @click="openImagePicker">
               <i class="fas fa-cloud-upload-alt"></i>
               <p>{{ imagePreviewUrl ? 'Cambiar imagen del anuncio' : 'Selecciona una imagen opcional para el anuncio' }}</p>
@@ -312,35 +384,42 @@
             <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
             <div v-if="imagePreviewUrl" class="editor-preview-image">
               <img :src="imagePreviewUrl" alt="Vista previa del anuncio">
-              <button type="button" class="btn btn-secondary btn-sm" @click="clearSelectedImage">Quitar imagen</button>
+              <button type="button" class="btn btn-secondary btn-sm" title="Quitar imagen" @click="clearSelectedImage">
+                <i class="fas fa-trash-alt"></i>
+              </button>
             </div>
           </div>
 
-          <div class="form-group form-group--toggle">
-            <label class="toggle-label">
-              <input v-model="form.is_active" type="checkbox">
-              Publicar anuncio inmediatamente
-            </label>
+          <div class="form-group">
+            <AdminToggleSwitch
+              id="announcement-active"
+              v-model="form.is_active"
+              layout="inline"
+              label="Publicar anuncio inmediatamente"
+            />
           </div>
         </div>
       </div>
 
       <div class="editor-live-preview">
-        <p class="editor-live-preview__label">Previsualización</p>
-        <div class="announcement-preview-card__visual" :style="previewCardStyle(formPreview)">
-          <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Vista previa">
-          <div class="announcement-preview-card__content">
-            <span class="announcement-preview-card__type">
-              <i :class="['fas', form.icon || 'fa-bullhorn']"></i>
-              {{ typeLabel(form.type) }}
-            </span>
-            <h3>{{ form.title || 'Título del anuncio' }}</h3>
-            <p>{{ form.message || 'Aquí verás el mensaje principal del anuncio.' }}</p>
-            <p v-if="form.subtitle" class="announcement-preview-card__subtitle">{{ form.subtitle }}</p>
-            <a v-if="form.button_text" class="announcement-preview-card__button" href="#" @click.prevent>
-              {{ form.button_text }}
-            </a>
-          </div>
+        <p class="editor-live-preview__label">
+          <i class="fas fa-eye"></i>
+          Vista previa — tal como se verá en la tienda
+        </p>
+        <div class="editor-live-preview__frame">
+          <!-- Barra superior: igual que aparece en la parte alta del sitio -->
+          <template v-if="form.type === 'top_bar'">
+            <div class="preview-site-context preview-site-context--topbar">
+              <TopAnnouncementBar :announcement="{ ...formPreview, background_color: form.background_color, text_color: form.text_color }" />
+            </div>
+          </template>
+
+          <!-- Banner promocional: igual que aparece en la página de inicio -->
+          <template v-else-if="form.type === 'promo_banner'">
+            <div class="preview-site-context preview-site-context--banner">
+              <PromoBanner :banner="formPreview" />
+            </div>
+          </template>
         </div>
       </div>
 
@@ -357,7 +436,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { notificationHttp } from '../../../services/http'
+import { notificationHttp, catalogHttp } from '../../../services/http'
+import TopAnnouncementBar from '../../../components/home/TopAnnouncementBar.vue'
+import PromoBanner from '../../home/components/PromoBanner.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { resolveMediaUrl, handleMediaError } from '../../../utils/media'
@@ -365,12 +446,14 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -384,6 +467,28 @@ const editingAnnouncementId = ref(null)
 const imageInputRef = ref(null)
 const selectedImageFile = ref(null)
 const imagePreviewUrl = ref('')
+const availableColors = ref([])
+const selectedLinkOption = ref('')
+
+// Páginas de la tienda con nombres amigables para el selector de destino
+const STORE_PAGES = [
+  { label: '— Sin destino (botón decorativo) —', value: '' },
+  { label: 'Inicio', value: '/' },
+  { label: 'Tienda — Todos los productos', value: '/tienda' },
+  { label: 'Ofertas y descuentos', value: '/tienda?tipo=oferta' },
+  { label: 'Colecciones', value: '/colecciones' },
+  { label: 'Mi carrito', value: '/carrito' },
+  { label: 'Mi cuenta', value: '/perfil' },
+  { label: 'Otro enlace personalizado...', value: '__custom__' },
+]
+
+// Colores de texto sugeridos para garantizar contraste
+const TEXT_COLOR_OPTIONS = [
+  { label: 'Blanco', value: '#ffffff' },
+  { label: 'Negro', value: '#000000' },
+  { label: 'Gris oscuro', value: '#333333' },
+  { label: 'Azul oscuro', value: '#102236' },
+]
 
 const filters = reactive({
   search: '',
@@ -453,6 +558,30 @@ const announcementStats = computed(() => [
 
 const formPreview = computed(() => ({ ...form, image: imagePreviewUrl.value || form.image }))
 
+// Color actualmente seleccionado en el selector de fondo
+const selectedColorInfo = computed(() => availableColors.value.find((c) => c.hex_code === form.background_color) || null)
+
+// Estilos para la vista previa fiel al sitio real
+const previewBarStyle = computed(() => ({
+  backgroundColor: form.background_color || '#6a96cf',
+  color: form.text_color || '#ffffff',
+}))
+
+const previewBannerStyle = computed(() => {
+  const style = {
+    backgroundColor: form.background_color || '#6a96cf',
+    color: form.text_color || '#ffffff',
+  }
+  const imgSrc = imagePreviewUrl.value || form.image
+  if (imgSrc) {
+    const url = imgSrc.startsWith('blob:') ? imgSrc : resolveMediaUrl(imgSrc, 'banner')
+    style.backgroundImage = `url('${url}')`
+    style.backgroundSize = 'cover'
+    style.backgroundPosition = 'center'
+  }
+  return style
+})
+
 function resetForm() {
   form.type = 'top_bar'
   form.title = ''
@@ -468,6 +597,7 @@ function resetForm() {
   form.end_date = ''
   form.is_active = true
   form.image = ''
+  selectedLinkOption.value = ''
   clearSelectedImage()
   clearErrors()
 }
@@ -482,6 +612,36 @@ function clearFilters() {
   filters.search = ''
   filters.state = 'all'
   filters.type = 'all'
+}
+
+// Carga los colores disponibles desde el catalog-service
+async function loadColors() {
+  try {
+    const { data } = await catalogHttp.get('/admin/colors')
+    availableColors.value = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
+  } catch {
+    availableColors.value = []
+  }
+}
+
+// Detecta si el link guardado coincide con una opción predefinida o es personalizado
+function detectLinkOption(link) {
+  const clean = String(link || '').trim()
+  if (!clean) {
+    selectedLinkOption.value = ''
+    return
+  }
+  const preset = STORE_PAGES.find((p) => p.value !== '__custom__' && p.value === clean)
+  selectedLinkOption.value = preset ? preset.value : '__custom__'
+}
+
+// Maneja el cambio de opción en el selector de destino
+function onLinkOptionChange(val) {
+  selectedLinkOption.value = val
+  if (val !== '__custom__') {
+    form.button_link = val
+    if (val) validateField('button_link')
+  }
 }
 
 function openCreateModal() {
@@ -506,6 +666,7 @@ function openEditModal(announcement) {
   form.subtitle = announcement.subtitle || ''
   form.button_text = announcement.button_text || ''
   form.button_link = announcement.button_link || announcement.url || ''
+  detectLinkOption(form.button_link)
   form.icon = announcement.icon || 'fa-bullhorn'
   form.priority = Number(announcement.priority || 0)
   form.background_color = announcement.background_color || '#0f7abf'
@@ -776,7 +937,10 @@ function downloadCsv(filename, content) {
   URL.revokeObjectURL(url)
 }
 
-onMounted(loadAnnouncements)
+onMounted(() => {
+  loadAnnouncements()
+  loadColors()
+})
 
 onBeforeUnmount(() => {
   if (imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value)
@@ -883,6 +1047,51 @@ onBeforeUnmount(() => {
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--admin-text-soft);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Contenedor que simula el ancho del sitio real */
+.editor-live-preview__frame {
+  border-radius: var(--admin-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--admin-border-light);
+}
+
+/* Contexto barra superior: franja angosta como en el sitio */
+.preview-site-context--topbar {
+  width: 100%;
+}
+
+/* Contexto banner promo: sección destacada como en la página de inicio */
+.preview-site-context--banner {
+  width: 100%;
+}
+
+/* Selector de color con muestra visual */
+.color-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.color-select-swatch {
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--admin-radius);
+  border: 1px solid var(--admin-border);
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.color-select-wrapper .form-control {
+  flex: 1;
+}
+
+/* Espaciado para input personalizado de URL */
+.mt-1 {
+  margin-top: 0.6rem;
 }
 
 .editor-preview-image {

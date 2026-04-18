@@ -100,6 +100,7 @@ Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
 Route::prefix('internal')->group(function () {
     Route::get('/products/{id}', [InternalCatalogController::class, 'product']);
     Route::get('/variants/{id}', [InternalCatalogController::class, 'variant']);
+    Route::post('/inventory/commit', [InternalCatalogController::class, 'commitInventory']);
 });
 
 Route::get('/health', HealthController::class);

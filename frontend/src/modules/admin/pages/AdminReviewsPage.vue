@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-star"
       title="Reseñas"
-      subtitle="Modera reputación y visibilidad del catálogo con el mismo flujo de Angelow legacy sobre microservicios."
+      subtitle="Modera la reputación y la visibilidad del catálogo con la misma experiencia del panel administrativo."
       :breadcrumbs="[{ label: 'Reseñas' }]"
     />
 
@@ -41,7 +41,7 @@
           </div>
 
           <div class="admin-filters__group">
-            <label for="review-verified"><i class="fas fa-badge-check"></i> Compra verificada</label>
+            <label for="review-verified"><i class="fas fa-circle-check"></i> Compra verificada</label>
             <select id="review-verified" v-model="filters.verified" @change="loadReviews">
               <option value="all">Todas</option>
               <option value="verified">Solo verificadas</option>
@@ -91,9 +91,9 @@
             class="highlight-item"
             @click="openReviewModal(review)"
           >
-            <div>
-              <strong>{{ review.customer.name }}</strong>
-              <span>{{ review.product_name }}</span>
+            <div class="highlight-item__info">
+              <strong class="highlight-item__name">{{ review.customer.name }}</strong>
+              <span class="highlight-item__product">{{ review.product_name }}</span>
             </div>
             <div class="highlight-meta">
               <span class="stars-inline" v-html="renderStars(review.rating)"></span>
@@ -106,8 +106,9 @@
 
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} reseñas`">
       <template #actions>
-        <button class="btn-icon" type="button" @click="exportReviews">
-          <i class="fas fa-file-export"></i> Exportar
+        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportReviews">
+          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
+          Exportar
         </button>
       </template>
     </AdminResultsBar>
@@ -175,7 +176,7 @@
                 :title="review.is_verified ? 'Quitar verificación' : 'Marcar verificada'"
                 @click="toggleReviewVerified(review)"
               >
-                <i class="fas fa-badge-check"></i>
+                <i class="fas fa-circle-check"></i>
               </button>
               <button class="action-btn delete" type="button" title="Eliminar reseña" @click="deleteReview(review)">
                 <i class="fas fa-trash"></i>
@@ -232,7 +233,7 @@
                   Enviar a revisión
                 </button>
                 <button class="btn btn-secondary" type="button" @click="toggleReviewVerified(selectedReview)">
-                  <i class="fas fa-badge-check"></i>
+                  <i class="fas fa-circle-check"></i>
                   {{ selectedReview.is_verified ? 'Quitar verificación' : 'Marcar verificada' }}
                 </button>
                 <button class="btn btn-danger" type="button" @click="deleteReview(selectedReview)">
@@ -326,7 +327,7 @@ const reviewStats = computed(() => {
     { key: 'pending', label: 'Pendientes', value: String(pending), icon: 'fas fa-clock', color: 'warning' },
     { key: 'approved', label: 'Publicadas', value: String(approved), icon: 'fas fa-check-circle', color: 'success' },
     { key: 'average', label: 'Rating promedio', value: average, icon: 'fas fa-star', color: 'info' },
-    { key: 'verified', label: 'Verificadas', value: String(verified), icon: 'fas fa-badge-check', color: 'primary' },
+    { key: 'verified', label: 'Verificadas', value: String(verified), icon: 'fas fa-circle-check', color: 'primary' },
     { key: 'total', label: 'Total reseñas', value: String(total), icon: 'fas fa-comments', color: 'primary' },
   ]
 })
@@ -632,6 +633,28 @@ onMounted(loadReviews)
   background: var(--admin-bg);
   cursor: pointer;
   text-align: left;
+}
+
+.highlight-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.highlight-item__name {
+  color: var(--admin-text-heading);
+  font-size: 1.28rem;
+  font-weight: 700;
+}
+
+.highlight-item__product {
+  color: var(--admin-text-light);
+  font-size: 1.18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22rem;
 }
 
 .highlight-item span,

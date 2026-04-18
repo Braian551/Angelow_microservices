@@ -50,6 +50,45 @@ Este archivo centraliza las dependencias agregadas/usadas para tareas funcionale
   - Se genera un reporte PDF de productos con columnas: ID, Nombre, Categoría, Stock, Precio Min, Precio Max y Estado.
   - El frontend descarga el archivo binario respetando `Content-Disposition` del backend.
 
+## 2026-04-17 - Campañas de descuentos con PDF adjunto
+
+- Tipo: dependencia backend (Composer)
+- Paquete/version: `dompdf/dompdf@3.1.0`
+- Motivo: generar en memoria el PDF del código de descuento para adjuntarlo en correos de campañas masivas y envíos a usuarios específicos.
+- Comando usado: `composer require dompdf/dompdf:^3.1 --no-interaction --no-progress`
+- Archivos donde se aplica:
+  - `services/discount-service/composer.json`
+  - `services/discount-service/composer.lock`
+  - `services/discount-service/app/Support/DiscountPdfAttachmentHelper.php`
+  - `services/discount-service/app/Http/Controllers/Admin/AdminDiscountController.php`
+  - `services/discount-service/routes/api.php`
+  - `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`
+- Contexto funcional:
+  - `POST /api/admin/discount-codes/campaign/mass`: envío masivo por notificación y/o correo con adjunto PDF.
+  - `POST /api/admin/discount-codes/campaign/specific`: envío a usuarios seleccionados con la misma lógica de adjunto en memoria.
+
+## 2026-04-17 - Facturación automática de órdenes (order-service)
+
+- Tipo: dependencia backend (Composer)
+- Paquete/version: `dompdf/dompdf@3.1.x`
+- Motivo: generar factura PDF en memoria y adjuntarla en correos de facturación automática al cliente cuando la orden queda entregada y el pago verificado.
+- Comando usado: `composer require dompdf/dompdf:^3.1 --no-interaction --no-progress`
+- Archivos donde se aplica:
+  - `services/order-service/composer.json`
+  - `services/order-service/composer.lock`
+  - `services/order-service/app/Services/OrderInvoiceService.php`
+  - `services/order-service/app/Http/Controllers/OrderController.php`
+  - `services/order-service/app/Http/Controllers/Admin/AdminInvoiceController.php`
+  - `services/order-service/routes/api.php`
+  - `frontend/src/services/invoiceApi.js`
+  - `frontend/src/modules/admin/pages/AdminInvoicesPage.vue`
+- Contexto funcional:
+  - `POST /api/orders/{id}/send-confirmation`: envía correo de confirmación de checkout con resumen del pedido y datos del pago reportado.
+  - Trigger automático de factura al actualizar `status` y `payment_status` en órdenes: cuando pasa a entregada/completada + pago validado, se genera PDF y se envía por correo.
+  - `GET /api/admin/invoices`: lista facturas generadas desde microservicio y fallback legacy.
+  - `GET /api/admin/invoices/{id}/download`: descarga PDF de factura.
+  - `POST /api/admin/invoices/{id}/resend`: reenvía factura al correo del cliente.
+
 ## Plantilla para futuras entradas
 
 - Fecha:

@@ -7,9 +7,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class PaymentController extends Controller
 {
+    private const LEGACY_CONNECTION = 'legacy_mysql';
+
     public function index(Request $request): JsonResponse
     {
         $query = DB::table('payment_transactions')->orderByDesc('created_at');
@@ -134,6 +137,120 @@ class PaymentController extends Controller
             ->orderBy('bank_name')
             ->get();
 
+        if ($banks->isEmpty() && $this->canUseLegacyConnection()) {
+            try {
+                $banks = DB::connection(self::LEGACY_CONNECTION)
+                    ->table('colombian_banks')
+                    ->where('is_active', true)
+                    ->orderBy('bank_name')
+                    ->get();
+            } catch (Throwable) {
+                // Si falla la conexión legacy, se conserva la respuesta vacía sin romper el endpoint.
+            }
+        }
+
         return response()->json(['data' => $banks]);
+    }
+
+    public function paymentAccount(): JsonResponse
+    {
+        $account = null;
+
+        if (Schema::hasTable('bank_account_config')) {
+            $account = $this->resolveActivePaymentAccount();
+        }
+
+        if (!$account && $this->canUseLegacyConnection()) {
+            $account = $this->resolveActivePaymentAccount(self::LEGACY_CONNECTION);
+        }
+
+        return response()->json([
+            'data' => $this->transformPaymentAccount($account),
+        ]);
+    }
+
+    private function resolveActivePaymentAccount(?string $connection = null): ?object
+    {
+        try {
+            $query = $connection
+                ? DB::connection($connection)->table('bank_account_config as bac')
+                : DB::table('bank_account_config as bac');
+
+            $account = $query
+                ->leftJoin('colombian_banks as cb', 'bac.bank_code', '=', 'cb.bank_code')
+                ->select([
+                    'bac.id',
+                    'bac.bank_code',
+                    'bac.account_number',
+                    'bac.account_type',
+                    'bac.account_holder',
+                    'bac.identification_type',
+                    'bac.identification_number',
+                    'bac.email',
+                    'bac.phone',
+                    'bac.is_active',
+                    'bac.created_at',
+                    'bac.updated_at',
+                    'cb.bank_name',
+                ])
+                ->where('bac.is_active', true)
+                ->orderByDesc('bac.updated_at')
+                ->orderByDesc('bac.created_at')
+                ->first();
+
+            if (!$account) {
+                return null;
+            }
+
+            $account->source = $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice';
+
+            return $account;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function canUseLegacyConnection(): bool
+    {
+        try {
+            DB::connection(self::LEGACY_CONNECTION)->getPdo();
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    private function transformPaymentAccount(?object $account): ?array
+    {
+        if (!$account) {
+            return null;
+        }
+
+        return [
+            ...(array) $account,
+            'source' => $account->source ?? 'microservice',
+            'account_type_label' => $this->accountTypeLabel($account->account_type ?? null),
+            'identification_type_label' => $this->identificationTypeLabel($account->identification_type ?? null),
+        ];
+    }
+
+    private function accountTypeLabel(?string $accountType): string
+    {
+        return match (strtolower((string) $accountType)) {
+            'corriente' => 'Cuenta corriente',
+            'ahorros' => 'Cuenta de ahorros',
+            default => 'Cuenta bancaria',
+        };
+    }
+
+    private function identificationTypeLabel(?string $identificationType): string
+    {
+        return match (strtolower((string) $identificationType)) {
+            'cc' => 'Cédula',
+            'ce' => 'Cédula de extranjería',
+            'nit' => 'NIT',
+            default => 'Documento',
+        };
     }
 }

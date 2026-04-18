@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class);
 
 Route::get('/banks', [PaymentController::class, 'banks']);
+Route::get('/payment-account', [PaymentController::class, 'paymentAccount']);
 Route::get('/payments', [PaymentController::class, 'index']);
 Route::post('/payments', [PaymentController::class, 'store']);
 Route::patch('/payments/{id}/verify', [PaymentController::class, 'verify']);
@@ -17,4 +18,6 @@ Route::patch('/payments/{id}/verify', [PaymentController::class, 'verify']);
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     Route::get('/payments', [AdminPaymentController::class, 'index']);
     Route::patch('/payments/{id}', [AdminPaymentController::class, 'verify']);
+    Route::get('/payment-account', [AdminPaymentController::class, 'accountSettings']);
+    Route::put('/payment-account', [AdminPaymentController::class, 'saveAccountSettings']);
 });

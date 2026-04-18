@@ -1,7 +1,7 @@
 <template>
   <header class="admin-header">
     <div class="header-left">
-      <button class="sidebar-toggle" type="button" aria-label="Abrir menu lateral" @click="$emit('toggle-sidebar')">
+      <button class="sidebar-toggle" type="button" aria-label="Abrir menú lateral" @click="$emit('toggle-sidebar')">
         <i class="fas fa-bars"></i>
       </button>
       <h2>{{ storeName }}</h2>
@@ -14,7 +14,7 @@
           name="admin-global-search"
           type="search"
           v-model="searchQuery"
-          placeholder="Buscar pedidos, clientes o modulos"
+          placeholder="Buscar pedidos, facturas, clientes o módulos"
           autocomplete="off"
           spellcheck="false"
           @input="handleSearch"
@@ -65,11 +65,24 @@
             </div>
             <div class="dropdown-body">
               <p v-if="notifications.length === 0" class="dropdown-empty">Sin notificaciones nuevas.</p>
-              <div v-for="n in notifications" :key="n.id" class="notification-item" :class="{ unread: !n.read_at }">
+              <div
+                v-for="n in notifications"
+                :key="n.id"
+                class="notification-item"
+                :class="{ unread: !n.read_at }"
+                role="button"
+                tabindex="0"
+                @click="openNotification(n)"
+                @keydown.enter.prevent="openNotification(n)"
+                @keydown.space.prevent="openNotification(n)"
+              >
                 <i :class="notificationIcon(n.type)"></i>
-                <div>
+                <div class="notification-item__body">
                   <p class="notification-text">{{ n.message }}</p>
-                  <span class="notification-time">{{ formatTime(n.created_at) }}</span>
+                  <div class="notification-item__meta">
+                    <span class="notification-module-badge">{{ notificationModuleLabel(n) }}</span>
+                    <span class="notification-time">{{ formatTime(n.created_at) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -115,11 +128,13 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useAppShell } from '../../../composables/useAppShell'
+import { useAdminNotifications } from '../composables/useAdminNotifications'
 
 defineEmits(['toggle-sidebar'])
 
+const router = useRouter()
 const { settings } = useAppShell()
 // Nombre de la tienda reactivo desde configuración general
 const storeName = computed(() => settings.value?.store_name || 'Angelow')
@@ -129,21 +144,33 @@ const showResults = ref(false)
 const searching = ref(false)
 const searchResults = ref([])
 const showNotifications = ref(false)
-const notifications = ref([])
-const unreadCount = ref(0)
 const showQuickActions = ref(false)
+
+const {
+  notifications,
+  unreadCount,
+  loadNotifications,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  resolveNotificationRoute,
+  resolveNotificationModuleLabel,
+  startAdminNotifications,
+  stopAdminNotifications,
+  markRouteNotificationsAsRead,
+} = useAdminNotifications()
 
 let searchTimeout = null
 
 const quickActions = [
   { id: 'new-product', icon: 'fa-plus-circle', label: 'Nuevo producto', description: 'Agregar producto al catálogo', path: '/admin/productos/nuevo' },
-  { id: 'new-discount', icon: 'fa-tag', label: 'Generar códigos descuento', description: 'Crear códigos promocionales', path: '/admin/descuentos/codigos' },
+  { id: 'new-discount', icon: 'fa-tag', label: 'Generar códigos de descuento', description: 'Crear códigos promocionales', path: '/admin/descuentos/codigos' },
   { id: 'new-announcement', icon: 'fa-bullhorn', label: 'Publicar anuncio', description: 'Enviar aviso a clientes', path: '/admin/anuncios' },
   { id: 'check-payments', icon: 'fa-money-check-alt', label: 'Revisar pagos pendientes', description: 'Verificar comprobantes', path: '/admin/pagos' },
+  { id: 'view-invoices', icon: 'fa-file-invoice-dollar', label: 'Ver facturas', description: 'Facturas automáticas y reenvíos', path: '/admin/facturas' },
   { id: 'view-orders', icon: 'fa-receipt', label: 'Ver órdenes', description: 'Revisar pedidos recientes', path: '/admin/ordenes' },
   { id: 'manage-categories', icon: 'fa-folder-open', label: 'Gestionar categorías', description: 'Editar categorías de productos', path: '/admin/categorias' },
   { id: 'manage-shipping', icon: 'fa-shipping-fast', label: 'Configurar envíos', description: 'Métodos y reglas de envío', path: '/admin/envios/metodos' },
-  { id: 'manage-sliders', icon: 'fa-images', label: 'Editar sliders', description: 'Carousel de la pagina principal', path: '/admin/sliders' },
+  { id: 'manage-sliders', icon: 'fa-images', label: 'Editar sliders', description: 'Carrusel de la página principal', path: '/admin/sliders' },
   { id: 'view-reports', icon: 'fa-chart-bar', label: 'Ver informes', description: 'Estadísticas de ventas', path: '/admin/informes/ventas' },
 ]
 
@@ -167,11 +194,12 @@ function handleSearch() {
       { title: 'Categorías', subtitle: 'Categorías de productos', url: '/admin/categorias', icon: 'fas fa-folder-open' },
       { title: 'Colecciones', subtitle: 'Colecciones de productos', url: '/admin/colecciones', icon: 'fas fa-layer-group' },
       { title: 'Pagos', subtitle: 'Configuración de pagos', url: '/admin/pagos', icon: 'fas fa-money-bill-wave' },
+      { title: 'Facturas', subtitle: 'Facturas generadas automáticamente', url: '/admin/facturas', icon: 'fas fa-file-invoice-dollar' },
       { title: 'Descuentos', subtitle: 'Códigos y descuentos', url: '/admin/descuentos/codigos', icon: 'fas fa-percentage' },
       { title: 'Envíos', subtitle: 'Métodos de envío', url: '/admin/envios/metodos', icon: 'fas fa-truck' },
       { title: 'Anuncios', subtitle: 'Gestión de anuncios', url: '/admin/anuncios', icon: 'fas fa-bullhorn' },
       { title: 'Informes', subtitle: 'Reportes y estadísticas', url: '/admin/informes/ventas', icon: 'fas fa-chart-line' },
-      { title: 'Administradores', subtitle: 'Gestión de admins', url: '/admin/administradores', icon: 'fas fa-user-shield' },
+      { title: 'Administradores', subtitle: 'Gestión de administradores', url: '/admin/administradores', icon: 'fas fa-user-shield' },
     ]
     searchResults.value = modules
       .filter(m => m.title.toLowerCase().includes(q) || m.subtitle.toLowerCase().includes(q))
@@ -190,21 +218,43 @@ function toggleNotifications() {
   if (showNotifications.value) loadNotifications()
 }
 
-async function loadNotifications() {
-  // TODO: Integrar con notification-service admin endpoint
-  notifications.value = []
-  unreadCount.value = 0
+async function markAllRead() {
+  markAllNotificationsAsRead()
 }
 
-async function markAllRead() {
-  notifications.value = notifications.value.map(n => ({ ...n, read_at: new Date().toISOString() }))
-  unreadCount.value = 0
+async function openNotification(notification) {
+  if (!notification) {
+    return
+  }
+
+  if (notification.id !== undefined && notification.id !== null) {
+    markNotificationAsRead(notification.id)
+  }
+
+  const targetRoute = resolveNotificationRoute(notification)
+  showNotifications.value = false
+
+  if (!targetRoute) {
+    return
+  }
+
+  const currentPath = router.currentRoute.value?.path || ''
+  if (currentPath !== targetRoute) {
+    await router.push(targetRoute)
+  }
+
+  markRouteNotificationsAsRead(targetRoute)
+}
+
+function notificationModuleLabel(notification) {
+  return resolveNotificationModuleLabel(notification?.module_key)
 }
 
 function notificationIcon(type) {
   const icons = {
     order: 'fas fa-shopping-bag',
     payment: 'fas fa-money-bill-wave',
+    invoice: 'fas fa-file-invoice-dollar',
     review: 'fas fa-star',
     system: 'fas fa-cog',
   }
@@ -214,6 +264,7 @@ function notificationIcon(type) {
 function formatTime(date) {
   if (!date) return ''
   const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return ''
   const now = new Date()
   const diff = Math.floor((now - d) / 1000 / 60)
   if (diff < 1) return 'Ahora'
@@ -242,10 +293,13 @@ function handleClickOutside(e) {
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
   document.addEventListener('click', handleClickOutside)
+  startAdminNotifications()
+  markRouteNotificationsAsRead(router.currentRoute.value?.path || '')
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
   document.removeEventListener('click', handleClickOutside)
+  stopAdminNotifications()
 })
 </script>

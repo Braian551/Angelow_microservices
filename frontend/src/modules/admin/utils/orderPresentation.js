@@ -11,6 +11,7 @@ const ORDER_STATUS_LABELS = Object.freeze({
 
 const PAYMENT_STATUS_LABELS = Object.freeze({
   pending: 'Pendiente',
+  pending_refund: 'Reembolso en proceso',
   paid: 'Pagado',
   verified: 'Verificado',
   approved: 'Aprobado',
@@ -47,6 +48,7 @@ const BULK_ACTION_LABELS = Object.freeze({
 })
 
 const GENERIC_REPLACEMENTS = [
+  [/\bpending_refund\b/gi, 'Reembolso en proceso'],
   [/\bpending\b/gi, 'Pendiente'],
   [/\bprocessing\b/gi, 'En proceso'],
   [/\bshipped\b/gi, 'Enviado'],

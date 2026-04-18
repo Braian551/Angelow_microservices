@@ -34,7 +34,8 @@ const initialSearch = computed(() => String(route.query.search || ''))
 
 function applyBrandRuntimeSettings(currentSettings) {
   const storeName = String(currentSettings?.store_name || 'Angelow').trim()
-  document.title = storeName ? `${storeName} - Ropa Infantil Premium` : 'Angelow - Ropa Infantil Premium'
+  const tagline = String(currentSettings?.store_tagline || '').trim()
+  document.title = tagline ? `${storeName} - ${tagline}` : storeName
 
   const faviconBase = resolveMediaUrl(currentSettings?.brand_favicon, 'brand') || getFallbackMediaUrl('brand')
   const faviconVersion = currentSettings?.__refreshToken ? `?v=${currentSettings.__refreshToken}` : ''

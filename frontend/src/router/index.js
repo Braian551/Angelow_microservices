@@ -34,10 +34,12 @@ import AdminCustomersPage from '../modules/admin/pages/AdminCustomersPage.vue'
 import AdminReviewsPage from '../modules/admin/pages/AdminReviewsPage.vue'
 import AdminQuestionsPage from '../modules/admin/pages/AdminQuestionsPage.vue'
 import AdminPaymentsPage from '../modules/admin/pages/AdminPaymentsPage.vue'
+import AdminInvoicesPage from '../modules/admin/pages/AdminInvoicesPage.vue'
 import AdminShippingRulesPage from '../modules/admin/pages/AdminShippingRulesPage.vue'
 import AdminShippingMethodsPage from '../modules/admin/pages/AdminShippingMethodsPage.vue'
 import AdminBulkDiscountsPage from '../modules/admin/pages/AdminBulkDiscountsPage.vue'
 import AdminDiscountCodesPage from '../modules/admin/pages/AdminDiscountCodesPage.vue'
+import AdminDiscountSpecificCampaignPage from '../modules/admin/pages/AdminDiscountSpecificCampaignPage.vue'
 import AdminAnnouncementsPage from '../modules/admin/pages/AdminAnnouncementsPage.vue'
 import AdminReportsPage from '../modules/admin/pages/AdminReportsPage.vue'
 import AdminSlidersPage from '../modules/admin/pages/AdminSlidersPage.vue'
@@ -132,12 +134,14 @@ const router = createRouter({
         { path: 'preguntas', name: 'admin-questions', component: AdminQuestionsPage },
         // Pagos
         { path: 'pagos', name: 'admin-payments', component: AdminPaymentsPage },
+        { path: 'facturas', name: 'admin-invoices', component: AdminInvoicesPage },
         // Envios
         { path: 'envios/reglas', name: 'admin-shipping-rules', component: AdminShippingRulesPage },
         { path: 'envios/metodos', name: 'admin-shipping-methods', component: AdminShippingMethodsPage },
         // Descuentos
         { path: 'descuentos/cantidad', name: 'admin-bulk-discounts', component: AdminBulkDiscountsPage },
         { path: 'descuentos/codigos', name: 'admin-discount-codes', component: AdminDiscountCodesPage },
+        { path: 'descuentos/codigos/usuarios-especificos', name: 'admin-discount-codes-specific-campaign', component: AdminDiscountSpecificCampaignPage },
         // Anuncios
         { path: 'anuncios', name: 'admin-announcements', component: AdminAnnouncementsPage },
         // Informes

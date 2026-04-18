@@ -274,9 +274,30 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      CATALOG_SERVICE_URL: http://catalog-service:8000/api
+      CATALOG_VARIANT_PATH: /internal/variants
+      CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      ORDER_STOCK_RESERVATION_TTL: 7200
+      ORDER_STOCK_LOCK_SECONDS: 10
+      ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
+      ORDER_STOCK_RESERVATION_EXTEND_ON_CONFIRMATION: 1800
+      ORDER_STOCK_WS_CHANNEL: ws:orders:stock
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_ORDER_TYPE_ID: 1
+      FRONTEND_URL: http://localhost:5173
+      ORDER_REFUND_TEAM_EMAIL: angelow2025sen@gmail.com
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Pedidos
     depends_on:
       - order-db
       - redis
+      - catalog-service
     networks:
       - angelow_network
 
@@ -299,6 +320,11 @@ services:
       DB_DATABASE: angelow_payments
       DB_USERNAME: postgres
       DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
@@ -332,6 +358,17 @@ services:
       CACHE_STORE: redis
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_DISCOUNT_TYPE_ID: 1
+      FRONTEND_STORE_URL: http://localhost:5173
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Descuentos
     depends_on:
       - discount-db
       - redis
@@ -365,6 +402,7 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      SESSION_DRIVER: file
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
     depends_on:
@@ -455,9 +493,67 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      CATALOG_SERVICE_URL: http://catalog-service:8000/api
+      CATALOG_VARIANT_PATH: /internal/variants
+      CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      ORDER_STOCK_RESERVATION_TTL: 7200
+      ORDER_STOCK_LOCK_SECONDS: 10
+      ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
+      ORDER_STOCK_RESERVATION_EXTEND_ON_CONFIRMATION: 1800
+      ORDER_STOCK_WS_CHANNEL: ws:orders:stock
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_ORDER_TYPE_ID: 1
+      FRONTEND_URL: http://localhost:5173
+      ORDER_REFUND_TEAM_EMAIL: angelow2025sen@gmail.com
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Pedidos
     depends_on:
       - order-db
       - redis
+      - catalog-service
+    networks:
+      - angelow_network
+
+  order-scheduler:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: angelow_order_scheduler
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan schedule:work"]
+    environment:
+      APP_KEY: base64:a1u48b3DphC6+pfj7T8StQOvaYZflL9OTB8A89zXZEs=
+      DB_CONNECTION: pgsql
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_orders
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      CATALOG_SERVICE_URL: http://catalog-service:8000/api
+      CATALOG_VARIANT_PATH: /internal/variants
+      CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      ORDER_STOCK_RESERVATION_TTL: 7200
+      ORDER_STOCK_LOCK_SECONDS: 10
+      ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
+      ORDER_STOCK_RESERVATION_EXTEND_ON_CONFIRMATION: 1800
+      ORDER_STOCK_WS_CHANNEL: ws:orders:stock
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_ORDER_TYPE_ID: 1
+      FRONTEND_URL: http://localhost:5173
+      ORDER_REFUND_TEAM_EMAIL: angelow2025sen@gmail.com
+    depends_on:
+      - order-db
+      - redis
+      - catalog-service
     networks:
       - angelow_network
 

@@ -21,6 +21,13 @@
             {{ paymentStatusLabel(orderDetail.payment_status) }}
           </span>
         </div>
+
+        <div v-if="canCancelCurrentOrder" class="order-hero-actions">
+          <button type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
+            <i class="fas fa-ban" />
+            {{ cancellingOrder ? 'Cancelando...' : 'Cancelar pedido' }}
+          </button>
+        </div>
       </section>
 
       <section class="account-card">
@@ -29,6 +36,14 @@
         </header>
 
         <article v-for="item in orderItems" :key="item.id" class="order-item-row">
+          <div class="order-item-media">
+            <img
+              :src="resolveOrderItemImage(item)"
+              :alt="item.product_name || 'Producto'"
+              class="order-item-media__image"
+              @error="onOrderItemImageError($event, item)"
+            />
+          </div>
           <div class="item-main">
             <h3>{{ item.product_name }}</h3>
             <p>Cantidad: {{ item.quantity }} | {{ item.variant_name || 'Sin variante' }}</p>
@@ -43,13 +58,16 @@
           <h2>Estado del pedido</h2>
         </header>
 
-        <div class="order-v2-progress">
+        <div
+          class="order-v2-progress"
+          :class="{ 'order-v2-progress--refund': isRefundFlow(orderDetail) }"
+        >
           <div class="progress-line" />
           <div
-            v-for="step in orderSteps"
+            v-for="step in orderProgressSteps(orderDetail)"
             :key="step.key"
             class="progress-step"
-            :class="{ active: isStepActive(orderDetail.status, step.key) }"
+            :class="{ active: isStepActive(orderDetail, step.key) }"
           >
             <span class="progress-step-icon">
               <i :class="step.icon" />
@@ -76,26 +94,46 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderById } from '../../../services/orderApi'
+import { useAlertSystem } from '../../../composables/useAlertSystem'
+import { useSession } from '../../../composables/useSession'
+import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { cancelOrder, getOrderById } from '../../../services/orderApi'
 
 const route = useRoute()
+const { user } = useSession()
+const { showAlert } = useAlertSystem()
+const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
 const errorMessage = ref('')
 const orderDetail = ref(null)
 const orderItems = ref([])
 const orderHistory = ref([])
+const cancellingOrder = ref(false)
 
-const orderSteps = Object.freeze([
+const defaultOrderSteps = Object.freeze([
   { key: 'pending', label: 'Pendiente', icon: 'fas fa-clock' },
   { key: 'processing', label: 'En proceso', icon: 'fas fa-cog' },
   { key: 'shipped', label: 'Enviado', icon: 'fas fa-truck' },
   { key: 'delivered', label: 'Entregado', icon: 'fas fa-check' },
 ])
 
+const refundOrderSteps = Object.freeze([
+  { key: 'cancelled', label: 'Cancelado', icon: 'fas fa-ban' },
+  { key: 'pending_refund', label: 'Reembolso en proceso', icon: 'fas fa-rotate' },
+  { key: 'refunded', label: 'Reembolsado', icon: 'fas fa-hand-holding-usd' },
+])
+
+const canCancelCurrentOrder = computed(() => isOrderCancelable(orderDetail.value))
+
 onMounted(async () => {
+  await loadOrderDetail()
+})
+
+async function loadOrderDetail() {
   loading.value = true
   errorMessage.value = ''
 
@@ -118,7 +156,7 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
 
 function formatDate(value) {
   if (!value) return '-'
@@ -164,30 +202,180 @@ function statusClass(status) {
 
 function paymentStatusLabel(paymentStatus) {
   const value = String(paymentStatus || '').toLowerCase()
+
+  if (value === 'verified' || value === 'approved') return 'Pago verificado'
+  if (value === 'pending_refund') return 'Reembolso en proceso'
+  if (value === 'refunded') return 'Reembolsado'
   if (value === 'paid') return 'Pagado'
-  if (value === 'rejected') return 'Rechazado'
+  if (value === 'failed' || value === 'rejected') return 'Pago rechazado'
+  if (value === 'pending') return 'Pendiente de pago'
   return 'Pendiente de pago'
 }
 
 function paymentBadgeClass(paymentStatus) {
   const value = String(paymentStatus || '').toLowerCase()
+
+  if (value === 'verified' || value === 'approved') return 'status-delivered'
   if (value === 'paid') return 'status-delivered'
-  if (value === 'rejected') return 'status-cancelled'
+  if (value === 'pending_refund') return 'status-processing'
+  if (value === 'refunded') return 'status-cancelled'
+  if (value === 'failed' || value === 'rejected') return 'status-cancelled'
   return 'status-pending'
 }
 
-function isStepActive(currentStatus, stepKey) {
-  const flow = ['pending', 'processing', 'shipped', 'delivered']
-  let status = String(currentStatus || '').toLowerCase()
+function isRefundFlow(order) {
+  const status = normalizeStatus(order?.status)
+  if (!['cancelled', 'canceled'].includes(status)) {
+    return false
+  }
+
+  const paymentStatus = normalizeStatus(order?.payment_status)
+  return ['pending_refund', 'refunded', 'paid', 'verified', 'approved'].includes(paymentStatus)
+}
+
+function orderProgressSteps(order) {
+  return isRefundFlow(order) ? refundOrderSteps : defaultOrderSteps
+}
+
+function resolveStandardProgressStatus(order) {
+  let status = normalizeStatus(order?.status)
 
   if (status === 'confirmed' || status === 'paid') status = 'processing'
   if (status === 'completed') status = 'delivered'
 
-  const currentIndex = flow.indexOf(status)
+  return status
+}
+
+function resolveRefundProgressStatus(order) {
+  const paymentStatus = normalizeStatus(order?.payment_status)
+  if (paymentStatus === 'refunded') {
+    return 'refunded'
+  }
+
+  if (['pending_refund', 'paid', 'verified', 'approved'].includes(paymentStatus)) {
+    return 'pending_refund'
+  }
+
+  return 'cancelled'
+}
+
+function isStepActive(order, stepKey) {
+  const flow = isRefundFlow(order)
+    ? ['cancelled', 'pending_refund', 'refunded']
+    : ['pending', 'processing', 'shipped', 'delivered']
+  const currentStatus = isRefundFlow(order)
+    ? resolveRefundProgressStatus(order)
+    : resolveStandardProgressStatus(order)
+
+  const currentIndex = flow.indexOf(currentStatus)
   const stepIndex = flow.indexOf(stepKey)
 
   if (currentIndex < 0 || stepIndex < 0) return stepKey === 'pending'
   return stepIndex <= currentIndex
+}
+
+function resolveOrderItemImagePath(item = {}) {
+  return String(
+    item?.product_image
+    || item?.image
+    || item?.image_path
+    || item?.variant_image
+    || item?.thumbnail
+    || '',
+  ).trim()
+}
+
+function resolveOrderItemImage(item = {}) {
+  return resolveMediaUrl(resolveOrderItemImagePath(item), 'product')
+}
+
+function onOrderItemImageError(event, item) {
+  handleMediaError(event, resolveOrderItemImagePath(item), 'product')
+}
+
+function isOrderCancelable(order) {
+  const status = normalizeStatus(order?.status)
+  if (status === 'cancelled' || status === 'canceled') {
+    return false
+  }
+
+  return ['pending', 'processing', 'confirmed', 'paid'].includes(status)
+}
+
+function requiresRefund(order) {
+  const paymentStatus = normalizeStatus(order?.payment_status)
+  if (['paid', 'approved', 'verified'].includes(paymentStatus)) {
+    return true
+  }
+
+  const status = normalizeStatus(order?.status)
+  return !paymentStatus && ['paid', 'confirmed'].includes(status)
+}
+
+function confirmCancelCurrentOrder() {
+  if (!orderDetail.value || cancellingOrder.value || !isOrderCancelable(orderDetail.value)) return
+
+  const orderLabel = String(orderDetail.value.order_number || `#${orderDetail.value.id || ''}`)
+  const refundRequired = requiresRefund(orderDetail.value)
+
+  showAlert({
+    type: 'warning',
+    title: 'Cancelar pedido',
+    message: refundRequired
+      ? `¿Deseas cancelar el pedido ${orderLabel}? Iniciaremos el proceso de reembolso y te notificaremos por correo.`
+      : `¿Deseas cancelar el pedido ${orderLabel}? Esta acción no se puede deshacer.`,
+    actions: [
+      { text: 'Volver', style: 'secondary' },
+      {
+        text: 'Sí, cancelar pedido',
+        style: 'danger',
+        callback: async () => {
+          await submitCancellationFromDetail()
+        },
+      },
+    ],
+  })
+}
+
+async function submitCancellationFromDetail() {
+  if (!orderDetail.value || cancellingOrder.value) return
+
+  cancellingOrder.value = true
+
+  try {
+    const response = await cancelOrder(orderDetail.value.id, {
+      user_id: String(user.value?.id || '').trim() || undefined,
+      user_email: String(user.value?.email || '').trim() || undefined,
+      cancelled_by_name: String(user.value?.name || '').trim() || undefined,
+      reason: 'Cancelación solicitada por el cliente desde el detalle del pedido.',
+    })
+
+    showSnackbar({
+      type: 'success',
+      title: 'Pedido cancelado',
+      message: String(response?.message || 'Tu pedido fue cancelado correctamente.'),
+    })
+
+    await loadOrderDetail()
+  } catch (error) {
+    const apiMessage = String(
+      error?.response?.data?.message
+      || error?.response?.data?.error
+      || 'No pudimos cancelar tu pedido. Intenta nuevamente.',
+    ).trim()
+
+    showSnackbar({
+      type: 'error',
+      title: 'No se pudo cancelar',
+      message: apiMessage || 'No pudimos cancelar tu pedido. Intenta nuevamente.',
+    })
+  } finally {
+    cancellingOrder.value = false
+  }
+}
+
+function normalizeStatus(value) {
+  return String(value || '').trim().toLowerCase()
 }
 </script>
 
@@ -217,6 +405,34 @@ function isStepActive(currentStatus, stepKey) {
   gap: 0.7rem;
 }
 
+.order-hero-actions {
+  margin-top: 1rem;
+}
+
+.btn-cancel-detail {
+  border: 1px solid #ef4444;
+  background: #fff;
+  color: #dc2626;
+  border-radius: 10px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  padding: 0.9rem 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.btn-cancel-detail:hover {
+  background: #fff1f2;
+}
+
+.btn-cancel-detail:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .order-item-row {
   border: 1px solid #dbe3ed;
   border-radius: 10px;
@@ -225,6 +441,28 @@ function isStepActive(currentStatus, stepKey) {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+}
+
+.order-item-media {
+  width: 8.2rem;
+  height: 8.2rem;
+  border-radius: 12px;
+  border: 1px solid #dbe3ed;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f8fafc;
+}
+
+.order-item-media__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.item-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .item-main h3 {
@@ -303,6 +541,26 @@ function isStepActive(currentStatus, stepKey) {
   color: #0f7bb8;
 }
 
+.order-v2-progress--refund .progress-line {
+  border-top-color: #d97706;
+}
+
+.order-v2-progress--refund .progress-step.active .progress-step-icon {
+  background: #d97706;
+}
+
+.order-v2-progress--refund .progress-step.active .progress-step-label {
+  color: #b45309;
+}
+
+.order-v2-progress--refund .progress-step.active:last-child .progress-step-icon {
+  background: #16a34a;
+}
+
+.order-v2-progress--refund .progress-step.active:last-child .progress-step-label {
+  color: #15803d;
+}
+
 .history-list {
   list-style: none;
   margin: 0;
@@ -333,6 +591,16 @@ function isStepActive(currentStatus, stepKey) {
   .order-item-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .order-item-media {
+    width: 100%;
+    max-width: 12rem;
+    height: 12rem;
+  }
+
+  .item-total {
+    font-size: 2.3rem;
   }
 
   .order-v2-progress {

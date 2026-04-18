@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-images"
       title="Sliders"
-      subtitle="Administra el carrusel principal con el mismo flujo operativo del panel y feedback centralizado."
+      subtitle="Administra el carrusel principal con el mismo flujo del panel y mensajes claros en cada acción."
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Sliders' }]"
     >
       <template #actions>
@@ -102,40 +102,57 @@
       <div class="admin-editor-grid slider-editor-grid">
         <div>
           <div class="form-group">
-            <label for="slider-title">Título *</label>
+            <label for="slider-title">
+              Título *
+              <AdminInfoTooltip text="Texto principal del slide visible sobre la imagen. Ejemplos: «Nueva colección», «60% OFF»." />
+            </label>
             <input id="slider-title" v-model.trim="form.title" type="text" class="form-control" :class="{ 'is-invalid': formErrors.title }" @input="validateField('title')">
             <p v-if="formErrors.title" class="form-error">{{ formErrors.title }}</p>
           </div>
 
           <div class="form-group">
-            <label for="slider-subtitle">Subtítulo</label>
+            <label for="slider-subtitle">
+              Subtítulo
+              <AdminInfoTooltip text="Texto complementario que aparece bajo el título. Puede ampliar el mensaje principal." />
+            </label>
             <input id="slider-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
           </div>
 
           <div class="form-group">
-            <label for="slider-link">URL o ruta</label>
+            <label for="slider-link">
+              URL o ruta
+              <AdminInfoTooltip text="Destino al que lleva el slide al hacer clic. Usa rutas relativas como /tienda o URLs completas." />
+            </label>
             <input id="slider-link" v-model.trim="form.link" type="text" class="form-control" :class="{ 'is-invalid': formErrors.link }" placeholder="/tienda o https://..." @input="validateField('link')">
             <p v-if="formErrors.link" class="form-error">{{ formErrors.link }}</p>
           </div>
 
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="slider-order">Orden *</label>
+              <label for="slider-order">
+                Orden *
+                <AdminInfoTooltip text="Posición en el carrusel. Los slides con número menor aparecen primero." />
+              </label>
               <input id="slider-order" v-model.number="form.sort_order" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.sort_order }" @input="validateField('sort_order')">
               <p v-if="formErrors.sort_order" class="form-error">{{ formErrors.sort_order }}</p>
             </div>
-            <div class="form-group form-group--toggle" style="flex: 1; justify-content: flex-end;">
-              <label class="toggle-label">
-                <input v-model="form.active" type="checkbox">
-                Slider activo en el carrusel
-              </label>
+            <div class="form-group" style="flex: 1; display: flex; align-items: flex-end;">
+              <AdminToggleSwitch
+                id="slider-active"
+                v-model="form.active"
+                layout="inline"
+                label="Slider activo en el carrusel"
+              />
             </div>
           </div>
         </div>
 
         <div>
           <div class="form-group">
-            <label>Imagen *</label>
+            <label>
+              Imagen *
+              <AdminInfoTooltip text="Imagen principal del slide. Se recomienda formato horizontal amplio (mínimo 1920×600 px). JPG, PNG o WEBP. Máximo 4 MB." />
+            </label>
             <div class="admin-upload-box" @click="openImagePicker">
               <i class="fas fa-cloud-upload-alt"></i>
               <p>{{ imagePreviewUrl ? 'Cambiar imagen del slider' : 'Selecciona la imagen principal del slide' }}</p>
@@ -145,7 +162,9 @@
             <p v-if="formErrors.image" class="form-error">{{ formErrors.image }}</p>
             <div v-if="imagePreviewUrl" class="slider-preview-image">
               <img :src="imagePreviewUrl" alt="Vista previa del slider">
-              <button class="btn btn-secondary btn-sm" type="button" @click="clearSelectedImage">Quitar imagen</button>
+              <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
+                <i class="fas fa-trash-alt"></i>
+              </button>
             </div>
           </div>
 
@@ -182,10 +201,12 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()

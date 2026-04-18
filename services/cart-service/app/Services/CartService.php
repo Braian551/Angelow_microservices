@@ -100,11 +100,15 @@ class CartService
             $variant = $variantsById[(int) $rawItem['size_variant_id']] ?? null;
             $quantity = (int) $rawItem['quantity'];
             $productImage = $variant['variant_image'] ?? $product['primary_image'] ?? self::PRODUCT_FALLBACK_IMAGE;
+            $sizeVariantId = isset($rawItem['size_variant_id']) ? (int) $rawItem['size_variant_id'] : 0;
+            $colorVariantId = isset($rawItem['color_variant_id']) ? (int) $rawItem['color_variant_id'] : 0;
 
             $item = [
                 'item_id' => (int) $rawItem['item_id'],
                 'quantity' => $quantity,
                 'product_id' => (int) $rawItem['product_id'],
+                'color_variant_id' => $colorVariantId > 0 ? $colorVariantId : null,
+                'size_variant_id' => $sizeVariantId > 0 ? $sizeVariantId : null,
                 'product_name' => $product['name'] ?? 'Producto',
                 'product_slug' => $product['slug'] ?? '',
                 'product_image' => $productImage,

@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Repositories\Contracts\SiteRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Query Builder implementation of the Site repository.
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\DB;
  */
 class QueryBuilderSiteRepository implements SiteRepositoryInterface
 {
+    private const LEGACY_CONNECTION = 'legacy_mysql';
+
     /**
      * Get all site settings as key-value pairs.
      *
@@ -53,16 +56,16 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
      */
     public function getTopBarAnnouncement(): ?object
     {
-        return DB::table('announcements')
-            ->where('type', 'top_bar')
+        return $this->announcementsQuery()
+            ->whereIn('type', ['top_bar', 'bar'])
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->whereNull('start_date')
-                  ->orWhere('start_date', '<=', now());
+                    ->orWhere('start_date', '<=', now());
             })
             ->where(function ($q) {
                 $q->whereNull('end_date')
-                  ->orWhere('end_date', '>=', now());
+                    ->orWhere('end_date', '>=', now());
             })
             ->orderByDesc('priority')
             ->orderByDesc('created_at')
@@ -76,19 +79,40 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
      */
     public function getPromoBanner(): ?object
     {
-        return DB::table('announcements')
-            ->where('type', 'promo_banner')
+        return $this->announcementsQuery()
+            ->whereIn('type', ['promo_banner', 'banner'])
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->whereNull('start_date')
-                  ->orWhere('start_date', '<=', now());
+                    ->orWhere('start_date', '<=', now());
             })
             ->where(function ($q) {
                 $q->whereNull('end_date')
-                  ->orWhere('end_date', '>=', now());
+                    ->orWhere('end_date', '>=', now());
             })
             ->orderByDesc('priority')
             ->orderByDesc('created_at')
             ->first();
+    }
+
+    /**
+     * Durante la migracion, prioriza la fuente legacy usada por admin anuncios.
+     */
+    private function announcementsQuery()
+    {
+        if ($this->legacyAnnouncementsAvailable()) {
+            return DB::connection(self::LEGACY_CONNECTION)->table('announcements');
+        }
+
+        return DB::table('announcements');
+    }
+
+    private function legacyAnnouncementsAvailable(): bool
+    {
+        try {
+            return Schema::connection(self::LEGACY_CONNECTION)->hasTable('announcements');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 }

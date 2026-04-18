@@ -372,13 +372,24 @@ class AdminCatalogController extends Controller
                     ];
                 })->values()->all();
 
+                // Imágenes persistidas que el frontend reenvía para que el backend las conserve
+                $persistedImages = collect($variant['images'] ?? [])->map(function ($img) {
+                    return [
+                        'id'         => isset($img['id']) && $img['id'] !== '' ? (int) $img['id'] : null,
+                        'path'       => trim((string) ($img['path'] ?? '')) ?: null,
+                        'is_primary' => $this->toBoolean($img['is_primary'] ?? false, false),
+                        'order'      => isset($img['order']) ? (int) $img['order'] : 0,
+                    ];
+                })->filter(fn ($img) => !empty($img['path']))->values()->all();
+
                 return [
-                    'id' => isset($variant['id']) && $variant['id'] !== '' ? (int) $variant['id'] : null,
-                    'key' => (string) ($variant['key'] ?? ('variant-' . $index)),
-                    'color_id' => isset($variant['color_id']) && $variant['color_id'] !== '' ? (int) $variant['color_id'] : null,
+                    'id'         => isset($variant['id']) && $variant['id'] !== '' ? (int) $variant['id'] : null,
+                    'key'        => (string) ($variant['key'] ?? ('variant-' . $index)),
+                    'color_id'   => isset($variant['color_id']) && $variant['color_id'] !== '' ? (int) $variant['color_id'] : null,
                     'is_default' => $this->toBoolean($variant['is_default'] ?? false, false),
-                    'image_path' => trim((string) ($variant['image_path'] ?? '')) ?: null,
-                    'sizes' => $sizes,
+                    'image_path' => trim((string) ($variant['image_path'] ?? '')) ?: null, // retrocompat
+                    'images'     => $persistedImages,
+                    'sizes'      => $sizes,
                 ];
             })
             ->values();
@@ -530,36 +541,108 @@ class AdminCatalogController extends Controller
                 'is_default' => $variant['is_default'] ? 1 : 0,
             ]);
 
-            $variantImagePath = $variant['image_path'];
-            $variantKey = $variant['key'];
-            $variantFile = is_array($variantImageFiles) ? ($variantImageFiles[$variantKey] ?? null) : null;
-
-            if ($variantFile instanceof UploadedFile) {
-                $variantImagePath = $this->storeUploadedImage($variantFile);
+            $variantKey    = $variant['key'];
+            $persistedImgs = $variant['images'] ?? [];
+            // Archivos nuevos: puede ser array (multi-imagen) o archivo único (retrocompat)
+            $variantFiles  = is_array($variantImageFiles) ? ($variantImageFiles[$variantKey] ?? []) : [];
+            if ($variantFiles instanceof UploadedFile) {
+                $variantFiles = [$variantFiles];
+            }
+            if (!is_array($variantFiles)) {
+                $variantFiles = [];
             }
 
-            if ($variantImagePath) {
+            $imageOrder = 0;
+
+            // 1. Re-insertar imágenes ya persistidas que el frontend reenvsó
+            foreach ($persistedImgs as $persistedImg) {
+                $persistedPath = $persistedImg['path'] ?? null;
+                if (!$persistedPath) continue;
+
+                $isPrimary = (bool) ($persistedImg['is_primary'] ?? ($imageOrder === 0));
+
                 if (Schema::hasTable('variant_images')) {
                     DB::table('variant_images')->insert([
                         'color_variant_id' => $colorVariantId,
-                        'product_id' => $productId,
-                        'image_path' => $variantImagePath,
-                        'alt_text' => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
-                        'order' => $variantIndex + 1,
-                        'is_primary' => true,
-                        'created_at' => now(),
+                        'product_id'       => $productId,
+                        'image_path'       => $persistedPath,
+                        'alt_text'         => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order'            => $imageOrder,
+                        'is_primary'       => $isPrimary,
+                        'created_at'       => now(),
                     ]);
                 }
-
                 if (Schema::hasTable('product_images')) {
                     DB::table('product_images')->insert([
-                        'product_id' => $productId,
+                        'product_id'       => $productId,
                         'color_variant_id' => $colorVariantId,
-                        'image_path' => $variantImagePath,
-                        'alt_text' => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
-                        'order' => $variantIndex + 1,
-                        'is_primary' => false,
-                        'created_at' => now(),
+                        'image_path'       => $persistedPath,
+                        'alt_text'         => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order'            => $imageOrder,
+                        'is_primary'       => false,
+                        'created_at'       => now(),
+                    ]);
+                }
+                $imageOrder++;
+            }
+
+            // 2. Insertar nuevas imágenes subidas desde el formulario
+            foreach ($variantFiles as $variantFile) {
+                if (!$variantFile instanceof UploadedFile) continue;
+
+                $uploadedPath = $this->storeUploadedImage($variantFile);
+                if (!$uploadedPath) continue;
+
+                $isPrimary = $imageOrder === 0;
+
+                if (Schema::hasTable('variant_images')) {
+                    DB::table('variant_images')->insert([
+                        'color_variant_id' => $colorVariantId,
+                        'product_id'       => $productId,
+                        'image_path'       => $uploadedPath,
+                        'alt_text'         => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order'            => $imageOrder,
+                        'is_primary'       => $isPrimary,
+                        'created_at'       => now(),
+                    ]);
+                }
+                if (Schema::hasTable('product_images')) {
+                    DB::table('product_images')->insert([
+                        'product_id'       => $productId,
+                        'color_variant_id' => $colorVariantId,
+                        'image_path'       => $uploadedPath,
+                        'alt_text'         => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order'            => $imageOrder,
+                        'is_primary'       => false,
+                        'created_at'       => now(),
+                    ]);
+                }
+                $imageOrder++;
+            }
+
+            // 3. Retrocompat: si no hay ninguna imagen pero sí image_path legacy en el payload
+            if ($imageOrder === 0 && !empty($variant['image_path'])) {
+                $legacyPath = $variant['image_path'];
+                if (Schema::hasTable('variant_images')) {
+                    DB::table('variant_images')->insert([
+                        'color_variant_id' => $colorVariantId,
+                        'product_id'       => $productId,
+                        'image_path'       => $legacyPath,
+                        'alt_text'         => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order'            => 0,
+                        'is_primary'       => true,
+                        'created_at'       => now(),
+                    ]);
+                }
+                if (Schema::hasTable('product_images')) {
+                    DB::table('product_images')->insert([
+                        'product_id'       => $productId,
+                        'color_variant_id' => $colorVariantId,
+                        'image_path'       => $legacyPath,
+                        'alt_text'         => $payload['nombre'] . ' variante ' . ($variantIndex + 1),
+                        'order'            => 0,
+                        'is_primary'       => false,
+                        'created_at'       => now(),
                     ]);
                 }
             }
@@ -987,6 +1070,7 @@ class AdminCatalogController extends Controller
             'nombre' => ['required', 'string', 'max:100'],
             'descripcion' => ['nullable', 'string'],
             'imagen' => ['nullable', 'string', 'max:255'],
+            'image_file' => ['nullable', 'file', 'image', 'max:4096'],
             'slug' => ['nullable', 'string', 'max:100'],
             'activo' => ['nullable', 'boolean'],
         ]);
@@ -995,6 +1079,14 @@ class AdminCatalogController extends Controller
         $descriptionColumn = $this->firstExistingColumn('categories', ['descripcion', 'description']);
         $imageColumn = $this->firstExistingColumn('categories', ['imagen', 'image']);
         $activeColumn = $this->firstExistingColumn('categories', ['is_active', 'activo']);
+
+        // Si llega archivo, almacenarlo; si no, usar ruta de texto
+        $imagenPath = null;
+        if ($request->file('image_file') instanceof UploadedFile) {
+            $imagenPath = $this->storeUploadedImage($request->file('image_file'), 'categories');
+        } elseif (!empty($data['imagen'])) {
+            $imagenPath = $data['imagen'];
+        }
 
         $payload = [
             ($nameColumn ?: 'name') => $data['nombre'],
@@ -1008,7 +1100,7 @@ class AdminCatalogController extends Controller
         }
 
         if ($imageColumn) {
-            $payload[$imageColumn] = $data['imagen'] ?? null;
+            $payload[$imageColumn] = $imagenPath;
         }
 
         if ($activeColumn) {
@@ -1026,6 +1118,7 @@ class AdminCatalogController extends Controller
             'nombre' => ['sometimes', 'string', 'max:100'],
             'descripcion' => ['nullable', 'string'],
             'imagen' => ['nullable', 'string', 'max:255'],
+            'image_file' => ['nullable', 'file', 'image', 'max:4096'],
             'slug' => ['nullable', 'string', 'max:100'],
             'activo' => ['nullable', 'boolean'],
         ]);
@@ -1042,9 +1135,23 @@ class AdminCatalogController extends Controller
         if ($descriptionColumn && array_key_exists('descripcion', $data)) {
             $payload[$descriptionColumn] = $data['descripcion'];
         }
-        if ($imageColumn && array_key_exists('imagen', $data)) {
+
+        // Si llega archivo, reemplazar imagen anterior y persistir nueva ruta
+        if ($request->file('image_file') instanceof UploadedFile) {
+            if ($imageColumn) {
+                $oldImage = DB::table('categories')->where('id', $id)->value($imageColumn);
+                if ($oldImage) {
+                    $oldPath = public_path($oldImage);
+                    if (is_file($oldPath)) {
+                        @unlink($oldPath);
+                    }
+                }
+                $payload[$imageColumn] = $this->storeUploadedImage($request->file('image_file'), 'categories');
+            }
+        } elseif ($imageColumn && array_key_exists('imagen', $data)) {
             $payload[$imageColumn] = $data['imagen'];
         }
+
         if (array_key_exists('slug', $data)) {
             $payload['slug'] = $data['slug'];
         }
@@ -1052,11 +1159,7 @@ class AdminCatalogController extends Controller
             $payload[$activeColumn] = $data['activo'] ? 1 : 0;
         }
 
-        $updated = DB::table('categories')->where('id', $id)->update($payload);
-
-        if (!$updated) {
-            return response()->json(['success' => false, 'message' => 'Categoria no encontrada'], 404);
-        }
+        DB::table('categories')->where('id', $id)->update($payload);
 
         return response()->json(['success' => true, 'message' => 'Categoria actualizada']);
     }
@@ -1160,6 +1263,7 @@ class AdminCatalogController extends Controller
             'nombre' => ['required', 'string', 'max:100'],
             'descripcion' => ['nullable', 'string'],
             'imagen' => ['nullable', 'string', 'max:255'],
+            'image_file' => ['nullable', 'file', 'image', 'max:4096'],
             'slug' => ['nullable', 'string', 'max:100'],
             'launch_date' => ['nullable', 'date'],
             'activo' => ['nullable', 'boolean'],
@@ -1169,6 +1273,14 @@ class AdminCatalogController extends Controller
         $descriptionColumn = $this->firstExistingColumn('collections', ['descripcion', 'description']);
         $imageColumn = $this->firstExistingColumn('collections', ['imagen', 'image']);
         $activeColumn = $this->firstExistingColumn('collections', ['is_active', 'activo']);
+
+        // Si llega archivo, almacenarlo; si no, usar ruta de texto
+        $imagenPath = null;
+        if ($request->file('image_file') instanceof UploadedFile) {
+            $imagenPath = $this->storeUploadedImage($request->file('image_file'), 'collections');
+        } elseif (!empty($data['imagen'])) {
+            $imagenPath = $data['imagen'];
+        }
 
         $payload = [
             ($nameColumn ?: 'name') => $data['nombre'],
@@ -1183,7 +1295,7 @@ class AdminCatalogController extends Controller
         }
 
         if ($imageColumn) {
-            $payload[$imageColumn] = $data['imagen'] ?? null;
+            $payload[$imageColumn] = $imagenPath;
         }
 
         if ($activeColumn) {
@@ -1218,9 +1330,23 @@ class AdminCatalogController extends Controller
         if ($descriptionColumn && array_key_exists('descripcion', $data)) {
             $payload[$descriptionColumn] = $data['descripcion'];
         }
-        if ($imageColumn && array_key_exists('imagen', $data)) {
+
+        // Si llega archivo, reemplazar imagen anterior y persistir nueva ruta
+        if ($request->file('image_file') instanceof UploadedFile) {
+            if ($imageColumn) {
+                $oldImage = DB::table('collections')->where('id', $id)->value($imageColumn);
+                if ($oldImage) {
+                    $oldPath = public_path($oldImage);
+                    if (is_file($oldPath)) {
+                        @unlink($oldPath);
+                    }
+                }
+                $payload[$imageColumn] = $this->storeUploadedImage($request->file('image_file'), 'collections');
+            }
+        } elseif ($imageColumn && array_key_exists('imagen', $data)) {
             $payload[$imageColumn] = $data['imagen'];
         }
+
         if (array_key_exists('slug', $data)) {
             $payload['slug'] = $data['slug'];
         }

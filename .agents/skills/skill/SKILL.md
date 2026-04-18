@@ -8,14 +8,14 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 
 ## Reglas obligatorias
 1. El frontend de microservicios debe verse y comportarse igual que Angelow legacy en las pantallas migradas, incluyendo animaciones y transiciones.
-2. Todo texto nuevo debe guardarse en UTF-8 real (sin mojibake).
+2. Todo texto nuevo debe guardarse en UTF-8 real (sin mojibake) y con ortografía correcta en español, incluyendo tildes, `ñ`, signos y acentos en labels, placeholders, botones, breadcrumbs, modales, snackbars, tablas y exportables visibles.
 3. La arquitectura es de microservicios: cada dominio consulta su servicio y su tabla propia, con fallback legacy durante migración cuando aplique.
 4. En UI, labels, subtítulos, placeholders, alertas, tooltips, textos auxiliares y copy operativo NO se debe exponer el contexto interno de implementación; evitar menciones explícitas a legacy, microservicios o Angelow salvo que la tarea lo pida de forma expresa.
 5. En frontend se deben priorizar los estilos globales y componentes compartidos del dashboard para grids, tarjetas, formularios, filtros, tablas y modales; dejar estilos locales solo para variaciones realmente específicas de la vista.
 6. En backend se debe usar ORM (Eloquent) como primera opción; usar Query Builder solo cuando sea necesario y documentado.
 7. En frontend, navegación tipo SPA real: no recargar header ni aside al cambiar vistas de dashboard.
 8. El aside de dashboard también sigue regla SPA (sin refresh completo, sin perder estado de sesión/perfil).
-9. Antes de cerrar una tarea, revisar y corregir errores de codificación UTF-8 (incluyendo BOM) en frontend y backend.
+9. Antes de cerrar una tarea, revisar y corregir errores de codificación UTF-8 (incluyendo BOM) en frontend y backend, y hacer barrido explícito de textos visibles para detectar tildes faltantes, `ñ` omitida, copy incompleto o palabras mal escritas.
 10. Si una vista del dashboard no muestra datos, validar primero API del microservicio dueño del dominio (direcciones/notificaciones/pedidos/favoritos) y luego frontend.
 11. La UX de estados (éxito/error/info/warning) debe mantener paridad con legacy usando componentes reutilizables tipo snackbar/toast/alerta; no se permiten mensajes dispersos o implementaciones ad hoc por vista.
 12. En vistas migradas de dashboard (ejemplo: direcciones), la lógica y el flujo funcional deben replicar legacy antes de introducir mejoras nuevas.
@@ -97,7 +97,7 @@ Una tarea NO se considera terminada si falta alguno de estos pasos:
 4. Logs sin error fatal de arranque.
 5. Caché de frontend descartada cuando hubo dudas visuales o el usuario reportó que no veía cambios, incluyendo reinicio de Vite/HMR y hard refresh del navegador.
 6. Verificación funcional en la ruta impactada (SPA + diseño/paridad Angelow), incluyendo revisión responsive de la sección intervenida en desktop, tablet y móvil.
-7. Verificación de codificación UTF-8 en archivos modificados (sin BOM en PHP/JS/Vue/CSS y sin textos corruptos).
+7. Verificación de codificación UTF-8 en archivos modificados (sin BOM en PHP/JS/Vue/CSS y sin textos corruptos) y revisión visual/funcional de ortografía en todo texto visible tocado del admin.
 8. Evidencia de pruebas de endpoints ejecutadas y limpieza de artefactos temporales de test/debug.
 
 ## Git y ramas (humanizado, git flow)
@@ -111,6 +111,7 @@ Una tarea NO se considera terminada si falta alguno de estos pasos:
 - Comentarios cortos en español cuando una parte no sea obvia.
 - Preferencia operativa: al modificar archivos, agregar comentarios breves en español en lógica no trivial para facilitar mantenimiento y soporte.
 - Validaciones de formulario y mensajes consistentes con Angelow.
+- En todo texto visible del admin, revisar ortografía española completa antes de cerrar: tildes, `ñ`, signos, nombres de estados, placeholders, títulos, breadcrumbs, botones, modales, tablas, empty states, snackbars y encabezados de exportación.
 - En IU, cuando una vista tenga carga asíncrona o refresco perceptible, usar shimmer reutilizable y no saltos bruscos de contenido; preferir placeholders consistentes del sistema antes que vacíos repentinos.
 - En IU, usar transiciones y animaciones suaves cuando aporten claridad de estado o jerarquía visual; deben ser fluidas, breves y sobrias, nunca decorativas ni invasivas.
 - Validación en tiempo real obligatoria en todos los formularios con feedback inmediato por campo y sin esperar al submit.

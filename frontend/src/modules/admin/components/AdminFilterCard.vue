@@ -13,7 +13,7 @@
       </div>
 
       <button
-        v-if="$slots.advanced || $slots.default"
+        v-if="showToggle"
         class="admin-filters__toggle"
         :class="{ collapsed: !expanded }"
         :title="expanded ? 'Ocultar filtros' : 'Mostrar filtros'"
@@ -69,9 +69,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, useSlots } from 'vue'
 
-defineProps({
+const props = defineProps({
   /** Clase de icono FontAwesome para la cabecera */
   icon: { type: String, default: 'fas fa-filter' },
   /** Título visible de la sección de filtros */
@@ -80,10 +80,17 @@ defineProps({
   placeholder: { type: String, default: 'Buscar...' },
   /** Valor del input (v-model) */
   modelValue: { type: String, default: '' },
+  /** Mantiene visibles las áreas expandibles desde el inicio */
+  initiallyExpanded: { type: Boolean, default: false },
+  /** Oculta el botón de colapso cuando la vista necesita el filtro siempre visible */
+  hideToggle: { type: Boolean, default: false },
 })
 
 defineEmits(['update:modelValue', 'search'])
 
+const slots = useSlots()
+
 // Estado interno de colapso
-const expanded = ref(false)
+const expanded = ref(props.initiallyExpanded)
+const showToggle = computed(() => !props.hideToggle && Boolean(slots.advanced || slots.default))
 </script>

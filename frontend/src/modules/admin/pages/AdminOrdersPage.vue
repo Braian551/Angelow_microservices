@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-shopping-bag"
       title="Gestión de Órdenes"
-      subtitle="Administra pedidos, revisa el historial y cambia estados con el mismo flujo operativo de Angelow."
+      subtitle="Administra pedidos, revisa el historial y actualiza estados con la misma experiencia del panel administrativo."
       :breadcrumbs="[{ label: 'Órdenes' }]"
     />
 
@@ -39,8 +39,9 @@
               <option value="pending">Pendiente</option>
               <option value="paid">Pagado</option>
               <option value="verified">Verificado</option>
+              <option value="pending_refund">Reembolso en proceso</option>
               <option value="failed">Fallido</option>
-              <option value="refunded">Reembolso</option>
+              <option value="refunded">Reembolsado</option>
             </select>
           </div>
 
@@ -229,19 +230,20 @@
           <div>
             <AdminCard title="Resumen" icon="fas fa-calculator">
               <div class="admin-detail-summary">
-                <div class="admin-detail-summary__row"><span>Subtotal</span><strong>{{ formatCurrency(detailOrder.order.subtotal || 0) }}</strong></div>
-                <div class="admin-detail-summary__row"><span>Envío</span><strong>{{ formatCurrency(detailOrder.order.shipping_cost || 0) }}</strong></div>
-                <div v-if="Number(detailOrder.order.discount_amount || 0) > 0" class="admin-detail-summary__row admin-detail-summary__row--success"><span>Descuento</span><strong>-{{ formatCurrency(detailOrder.order.discount_amount || 0) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Subtotal:</span><strong>{{ formatCurrency(detailOrder.order.subtotal || 0) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Envío:</span><strong>{{ formatCurrency(detailOrder.order.shipping_cost || 0) }}</strong></div>
+                <div v-if="Number(detailOrder.order.discount_amount || 0) > 0" class="admin-detail-summary__row admin-detail-summary__row--success"><span>Descuento:</span><strong>-{{ formatCurrency(detailOrder.order.discount_amount || 0) }}</strong></div>
                 <div class="admin-detail-summary__divider"></div>
-                <div class="admin-detail-summary__row admin-detail-summary__row--total"><span>Total</span><strong>{{ formatCurrency(detailOrder.order.total || 0) }}</strong></div>
+                <div class="admin-detail-summary__row admin-detail-summary__row--total"><span>Total:</span><strong>{{ formatCurrency(detailOrder.order.total || 0) }}</strong></div>
               </div>
             </AdminCard>
 
             <AdminCard title="Cliente" icon="fas fa-user" style="margin-top: 1.2rem;">
               <div class="admin-detail-summary">
-                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>{{ detailOrder.customer_name }}</span><strong>{{ detailOrder.customer_email || 'Sin email' }}</strong></div>
-                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Dirección</span><strong>{{ detailOrder.order.shipping_address || detailOrder.order.billing_address || 'Sin dirección' }}</strong></div>
-                <div class="admin-detail-summary__row"><span>Pago</span><strong>{{ paymentLabel(detailOrder.order.payment_status) }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Cliente:</span><strong>{{ detailOrder.customer_name || 'Sin nombre' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Email:</span><strong>{{ detailOrder.customer_email || 'Sin email' }}</strong></div>
+                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Dirección:</span><strong>{{ detailOrder.order.shipping_address || detailOrder.order.billing_address || 'Sin dirección' }}</strong></div>
+                <div class="admin-detail-summary__row"><span>Pago:</span><strong>{{ paymentLabel(detailOrder.order.payment_status) }}</strong></div>
               </div>
             </AdminCard>
           </div>
@@ -263,7 +265,10 @@
         </div>
 
         <div class="form-group">
-          <label for="order-status">Estado *</label>
+          <label for="order-status">
+            Estado *
+            <AdminInfoTooltip text="Nuevo estado de la orden. Ejemplo: «En proceso» al confirmar el pago o «Enviado» al despachar." />
+          </label>
           <select id="order-status" v-model="statusForm.status" class="form-control" @change="validateStatusField('status')">
             <option value="pending">Pendiente</option>
             <option value="processing">En proceso</option>
@@ -276,7 +281,10 @@
         </div>
 
         <div class="form-group status-form-grid__full">
-          <label for="status-description">Descripción del cambio *</label>
+          <label for="status-description">
+            Descripción del cambio
+            <AdminInfoTooltip text="Razón interna del cambio de estado. Queda registrada en el historial de la orden. (opcional)" />
+          </label>
           <textarea id="status-description" v-model="statusForm.description" class="form-control" rows="4" :class="{ 'is-invalid': statusErrors.description }" @input="validateStatusField('description')"></textarea>
           <p v-if="statusErrors.description" class="form-error">{{ statusErrors.description }}</p>
         </div>
@@ -296,11 +304,15 @@
         </div>
 
         <div class="form-group">
-          <label for="payment-status">Estado de pago *</label>
+          <label for="payment-status">
+            Estado de pago *
+            <AdminInfoTooltip text="Estado actual del pago. Cambia a «Pagado» cuando el pago es confirmado, a «Verificado» una vez revisado el comprobante." />
+          </label>
           <select id="payment-status" v-model="paymentForm.payment_status" class="form-control" @change="validatePaymentField('payment_status')">
             <option value="pending">Pendiente</option>
             <option value="paid">Pagado</option>
             <option value="verified">Verificado</option>
+            <option value="pending_refund">Reembolso en proceso</option>
             <option value="failed">Fallido</option>
             <option value="refunded">Reembolsado</option>
           </select>
@@ -308,7 +320,10 @@
         </div>
 
         <div class="form-group status-form-grid__full">
-          <label for="payment-description">Descripción del cambio *</label>
+          <label for="payment-description">
+            Descripción del cambio
+            <AdminInfoTooltip text="Nota interna sobre el cambio de estado de pago. Queda registrada en el historial. (opcional)" />
+          </label>
           <textarea id="payment-description" v-model="paymentForm.description" class="form-control" rows="4" :class="{ 'is-invalid': paymentErrors.description }" @input="validatePaymentField('description')"></textarea>
           <p v-if="paymentErrors.description" class="form-error">{{ paymentErrors.description }}</p>
         </div>
@@ -331,7 +346,7 @@
             <span v-for="order in selectedOrdersPreview" :key="order.id" class="bulk-modal-summary__chip">{{ order.order_number }}</span>
             <span v-if="selectedOrdersCount > selectedOrdersPreview.length" class="bulk-modal-summary__chip bulk-modal-summary__chip--muted">+{{ selectedOrdersCount - selectedOrdersPreview.length }} más</span>
           </div>
-          <p class="bulk-modal-summary__helper">La acción elegida se confirmará antes de ejecutarse y mostrará feedback centralizado con alerta y snackbar.</p>
+          <p class="bulk-modal-summary__helper">La acción elegida se confirmará antes de aplicarse y luego verás un mensaje con el resultado.</p>
         </div>
 
         <div class="form-group status-form-grid__full">
@@ -340,7 +355,10 @@
         </div>
 
         <div class="form-group">
-          <label for="bulk-action">Acción *</label>
+          <label for="bulk-action">
+            Acción *
+            <AdminInfoTooltip text="Operación a aplicar en bloque sobre todas las órdenes seleccionadas." />
+          </label>
           <select id="bulk-action" v-model="bulkForm.action" class="form-control" @change="validateBulkField('action')">
             <option value="">Seleccionar acción</option>
             <option value="change_status">Cambiar estado</option>
@@ -351,7 +369,10 @@
         </div>
 
         <div v-if="bulkForm.action === 'change_status'" class="form-group">
-          <label for="bulk-status">Estado *</label>
+          <label for="bulk-status">
+            Estado *
+            <AdminInfoTooltip text="Estado que se aplicará a todas las órdenes seleccionadas." />
+          </label>
           <select id="bulk-status" v-model="bulkForm.status" class="form-control" @change="validateBulkField('status')">
             <option value="pending">Pendiente</option>
             <option value="processing">En proceso</option>
@@ -364,11 +385,15 @@
         </div>
 
         <div v-if="bulkForm.action === 'change_payment_status'" class="form-group">
-          <label for="bulk-payment-status">Estado de pago *</label>
+          <label for="bulk-payment-status">
+            Estado de pago *
+            <AdminInfoTooltip text="Estado de pago que se aplicará a todas las órdenes seleccionadas." />
+          </label>
           <select id="bulk-payment-status" v-model="bulkForm.payment_status" class="form-control" @change="validateBulkField('payment_status')">
             <option value="pending">Pendiente</option>
             <option value="paid">Pagado</option>
             <option value="verified">Verificado</option>
+            <option value="pending_refund">Reembolso en proceso</option>
             <option value="failed">Fallido</option>
             <option value="refunded">Reembolsado</option>
           </select>
@@ -376,7 +401,10 @@
         </div>
 
         <div class="form-group status-form-grid__full">
-          <label for="bulk-description">Descripción del cambio *</label>
+          <label for="bulk-description">
+            Descripción del cambio
+            <AdminInfoTooltip text="Nota sobre el cambio masivo. Se registra en el historial de cada orden afectada. (opcional)" />
+          </label>
           <textarea id="bulk-description" v-model="bulkForm.description" class="form-control" rows="4" :class="{ 'is-invalid': bulkErrors.description }" @input="validateBulkField('description')"></textarea>
           <p v-if="bulkErrors.description" class="form-error">{{ bulkErrors.description }}</p>
         </div>
@@ -408,6 +436,7 @@ import {
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
@@ -669,7 +698,7 @@ function validateStatusField(field) {
     statusErrors.status = statusForm.status ? '' : 'Debes seleccionar un estado.'
   }
   if (field === 'description') {
-    statusErrors.description = statusForm.description.trim().length >= 5 ? '' : 'La descripción debe tener al menos 5 caracteres.'
+    statusErrors.description = ''
   }
 }
 
@@ -691,7 +720,7 @@ function validatePaymentField(field) {
     paymentErrors.payment_status = paymentForm.payment_status ? '' : 'Debes seleccionar un estado de pago.'
   }
   if (field === 'description') {
-    paymentErrors.description = paymentForm.description.trim().length >= 5 ? '' : 'La descripción debe tener al menos 5 caracteres.'
+    paymentErrors.description = ''
   }
 }
 
@@ -710,8 +739,7 @@ function closePaymentStatusModal() {
 
 async function submitPaymentStatusChange() {
   validatePaymentField('payment_status')
-  validatePaymentField('description')
-  if (paymentErrors.payment_status || paymentErrors.description || !selectedOrder.value) return
+  if (paymentErrors.payment_status || !selectedOrder.value) return
 
   const targetOrder = selectedOrder.value
   showAlert({
@@ -852,7 +880,7 @@ function validateBulkField(field) {
   }
 
   if (field === 'description') {
-    bulkErrors.description = bulkForm.description.trim().length >= 5 ? '' : 'La descripción debe tener al menos 5 caracteres.'
+    bulkErrors.description = ''
   }
 }
 
@@ -860,9 +888,8 @@ async function submitBulkAction() {
   validateBulkField('action')
   validateBulkField('status')
   validateBulkField('payment_status')
-  validateBulkField('description')
 
-  if (bulkErrors.action || bulkErrors.status || bulkErrors.payment_status || bulkErrors.description) {
+  if (bulkErrors.action || bulkErrors.status || bulkErrors.payment_status) {
     return
   }
 
@@ -942,8 +969,7 @@ async function submitBulkAction() {
 
 async function submitStatusChange() {
   validateStatusField('status')
-  validateStatusField('description')
-  if (statusErrors.status || statusErrors.description || !selectedOrder.value) return
+  if (statusErrors.status || !selectedOrder.value) return
 
   const targetOrder = selectedOrder.value
   showAlert({

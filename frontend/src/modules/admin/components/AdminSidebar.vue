@@ -35,7 +35,7 @@
           <RouterLink to="/admin/ordenes" @click="handleNavigate">
             <i class="fas fa-shopping-bag"></i>
             <span>Órdenes</span>
-            <span v-if="newOrdersCount > 0" class="badge">{{ newOrdersCount }}</span>
+            <span v-if="orderNotificationsCount > 0" class="badge nav-notification-badge">{{ orderNotificationsCount }}</span>
           </RouterLink>
         </li>
 
@@ -62,6 +62,15 @@
           <RouterLink to="/admin/pagos" @click="handleNavigate">
             <i class="fas fa-money-bill-wave"></i>
             <span>Pagos</span>
+            <span v-if="paymentNotificationsCount > 0" class="badge nav-notification-badge">{{ paymentNotificationsCount }}</span>
+          </RouterLink>
+        </li>
+
+        <li class="nav-item" :class="{ active: isActive('/admin/facturas') }">
+          <RouterLink to="/admin/facturas" @click="handleNavigate">
+            <i class="fas fa-file-invoice-dollar"></i>
+            <span>Facturas</span>
+            <span v-if="invoiceNotificationsCount > 0" class="badge nav-notification-badge">{{ invoiceNotificationsCount }}</span>
           </RouterLink>
         </li>
 
@@ -154,6 +163,7 @@ import { SITE_SETTINGS_UPDATED_EVENT } from '../../../constants/siteSettingsEven
 import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { getFallbackMediaUrl, handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminNotifications } from '../composables/useAdminNotifications'
 
 const props = defineProps({
   collapsed: Boolean,
@@ -167,9 +177,18 @@ const route = useRoute()
 const router = useRouter()
 const { clearSession } = useSession()
 const { showSnackbar } = useSnackbarSystem()
-
-const newOrdersCount = ref(0)
 const sidebarSettings = ref({})
+
+const {
+  unreadByModule,
+  markRouteNotificationsAsRead,
+  startAdminNotifications,
+  stopAdminNotifications,
+} = useAdminNotifications()
+
+const orderNotificationsCount = computed(() => unreadByModule.value.orders || 0)
+const paymentNotificationsCount = computed(() => unreadByModule.value.payments || 0)
+const invoiceNotificationsCount = computed(() => unreadByModule.value.invoices || 0)
 
 const openMenus = reactive({
   productos: false,
@@ -264,14 +283,23 @@ function handleSiteSettingsUpdated(event) {
   }
 }
 
-watch(() => route.path, autoOpenSubmenu, { immediate: true })
+watch(
+  () => route.path,
+  (nextPath) => {
+    autoOpenSubmenu()
+    markRouteNotificationsAsRead(nextPath)
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
+  startAdminNotifications()
   loadSidebarSettings()
   window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 
 onBeforeUnmount(() => {
+  stopAdminNotifications()
   window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 </script>

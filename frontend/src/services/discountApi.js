@@ -9,3 +9,8 @@ export async function validateDiscountCode(payload) {
   const { data } = await discountHttp.post('/discounts/validate', payload)
   return data
 }
+
+export async function validateBulkDiscount(payload) {
+  const { data } = await discountHttp.post('/discounts/bulk/validate', payload)
+  return data
+}

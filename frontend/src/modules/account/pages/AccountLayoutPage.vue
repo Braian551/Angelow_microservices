@@ -8,7 +8,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, provide, readonly, ref } from 'vue'
+import { computed, onMounted, onUnmounted, provide, readonly, ref } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useSession } from '../../../composables/useSession'
 import { getProfile } from '../../../services/authApi'
@@ -19,6 +19,8 @@ const route = useRoute()
 const { user, token, saveSession } = useSession()
 
 const unreadNotifications = ref(0)
+const NOTIFICATIONS_POLLING_MS = 20000
+let unreadNotificationsTimer = null
 
 const activeSection = computed(() => String(route.meta?.accountSection || 'dashboard'))
 
@@ -29,6 +31,11 @@ provide('refreshAccountUnreadNotifications', refreshUnreadNotifications)
 onMounted(async () => {
   await syncProfile()
   await refreshUnreadNotifications()
+  startUnreadNotificationsPolling()
+})
+
+onUnmounted(() => {
+  stopUnreadNotificationsPolling()
 })
 
 function setAccountUnreadNotifications(value) {
@@ -74,6 +81,25 @@ async function refreshUnreadNotifications() {
   }
 
   unreadNotifications.value = 0
+}
+
+function startUnreadNotificationsPolling() {
+  stopUnreadNotificationsPolling()
+
+  unreadNotificationsTimer = window.setInterval(() => {
+    if (document.visibilityState === 'hidden') {
+      return
+    }
+
+    refreshUnreadNotifications()
+  }, NOTIFICATIONS_POLLING_MS)
+}
+
+function stopUnreadNotificationsPolling() {
+  if (unreadNotificationsTimer !== null) {
+    window.clearInterval(unreadNotificationsTimer)
+    unreadNotificationsTimer = null
+  }
 }
 
 function normalizeCount(value) {

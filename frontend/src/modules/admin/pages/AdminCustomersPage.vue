@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-users"
       title="Clientes"
-      subtitle="Replica el flujo operativo de Angelow para consultar perfil, pedidos y estado del cliente desde microservicios."
+      subtitle="Consulta perfil, pedidos y estado del cliente con la misma experiencia del panel administrativo."
       :breadcrumbs="[{ label: 'Clientes' }]"
     />
 
@@ -13,8 +13,8 @@
     <AdminFilterCard
       v-model="filters.search"
       icon="fas fa-filter"
-      title="Busqueda y segmentacion"
-      placeholder="Buscar por nombre, email o telefono..."
+      title="Búsqueda y segmentación"
+      placeholder="Buscar por nombre, email o teléfono..."
       @update:model-value="debouncedLoadCustomers"
       @search="loadCustomers()"
     >
@@ -34,7 +34,7 @@
             <select id="customer-segment" v-model="filters.segment">
               <option value="all">Todos</option>
               <option value="repeat">Recurrentes</option>
-              <option value="new">Nuevos 30 dias</option>
+              <option value="new">Nuevos 30 días</option>
               <option value="without-orders">Sin pedidos</option>
             </select>
           </div>
@@ -98,15 +98,15 @@
               </td>
               <td>
                 <div class="admin-entity-name">
-                  <strong>{{ customer.phone || 'Sin telefono' }}</strong>
-                  <span>Ultimo acceso: {{ formatDateTime(customer.last_access) }}</span>
+                  <strong>{{ customer.phone || 'Sin teléfono' }}</strong>
+                  <span>Último acceso: {{ formatDateTime(customer.last_access) }}</span>
                 </div>
               </td>
               <td>{{ formatDate(customer.created_at) }}</td>
               <td>
                 <div class="admin-entity-name">
                   <strong>{{ customer.orders_count }}</strong>
-                  <span>{{ customer.last_order_date ? `Ultimo pedido: ${formatDate(customer.last_order_date)}` : 'Sin pedidos' }}</span>
+                  <span>{{ customer.last_order_date ? `Último pedido: ${formatDate(customer.last_order_date)}` : 'Sin pedidos' }}</span>
                 </div>
               </td>
               <td><strong>{{ formatCurrency(customer.total_spent) }}</strong></td>
@@ -161,15 +161,15 @@
               </div>
 
               <div class="admin-detail-summary">
-                <div class="admin-detail-row"><span>Telefono</span><strong>{{ selectedCustomer.phone || 'Sin telefono' }}</strong></div>
+                <div class="admin-detail-row"><span>Teléfono</span><strong>{{ selectedCustomer.phone || 'Sin teléfono' }}</strong></div>
                 <div class="admin-detail-row"><span>Registro</span><strong>{{ formatDate(selectedCustomer.created_at) }}</strong></div>
-                <div class="admin-detail-row"><span>Ultimo acceso</span><strong>{{ formatDateTime(selectedCustomer.last_access) }}</strong></div>
-                <div class="admin-detail-row"><span>Ultimo pedido</span><strong>{{ selectedCustomer.last_order_date ? formatDateTime(selectedCustomer.last_order_date) : 'Sin pedidos' }}</strong></div>
+                <div class="admin-detail-row"><span>Último acceso</span><strong>{{ formatDateTime(selectedCustomer.last_access) }}</strong></div>
+                <div class="admin-detail-row"><span>Último pedido</span><strong>{{ selectedCustomer.last_order_date ? formatDateTime(selectedCustomer.last_order_date) : 'Sin pedidos' }}</strong></div>
               </div>
             </AdminCard>
 
             <AdminCard title="Pedidos recientes" icon="fas fa-box" style="margin-top: 1.2rem;" :flush="true">
-              <div v-if="selectedCustomer.recent_orders.length === 0" class="detail-empty">Este cliente aun no registra pedidos.</div>
+              <div v-if="selectedCustomer.recent_orders.length === 0" class="detail-empty">Este cliente aún no registra pedidos.</div>
               <table v-else class="dashboard-table nested-table">
                 <thead>
                   <tr>
@@ -609,7 +609,7 @@ function exportCustomers() {
     return
   }
 
-  const rows = [['Cliente', 'Email', 'Telefono', 'Registro', 'Pedidos', 'Valor acumulado', 'Estado']]
+  const rows = [['Cliente', 'Email', 'Teléfono', 'Registro', 'Pedidos', 'Valor acumulado', 'Estado']]
   customers.value.forEach((customer) => {
     rows.push([
       `"${customer.name.replace(/"/g, '""')}"`,

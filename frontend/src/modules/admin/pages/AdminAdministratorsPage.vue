@@ -17,7 +17,7 @@
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
-              <th>Ultimo acceso</th>
+              <th>Último acceso</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -65,37 +65,46 @@
     <AdminModal :show="showModal" :title="editing ? 'Editar administrador' : 'Nuevo administrador'" max-width="560px" @close="closeModal">
       <div class="admin-entity-filters__form">
         <div class="form-group admin-entity-filters__form--full">
-          <label for="admin-name">Nombre *</label>
+          <label for="admin-name">
+            Nombre *
+            <AdminInfoTooltip text="Nombre completo del administrador. Se muestra en el perfil del panel." />
+          </label>
           <input id="admin-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
           <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
         </div>
         <div class="form-group admin-entity-filters__form--full">
-          <label for="admin-email">Email *</label>
+          <label for="admin-email">
+            Email *
+            <AdminInfoTooltip text="Correo de acceso al panel. Debe ser único por administrador." />
+          </label>
           <input id="admin-email" v-model="form.email" type="email" class="form-control" :class="{ 'is-invalid': errors.email }" @input="validateField('email')">
           <p v-if="errors.email" class="form-error">{{ errors.email }}</p>
         </div>
         <div v-if="!editing" class="form-group admin-entity-filters__form--full">
-          <label for="admin-password">Contrasena *</label>
+          <label for="admin-password">
+            Contraseña *
+            <AdminInfoTooltip text="Contraseña de acceso. Mínimo 8 caracteres. No se puede recuperar desde aquí si se pierde." />
+          </label>
           <input id="admin-password" v-model="form.password" type="password" class="form-control" :class="{ 'is-invalid': errors.password }" @input="validateField('password')">
           <p v-if="errors.password" class="form-error">{{ errors.password }}</p>
         </div>
         <div class="form-group">
-          <label for="admin-role">Rol</label>
+          <label for="admin-role">
+            Rol
+            <AdminInfoTooltip text="Nivel de permisos. Administrador tiene acceso general; Super Admin tiene acceso total incluyendo ajustes críticos del sistema." />
+          </label>
           <select id="admin-role" v-model="form.role" class="form-control">
             <option value="admin">Administrador</option>
             <option value="super_admin">Super Admin</option>
           </select>
         </div>
-        <div class="form-group admin-entity-filters__toggle">
-          <div>
-            <strong>Activo</strong>
-            <p>Permite que este administrador acceda al panel.</p>
-          </div>
-          <label class="toggle-switch">
-            <input v-model="form.active" type="checkbox">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+        <AdminToggleSwitch
+          id="admin-active"
+          class="form-group admin-entity-filters__toggle"
+          v-model="form.active"
+          title="Activo"
+          description="Permite que este administrador acceda al panel."
+        />
       </div>
 
       <template #footer>
@@ -117,10 +126,12 @@ import { useSession } from '../../../composables/useSession'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showSnackbar } = useSnackbarSystem()
 const { showAlert } = useAlertSystem()

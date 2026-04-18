@@ -4,7 +4,13 @@
       <div class="admin-modal" :style="modalStyle" role="dialog" aria-modal="true">
         <div class="admin-modal-header">
           <slot name="header">
-            <h3>{{ title }}</h3>
+            <div v-if="icon" class="admin-modal-header__icon">
+              <i :class="icon"></i>
+            </div>
+            <div class="admin-modal-header__text">
+              <h3>{{ title }}</h3>
+              <p v-if="subtitle">{{ subtitle }}</p>
+            </div>
           </slot>
 
           <button type="button" class="admin-modal-close" aria-label="Cerrar modal" @click="emit('close')">
@@ -33,6 +39,14 @@ const props = defineProps({
     default: false,
   },
   title: {
+    type: String,
+    default: '',
+  },
+  subtitle: {
+    type: String,
+    default: '',
+  },
+  icon: {
     type: String,
     default: '',
   },

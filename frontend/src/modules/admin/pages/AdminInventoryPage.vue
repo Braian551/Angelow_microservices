@@ -12,25 +12,10 @@
     <AdminFilterCard
       v-model="search"
       icon="fas fa-filter"
-      title="Busqueda de inventario"
+      title="Búsqueda de inventario"
       placeholder="Producto, color, talla o SKU"
       @search="search = search.trim()"
-    >
-      <template #advanced>
-        <div class="admin-filters__actions">
-          <div class="admin-filters__active">
-            <i class="fas fa-sliders-h"></i>
-            <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
-          </div>
-          <div class="admin-filters__actions-buttons">
-            <button type="button" class="admin-filters__clear" @click="clearFilters">
-              <i class="fas fa-times-circle"></i>
-              Limpiar filtros
-            </button>
-          </div>
-        </div>
-      </template>
-    </AdminFilterCard>
+    />
 
     <div class="admin-tabs inventory-tabs">
       <button type="button" class="admin-tab" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">Todo</button>
@@ -75,7 +60,7 @@
                 <div class="inventory-summary">
                   <span>{{ product.colorCount }} color(es)</span>
                   <span>{{ product.sizeCount }} talla(s)</span>
-                  <span>{{ product.lowVariantCount }} variante(s) criticas</span>
+                  <span>{{ product.lowVariantCount }} variante(s) críticas</span>
                 </div>
               </td>
               <td>
@@ -86,10 +71,7 @@
               </td>
               <td>
                 <div class="admin-entity-actions">
-                  <button class="action-btn view" type="button" title="Ver detalle" @click="openDetail(product)">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button class="action-btn edit" type="button" title="Ajuste rapido" @click="openQuickAdjust(product)">
+                  <button class="action-btn edit" type="button" title="Ajustar inventario" @click="openDetail(product)">
                     <i class="fas fa-sliders-h"></i>
                   </button>
                 </div>
@@ -118,9 +100,15 @@
             <p>{{ selectedProductDetail.variantRows.length }} variante(s) operativas para este producto.</p>
           </div>
           <div class="inventory-detail-pills">
-            <span class="inventory-pill"><p>Stock total</p><strong>{{ selectedProductDetail.totalStock }}</strong></span>
-            <span class="inventory-pill"><p>Bajo stock</p><strong>{{ selectedProductDetail.lowStockCount }}</strong></span>
-            <span class="inventory-pill"><p>Sin stock</p><strong>{{ selectedProductDetail.outOfStockCount }}</strong></span>
+            <div class="inventory-pill inventory-pill--total">
+              <p>Stock total</p><strong>{{ selectedProductDetail.totalStock }}</strong>
+            </div>
+            <div class="inventory-pill inventory-pill--low">
+              <p>Bajo stock</p><strong>{{ selectedProductDetail.lowStockCount }}</strong>
+            </div>
+            <div class="inventory-pill inventory-pill--out">
+              <p>Sin stock</p><strong>{{ selectedProductDetail.outOfStockCount }}</strong>
+            </div>
           </div>
         </div>
 
@@ -162,22 +150,24 @@
           <div class="inventory-history-header">
             <div>
               <h4>Historial reciente</h4>
-              <p>Ultimos movimientos registrados para este producto.</p>
+              <p>Últimos movimientos registrados para este producto.</p>
             </div>
-            <button class="btn btn-secondary btn-sm" type="button" @click="reloadDetailHistory">Actualizar historial</button>
+            <button class="btn btn-secondary btn-sm" type="button" title="Actualizar historial" @click="reloadDetailHistory">
+              <i class="fas fa-sync-alt"></i>
+            </button>
           </div>
 
           <AdminEmptyState
             v-if="historyLoading"
             icon="fas fa-clock-rotate-left"
             title="Cargando historial"
-            description="Consultando los ultimos movimientos registrados."
+            description="Consultando los últimos movimientos registrados."
           />
           <AdminEmptyState
             v-else-if="selectedProductHistory.length === 0"
             icon="fas fa-clock-rotate-left"
             title="Sin movimientos recientes"
-            description="Todavia no hay ajustes o transferencias registradas para este producto."
+            description="Todavía no hay ajustes o transferencias registradas para este producto."
           />
           <div v-else class="table-responsive">
             <table class="dashboard-table">
@@ -185,7 +175,7 @@
                 <tr>
                   <th>Fecha</th>
                   <th>Variante</th>
-                  <th>Operacion</th>
+                  <th>Operación</th>
                   <th>Cambio</th>
                   <th>Notas</th>
                 </tr>
@@ -213,7 +203,10 @@
         </div>
 
         <div class="form-group">
-          <label for="adjust-action">Accion</label>
+          <label for="adjust-action">
+            Acción
+            <AdminInfoTooltip text="«Agregar» suma unidades al stock actual. «Restar» las descuenta. «Establecer» fija el valor exacto independientemente del stock actual." />
+          </label>
           <select id="adjust-action" v-model="adjustForm.action" class="form-control">
             <option value="add">Agregar</option>
             <option value="subtract">Restar</option>
@@ -222,13 +215,19 @@
         </div>
 
         <div class="form-group">
-          <label for="adjust-quantity">Cantidad *</label>
+          <label for="adjust-quantity">
+            Cantidad *
+            <AdminInfoTooltip text="Número de unidades a agregar, restar o establecer según la acción seleccionada." />
+          </label>
           <input id="adjust-quantity" v-model="adjustForm.quantity" type="number" min="0" class="form-control" :class="{ 'is-invalid': adjustErrors.quantity }" @input="validateAdjustField('quantity')">
           <p v-if="adjustErrors.quantity" class="form-error">{{ adjustErrors.quantity }}</p>
         </div>
 
         <div class="form-group inventory-form-grid__full">
-          <label for="adjust-reason">Motivo</label>
+          <label for="adjust-reason">
+            Motivo
+            <AdminInfoTooltip text="Descripción interna del ajuste para trazabilidad del historial. No es visible al cliente." />
+          </label>
           <textarea id="adjust-reason" v-model="adjustForm.reason" class="form-control" rows="3"></textarea>
         </div>
       </div>
@@ -246,8 +245,11 @@
           <div class="inventory-variant-preview">{{ transferSourceLabel }}</div>
         </div>
 
-        <div class="form-group inventory-form-grid__full">
-          <label for="transfer-target">Variante destino *</label>
+        <div class="form-group inventory-form-grid__target">
+          <label for="transfer-target">
+            Variante destino *
+            <AdminInfoTooltip text="Variante a la que se enviarán las unidades de stock desde la variante origen." />
+          </label>
           <select id="transfer-target" v-model="transferForm.target_variant_id" class="form-control" :class="{ 'is-invalid': transferErrors.target_variant_id }" @change="validateTransferField('target_variant_id')">
             <option value="">Selecciona una variante</option>
             <option v-for="option in transferTargets" :key="option.id" :value="String(option.id)">
@@ -257,14 +259,20 @@
           <p v-if="transferErrors.target_variant_id" class="form-error">{{ transferErrors.target_variant_id }}</p>
         </div>
 
-        <div class="form-group">
-          <label for="transfer-quantity">Cantidad *</label>
+        <div class="form-group inventory-form-grid__quantity">
+          <label for="transfer-quantity">
+            Cantidad *
+            <AdminInfoTooltip text="Número de unidades a transferir. No puede superar el stock disponible en la variante origen." />
+          </label>
           <input id="transfer-quantity" v-model="transferForm.quantity" type="number" min="1" class="form-control" :class="{ 'is-invalid': transferErrors.quantity }" @input="validateTransferField('quantity')">
           <p v-if="transferErrors.quantity" class="form-error">{{ transferErrors.quantity }}</p>
         </div>
 
         <div class="form-group inventory-form-grid__full">
-          <label for="transfer-reason">Motivo</label>
+          <label for="transfer-reason">
+            Motivo
+            <AdminInfoTooltip text="Descripción del motivo del traslado para trazabilidad del historial. No visible al cliente." />
+          </label>
           <textarea id="transfer-reason" v-model="transferForm.reason" class="form-control" rows="3"></textarea>
         </div>
       </div>
@@ -286,6 +294,7 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
@@ -390,8 +399,6 @@ const pagination = useAdminPagination(filteredProducts, {
   pageSizeOptions: [10, 20, 50],
 })
 
-const activeFilterCount = computed(() => [search.value.trim(), activeTab.value !== 'all'].filter(Boolean).length)
-
 const inventoryStats = computed(() => {
   const totalProducts = groupedProducts.value.length
   const totalUnits = groupedProducts.value.reduce((sum, product) => sum + product.totalStock, 0)
@@ -460,8 +467,58 @@ function buildVariantLabel(variant) {
   return `${color} / ${size}${sku}`
 }
 
+function resolveHistoryVariant(entry) {
+  const rows = selectedProductDetail.value?.variantRows || []
+  if (!rows.length) return null
+
+  const toValidId = (value) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  }
+
+  const variantIds = [
+    entry.size_variant_id,
+    entry.variant_id,
+    entry.source_variant_id,
+    entry.target_variant_id,
+    entry.size_variant?.id,
+    entry.variant?.id,
+  ]
+    .map(toValidId)
+    .filter(Boolean)
+
+  if (variantIds.length) {
+    const byVariantId = rows.find((row) => variantIds.includes(Number(row.id)))
+    if (byVariantId) return byVariantId
+  }
+
+  const colorVariantIds = [
+    entry.color_variant_id,
+    entry.source_color_variant_id,
+    entry.target_color_variant_id,
+  ]
+    .map(toValidId)
+    .filter(Boolean)
+
+  if (colorVariantIds.length) {
+    const byColorVariantId = rows.find((row) => colorVariantIds.includes(Number(row.color_variant_id)))
+    if (byColorVariantId) return byColorVariantId
+  }
+
+  const sku = String(entry.sku || entry.variant_sku || '').trim()
+  if (sku) {
+    const bySku = rows.find((row) => String(row.sku || '').trim() === sku)
+    if (bySku) return bySku
+  }
+
+  return null
+}
+
 function buildHistoryVariantLabel(entry) {
-  return `${entry.color_name || 'Sin color'} / ${entry.size_label || 'Sin talla'}`
+  const relatedVariant = resolveHistoryVariant(entry)
+  const color = String(entry.color_name || entry.color || relatedVariant?.color_name || '').trim() || 'Sin color'
+  const size = String(entry.size_label || entry.size_name || relatedVariant?.size_name || relatedVariant?.size_label || '').trim() || 'Sin talla'
+  return `${color} / ${size}`
 }
 
 function formatOperation(operation) {
@@ -480,11 +537,6 @@ function formatDateTime(value) {
 
 function onInventoryImageError(event, imagePath) {
   handleMediaError(event, imagePath, 'product')
-}
-
-function clearFilters() {
-  search.value = ''
-  activeTab.value = 'all'
 }
 
 function normalizeProductDetail(productId, payload) {
@@ -600,14 +652,6 @@ async function loadProductDetail(product) {
 async function openDetail(product) {
   showDetailModal.value = true
   await loadProductDetail(product)
-}
-
-async function openQuickAdjust(product) {
-  await openDetail(product)
-  const firstVariant = selectedProductDetail.value?.variantRows?.[0] || null
-  if (firstVariant) {
-    openAdjustModal(firstVariant)
-  }
 }
 
 function closeDetailModal() {
@@ -752,8 +796,12 @@ onMounted(loadInventory)
   gap: 1rem;
 }
 
-.inventory-detail-header,
+.inventory-detail-header {
+  margin-bottom: 1.6rem;
+}
+
 .inventory-history-block {
+  margin-top: 2.4rem;
   margin-bottom: 1.6rem;
 }
 
@@ -774,6 +822,14 @@ onMounted(loadInventory)
 
 .inventory-form-grid__full {
   grid-column: 1 / -1;
+}
+
+.inventory-form-grid__target {
+  grid-column: 1 / 2;
+}
+
+.inventory-form-grid__quantity {
+  grid-column: 2 / 3;
 }
 
 .inventory-variant-preview {
@@ -801,6 +857,11 @@ onMounted(loadInventory)
 @media (max-width: 768px) {
   .inventory-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .inventory-form-grid__target,
+  .inventory-form-grid__quantity {
+    grid-column: 1 / -1;
   }
 }
 </style>

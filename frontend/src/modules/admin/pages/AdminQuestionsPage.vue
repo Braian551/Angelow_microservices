@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-circle-question"
       title="Preguntas"
-      subtitle="Gestiona preguntas de productos con el flujo de detalle, respuesta y moderación del legacy sobre microservicios."
+      subtitle="Gestiona preguntas de productos con herramientas claras para revisar, responder y moderar."
       :breadcrumbs="[{ label: 'Preguntas' }]"
     />
 
@@ -19,10 +19,10 @@
       @search="loadQuestions"
     >
       <template #advanced>
-        <div class="filters-row filters-row--questions">
-          <div class="filter-group">
+        <div class="admin-filters__row admin-filters__row--1">
+          <div class="admin-filters__group">
             <label for="question-status"><i class="fas fa-comments"></i> Estado</label>
-            <select id="question-status" v-model="filters.answered" class="form-control" @change="loadQuestions">
+            <select id="question-status" v-model="filters.answered" @change="loadQuestions">
               <option value="all">Todas</option>
               <option value="pending">Sin responder</option>
               <option value="answered">Respondidas</option>
@@ -31,28 +31,42 @@
         </div>
 
         <div class="admin-filters__actions">
-          <div class="admin-filters__count">
+          <div class="admin-filters__active">
             <i class="fas fa-sliders-h"></i>
             <span>{{ activeFilterCount }} {{ activeFilterCount === 1 ? 'filtro activo' : 'filtros activos' }}</span>
           </div>
-          <button type="button" class="admin-filters__clear" @click="clearAllFilters">
-            <i class="fas fa-times-circle"></i>
-            Limpiar todo
-          </button>
+          <div class="admin-filters__actions-buttons">
+            <button type="button" class="admin-filters__clear" @click="clearAllFilters">
+              <i class="fas fa-times-circle"></i>
+              Limpiar todo
+            </button>
+          </div>
         </div>
       </template>
     </AdminFilterCard>
 
     <section class="insights-grid">
       <AdminCard title="Estado de preguntas" icon="fas fa-chart-pie">
-        <div class="status-split" v-if="questions.length">
-          <div class="status-pill status-pill--answered">
-            <strong>{{ answeredCount }}</strong>
-            <span>Respondidas</span>
+        <div class="status-distribution" v-if="questions.length">
+          <div class="status-dist-row status-dist-row--success">
+            <div class="status-dist-label">
+              <span>Respondidas</span>
+              <strong>{{ answeredCount }}</strong>
+            </div>
+            <div class="status-dist-track">
+              <div class="status-dist-fill status-dist-fill--success" :style="{ width: `${questions.length ? Math.round(answeredCount / questions.length * 100) : 0}%` }"></div>
+            </div>
+            <small>{{ questions.length ? Math.round(answeredCount / questions.length * 100) : 0 }}%</small>
           </div>
-          <div class="status-pill status-pill--pending">
-            <strong>{{ pendingCount }}</strong>
-            <span>Pendientes</span>
+          <div class="status-dist-row status-dist-row--warning">
+            <div class="status-dist-label">
+              <span>Pendientes</span>
+              <strong>{{ pendingCount }}</strong>
+            </div>
+            <div class="status-dist-track">
+              <div class="status-dist-fill status-dist-fill--warning" :style="{ width: `${questions.length ? Math.round(pendingCount / questions.length * 100) : 0}%` }"></div>
+            </div>
+            <small>{{ questions.length ? Math.round(pendingCount / questions.length * 100) : 0 }}%</small>
           </div>
         </div>
         <div v-else class="detail-empty">Sin preguntas registradas.</div>
@@ -68,9 +82,9 @@
             class="highlight-item"
             @click="openQuestionModal(question)"
           >
-            <div>
-              <strong>{{ question.customer.name }}</strong>
-              <span>{{ question.product_name }}</span>
+            <div class="highlight-item__info">
+              <strong class="highlight-item__name">{{ question.customer.name }}</strong>
+              <span class="highlight-item__product">{{ question.product_name }}</span>
             </div>
             <div class="highlight-meta">
               <span class="status-badge" :class="question.answer_count > 0 ? 'approved' : 'pending'">
@@ -86,8 +100,8 @@
     <!-- Barra de resultados -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} preguntas`">
       <template #actions>
-        <button class="btn btn-icon" type="button" @click="exportQuestions">
-          <i class="fas fa-file-export"></i>
+        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportQuestions">
+          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
           Exportar
         </button>
       </template>
@@ -197,7 +211,10 @@
 
             <AdminCard title="Responder" icon="fas fa-paper-plane" style="margin-top: 1.2rem;">
               <div class="form-group">
-                <label for="question-answer">Respuesta *</label>
+                <label for="question-answer">
+                  Respuesta *
+                  <AdminInfoTooltip text="Texto público que aparecerá como respuesta oficial a la pregunta del cliente." />
+                </label>
                 <textarea
                   id="question-answer"
                   v-model="answerForm.answer"
@@ -242,6 +259,7 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
@@ -526,6 +544,65 @@ onMounted(loadQuestions)
   color: var(--admin-warning-dark, #946200);
 }
 
+/* --- Status distribution bars (igual a rating-distribution en reseñas) --- */
+.status-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.status-dist-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) 4rem;
+  gap: 1rem;
+  align-items: center;
+}
+
+.status-dist-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-dist-label span {
+  font-size: 1.28rem;
+  color: var(--admin-text);
+}
+
+.status-dist-label strong {
+  font-size: 1.28rem;
+  font-weight: 700;
+  color: var(--admin-text-heading);
+}
+
+.status-dist-track {
+  width: 100%;
+  height: 0.85rem;
+  border-radius: var(--admin-radius-pill);
+  background: var(--admin-bg-dark);
+  overflow: hidden;
+}
+
+.status-dist-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+.status-dist-fill--success {
+  background: var(--admin-success, #2ecc71);
+}
+
+.status-dist-fill--warning {
+  background: var(--admin-warning, #f59e0b);
+}
+
+.status-dist-row small {
+  color: var(--admin-text-light);
+  font-size: 1.18rem;
+  text-align: right;
+}
+
 /* --- Highlights recientes --- */
 .highlights-list {
   display: flex;
@@ -545,6 +622,28 @@ onMounted(loadQuestions)
   background: #fff;
   cursor: pointer;
   text-align: left;
+}
+
+.highlight-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.highlight-item__name {
+  color: var(--admin-text-heading);
+  font-size: 1.28rem;
+  font-weight: 700;
+}
+
+.highlight-item__product {
+  color: var(--admin-text-light);
+  font-size: 1.18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22rem;
 }
 
 .highlight-meta {

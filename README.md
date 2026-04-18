@@ -6,7 +6,7 @@ Migracion del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, R
 
 | Servicio | Puerto API | Base de datos |
 |---|---:|---|
-| `auth-service` | 8001 | `angelow_auth` |
+| `auth-servi![1776289969924](image/README/1776289969924.png)ce` | 8001 | `angelow_auth` |
 | `catalog-service` | 8002 | `angelow_catalog` |
 | `cart-service` | 8003 | `angelow_cart` |
 | `order-service` | 8004 | `angelow_orders` |
@@ -48,7 +48,7 @@ WHERE table_schema = 'public';
 docker compose up -d --build
 docker compose ps
 ```
-![1776011693890](image/README/1776011693890.png)![1776011699510](image/README/1776011699510.png)![1776011701178](image/README/1776011701178.png)![1776011712990](image/README/1776011712990.png)![1776011795779](image/README/1776011795779.png)![1776011798373](image/README/1776011798373.png)![1776011801239](image/README/1776011801239.png)![1776011801907](image/README/1776011801907.png)![1776011802331](image/README/1776011802331.png)![1776011828907](image/README/1776011828907.png)![1776011835097](image/README/1776011835097.png)![1776011867783](image/README/1776011867783.png)![1776011888262](image/README/1776011888262.png)![1776273530859](image/README/1776273530859.png)![1776273532752](image/README/1776273532752.png)![1776273541911](image/README/1776273541911.png)
+![1776440031278](image/README/1776440031278.png)
 ## Ejecutar migraciones
 
 ```bash

@@ -29,14 +29,19 @@ const props = defineProps({
 })
 
 const bannerStyle = computed(() => {
-  if (!props.banner?.image) return {}
+  const style = {}
 
-  const primaryImage = resolveMediaUrl(props.banner.image, 'banner')
-  const fallbackImage = getFallbackMediaUrl('banner')
+  // Aplica colores dinámicos del anuncio
+  if (props.banner?.background_color) style.backgroundColor = props.banner.background_color
+  if (props.banner?.text_color) style.color = props.banner.text_color
 
-  return {
-    backgroundImage: `url('${primaryImage}'), url('${fallbackImage}')`,
+  if (props.banner?.image) {
+    const primaryImage = resolveMediaUrl(props.banner.image, 'banner')
+    const fallbackImage = getFallbackMediaUrl('banner')
+    style.backgroundImage = `url('${primaryImage}'), url('${fallbackImage}')`
   }
+
+  return style
 })
 
 const buttonLink = computed(() => {

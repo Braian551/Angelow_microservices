@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-ruler"
       title="Tallas"
-      subtitle="Controla las tallas activas del catalogo, su prioridad y uso real en variantes."
+      subtitle="Controla las tallas activas del catálogo, su prioridad y uso real en variantes."
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Tallas' }]"
     >
       <template #actions>
@@ -18,8 +18,8 @@
     <AdminFilterCard
       v-model="search"
       icon="fas fa-filter"
-      title="Busqueda y estado"
-      placeholder="Nombre o descripcion"
+      title="Búsqueda y estado"
+      placeholder="Nombre o descripción"
       @search="search = search.trim()"
     >
       <template #advanced>
@@ -64,7 +64,7 @@
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Descripcion</th>
+              <th>Descripción</th>
               <th>Orden</th>
               <th>Uso en variantes</th>
               <th>Estado</th>
@@ -91,7 +91,7 @@
                 <div class="admin-entity-actions">
                   <button class="action-btn edit" type="button" @click="openModal(size)"><i class="fas fa-edit"></i></button>
                   <button class="action-btn view" type="button" @click="toggleStatus(size)"><i class="fas fa-power-off"></i></button>
-                  <button class="action-btn delete" type="button" :disabled="size.product_count > 0" @click="confirmDelete(size)"><i class="fas fa-trash"></i></button>
+                  <button v-if="size.product_count === 0" class="action-btn delete" type="button" title="Eliminar" @click="confirmDelete(size)"><i class="fas fa-trash"></i></button>
                 </div>
               </td>
             </tr>
@@ -108,34 +108,40 @@
     />
 
     <AdminModal :show="showModal" :title="editing ? 'Editar talla' : 'Nueva talla'" max-width="720px" @close="closeModal">
-      <div class="admin-entity-filters__form">
+      <div class="admin-entity-form">
         <div class="form-group">
-          <label for="size-name">Nombre *</label>
-          <input id="size-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
+          <label for="size-name">
+            Nombre *
+            <AdminInfoTooltip text="Nombre corto de la talla tal como aparece al cliente. Ejemplos: XS, S, M, L, XL, XXL, 3XL." />
+          </label>
+          <input id="size-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" placeholder="Ej. XS, S, M, L, XL" @input="validateField('name')">
           <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
         </div>
 
         <div class="form-group">
-          <label for="size-order">Orden</label>
-          <input id="size-order" v-model="form.sort_order" type="number" min="0" class="form-control" @input="validateField('sort_order')">
+          <label for="size-order">
+            Posición en el listado
+            <AdminInfoTooltip text="Número que define en qué orden aparece esta talla en los selectores del formulario. Las tallas con número menor aparecen primero. Ejemplo: XS=1, S=2, M=3, L=4." />
+          </label>
+          <input id="size-order" v-model="form.sort_order" type="number" min="0" class="form-control" placeholder="Ej. 1" @input="validateField('sort_order')">
           <p v-if="errors.sort_order" class="form-error">{{ errors.sort_order }}</p>
         </div>
 
-        <div class="form-group admin-entity-filters__form--full">
-          <label for="size-description">Descripcion</label>
-          <textarea id="size-description" v-model="form.description" class="form-control" rows="4"></textarea>
+        <div class="form-group admin-entity-form__full">
+          <label for="size-description">
+            Descripción
+            <AdminInfoTooltip text="Nota interna sobre esta talla (rango de medidas, equivalencias, etc.). No es visible al cliente en la tienda." />
+          </label>
+          <textarea id="size-description" v-model="form.description" class="form-control" rows="3" placeholder="Opcional: rango de medidas, equivalencias internacionales, etc."></textarea>
         </div>
 
-        <div class="form-group admin-entity-filters__form--full admin-entity-filters__toggle">
-          <div>
-            <strong>Talla activa</strong>
-            <p>Las tallas inactivas se conservan para historico, pero se excluyen del uso operativo.</p>
-          </div>
-          <label class="toggle-switch">
-            <input v-model="form.is_active" type="checkbox">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+        <AdminToggleSwitch
+          id="size-active"
+          class="admin-entity-form__full"
+          v-model="form.is_active"
+          title="Talla activa"
+          description="Si está activa, estará disponible para asignarla a variantes de productos. Si la desactivas, se conserva para historial."
+        />
       </div>
 
       <template #footer>
@@ -155,12 +161,14 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -234,7 +242,7 @@ function normalizeSize(rawSize) {
 
 function excerpt(value, max = 100) {
   const text = String(value || '').trim()
-  if (!text) return 'Sin descripcion'
+  if (!text) return 'Sin descripción'
   return text.length > max ? `${text.slice(0, max).trim()}...` : text
 }
 

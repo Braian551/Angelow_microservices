@@ -1,7 +1,7 @@
 import { shippingHttp } from './http'
 
-export async function getShippingMethods() {
-  const { data } = await shippingHttp.get('/shipping/methods')
+export async function getShippingMethods(params = {}) {
+  const { data } = await shippingHttp.get('/shipping/methods', { params })
   return data
 }
 

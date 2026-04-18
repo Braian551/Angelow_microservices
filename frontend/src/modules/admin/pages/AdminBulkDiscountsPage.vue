@@ -155,36 +155,47 @@
         <div>
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
-              <label for="bulk-min-quantity">Cantidad minima *</label>
+              <label for="bulk-min-quantity">
+                Cantidad mínima *
+                <AdminInfoTooltip text="Número mínimo de artículos en el carrito para que se active el descuento automáticamente." />
+              </label>
               <input id="bulk-min-quantity" v-model.number="form.min_quantity" type="number" min="1" class="form-control" :class="{ 'is-invalid': formErrors.min_quantity }" @input="validateField('min_quantity')">
               <p v-if="formErrors.min_quantity" class="form-error">{{ formErrors.min_quantity }}</p>
             </div>
             <div class="form-group" style="flex: 1;">
-              <label for="bulk-max-quantity">Cantidad maxima</label>
+              <label for="bulk-max-quantity">
+                Cantidad máxima
+                <AdminInfoTooltip text="Número máximo de artículos. Dejar vacío para que aplique desde el mínimo sin límite superior." />
+              </label>
               <input id="bulk-max-quantity" v-model.number="form.max_quantity" type="number" min="1" class="form-control" :class="{ 'is-invalid': formErrors.max_quantity }" @input="validateField('max_quantity')">
               <p v-if="formErrors.max_quantity" class="form-error">{{ formErrors.max_quantity }}</p>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="bulk-discount-percent">Descuento (%) *</label>
+            <label for="bulk-discount-percent">
+              Descuento (%) *
+              <AdminInfoTooltip text="Porcentaje de descuento sobre el subtotal cuando el carrito cumple la cantidad requerida." />
+            </label>
             <input id="bulk-discount-percent" v-model.number="form.discount_percent" type="number" min="1" max="100" class="form-control" :class="{ 'is-invalid': formErrors.discount_percent }" @input="validateField('discount_percent')">
             <p v-if="formErrors.discount_percent" class="form-error">{{ formErrors.discount_percent }}</p>
           </div>
 
-          <div class="form-group form-group--toggle">
-            <label class="toggle-label">
-              <input v-model="form.active" type="checkbox">
-              Regla activa para el checkout
-            </label>
+          <div class="form-group">
+            <AdminToggleSwitch
+              id="bulk-rule-active"
+              v-model="form.active"
+              layout="inline"
+              label="Regla activa durante la compra"
+            />
           </div>
         </div>
 
         <div>
           <div class="bulk-preview-card admin-surface-card">
-            <p class="bulk-preview-card__label admin-surface-card__label">Previsualizacion</p>
+            <p class="bulk-preview-card__label admin-surface-card__label">Vista previa</p>
             <h3>{{ previewQuantityLabel }}</h3>
-            <p>{{ Number(form.discount_percent || 0) }}% de descuento automatico</p>
+            <p>{{ Number(form.discount_percent || 0) }}% de descuento automático</p>
             <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
@@ -210,12 +221,14 @@ import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
+import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -413,7 +426,7 @@ function confirmDeleteRule(rule) {
 
 function exportRules() {
   const rows = filteredRules.value.map((rule) => [quantityLabel(rule), `${Number(rule.discount_percent || rule.discount_percentage || 0)}%`, quantityNarrative(rule), rule.active ? 'Activo' : 'Inactivo'])
-  const csv = [['Escala', 'Descuento', 'Descripcion', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
+  const csv = [['Escala', 'Descuento', 'Descripción', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
   downloadCsv('descuentos-por-cantidad.csv', csv)
 }
 
@@ -424,7 +437,7 @@ function quantityLabel(rule) {
 }
 
 function quantityNarrative(rule) {
-  return `El checkout aplicara ${Number(rule.discount_percent || rule.discount_percentage || 0)}% al llegar a ${quantityLabel(rule).toLowerCase()}.`
+  return `Durante la compra se aplicará ${Number(rule.discount_percent || rule.discount_percentage || 0)}% al llegar a ${quantityLabel(rule).toLowerCase()}.`
 }
 
 function extractErrorMessage(error, fallback) {

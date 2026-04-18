@@ -197,3 +197,23 @@ Archivos impactados en esta extensión:
 - `frontend/src/services/http.js`
 - `services/catalog-service/composer.json`
 - `services/catalog-service/composer.lock`
+
+Extension 2026-04-15: generación dinámica de `slug` y `SKU` con nomenclatura estándar de apparel
+
+Objetivo:
+- Hacer que `frontend/src/modules/admin/pages/AdminProductFormPage.vue` derive y muestre `slug` y `SKU` en tiempo real conforme el admin completa nombre, categoría, género, color y talla.
+- Mantener la edición manual disponible sin que la sincronización automática vuelva a sobrescribir valores personalizados.
+
+Patrones aplicados:
+- `Derivación reactiva con override manual`:
+  - Archivo: `frontend/src/modules/admin/pages/AdminProductFormPage.vue`.
+  - Problema que resuelve: sincroniza `slug` y `SKU` mientras cambian los campos origen, pero pausa la autoescritura cuando el usuario decide personalizar cualquiera de los dos.
+- `Strategy de codificación comercial`:
+  - Archivo: `frontend/src/modules/admin/pages/AdminProductFormPage.vue`.
+  - Problema que resuelve: centraliza en helpers reutilizables la convención de referencia para ropa (`marca-categoría-departamento-estilo-color-talla`) sin mezclar reglas de negocio con la vista del modal.
+
+Cambios relevantes:
+- El `slug` se autogenera con taxonomía comercial de catálogo: categoría, nombre y género, con limpieza de acentos, minúsculas, guiones y deduplicación básica de términos repetidos.
+- Cada fila de talla genera un SKU sugerido con formato estándar de apparel: marca, categoría, departamento, estilo, color y talla.
+- Los SKU de prueba demasiado cortos o inválidos se regeneran automáticamente al editar, evitando conservar referencias temporales del esquema anterior.
+- Si el admin borra un `slug` o `SKU` personalizado, el valor sugerido vuelve a activarse automáticamente.

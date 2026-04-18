@@ -7,12 +7,40 @@ export function formatCheckoutPrice(value) {
 }
 
 export function normalizeCheckoutMethod(item = {}) {
+  const freeShippingMinimum = item?.free_shipping_minimum
+  const hasFreeShippingMinimum = freeShippingMinimum !== null && freeShippingMinimum !== undefined && freeShippingMinimum !== ''
+  const appliedCost = item?.applied_cost
+  const methodCost = item?.method_cost
+  const rangeRuleAdditionalCost = item?.range_rule_additional_cost
+
+  const hasRangeRuleMinPrice = item?.range_rule_min_price !== null
+    && item?.range_rule_min_price !== undefined
+    && item?.range_rule_min_price !== ''
+  const hasRangeRuleMaxPrice = item?.range_rule_max_price !== null
+    && item?.range_rule_max_price !== undefined
+    && item?.range_rule_max_price !== ''
+
   return {
     id: Number(item?.id || 0),
     name: normalizeText(item?.name || 'Envío'),
     description: normalizeText(item?.description || ''),
     delivery_time: normalizeText(item?.delivery_time || ''),
     base_cost: Number(item?.base_cost || 0),
+    free_shipping_minimum: hasFreeShippingMinimum ? Number(freeShippingMinimum) : null,
+    method_cost: methodCost !== null && methodCost !== undefined && methodCost !== '' ? Number(methodCost) : null,
+    range_rule_additional_cost: rangeRuleAdditionalCost !== null && rangeRuleAdditionalCost !== undefined && rangeRuleAdditionalCost !== ''
+      ? Number(rangeRuleAdditionalCost)
+      : null,
+    range_rule_applied: Boolean(item?.range_rule_applied ?? item?.rule_id),
+    range_rule_label: normalizeText(item?.range_rule_label || ''),
+    range_rule_min_price: hasRangeRuleMinPrice ? Number(item.range_rule_min_price) : null,
+    range_rule_max_price: hasRangeRuleMaxPrice ? Number(item.range_rule_max_price) : null,
+    rule_id: item?.rule_id ? Number(item.rule_id) : null,
+    rule_shipping_cost: item?.rule_shipping_cost !== null && item?.rule_shipping_cost !== undefined && item?.rule_shipping_cost !== ''
+      ? Number(item.rule_shipping_cost)
+      : null,
+    applied_cost: appliedCost !== null && appliedCost !== undefined && appliedCost !== '' ? Number(appliedCost) : null,
+    pricing_source: normalizeText(item?.pricing_source || ''),
   }
 }
 
@@ -38,14 +66,30 @@ export function normalizeCheckoutAddress(item = {}) {
 }
 
 export function normalizeCheckoutCartItem(item = {}) {
+  const colorVariantId = normalizeOptionalNumericId(
+    item?.color_variant_id
+    ?? item?.colorVariantId
+    ?? item?.color_variant?.id
+    ?? item?.color?.id,
+  )
+
+  const sizeVariantId = normalizeOptionalNumericId(
+    item?.size_variant_id
+    ?? item?.sizeVariantId
+    ?? item?.variant_id
+    ?? item?.variantId
+    ?? item?.size_variant?.id
+    ?? item?.variant?.id,
+  )
+
   return {
     item_id: Number(item?.item_id || 0),
     product_id: Number(item?.product_id || 0),
     product_name: normalizeText(item?.product_name || 'Producto'),
     product_slug: normalizeText(item?.product_slug || ''),
     product_image: normalizeText(item?.product_image || item?.variant_image || ''),
-    color_variant_id: item?.color_variant_id ? Number(item.color_variant_id) : null,
-    size_variant_id: item?.size_variant_id ? Number(item.size_variant_id) : null,
+    color_variant_id: colorVariantId,
+    size_variant_id: sizeVariantId,
     color_name: normalizeText(item?.color_name || ''),
     size_name: normalizeText(item?.size_name || ''),
     quantity: Math.max(1, Number(item?.quantity || 1)),
@@ -121,4 +165,13 @@ export function formatCheckoutDateTime(value) {
 
 function normalizeText(value) {
   return String(value || '').trim()
+}
+
+function normalizeOptionalNumericId(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null
+  }
+
+  return parsed
 }

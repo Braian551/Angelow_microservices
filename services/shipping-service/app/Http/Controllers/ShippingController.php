@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\LegacyUserAddress;
+use App\Models\ShippingMethod;
+use App\Models\ShippingPriceRule;
 use App\Models\UserAddress;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -15,17 +18,46 @@ class ShippingController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
-    public function methods(): JsonResponse
+    public function methods(Request $request): JsonResponse
     {
+        $data = $request->validate([
+            'subtotal' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $subtotal = (float) ($data['subtotal'] ?? 0);
+        $activeRule = $this->findMatchingRule($subtotal);
+
+        $methods = ShippingMethod::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (ShippingMethod $method) => $this->normalizeMethodRecord($method, $subtotal, $activeRule));
+
+        if ($methods->isEmpty()) {
+            $methods = collect($this->loadLegacyMethods($subtotal, $activeRule));
+        }
+
         return response()->json([
-            'data' => DB::table('shipping_methods')->where('is_active', true)->orderBy('name')->get(),
+            'data' => $methods->values(),
         ]);
     }
 
     public function rules(): JsonResponse
     {
+        $rules = ShippingPriceRule::query()
+            ->where('is_active', true)
+            ->orderBy('min_price')
+            ->get()
+            ->map(fn (ShippingPriceRule $rule) => $this->normalizeRuleRecord($rule));
+
+        if ($rules->isEmpty()) {
+            $rules = collect($this->loadLegacyRules())
+                ->sortBy('min_price')
+                ->values();
+        }
+
         return response()->json([
-            'data' => DB::table('shipping_price_rules')->where('is_active', true)->orderBy('min_price')->get(),
+            'data' => $rules,
         ]);
     }
 
@@ -36,21 +68,245 @@ class ShippingController extends Controller
             'city' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $rule = DB::table('shipping_price_rules')
+        $subtotal = (float) $data['subtotal'];
+        $rule = $this->findMatchingRule($subtotal);
+        $rangeRuleAdditionalCost = (float) ($rule['shipping_cost'] ?? 0);
+
+        return response()->json([
+            'subtotal' => $subtotal,
+            'city' => $data['city'] ?? null,
+            'shipping_cost' => $rangeRuleAdditionalCost,
+            'range_rule_additional_cost' => $rangeRuleAdditionalCost,
+            'range_rule_label' => $rule['range_label'] ?? null,
+            'rule' => $rule,
+        ]);
+    }
+
+    /**
+     * Busca una regla activa por subtotal y usa fallback legacy cuando shipping-db no tiene datos.
+     */
+    private function findMatchingRule(float $subtotal): ?array
+    {
+        $rule = ShippingPriceRule::query()
             ->where('is_active', true)
-            ->where('min_price', '<=', $data['subtotal'])
-            ->where(function ($query) use ($data) {
-                $query->whereNull('max_price')->orWhere('max_price', '>=', $data['subtotal']);
+            ->where('min_price', '<=', $subtotal)
+            ->where(function ($query) use ($subtotal) {
+                $query->whereNull('max_price')->orWhere('max_price', '>=', $subtotal);
             })
             ->orderByDesc('min_price')
             ->first();
 
-        return response()->json([
-            'subtotal' => $data['subtotal'],
-            'city' => $data['city'] ?? null,
-            'shipping_cost' => $rule?->shipping_cost ?? 0,
-            'rule' => $rule,
-        ]);
+        if ($rule) {
+            return $this->normalizeRuleRecord($rule);
+        }
+
+        $hasDistributedRules = ShippingPriceRule::query()->where('is_active', true)->exists();
+        if ($hasDistributedRules || !$this->legacyTableExists('shipping_price_rules')) {
+            return null;
+        }
+
+        try {
+            $legacyRule = DB::connection(self::LEGACY_CONNECTION)
+                ->table('shipping_price_rules')
+                ->where('is_active', true)
+                ->where('min_price', '<=', $subtotal)
+                ->where(function ($query) use ($subtotal) {
+                    $query->whereNull('max_price')->orWhere('max_price', '>=', $subtotal);
+                })
+                ->orderByDesc('min_price')
+                ->first();
+
+            return $legacyRule ? $this->normalizeRuleRecord($legacyRule) : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Fallback legacy para métodos cuando la base distribuida aún no tiene filas.
+     */
+    private function loadLegacyMethods(float $subtotal, ?array $activeRule): array
+    {
+        if (!$this->legacyTableExists('shipping_methods')) {
+            return [];
+        }
+
+        try {
+            return DB::connection(self::LEGACY_CONNECTION)
+                ->table('shipping_methods')
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (object $row) => $this->normalizeMethodRecord($row, $subtotal, $activeRule))
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Fallback legacy para reglas por precio cuando shipping-db aún está vacío.
+     */
+    private function loadLegacyRules(): array
+    {
+        if (!$this->legacyTableExists('shipping_price_rules')) {
+            return [];
+        }
+
+        try {
+            return DB::connection(self::LEGACY_CONNECTION)
+                ->table('shipping_price_rules')
+                ->where('is_active', true)
+                ->orderBy('min_price')
+                ->get()
+                ->map(fn (object $row) => $this->normalizeRuleRecord($row))
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    private function normalizeMethodRecord(mixed $record, float $subtotal, ?array $activeRule): array
+    {
+        $row = $this->toRecordArray($record);
+        $baseCost = (float) ($row['base_cost'] ?? 0);
+        $hasFreeShippingMinimum = array_key_exists('free_shipping_minimum', $row) && $row['free_shipping_minimum'] !== null;
+        $freeShippingMinimum = $hasFreeShippingMinimum
+            ? (float) $row['free_shipping_minimum']
+            : null;
+
+        $resolvedPricing = $this->resolveMethodShippingCost(
+            $baseCost,
+            $freeShippingMinimum,
+            $subtotal,
+            $activeRule,
+        );
+
+        $hasEstimatedDaysMin = array_key_exists('estimated_days_min', $row) && $row['estimated_days_min'] !== null;
+        $estimatedDaysMin = $hasEstimatedDaysMin
+            ? (int) $row['estimated_days_min']
+            : null;
+        $hasEstimatedDaysMax = array_key_exists('estimated_days_max', $row) && $row['estimated_days_max'] !== null;
+        $estimatedDaysMax = $hasEstimatedDaysMax
+            ? (int) $row['estimated_days_max']
+            : null;
+
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'name' => (string) ($row['name'] ?? ''),
+            'description' => $this->nullableString($row['description'] ?? null),
+            'base_cost' => $baseCost,
+            'delivery_time' => $this->nullableString($row['delivery_time'] ?? null),
+            'estimated_days_min' => $estimatedDaysMin,
+            'estimated_days_max' => $estimatedDaysMax,
+            'estimated_days' => $estimatedDaysMax ?? $estimatedDaysMin,
+            'free_shipping_minimum' => $freeShippingMinimum,
+            'icon' => $this->nullableString($row['icon'] ?? null),
+            'city' => $this->nullableString($row['city'] ?? null),
+            'is_active' => (bool) ($row['is_active'] ?? false),
+            'active' => (bool) ($row['is_active'] ?? false),
+            'method_cost' => $resolvedPricing['method_cost'],
+            'range_rule_additional_cost' => $resolvedPricing['range_rule_additional_cost'],
+            'range_rule_applied' => $resolvedPricing['range_rule_applied'],
+            'range_rule_label' => $resolvedPricing['range_rule_label'],
+            'range_rule_min_price' => $resolvedPricing['range_rule_min_price'],
+            'range_rule_max_price' => $resolvedPricing['range_rule_max_price'],
+            'applied_cost' => $resolvedPricing['applied_cost'],
+            'pricing_source' => $resolvedPricing['pricing_source'],
+            'rule_id' => $resolvedPricing['rule_id'],
+            'rule_shipping_cost' => $resolvedPricing['rule_shipping_cost'],
+        ];
+    }
+
+    private function normalizeRuleRecord(mixed $record): array
+    {
+        $row = $this->toRecordArray($record);
+        $hasMaxPrice = array_key_exists('max_price', $row) && $row['max_price'] !== null;
+        $maxPrice = $hasMaxPrice ? (float) $row['max_price'] : null;
+
+        $normalizedRule = [
+            'id' => (int) ($row['id'] ?? 0),
+            'min_price' => (float) ($row['min_price'] ?? 0),
+            'max_price' => $maxPrice,
+            'shipping_cost' => (float) ($row['shipping_cost'] ?? 0),
+            'is_active' => (bool) ($row['is_active'] ?? false),
+            'active' => (bool) ($row['is_active'] ?? false),
+            'created_at' => $row['created_at'] ?? null,
+            'updated_at' => $row['updated_at'] ?? null,
+        ];
+
+        $normalizedRule['range_label'] = $this->formatPriceRuleRangeLabel($normalizedRule);
+
+        return $normalizedRule;
+    }
+
+    private function resolveMethodShippingCost(float $baseCost, ?float $freeShippingMinimum, float $subtotal, ?array $activeRule): array
+    {
+        $hasFreeShippingThreshold = $freeShippingMinimum !== null && $freeShippingMinimum > 0;
+        $resolvedMethodCost = $baseCost;
+        $methodSource = 'base_cost';
+
+        if ($hasFreeShippingThreshold && $subtotal >= $freeShippingMinimum) {
+            $resolvedMethodCost = 0.0;
+            $methodSource = 'free_shipping_minimum';
+        }
+
+        $rangeRuleAdditionalCost = $activeRule !== null
+            ? max(0.0, (float) ($activeRule['shipping_cost'] ?? 0))
+            : 0.0;
+
+        $hasRangeRule = $activeRule !== null;
+        $hasRangeRuleAdditional = $hasRangeRule && $rangeRuleAdditionalCost > 0;
+
+        $resolvedTotalCost = max(0.0, $resolvedMethodCost + $rangeRuleAdditionalCost);
+        $pricingSource = $methodSource;
+
+        if ($hasRangeRuleAdditional) {
+            $pricingSource = $methodSource === 'free_shipping_minimum'
+                ? 'free_shipping_plus_price_rule'
+                : 'base_plus_price_rule';
+        }
+
+        return [
+            'method_cost' => $resolvedMethodCost,
+            'range_rule_additional_cost' => $rangeRuleAdditionalCost,
+            'range_rule_applied' => $hasRangeRule,
+            'range_rule_label' => $hasRangeRule ? $this->formatPriceRuleRangeLabel($activeRule) : null,
+            'range_rule_min_price' => $hasRangeRule ? (float) ($activeRule['min_price'] ?? 0) : null,
+            'range_rule_max_price' => $hasRangeRule
+                ? (($activeRule['max_price'] ?? null) !== null ? (float) $activeRule['max_price'] : null)
+                : null,
+            'applied_cost' => $resolvedTotalCost,
+            'pricing_source' => $pricingSource,
+            'rule_id' => $activeRule['id'] ?? null,
+            'rule_shipping_cost' => $hasRangeRule ? $rangeRuleAdditionalCost : null,
+        ];
+    }
+
+    private function formatPriceRuleRangeLabel(array $rule): string
+    {
+        $minPriceLabel = $this->formatCopCurrency((float) ($rule['min_price'] ?? 0));
+        $maxPrice = $rule['max_price'] ?? null;
+
+        if ($maxPrice === null || $maxPrice === '') {
+            return sprintf('Desde %s', $minPriceLabel);
+        }
+
+        return sprintf('%s a %s', $minPriceLabel, $this->formatCopCurrency((float) $maxPrice));
+    }
+
+    private function formatCopCurrency(float $value): string
+    {
+        return '$' . number_format((int) round($value), 0, ',', '.');
+    }
+
+    private function legacyTableExists(string $table): bool
+    {
+        try {
+            return Schema::connection(self::LEGACY_CONNECTION)->hasTable($table);
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**
@@ -119,28 +375,21 @@ class ShippingController extends Controller
 
         $payload = $this->buildLegacyPayload($data, $preferredUserId);
 
-        $created = DB::connection(self::LEGACY_CONNECTION)->transaction(function () use ($preferredUserId, $payload) {
-            $mustBeDefault = (bool) ($payload['is_default'] ?? false);
+        try {
+            $created = $this->createAddressInSource('legacy', $preferredUserId, $payload);
+        } catch (Throwable $legacyError) {
+            $this->logLegacyFallbackIssue('create', $legacyError);
 
-            if (!$mustBeDefault) {
-                $hasAnyAddress = LegacyUserAddress::query()
-                    ->where('user_id', $preferredUserId)
-                    ->exists();
+            try {
+                $created = $this->createAddressInSource('distributed', $preferredUserId, $payload);
+            } catch (Throwable $distributedError) {
+                report($distributedError);
 
-                if (!$hasAnyAddress) {
-                    $payload['is_default'] = true;
-                    $mustBeDefault = true;
-                }
+                return response()->json([
+                    'message' => 'No fue posible guardar la dirección. Intenta nuevamente en unos minutos.',
+                ], 500);
             }
-
-            if ($mustBeDefault) {
-                LegacyUserAddress::query()
-                    ->where('user_id', $preferredUserId)
-                    ->update(['is_default' => false]);
-            }
-
-            return LegacyUserAddress::query()->create($payload);
-        });
+        }
 
         return response()->json([
             'message' => 'Dirección creada correctamente.',
@@ -181,48 +430,53 @@ class ShippingController extends Controller
             ], 422);
         }
 
-        $address = $this->findLegacyAddressForUser($addressId, $candidateUserIds);
+        $legacyAddress = $this->findLegacyAddressForUser($addressId, $candidateUserIds);
 
-        if (!$address) {
-            return response()->json([
-                'message' => 'Dirección no encontrada para este usuario.',
-            ], 404);
+        if ($legacyAddress) {
+            $payload = $this->buildLegacyPayload($data, (string) $legacyAddress->user_id);
+
+            try {
+                $updated = $this->updateAddressInSource('legacy', $legacyAddress, $payload);
+
+                return response()->json([
+                    'message' => 'Dirección actualizada correctamente.',
+                    'data' => $this->normalizeAddressRecord($updated),
+                ]);
+            } catch (Throwable $legacyError) {
+                $this->logLegacyFallbackIssue('update', $legacyError);
+            }
         }
 
-        $payload = $this->buildLegacyPayload($data, (string) $address->user_id);
+        $distributedAddress = $this->findDistributedAddressForUser($addressId, $candidateUserIds);
 
-        $updated = DB::connection(self::LEGACY_CONNECTION)->transaction(function () use ($address, $payload) {
-            $mustBeDefault = (bool) ($payload['is_default'] ?? false);
+        if ($distributedAddress) {
+            $payload = $this->buildLegacyPayload($data, (string) $distributedAddress->user_id);
 
-            if ($mustBeDefault) {
-                LegacyUserAddress::query()
-                    ->where('user_id', $address->user_id)
-                    ->where('id', '!=', $address->id)
-                    ->update(['is_default' => false]);
+            try {
+                $updated = $this->updateAddressInSource('distributed', $distributedAddress, $payload);
+
+                return response()->json([
+                    'message' => 'Dirección actualizada correctamente.',
+                    'data' => $this->normalizeAddressRecord($updated),
+                ]);
+            } catch (Throwable $distributedError) {
+                report($distributedError);
+
+                return response()->json([
+                    'message' => 'No fue posible actualizar la dirección. Intenta nuevamente en unos minutos.',
+                ], 500);
             }
+        }
 
-            $address->fill($payload);
-            $address->save();
-
-            if (!$mustBeDefault) {
-                $hasDefault = LegacyUserAddress::query()
-                    ->where('user_id', $address->user_id)
-                    ->where('is_default', true)
-                    ->exists();
-
-                if (!$hasDefault) {
-                    $address->is_default = true;
-                    $address->save();
-                }
-            }
-
-            return $address->fresh();
-        });
+        if ($legacyAddress) {
+            return response()->json([
+                'message' => 'No fue posible actualizar la dirección. Intenta nuevamente en unos minutos.',
+            ], 500);
+        }
 
         return response()->json([
-            'message' => 'Dirección actualizada correctamente.',
-            'data' => $this->normalizeAddressRecord($updated),
-        ]);
+            'message' => 'Dirección no encontrada para este usuario.',
+        ], 404);
     }
 
     /**
@@ -246,36 +500,47 @@ class ShippingController extends Controller
             ], 422);
         }
 
-        $address = $this->findLegacyAddressForUser($addressId, $candidateUserIds);
+        $legacyAddress = $this->findLegacyAddressForUser($addressId, $candidateUserIds);
 
-        if (!$address) {
-            return response()->json([
-                'message' => 'Dirección no encontrada para este usuario.',
-            ], 404);
+        if ($legacyAddress) {
+            try {
+                $this->deleteAddressInSource('legacy', $legacyAddress);
+
+                return response()->json([
+                    'message' => 'Dirección eliminada correctamente.',
+                ]);
+            } catch (Throwable $legacyError) {
+                $this->logLegacyFallbackIssue('delete', $legacyError);
+            }
         }
 
-        DB::connection(self::LEGACY_CONNECTION)->transaction(function () use ($address) {
-            $ownerUserId = (string) $address->user_id;
-            $wasDefault = (bool) $address->is_default;
+        $distributedAddress = $this->findDistributedAddressForUser($addressId, $candidateUserIds);
 
-            $address->delete();
+        if ($distributedAddress) {
+            try {
+                $this->deleteAddressInSource('distributed', $distributedAddress);
 
-            if ($wasDefault) {
-                $nextAddress = LegacyUserAddress::query()
-                    ->where('user_id', $ownerUserId)
-                    ->orderByDesc('created_at')
-                    ->first();
+                return response()->json([
+                    'message' => 'Dirección eliminada correctamente.',
+                ]);
+            } catch (Throwable $distributedError) {
+                report($distributedError);
 
-                if ($nextAddress) {
-                    $nextAddress->is_default = true;
-                    $nextAddress->save();
-                }
+                return response()->json([
+                    'message' => 'No fue posible eliminar la dirección. Intenta nuevamente en unos minutos.',
+                ], 500);
             }
-        });
+        }
+
+        if ($legacyAddress) {
+            return response()->json([
+                'message' => 'No fue posible eliminar la dirección. Intenta nuevamente en unos minutos.',
+            ], 500);
+        }
 
         return response()->json([
-            'message' => 'Dirección eliminada correctamente.',
-        ]);
+            'message' => 'Dirección no encontrada para este usuario.',
+        ], 404);
     }
 
     /**
@@ -299,27 +564,49 @@ class ShippingController extends Controller
             ], 422);
         }
 
-        $address = $this->findLegacyAddressForUser($addressId, $candidateUserIds);
+        $legacyAddress = $this->findLegacyAddressForUser($addressId, $candidateUserIds);
 
-        if (!$address) {
-            return response()->json([
-                'message' => 'Dirección no encontrada para este usuario.',
-            ], 404);
+        if ($legacyAddress) {
+            try {
+                $updated = $this->setDefaultAddressInSource('legacy', $legacyAddress);
+
+                return response()->json([
+                    'message' => 'Dirección principal actualizada.',
+                    'data' => $this->normalizeAddressRecord($updated),
+                ]);
+            } catch (Throwable $legacyError) {
+                $this->logLegacyFallbackIssue('set_default', $legacyError);
+            }
         }
 
-        DB::connection(self::LEGACY_CONNECTION)->transaction(function () use ($address) {
-            LegacyUserAddress::query()
-                ->where('user_id', $address->user_id)
-                ->update(['is_default' => false]);
+        $distributedAddress = $this->findDistributedAddressForUser($addressId, $candidateUserIds);
 
-            $address->is_default = true;
-            $address->save();
-        });
+        if ($distributedAddress) {
+            try {
+                $updated = $this->setDefaultAddressInSource('distributed', $distributedAddress);
+
+                return response()->json([
+                    'message' => 'Dirección principal actualizada.',
+                    'data' => $this->normalizeAddressRecord($updated),
+                ]);
+            } catch (Throwable $distributedError) {
+                report($distributedError);
+
+                return response()->json([
+                    'message' => 'No fue posible actualizar la dirección principal. Intenta nuevamente en unos minutos.',
+                ], 500);
+            }
+        }
+
+        if ($legacyAddress) {
+            return response()->json([
+                'message' => 'No fue posible actualizar la dirección principal. Intenta nuevamente en unos minutos.',
+            ], 500);
+        }
 
         return response()->json([
-            'message' => 'Dirección principal actualizada.',
-            'data' => $this->normalizeAddressRecord($address->fresh()),
-        ]);
+            'message' => 'Dirección no encontrada para este usuario.',
+        ], 404);
     }
 
     private function fetchDistributedUserAddresses(array $candidateUserIds): Collection
@@ -360,6 +647,134 @@ class ShippingController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function findDistributedAddressForUser(int $addressId, array $candidateUserIds): ?UserAddress
+    {
+        try {
+            return UserAddress::query()
+                ->where('id', $addressId)
+                ->whereIn('user_id', $candidateUserIds)
+                ->first();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Ejecuta escritura en legacy o distribuido manteniendo una sola dirección principal.
+     */
+    private function createAddressInSource(string $source, string $userId, array $payload): mixed
+    {
+        $modelClass = $source === 'legacy' ? LegacyUserAddress::class : UserAddress::class;
+        $connection = $source === 'legacy' ? self::LEGACY_CONNECTION : config('database.default');
+
+        return DB::connection((string) $connection)->transaction(function () use ($modelClass, $userId, $payload) {
+            $mustBeDefault = (bool) ($payload['is_default'] ?? false);
+
+            if (!$mustBeDefault) {
+                $hasAnyAddress = $modelClass::query()
+                    ->where('user_id', $userId)
+                    ->exists();
+
+                if (!$hasAnyAddress) {
+                    $payload['is_default'] = true;
+                    $mustBeDefault = true;
+                }
+            }
+
+            if ($mustBeDefault) {
+                $modelClass::query()
+                    ->where('user_id', $userId)
+                    ->update(['is_default' => false]);
+            }
+
+            return $modelClass::query()->create($payload);
+        });
+    }
+
+    private function updateAddressInSource(string $source, mixed $address, array $payload): mixed
+    {
+        $modelClass = $source === 'legacy' ? LegacyUserAddress::class : UserAddress::class;
+        $connection = $source === 'legacy' ? self::LEGACY_CONNECTION : config('database.default');
+
+        return DB::connection((string) $connection)->transaction(function () use ($modelClass, $address, $payload) {
+            $mustBeDefault = (bool) ($payload['is_default'] ?? false);
+
+            if ($mustBeDefault) {
+                $modelClass::query()
+                    ->where('user_id', $address->user_id)
+                    ->where('id', '!=', $address->id)
+                    ->update(['is_default' => false]);
+            }
+
+            $address->fill($payload);
+            $address->save();
+
+            if (!$mustBeDefault) {
+                $hasDefault = $modelClass::query()
+                    ->where('user_id', $address->user_id)
+                    ->where('is_default', true)
+                    ->exists();
+
+                if (!$hasDefault) {
+                    $address->is_default = true;
+                    $address->save();
+                }
+            }
+
+            return $address->fresh();
+        });
+    }
+
+    private function deleteAddressInSource(string $source, mixed $address): void
+    {
+        $modelClass = $source === 'legacy' ? LegacyUserAddress::class : UserAddress::class;
+        $connection = $source === 'legacy' ? self::LEGACY_CONNECTION : config('database.default');
+
+        DB::connection((string) $connection)->transaction(function () use ($modelClass, $address) {
+            $ownerUserId = (string) $address->user_id;
+            $wasDefault = (bool) $address->is_default;
+
+            $address->delete();
+
+            if ($wasDefault) {
+                $nextAddress = $modelClass::query()
+                    ->where('user_id', $ownerUserId)
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                if ($nextAddress) {
+                    $nextAddress->is_default = true;
+                    $nextAddress->save();
+                }
+            }
+        });
+    }
+
+    private function setDefaultAddressInSource(string $source, mixed $address): mixed
+    {
+        $modelClass = $source === 'legacy' ? LegacyUserAddress::class : UserAddress::class;
+        $connection = $source === 'legacy' ? self::LEGACY_CONNECTION : config('database.default');
+
+        return DB::connection((string) $connection)->transaction(function () use ($modelClass, $address) {
+            $modelClass::query()
+                ->where('user_id', $address->user_id)
+                ->update(['is_default' => false]);
+
+            $address->is_default = true;
+            $address->save();
+
+            return $address->fresh();
+        });
+    }
+
+    private function logLegacyFallbackIssue(string $operation, Throwable $error): void
+    {
+        logger()->warning('shipping-service: fallback a shipping-db por indisponibilidad de legacy_mysql.', [
+            'operation' => $operation,
+            'error' => $error->getMessage(),
+        ]);
     }
 
     private function buildLegacyPayload(array $data, string $userId): array
@@ -437,6 +852,10 @@ class ShippingController extends Controller
     private function toRecordArray(mixed $record): array
     {
         if ($record instanceof LegacyUserAddress || $record instanceof UserAddress) {
+            return $record->toArray();
+        }
+
+        if (is_object($record) && method_exists($record, 'toArray')) {
             return $record->toArray();
         }
 

@@ -18,7 +18,8 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'database'),
+    // Este servicio expone API stateless y no depende de tabla sessions en PostgreSQL.
+    'driver' => env('SESSION_DRIVER', 'file'),
 
     /*
     |--------------------------------------------------------------------------

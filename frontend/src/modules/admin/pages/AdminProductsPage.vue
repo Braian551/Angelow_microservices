@@ -10,7 +10,7 @@
     <AdminFilterCard
       v-model="search"
       icon="fas fa-sliders-h"
-      title="Filtros de busqueda"
+      title="Filtros de búsqueda"
       placeholder="Buscar por nombre, SKU, etc..."
       @update:model-value="debouncedLoad"
       @search="applyFilters"

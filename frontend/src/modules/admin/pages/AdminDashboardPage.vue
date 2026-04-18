@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="admin-dashboard-page">
     <!-- Cabecera: usa el componente global AdminPageHeader -->
     <AdminPageHeader
@@ -9,7 +9,7 @@
     >
       <template #actions>
         <RouterLink to="/admin/ordenes" class="btn btn-secondary btn-sm-icon">
-          <i class="fas fa-receipt"></i> <span class="btn-label">Ordenes</span>
+          <i class="fas fa-receipt"></i> <span class="btn-label">Órdenes</span>
         </RouterLink>
         <RouterLink to="/admin/productos" class="btn btn-secondary btn-sm-icon">
           <i class="fas fa-boxes"></i> <span class="btn-label">Productos</span>
@@ -43,7 +43,7 @@
         <div class="dashboard-chart-header">
           <div>
             <h3 class="dashboard-chart-title"><i class="fas fa-chart-area"></i> Rendimiento de ventas</h3>
-            <p class="dashboard-chart-subtitle">Ingresos y ordenes del período seleccionado.</p>
+            <p class="dashboard-chart-subtitle">Ingresos y órdenes del período seleccionado.</p>
           </div>
           <div class="dashboard-chart-controls">
             <button
@@ -64,8 +64,8 @@
       <AdminCard :flush="false" class="dashboard-chart-side">
         <div class="dashboard-chart-header">
           <div>
-            <h3 class="dashboard-chart-title"><i class="fas fa-tags"></i> Estado de ordenes</h3>
-            <p class="dashboard-chart-subtitle">Distribucion actual por estado.</p>
+            <h3 class="dashboard-chart-title"><i class="fas fa-tags"></i> Estado de órdenes</h3>
+            <p class="dashboard-chart-subtitle">Distribución actual por estado.</p>
           </div>
         </div>
         <div class="dashboard-chart-body doughnut">
@@ -94,8 +94,8 @@
       <template #header>
         <div class="dashboard-section-head">
           <div>
-            <h3 class="dashboard-section-title"><i class="fas fa-list-ul"></i> Ordenes recientes</h3>
-            <p class="dashboard-section-subtitle">Ultimas actualizaciones registradas.</p>
+            <h3 class="dashboard-section-title"><i class="fas fa-list-ul"></i> Órdenes recientes</h3>
+            <p class="dashboard-section-subtitle">Últimas actualizaciones registradas.</p>
           </div>
           <RouterLink to="/admin/ordenes" class="btn-link">Ver todas</RouterLink>
         </div>
@@ -104,8 +104,8 @@
       <AdminEmptyState
         v-if="!loading && recentOrders.length === 0"
         icon="fas fa-inbox"
-        title="Sin ordenes recientes"
-        description="Las nuevas ordenes aparecen aqui en tiempo real."
+        title="Sin órdenes recientes"
+        description="Las nuevas órdenes aparecen aquí en tiempo real."
       />
       <div v-else class="table-responsive">
         <table class="dashboard-table">
@@ -144,7 +144,7 @@
           <div class="dashboard-section-head">
             <div>
               <h3 class="dashboard-section-title"><i class="fas fa-warehouse"></i> Inventario en riesgo</h3>
-              <p class="dashboard-section-subtitle">Productos activos con stock critico.</p>
+              <p class="dashboard-section-subtitle">Productos activos con stock crítico.</p>
             </div>
             <RouterLink to="/admin/inventario" class="btn-link">Ver inventario</RouterLink>
           </div>
@@ -165,7 +165,7 @@
           v-if="!loading && lowStockItems.length === 0"
           icon="fas fa-check-circle"
           title="Sin productos en riesgo"
-          description="El inventario esta en buen estado."
+          description="El inventario está en buen estado."
         />
         <div v-else class="dashboard-low-stock">
           <div v-for="item in lowStockItems" :key="item.id" class="dashboard-low-stock__item">
@@ -185,7 +185,7 @@
           <div class="dashboard-section-head">
             <div>
               <h3 class="dashboard-section-title"><i class="fas fa-trophy"></i> Productos destacados</h3>
-              <p class="dashboard-section-subtitle">Mas vendidos en los ultimos 30 dias.</p>
+              <p class="dashboard-section-subtitle">Más vendidos en los últimos 30 días.</p>
             </div>
             <RouterLink to="/admin/informes/ventas" class="btn-link">Ver informe</RouterLink>
           </div>
@@ -195,7 +195,7 @@
           v-if="!loading && topProducts.length === 0"
           icon="fas fa-chart-bar"
           title="Sin datos de ventas"
-          description="Los productos con mas ventas apareceran aqui."
+          description="Los productos con más ventas aparecerán aquí."
         />
         <div v-else class="dashboard-top-products">
           <div v-for="(product, index) in topProducts" :key="product.id" class="dashboard-top-product">
@@ -215,7 +215,7 @@
           <div class="dashboard-section-head">
             <div>
               <h3 class="dashboard-section-title"><i class="fas fa-bolt"></i> Actividad reciente</h3>
-              <p class="dashboard-section-subtitle">Ultimos eventos del sistema.</p>
+              <p class="dashboard-section-subtitle">Últimos eventos del sistema.</p>
             </div>
           </div>
         </template>

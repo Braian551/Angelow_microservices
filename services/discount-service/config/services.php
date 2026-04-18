@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'notifications' => [
+        'base_url' => env('NOTIFICATION_SERVICE_URL', 'http://notification-service:8000/api'),
+        'discount_type_id' => env('NOTIFICATION_DISCOUNT_TYPE_ID', 1),
+    ],
+
+    'frontend' => [
+        'store_url' => env('FRONTEND_STORE_URL', 'http://localhost:5173'),
+    ],
+
 ];

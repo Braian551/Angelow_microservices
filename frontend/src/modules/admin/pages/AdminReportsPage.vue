@@ -3,7 +3,7 @@
     <AdminPageHeader
       icon="fas fa-chart-bar"
       title="Informes"
-      subtitle="Analiza ventas, productos populares y clientes recurrentes con filtros operativos, detalle y exportación centralizada."
+      subtitle="Analiza ventas, productos populares y clientes recurrentes con filtros claros, detalle y exportación sencilla."
       :breadcrumbs="breadcrumbs"
     >
       <template #actions>
@@ -1139,15 +1139,15 @@ function exportReport() {
 
   if (activeTab.value === 'sales') {
     filename = 'informe-ventas.csv'
-    headers = ['Periodo', 'Ordenes', 'Subtotal', 'Envio', 'Descuentos', 'Total', 'Ticket promedio']
+    headers = ['Periodo', 'Órdenes', 'Subtotal', 'Envío', 'Descuentos', 'Total', 'Ticket promedio']
     rows = groupedSalesRows.value.map((row) => [formatPeriodLabel(row.period, filters.sales.groupBy), row.orders, row.subtotal, row.shipping, row.discount, row.revenue, row.avg_order_value])
   } else if (activeTab.value === 'products') {
     filename = 'productos-populares.csv'
-    headers = ['Producto', 'Categoria', 'Veces vendido', 'Cantidad total', 'Precio promedio', 'Ingresos']
+    headers = ['Producto', 'Categoría', 'Veces vendido', 'Cantidad total', 'Precio promedio', 'Ingresos']
     rows = filteredProductsRows.value.map((row) => [row.name, row.category_name || 'Sin categoría', row.times_sold, row.total_quantity, row.avg_price, row.total_revenue])
   } else {
     filename = 'clientes-recurrentes.csv'
-    headers = ['Cliente', 'Email', 'Telefono', 'Ordenes', 'Total gastado', 'Valor promedio', 'Primera compra', 'Ultima compra']
+    headers = ['Cliente', 'Email', 'Teléfono', 'Órdenes', 'Total gastado', 'Valor promedio', 'Primera compra', 'Última compra']
     rows = filteredCustomerRows.value.map((row) => [row.name, row.email || '', row.phone || '', row.orders_count, row.total_spent, row.avg_order_value, row.first_order || '', row.last_order || ''])
   }
 

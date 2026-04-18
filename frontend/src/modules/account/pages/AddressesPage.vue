@@ -420,7 +420,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import AddressLocationPickerModal from '../components/AddressLocationPickerModal.vue'
 import { useSession } from '../../../composables/useSession'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
@@ -438,6 +438,10 @@ const { user, isLoggedIn } = useSession()
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
+const ADDRESS_SYNC_EVENT = 'angelow:account-addresses-updated'
+const ADDRESS_SYNC_STORAGE_KEY = 'angelow:account-addresses-sync'
+const ADDRESS_POLL_INTERVAL_MS = 12000
+
 const viewMode = ref('list')
 const formStep = ref(1)
 
@@ -454,15 +458,28 @@ const form = reactive(initialFormState())
 const fieldErrors = reactive(initialFieldErrors())
 
 const isGpsModalOpen = ref(false)
+const syncingAddresses = ref(false)
+
+let addressRefreshTimer = null
 
 const hasGpsCoordinates = computed(() => isValidCoordinatePair(form.gps_latitude, form.gps_longitude))
 
 onMounted(async () => {
   await loadAddresses()
+  startAddressRealtimeRefresh()
 })
 
-async function loadAddresses() {
-  loading.value = true
+onUnmounted(() => {
+  stopAddressRealtimeRefresh()
+})
+
+async function loadAddresses(options = {}) {
+  const { silent = false } = options
+
+  if (!silent) {
+    loading.value = true
+  }
+
   errorMessage.value = ''
 
   try {
@@ -480,8 +497,75 @@ async function loadAddresses() {
   } catch {
     errorMessage.value = 'No se pudieron cargar tus direcciones.'
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
+}
+
+function startAddressRealtimeRefresh() {
+  window.addEventListener('focus', handleWindowFocusRefresh)
+  document.addEventListener('visibilitychange', handleVisibilityRefresh)
+  window.addEventListener('storage', handleAddressStorageEvent)
+  window.addEventListener(ADDRESS_SYNC_EVENT, handleAddressSyncEvent)
+
+  addressRefreshTimer = window.setInterval(() => {
+    refreshAddressesInBackground()
+  }, ADDRESS_POLL_INTERVAL_MS)
+}
+
+function stopAddressRealtimeRefresh() {
+  window.removeEventListener('focus', handleWindowFocusRefresh)
+  document.removeEventListener('visibilitychange', handleVisibilityRefresh)
+  window.removeEventListener('storage', handleAddressStorageEvent)
+  window.removeEventListener(ADDRESS_SYNC_EVENT, handleAddressSyncEvent)
+
+  if (addressRefreshTimer !== null) {
+    window.clearInterval(addressRefreshTimer)
+    addressRefreshTimer = null
+  }
+}
+
+function handleWindowFocusRefresh() {
+  refreshAddressesInBackground()
+}
+
+function handleVisibilityRefresh() {
+  if (document.visibilityState === 'visible') {
+    refreshAddressesInBackground()
+  }
+}
+
+function handleAddressStorageEvent(event) {
+  if (event?.key !== ADDRESS_SYNC_STORAGE_KEY) return
+  refreshAddressesInBackground()
+}
+
+function handleAddressSyncEvent() {
+  refreshAddressesInBackground()
+}
+
+async function refreshAddressesInBackground() {
+  if (viewMode.value !== 'list') return
+  if (!isLoggedIn.value) return
+  if (syncingAddresses.value || isSaving.value || Boolean(savingAddressId.value)) return
+
+  syncingAddresses.value = true
+  try {
+    await loadAddresses({ silent: true })
+  } finally {
+    syncingAddresses.value = false
+  }
+}
+
+function emitAddressSyncSignal() {
+  try {
+    localStorage.setItem(ADDRESS_SYNC_STORAGE_KEY, String(Date.now()))
+  } catch {
+    // Sincronización best-effort para navegadores con storage restringido.
+  }
+
+  window.dispatchEvent(new CustomEvent(ADDRESS_SYNC_EVENT))
 }
 
 function initialFormState() {
@@ -653,6 +737,7 @@ async function submitAddress() {
     }
 
     await loadAddresses()
+    emitAddressSyncSignal()
     backToList()
 
     showSnackbar({
@@ -682,6 +767,7 @@ async function setAsDefault(address) {
   try {
     await setDefaultUserAddress(address.id, currentUserId(), currentUserEmail())
     await loadAddresses()
+    emitAddressSyncSignal()
 
     showSnackbar({
       type: 'success',
@@ -725,6 +811,7 @@ async function removeAddress(address) {
   try {
     await deleteUserAddress(address.id, currentUserId(), currentUserEmail())
     await loadAddresses()
+    emitAddressSyncSignal()
 
     showSnackbar({
       type: 'success',
