@@ -3,6 +3,8 @@ import { orderHttp } from '../../../services/http'
 
 const ORDER_NOTIFICATIONS_REFRESH_MS = 20000
 const ORDER_NOTIFICATIONS_LIMIT = 25
+const ORDER_BOOTSTRAP_LOOKBACK_HOURS = 72
+const MAX_BOOTSTRAP_NOTIFICATIONS = 24
 const MAX_VISIBLE_NOTIFICATIONS = 60
 
 const MODULE_ROUTES = {
@@ -18,10 +20,15 @@ const MODULE_LABELS = {
 }
 
 const ORDER_STATUS_LABELS = {
+  created: 'Creada',
   pending: 'Pendiente',
+  pending_payment: 'Pendiente de pago',
+  in_review: 'En revision',
+  en_revision: 'En revision',
   processing: 'En proceso',
   shipped: 'Enviado',
   delivered: 'Entregado',
+  completed: 'Completado',
   cancelled: 'Cancelado',
   canceled: 'Cancelado',
   refunded: 'Reembolsado',
@@ -29,13 +36,20 @@ const ORDER_STATUS_LABELS = {
 
 const PAYMENT_STATUS_LABELS = {
   pending: 'Pendiente',
+  pending_payment: 'Pendiente de pago',
+  in_review: 'En revision',
+  en_revision: 'En revision',
   paid: 'Pagado',
   verified: 'Verificado',
   pending_refund: 'Reembolso en proceso',
   failed: 'Fallido',
   refunded: 'Reembolsado',
+  canceled: 'Cancelado',
+  cancelled: 'Cancelado',
   transfer: 'Transferencia',
 }
+
+const PAYMENT_REVIEW_STATUSES = new Set(['pending', 'pending_payment', 'in_review', 'en_revision', 'created'])
 
 const notifications = ref([])
 const unreadCount = computed(() => notifications.value.filter((item) => !item?.read_at).length)
@@ -63,6 +77,7 @@ let loadingNotifications = false
 let orderSnapshot = new Map()
 let orderNotificationsTimer = null
 let activeSubscribers = 0
+let lastVisitedRoutePath = null
 
 function startAdminNotifications() {
   activeSubscribers += 1
@@ -93,6 +108,8 @@ function stopAdminNotifications() {
     window.clearInterval(orderNotificationsTimer)
     orderNotificationsTimer = null
   }
+
+  lastVisitedRoutePath = null
 }
 
 async function loadNotifications({ initialize = false } = {}) {
@@ -115,6 +132,11 @@ async function loadNotifications({ initialize = false } = {}) {
     const currentSnapshot = buildOrderSnapshot(rows)
 
     if (initialize || orderSnapshot.size === 0) {
+      const bootstrapEvents = buildBootstrapOrderEvents(rows)
+      if (bootstrapEvents.length > 0) {
+        mergeNotifications(bootstrapEvents)
+      }
+
       orderSnapshot = currentSnapshot
       return
     }
@@ -122,7 +144,7 @@ async function loadNotifications({ initialize = false } = {}) {
     const freshNotifications = buildOrderEvents(rows)
 
     if (freshNotifications.length > 0) {
-      notifications.value = [...freshNotifications, ...notifications.value].slice(0, MAX_VISIBLE_NOTIFICATIONS)
+      mergeNotifications(freshNotifications)
     }
 
     orderSnapshot = currentSnapshot
@@ -131,6 +153,36 @@ async function loadNotifications({ initialize = false } = {}) {
   } finally {
     loadingNotifications = false
   }
+}
+
+function mergeNotifications(incomingNotifications) {
+  if (!Array.isArray(incomingNotifications) || incomingNotifications.length === 0) {
+    return
+  }
+
+  const mergedById = new Map(
+    notifications.value.map((item) => [String(item?.id || ''), item]),
+  )
+
+  incomingNotifications.forEach((notification) => {
+    const notificationId = String(notification?.id || '')
+    if (!notificationId) {
+      return
+    }
+
+    const previous = mergedById.get(notificationId)
+    if (previous) {
+      mergedById.set(notificationId, {
+        ...notification,
+        read_at: previous.read_at || notification.read_at || null,
+      })
+      return
+    }
+
+    mergedById.set(notificationId, notification)
+  })
+
+  notifications.value = sortNotifications(Array.from(mergedById.values())).slice(0, MAX_VISIBLE_NOTIFICATIONS)
 }
 
 function markNotificationAsRead(notificationId) {
@@ -183,6 +235,20 @@ function markModuleAsRead(moduleKey) {
 
 function markRouteNotificationsAsRead(routePath) {
   const normalizedPath = String(routePath || '').trim().toLowerCase()
+  if (!normalizedPath) {
+    return
+  }
+
+  if (lastVisitedRoutePath === null) {
+    lastVisitedRoutePath = normalizedPath
+    return
+  }
+
+  if (lastVisitedRoutePath === normalizedPath) {
+    return
+  }
+
+  lastVisitedRoutePath = normalizedPath
 
   if (normalizedPath.startsWith('/admin/ordenes')) {
     markModuleAsRead('orders')
@@ -234,41 +300,56 @@ function buildOrderSnapshot(rows) {
   return snapshot
 }
 
+function buildBootstrapOrderEvents(rows) {
+  const bootstrapEvents = []
+
+  rows.forEach((row) => {
+    const key = buildOrderKey(row)
+    const referenceDate = row.created_at || row.updated_at
+
+    if (!isRecentTimestamp(referenceDate, ORDER_BOOTSTRAP_LOOKBACK_HOURS)) {
+      return
+    }
+
+    bootstrapEvents.push(buildNewOrderEvent(row, key))
+
+    const paymentReviewEvent = buildPaymentReviewEvent(row, key)
+    if (paymentReviewEvent) {
+      bootstrapEvents.push(paymentReviewEvent)
+    }
+  })
+
+  return sortNotifications(bootstrapEvents).slice(0, MAX_BOOTSTRAP_NOTIFICATIONS)
+}
+
 function buildOrderEvents(rows) {
   const events = []
 
   rows.forEach((row) => {
     const key = buildOrderKey(row)
     const previous = orderSnapshot.get(key)
+
     if (!previous) {
-      events.push({
-        id: `new-${key}-${String(row.created_at || row.updated_at || Date.now())}`,
-        type: 'order',
-        module_key: 'orders',
-        route: resolveOrderRoute(row),
-        message: `Nueva orden ${formatOrderLabel(row)} de ${formatCustomerName(row)} por ${formatOrderTotal(row.total)}.`,
-        created_at: row.created_at || row.updated_at || new Date().toISOString(),
-        read_at: null,
-      })
+      events.push(buildNewOrderEvent(row, key))
+
+      const paymentReviewEvent = buildPaymentReviewEvent(row, key)
+      if (paymentReviewEvent) {
+        events.push(paymentReviewEvent)
+      }
+
       return
     }
 
     const previousStatus = normalizeStatus(previous.status || previous.order_status)
     const currentStatus = normalizeStatus(row.status || row.order_status)
+
     if (!isCancelledStatus(previousStatus) && isCancelledStatus(currentStatus)) {
-      events.push({
-        id: `cancel-${key}-${String(row.updated_at || Date.now())}`,
-        type: 'system',
-        module_key: 'orders',
-        route: resolveOrderRoute(row),
-        message: `La orden ${formatOrderLabel(row)} fue cancelada.`,
-        created_at: row.updated_at || row.created_at || new Date().toISOString(),
-        read_at: null,
-      })
+      events.push(buildOrderCancellationEvent(row, key))
     }
 
     const previousPaymentStatus = normalizeStatus(previous.payment_status)
     const currentPaymentStatus = normalizeStatus(row.payment_status)
+
     if (previousPaymentStatus !== currentPaymentStatus) {
       events.push({
         id: `payment-${key}-${String(row.updated_at || Date.now())}-${currentPaymentStatus}`,
@@ -296,11 +377,87 @@ function buildOrderEvents(rows) {
     }
   })
 
-  return events.sort((leftEvent, rightEvent) => {
-    const left = new Date(rightEvent.created_at || 0).getTime()
-    const right = new Date(leftEvent.created_at || 0).getTime()
-    return left - right
+  return sortNotifications(events)
+}
+
+function buildNewOrderEvent(row, key) {
+  return {
+    id: `new-${key}-${String(row.created_at || row.updated_at || Date.now())}`,
+    type: 'order',
+    module_key: 'orders',
+    route: resolveOrderRoute(row),
+    message: `Nueva orden ${formatOrderLabel(row)} de ${formatCustomerName(row)} por ${formatOrderTotal(row.total)}.`,
+    created_at: row.created_at || row.updated_at || new Date().toISOString(),
+    read_at: null,
+  }
+}
+
+function buildOrderCancellationEvent(row, key) {
+  return {
+    id: `cancel-${key}-${String(row.updated_at || Date.now())}`,
+    type: 'system',
+    module_key: 'orders',
+    route: resolveOrderRoute(row),
+    message: `La orden ${formatOrderLabel(row)} fue cancelada.`,
+    created_at: row.updated_at || row.created_at || new Date().toISOString(),
+    read_at: null,
+  }
+}
+
+function buildPaymentReviewEvent(row, key) {
+  const currentPaymentStatus = normalizeStatus(row.payment_status)
+  if (!requiresPaymentReview(currentPaymentStatus)) {
+    return null
+  }
+
+  return {
+    id: `payment-review-${key}-${currentPaymentStatus}-${String(row.created_at || row.updated_at || Date.now())}`,
+    type: 'payment',
+    module_key: 'payments',
+    route: MODULE_ROUTES.payments,
+    message: buildPaymentReviewMessage(row, currentPaymentStatus),
+    created_at: row.updated_at || row.created_at || new Date().toISOString(),
+    read_at: null,
+  }
+}
+
+function requiresPaymentReview(status) {
+  return PAYMENT_REVIEW_STATUSES.has(normalizeStatus(status))
+}
+
+function buildPaymentReviewMessage(order, status) {
+  const normalizedStatus = normalizeStatus(status)
+
+  if (['in_review', 'en_revision'].includes(normalizedStatus)) {
+    return `La orden ${formatOrderLabel(order)} tiene un pago en revision.`
+  }
+
+  return `La orden ${formatOrderLabel(order)} tiene un pago pendiente de validacion.`
+}
+
+function sortNotifications(items) {
+  return [...items].sort((leftItem, rightItem) => {
+    return toTimestamp(rightItem?.created_at) - toTimestamp(leftItem?.created_at)
   })
+}
+
+function toTimestamp(value) {
+  const timestamp = new Date(value || 0).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+function isRecentTimestamp(value, lookbackHours) {
+  const timestamp = toTimestamp(value)
+  if (timestamp <= 0) {
+    return false
+  }
+
+  const windowMs = Number(lookbackHours || 0) * 60 * 60 * 1000
+  if (windowMs <= 0) {
+    return true
+  }
+
+  return timestamp >= Date.now() - windowMs
 }
 
 function buildPaymentChangeMessage(order, oldStatus, newStatus) {

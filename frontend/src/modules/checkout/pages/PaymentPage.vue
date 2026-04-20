@@ -103,6 +103,20 @@
                   />
                   <small class="payment-field-error payment-field-error--fixed">{{ fieldErrors.reference_number }}</small>
                 </label>
+
+                <label class="payment-field" for="payment-email">
+                  <span>Correo para confirmación *</span>
+                  <input
+                    id="payment-email"
+                    v-model.trim="form.customer_email"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="Ingresa el correo donde recibirás la confirmación"
+                    :class="{ 'payment-field-control--error': fieldErrors.customer_email }"
+                    @input="validateField('customer_email')"
+                  />
+                  <small class="payment-field-error payment-field-error--fixed">{{ fieldErrors.customer_email }}</small>
+                </label>
               </div>
 
               <div class="payment-upload-block">
@@ -365,12 +379,14 @@ const proofInput = ref(null)
 const form = ref({
   bank_code: '',
   reference_number: '',
+  customer_email: '',
   accept_terms: false,
 })
 
 const fieldErrors = ref({
   bank_code: '',
   reference_number: '',
+  customer_email: '',
   payment_proof: '',
   accept_terms: '',
 })
@@ -521,6 +537,7 @@ async function loadInitialData() {
       : { items: [], item_count: 0 }
 
     form.value.bank_code = shippingData.value?.bank_code || banks.value[0]?.bank_code || ''
+    form.value.customer_email = String(user.value?.email || shippingData.value?.user_email || '').trim()
     setCartCount(Number(cart.value?.item_count || itemCount.value))
   } catch {
     banks.value = []
@@ -546,6 +563,13 @@ function validateField(fieldName) {
       : 'Ingresa una referencia válida de al menos 4 caracteres.'
   }
 
+  if (fieldName === 'customer_email') {
+    const email = form.value.customer_email.trim()
+    fieldErrors.value.customer_email = isValidCheckoutEmail(email)
+      ? ''
+      : 'Ingresa un correo válido para enviarte la confirmación.'
+  }
+
   if (fieldName === 'payment_proof') {
     fieldErrors.value.payment_proof = paymentProofFile.value
       ? ''
@@ -565,6 +589,7 @@ function validateAllFields() {
   const checks = [
     validateField('bank_code'),
     validateField('reference_number'),
+    validateField('customer_email'),
     validateField('payment_proof'),
     validateField('accept_terms'),
   ]
@@ -682,7 +707,7 @@ function resolveCheckoutApiErrorMessage(error) {
   const apiData = error?.response?.data
   const apiMessage = String(apiData?.message || '').trim()
   if (apiMessage) {
-    return apiMessage
+    return translateCheckoutApiMessage(apiMessage)
   }
 
   if (apiData?.errors && typeof apiData.errors === 'object') {
@@ -693,13 +718,47 @@ function resolveCheckoutApiErrorMessage(error) {
 
       const firstMessage = String(messages[0] || '').trim()
       if (firstMessage) {
-        return firstMessage
+        return translateCheckoutApiMessage(firstMessage)
       }
     }
   }
 
   const genericMessage = String(error?.message || '').trim()
-  return genericMessage || ''
+  return translateCheckoutApiMessage(genericMessage)
+}
+
+function isValidCheckoutEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+}
+
+function translateCheckoutApiMessage(message) {
+  const normalized = String(message || '').trim()
+  if (!normalized) {
+    return ''
+  }
+
+  const rules = [
+    {
+      pattern: /The payment proof field must be a string\.?/i,
+      text: 'El comprobante no se pudo procesar correctamente. Vuelve a adjuntarlo y confirma nuevamente.',
+    },
+    {
+      pattern: /The payment proof field is required\.?/i,
+      text: 'Debes adjuntar el comprobante de pago para continuar.',
+    },
+    {
+      pattern: /The payment proof field must be a file\.?/i,
+      text: 'Debes adjuntar un archivo válido como comprobante de pago.',
+    },
+  ]
+
+  for (const rule of rules) {
+    if (rule.pattern.test(normalized)) {
+      return rule.text
+    }
+  }
+
+  return normalized
 }
 
 async function confirmOrder() {
@@ -725,6 +784,7 @@ async function confirmOrder() {
   infoMessage.value = 'Registrando tu pedido...'
 
   const normalizedUserId = normalizeCheckoutUserId()
+  const normalizedCustomerEmail = String(form.value.customer_email || '').trim().toLowerCase()
   let createdOrderId = null
 
   try {
@@ -763,7 +823,7 @@ async function confirmOrder() {
       shipping_method_id: selectedShippingMethod.value.id || null,
       billing_name: selectedAddress.value.recipient_name || user.value?.name || '',
       billing_document: '',
-      billing_email: user.value?.email || shippingData.value?.user_email || '',
+      billing_email: normalizedCustomerEmail,
       billing_phone: selectedAddress.value.recipient_phone || '',
       billing_address: buildCheckoutAddressLine(selectedAddress.value),
       billing_city: selectedAddress.value.city || selectedAddress.value.neighborhood || 'Medellín',
@@ -804,6 +864,7 @@ async function confirmOrder() {
         payment_reference: form.value.reference_number.trim(),
         bank_name: selectedBank.value?.bank_name || 'Transferencia manual',
         payment_proof_name: paymentProofFile.value?.name || null,
+        customer_email: normalizedCustomerEmail,
       })
     } catch {
       confirmationEmailWarning = 'El pedido quedó registrado, pero no pudimos enviar el correo de confirmación en este momento.'
@@ -848,7 +909,7 @@ async function confirmOrder() {
       },
       billing: {
         name: selectedAddress.value.recipient_name || user.value?.name || '',
-        email: user.value?.email || shippingData.value?.user_email || '',
+        email: normalizedCustomerEmail,
         phone: selectedAddress.value.recipient_phone || '',
         address: buildCheckoutAddressLine(selectedAddress.value),
         city: selectedAddress.value.city || selectedAddress.value.neighborhood || 'Medellín',

@@ -35,7 +35,8 @@ class OrderInvoiceService
         $order = $payload['order'];
         $items = $payload['items'];
 
-        $customerEmail = $this->resolveCustomerEmail($order, $payload['connection']);
+        $customerEmail = $this->resolveContextCustomerEmail($context)
+            ?? $this->resolveCustomerEmail($order, $payload['connection']);
         if ($customerEmail === null) {
             return [
                 'ok' => false,
@@ -602,6 +603,16 @@ class OrderInvoiceService
         }
 
         $email = trim((string) ($user->email ?? ''));
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return $email;
+    }
+
+    private function resolveContextCustomerEmail(array $context): ?string
+    {
+        $email = trim((string) ($context['customer_email'] ?? ''));
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return null;
         }

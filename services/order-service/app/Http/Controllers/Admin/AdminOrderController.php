@@ -55,7 +55,7 @@ class AdminOrderController extends Controller
         $totalRevenue = $mergedRows->sum(static fn ($row) => (float) ($row->total ?? 0));
         $pendingOrders = $mergedRows->filter(static function ($row): bool {
             $status = strtolower((string) ($row->status ?? $row->order_status ?? 'pending'));
-            return $status === 'pending';
+            return in_array($status, ['created', 'pending', 'pending_payment', 'in_review'], true);
         })->count();
         $completedOrders = $mergedRows->filter(static function ($row): bool {
             $status = strtolower((string) ($row->status ?? $row->order_status ?? 'pending'));

@@ -1,5 +1,9 @@
 const ORDER_STATUS_LABELS = Object.freeze({
+  created: 'Creada',
   pending: 'Pendiente',
+  pending_payment: 'Pendiente de pago',
+  in_review: 'En revision',
+  en_revision: 'En revision',
   processing: 'En proceso',
   shipped: 'Enviado',
   delivered: 'Entregado',
@@ -11,6 +15,9 @@ const ORDER_STATUS_LABELS = Object.freeze({
 
 const PAYMENT_STATUS_LABELS = Object.freeze({
   pending: 'Pendiente',
+  pending_payment: 'Pendiente de pago',
+  in_review: 'En revision',
+  en_revision: 'En revision',
   pending_refund: 'Reembolso en proceso',
   paid: 'Pagado',
   verified: 'Verificado',
@@ -19,6 +26,7 @@ const PAYMENT_STATUS_LABELS = Object.freeze({
   refunded: 'Reembolsado',
   rejected: 'Rechazado',
   cancelled: 'Cancelado',
+  canceled: 'Cancelado',
 })
 
 const PAYMENT_METHOD_LABELS = Object.freeze({
@@ -48,6 +56,10 @@ const BULK_ACTION_LABELS = Object.freeze({
 })
 
 const GENERIC_REPLACEMENTS = [
+  [/\bcreated\b/gi, 'Creada'],
+  [/\bpending_payment\b/gi, 'Pendiente de pago'],
+  [/\bin_review\b/gi, 'En revision'],
+  [/\ben_revision\b/gi, 'En revision'],
   [/\bpending_refund\b/gi, 'Reembolso en proceso'],
   [/\bpending\b/gi, 'Pendiente'],
   [/\bprocessing\b/gi, 'En proceso'],
@@ -79,6 +91,18 @@ function labelFromMap(value, map) {
   return map[normalizeToken(value)] || ''
 }
 
+function humanizeToken(value) {
+  const normalized = String(value ?? '')
+    .trim()
+    .replace(/[\s_-]+/g, ' ')
+
+  if (!normalized) {
+    return ''
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase()
+}
+
 export function translateDbText(value, context = 'generic') {
   if (value == null) return ''
 
@@ -105,9 +129,19 @@ export function translateDbText(value, context = 'generic') {
     return contextualLabel
   }
 
-  return GENERIC_REPLACEMENTS.reduce((translated, [pattern, replacement]) => {
-    return translated.replace(pattern, replacement)
+  const translated = GENERIC_REPLACEMENTS.reduce((accumulated, [pattern, replacement]) => {
+    return accumulated.replace(pattern, replacement)
   }, raw)
+
+  if (translated !== raw) {
+    return translated
+  }
+
+  if (/[_-]/.test(raw)) {
+    return humanizeToken(raw)
+  }
+
+  return translated
 }
 
 export function getOrderStatusLabel(status) {
@@ -125,8 +159,10 @@ export function getPaymentMethodLabel(method) {
 export function getOrderStatusBadgeClass(status) {
   const normalized = normalizeToken(status)
 
-  if (['delivered', 'completed'].includes(normalized)) return 'active'
-  if (['processing', 'shipped'].includes(normalized)) return 'info'
+  if (normalized === 'delivered') return 'delivered'
+  if (normalized === 'completed') return 'active'
+  if (['processing', 'in_review', 'en_revision'].includes(normalized)) return 'processing'
+  if (normalized === 'shipped') return 'shipped'
   if (['cancelled', 'canceled', 'refunded'].includes(normalized)) return 'cancelled'
   return 'pending'
 }
@@ -135,7 +171,7 @@ export function getPaymentStatusBadgeClass(status) {
   const normalized = normalizeToken(status)
 
   if (['paid', 'verified', 'approved'].includes(normalized)) return 'active'
-  if (['failed', 'rejected', 'refunded', 'cancelled'].includes(normalized)) return 'cancelled'
+  if (['failed', 'rejected', 'refunded', 'cancelled', 'canceled'].includes(normalized)) return 'cancelled'
   return 'pending'
 }
 

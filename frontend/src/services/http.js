@@ -5,7 +5,6 @@ const baseConfig = {
   timeout: 15000,
   headers: {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
   },
 }
 
@@ -23,6 +22,19 @@ function createClient(baseURL) {
   })
 
   client.interceptors.request.use((config) => {
+    // Cuando el payload es FormData, el navegador debe inyectar el boundary.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        if (typeof config.headers.delete === 'function') {
+          config.headers.delete('Content-Type')
+          config.headers.delete('content-type')
+        } else {
+          delete config.headers['Content-Type']
+          delete config.headers['content-type']
+        }
+      }
+    }
+
     const token = localStorage.getItem('angelow_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`

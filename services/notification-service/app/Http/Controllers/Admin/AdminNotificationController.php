@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +21,13 @@ class AdminNotificationController extends Controller
 
     public function announcements(): JsonResponse
     {
-        $items = $this->announcementsQuery()
+        $query = $this->announcementsQuery();
+
+        if (!$query) {
+            return response()->json(['success' => true, 'data' => []]);
+        }
+
+        $items = $query
             ->orderByDesc('priority')
             ->orderByDesc('created_at')
             ->get()
@@ -31,20 +38,32 @@ class AdminNotificationController extends Controller
 
     public function storeAnnouncement(Request $request): JsonResponse
     {
-        if ($this->announcementsQuery()->count() >= 2) {
+        $query = $this->announcementsQuery();
+
+        if (!$query) {
+            return response()->json(['success' => false, 'message' => 'No hay almacenamiento disponible para anuncios.'], 503);
+        }
+
+        if ($query->count() >= 2) {
             return response()->json(['success' => false, 'message' => 'Ya existen 2 anuncios. Debes eliminar uno antes de agregar otro.'], 422);
         }
 
         $payload = $this->buildAnnouncementPayload($request, false);
 
-        $id = $this->announcementsQuery()->insertGetId($payload);
+        $id = $query->insertGetId($payload);
 
         return response()->json(['success' => true, 'message' => 'Anuncio creado.', 'id' => $id], 201);
     }
 
     public function updateAnnouncement(Request $request, int $id): JsonResponse
     {
-        $current = $this->announcementsQuery()->where('id', $id)->first();
+        $query = $this->announcementsQuery();
+
+        if (!$query) {
+            return response()->json(['success' => false, 'message' => 'No hay almacenamiento disponible para anuncios.'], 503);
+        }
+
+        $current = $query->where('id', $id)->first();
 
         if (!$current) {
             return response()->json(['success' => false, 'message' => 'Anuncio no encontrado.'], 404);
@@ -52,7 +71,7 @@ class AdminNotificationController extends Controller
 
         $payload = $this->buildAnnouncementPayload($request, true, $current);
 
-        $updated = $this->announcementsQuery()->where('id', $id)->update($payload);
+        $updated = $query->where('id', $id)->update($payload);
 
         if (!$updated) {
             return response()->json(['success' => false, 'message' => 'Anuncio no encontrado.'], 404);
@@ -63,8 +82,14 @@ class AdminNotificationController extends Controller
 
     public function destroyAnnouncement(int $id): JsonResponse
     {
-        $current = $this->announcementsQuery()->where('id', $id)->first();
-        $deleted = $this->announcementsQuery()->where('id', $id)->delete();
+        $query = $this->announcementsQuery();
+
+        if (!$query) {
+            return response()->json(['success' => false, 'message' => 'No hay almacenamiento disponible para anuncios.'], 503);
+        }
+
+        $current = $query->where('id', $id)->first();
+        $deleted = $query->where('id', $id)->delete();
 
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Anuncio no encontrado.'], 404);
@@ -78,7 +103,7 @@ class AdminNotificationController extends Controller
     /**
      * Usa legacy_mysql si la tabla announcements existe ahi; si no, usa conexion por defecto.
      */
-    private function announcementsQuery()
+    private function announcementsQuery(): ?Builder
     {
         try {
             $legacy = DB::connection(self::LEGACY_CONNECTION);
@@ -89,7 +114,15 @@ class AdminNotificationController extends Controller
             // fallback a conexion por defecto
         }
 
-        return DB::table('announcements');
+        try {
+            if (Schema::hasTable('announcements')) {
+                return DB::table('announcements');
+            }
+        } catch (Throwable) {
+            // Si también falla la conexión principal, se reporta como no disponible.
+        }
+
+        return null;
     }
 
     private function buildAnnouncementPayload(Request $request, bool $partial, object|null $current = null): array

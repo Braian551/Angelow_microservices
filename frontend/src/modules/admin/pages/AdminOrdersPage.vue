@@ -23,10 +23,14 @@
             <label for="status-filter"><i class="fas fa-tag"></i> Estado de orden</label>
             <select id="status-filter" v-model="filters.status" @change="applyFilters">
               <option value="">Todos los estados</option>
+              <option value="created">Creada</option>
               <option value="pending">Pendiente</option>
+              <option value="pending_payment">Pendiente de pago</option>
+              <option value="in_review">En revision</option>
               <option value="processing">En proceso</option>
               <option value="shipped">Enviado</option>
               <option value="delivered">Entregado</option>
+              <option value="completed">Completado</option>
               <option value="cancelled">Cancelado</option>
               <option value="refunded">Reembolsado</option>
             </select>
@@ -270,10 +274,14 @@
             <AdminInfoTooltip text="Nuevo estado de la orden. Ejemplo: «En proceso» al confirmar el pago o «Enviado» al despachar." />
           </label>
           <select id="order-status" v-model="statusForm.status" class="form-control" @change="validateStatusField('status')">
+            <option value="created">Creada</option>
             <option value="pending">Pendiente</option>
+            <option value="pending_payment">Pendiente de pago</option>
+            <option value="in_review">En revision</option>
             <option value="processing">En proceso</option>
             <option value="shipped">Enviado</option>
             <option value="delivered">Entregado</option>
+            <option value="completed">Completado</option>
             <option value="cancelled">Cancelado</option>
             <option value="refunded">Reembolsado</option>
           </select>
@@ -374,10 +382,14 @@
             <AdminInfoTooltip text="Estado que se aplicará a todas las órdenes seleccionadas." />
           </label>
           <select id="bulk-status" v-model="bulkForm.status" class="form-control" @change="validateBulkField('status')">
+            <option value="created">Creada</option>
             <option value="pending">Pendiente</option>
+            <option value="pending_payment">Pendiente de pago</option>
+            <option value="in_review">En revision</option>
             <option value="processing">En proceso</option>
             <option value="shipped">Enviado</option>
             <option value="delivered">Entregado</option>
+            <option value="completed">Completado</option>
             <option value="cancelled">Cancelado</option>
             <option value="refunded">Reembolsado</option>
           </select>
@@ -655,7 +667,7 @@ async function loadOrders() {
     orderStats.value = payload.stats || {
       total_orders: orders.value.length,
       total_revenue: orders.value.reduce((sum, order) => sum + Number(order.total || 0), 0),
-      pending_orders: orders.value.filter((order) => order.status === 'pending').length,
+      pending_orders: orders.value.filter((order) => ['created', 'pending', 'pending_payment', 'in_review'].includes(String(order.status || '').toLowerCase())).length,
       completed_orders: orders.value.filter((order) => ['delivered', 'completed'].includes(order.status)).length,
     }
   } catch {

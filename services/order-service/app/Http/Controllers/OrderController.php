@@ -297,6 +297,7 @@ class OrderController extends Controller
             'payment_reference' => ['nullable', 'string', 'max:80'],
             'bank_name' => ['nullable', 'string', 'max:120'],
             'payment_proof_name' => ['nullable', 'string', 'max:255'],
+            'customer_email' => ['nullable', 'string', 'email', 'max:255'],
         ]);
 
         $preferredConnection = $this->normalizeSourceConnection($data['source'] ?? $request->input('source'));
@@ -356,6 +357,7 @@ class OrderController extends Controller
             'payment_reference' => $data['payment_reference'] ?? null,
             'bank_name' => $data['bank_name'] ?? null,
             'payment_proof_name' => $data['payment_proof_name'] ?? null,
+            'customer_email' => $data['customer_email'] ?? null,
         ], $preferredConnection);
 
         if (!($result['ok'] ?? false)) {
