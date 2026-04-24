@@ -86,7 +86,12 @@
                 <RouterLink v-if="payment.order_id" :to="`/admin/ordenes/${payment.order_id}`">#{{ payment.order_id }}</RouterLink>
                 <span v-else>—</span>
               </td>
-              <td>{{ payment.customer_name || '—' }}</td>
+              <td>
+                <div class="admin-entity-name">
+                  <strong>{{ payment.customer_name || 'Cliente' }}</strong>
+                  <span>{{ payment.customer_email || 'Sin correo' }}</span>
+                </div>
+              </td>
               <td><strong>{{ formatCurrency(payment.amount) }}</strong></td>
               <td>{{ methodLabel(payment.method) }}</td>
               <td>
@@ -372,6 +377,7 @@ const filtered = computed(() => {
       payment.id,
       payment.order_id,
       payment.customer_name,
+      payment.customer_email,
       payment.reference_number,
       payment.method,
     ].some((value) => String(value || '').toLowerCase().includes(term)))
@@ -411,6 +417,7 @@ function normalizePayment(rawPayment = {}) {
     status: normalizedStatus,
     method: String(rawPayment.payment_method || rawPayment.method || 'transfer').toLowerCase().trim(),
     customer_name: rawPayment.customer_name || rawPayment.billing_name || rawPayment.user_name || '',
+    customer_email: rawPayment.customer_email || rawPayment.billing_email || rawPayment.user_email || '',
     reference_number: rawPayment.reference_number || '',
     proof_url: rawPayment.proof_url || '',
     proof_name: rawPayment.proof_name || '',
@@ -708,6 +715,7 @@ async function updatePayment(payment, status) {
     if (payment.order_id > 0) {
       try {
         await orderHttp.patch(`/orders/${payment.order_id}/payment-status`, {
+          source: payment.source === 'legacy' ? 'legacy' : 'microservice',
           payment_status: mapTransactionStatusToOrderStatus(status),
           description: buildOrderPaymentDescription(status),
         })

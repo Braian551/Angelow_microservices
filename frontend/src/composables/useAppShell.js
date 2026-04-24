@@ -89,6 +89,7 @@ export function useAppShell() {
     settings,
     topBar,
     cartCount,
+    shellLoading,
     loadShellData,
     refreshCartCount,
     refreshShellSettings,

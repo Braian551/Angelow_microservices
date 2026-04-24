@@ -19,32 +19,54 @@
 .product-detail-page .section-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 3rem 3rem;
+  padding: 1px 3rem 3rem;
 }
 
 .product-detail-page .back-button-container {
-  margin: 3rem 0 2rem;
+  /* Forzar flujo normal para anular cualquier regla de position/margin del legacy global */
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  max-width: 100% !important;
+  margin: 1.8rem 0 2.2rem !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  z-index: 2;
 }
 
 .product-detail-page .back-button {
   display: inline-flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 1.2rem 2.4rem;
-  border: none;
-  border-radius: 8px;
-  background-color: var(--primary-color);
-  color: #fff;
-  font-size: 1.5rem;
-  font-weight: 600;
+  justify-content: center;
+  min-height: 4.4rem;
+  padding: 1rem 4.8rem;
+  border: 1px solid #cfe0ef;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary-color);
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1;
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(15, 55, 96, 0.08);
   transition: all 0.3s ease;
 }
 
+.product-detail-page .back-button i {
+  font-size: 1.35rem;
+}
+
 .product-detail-page .back-button:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-2px);
+  background-color: #f3faff;
+  border-color: #b9d2e6;
+  transform: translateY(-1px);
 }
 
 .product-detail-page .product-main-section {
@@ -438,6 +460,7 @@
   width: 6rem;
   height: 3.8rem;
   text-align: center;
+  appearance: textfield;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 1.5rem;
@@ -452,6 +475,7 @@
 }
 
 .product-detail-page .action-buttons {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
@@ -498,6 +522,12 @@
 }
 
 .product-detail-page .wishlist-btn {
+  /* Anular position: absolute que viene del legacy productos.css global */
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
   width: 5.2rem;
   height: 5.2rem;
   border-radius: 8px;
@@ -507,6 +537,10 @@
   font-size: 2rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  /* Anular backdrop-filter y box-shadow del legacy */
+  backdrop-filter: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
 }
 
 .product-detail-page .wishlist-btn:hover,
@@ -514,12 +548,15 @@
   color: var(--error-color);
   border-color: var(--error-color);
   background-color: rgba(255, 51, 51, 0.06);
+  transform: none;
 }
 
 .product-detail-page .wishlist-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Contiene los botones de acción para evitar colapso de posición */
 
 .product-detail-page .status-message {
   margin-top: 1.2rem;
@@ -791,7 +828,7 @@
   padding: 1.6rem;
 }
 
-.product-detail-page .detail-question-item > header {
+.product-detail-page .detail-question-item>header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -799,12 +836,12 @@
   margin-bottom: 1rem;
 }
 
-.product-detail-page .detail-question-item > header strong {
+.product-detail-page .detail-question-item>header strong {
   font-size: 1.5rem;
   color: var(--text-dark);
 }
 
-.product-detail-page .detail-question-item > header span {
+.product-detail-page .detail-question-item>header span {
   font-size: 1.3rem;
   color: var(--text-light);
 }
@@ -929,6 +966,14 @@
     padding: 0 1.5rem 2rem;
   }
 
+  .product-detail-page .back-button-container {
+    margin: 1.3rem 0 1.8rem !important;
+  }
+
+  .product-detail-page .back-button {
+    width: 100%;
+  }
+
   .product-detail-page .action-buttons {
     flex-direction: column;
     align-items: stretch;
@@ -957,7 +1002,7 @@
   }
 
   .product-detail-page .detail-review-head,
-  .product-detail-page .detail-question-item > header,
+  .product-detail-page .detail-question-item>header,
   .product-detail-page .detail-answer-item header {
     flex-direction: column;
     align-items: flex-start;

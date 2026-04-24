@@ -1,8 +1,8 @@
 <template>
-  <div v-if="announcement?.message" class="announcement-bar" :style="barStyle">
+  <div v-if="displayMessage" class="announcement-bar" :style="barStyle">
     <p>
       <i v-if="announcement.icon" class="fas" :class="announcement.icon" />
-      {{ announcement.message }}
+      {{ displayMessage }}
     </p>
   </div>
 </template>
@@ -15,6 +15,12 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+})
+
+const displayMessage = computed(() => {
+  const rawMessage = props.announcement?.message ?? props.announcement?.title ?? ''
+  const text = String(rawMessage || '').trim()
+  return text || ''
 })
 
 // Aplica colores dinámicos guardados en el anuncio (sobreescribe el color fijo del CSS)

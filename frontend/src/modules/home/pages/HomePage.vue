@@ -1,6 +1,6 @@
 <template>
   <main>
-    <HomeHeroSlider :slides="homeData.sliders || []" />
+    <HomeHeroSlider :slides="homeData.sliders || []" :loading="loading" />
 
     <CategoryGrid :categories="categories.slice(0, 4)" />
 
@@ -38,9 +38,11 @@ import PromoBanner from '../components/PromoBanner.vue'
 import ProductCard from '../../catalog/components/ProductCard.vue'
 import { useSession } from '../../../composables/useSession'
 import { getCategories, getCollections, getHomeData, getProducts } from '../../../services/catalogApi'
+import '../views/HomeView.css'
 
 const router = useRouter()
 const { user } = useSession()
+const HOME_FEATURED_PRODUCTS_LIMIT = 4
 
 const loading = ref(true)
 const errorMessage = ref('')
@@ -62,7 +64,8 @@ onMounted(async () => {
     const [homeRes, productsRes, categoriesRes, collectionsRes] = await Promise.all([
       getHomeData(),
       getProducts({
-        per_page: 6,
+        page: 1,
+        per_page: HOME_FEATURED_PRODUCTS_LIMIT,
         user_id: user.value?.id || undefined,
         user_email: user.value?.email || undefined,
       }),
@@ -71,7 +74,7 @@ onMounted(async () => {
     ])
 
     homeData.value = homeRes?.data || homeData.value
-    products.value = productsRes?.data?.products || []
+    products.value = (productsRes?.data?.products || []).slice(0, HOME_FEATURED_PRODUCTS_LIMIT)
     categories.value = categoriesRes?.data || []
     collections.value = collectionsRes?.data || []
   } catch {

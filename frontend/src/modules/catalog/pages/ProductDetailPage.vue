@@ -749,7 +749,7 @@ const stockQuantity = computed(() => Math.max(0, Number(activeSize.value?.quanti
 
 const quantityMax = computed(() => {
   if (stockQuantity.value <= 0) return 1
-  return Math.max(1, Math.min(stockQuantity.value, 10))
+  return Math.max(1, Math.floor(stockQuantity.value))
 })
 
 const isAddDisabled = computed(() => !activeSize.value || stockQuantity.value <= 0)
@@ -928,10 +928,21 @@ function normalizeQuantity() {
     return
   }
 
+  if (parsed > quantityMax.value) {
+    quantity.value = quantityMax.value
+    showQuantityLimitMessage()
+    return
+  }
+
   quantity.value = Math.min(parsed, quantityMax.value)
 }
 
 function changeQuantity(step) {
+  if (Number(step || 0) > 0 && Number(quantity.value || 1) >= quantityMax.value) {
+    showQuantityLimitMessage()
+    return
+  }
+
   const nextValue = Number(quantity.value || 1) + Number(step || 0)
   quantity.value = Math.max(1, Math.min(nextValue, quantityMax.value))
 }
@@ -954,6 +965,37 @@ function onImageError(event, originalPath, fallbackType = 'product') {
 
 function formatPrice(value) {
   return `$${Number(value || 0).toLocaleString('es-CO')}`
+}
+
+function showQuantityLimitMessage() {
+  const available = Math.max(0, Number(stockQuantity.value || 0))
+  if (available <= 0) {
+    infoMessage.value = 'La talla seleccionada no tiene unidades disponibles.'
+    showSnackbar({
+      type: 'warning',
+      title: 'Sin stock',
+      message: infoMessage.value,
+    })
+    return
+  }
+
+  const unitsLabel = available === 1 ? 'unidad' : 'unidades'
+  infoMessage.value = `Solo puedes agregar hasta ${available} ${unitsLabel} en este momento.`
+  showSnackbar({
+    type: 'warning',
+    title: 'Límite de cantidad',
+    message: infoMessage.value,
+  })
+}
+
+function extractErrorMessage(error, fallback) {
+  const apiError = String(error?.response?.data?.error || '').trim()
+  if (apiError) return apiError
+
+  const apiMessage = String(error?.response?.data?.message || '').trim()
+  if (apiMessage) return apiMessage
+
+  return fallback
 }
 
 async function loadData() {
@@ -1032,12 +1074,13 @@ async function addItemToCart() {
       message: 'El producto se agregó al carrito correctamente.',
     })
     return true
-  } catch {
-    infoMessage.value = 'No se pudo agregar al carrito.'
+  } catch (error) {
+    const message = extractErrorMessage(error, 'No se pudo agregar al carrito.')
+    infoMessage.value = message
     showSnackbar({
       type: 'error',
       title: 'No se pudo agregar',
-      message: 'Inténtalo nuevamente en unos segundos.',
+      message,
     })
     return false
   }

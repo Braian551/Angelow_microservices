@@ -1,7 +1,10 @@
 <template>
-  <aside class="admin-sidebar" :class="{ collapsed: collapsed, mobile: isMobile }">
+  <aside class="admin-sidebar" :class="{ collapsed: collapsed, mobile: isMobile }" :style="sidebarThemeStyle">
     <div class="sidebar-header">
-      <img :src="adminLogo" alt="Angelow Logo" class="admin-logo" @error="onLogoError">
+      <div class="admin-logo-shell">
+        <AdminShimmer v-if="showLogoShimmer" type="rect" width="4rem" height="4rem" radius="0.8rem" />
+        <img :src="adminLogo" alt="Angelow Logo" class="admin-logo" :class="{ 'is-ready': !showLogoShimmer }" @load="onLogoLoad" @error="onLogoError">
+      </div>
       <h1>Panel</h1>
       <button class="close-sidebar" @click="$emit('close')">&times;</button>
     </div>
@@ -141,7 +144,10 @@
 
     <div class="sidebar-footer">
       <div class="admin-profile">
-        <img :src="avatarUrl" alt="Foto de perfil" class="profile-avatar" @error="onAvatarError">
+        <div class="profile-avatar-shell">
+          <AdminShimmer v-if="showAvatarShimmer" type="circle" width="4rem" height="4rem" />
+          <img :src="avatarUrl" alt="Foto de perfil" class="profile-avatar" :class="{ 'is-ready': !showAvatarShimmer }" @load="onAvatarLoad" @error="onAvatarError">
+        </div>
         <div class="profile-info">
           <span class="profile-name">{{ user?.name || 'Administrador' }}</span>
           <span class="profile-email">{{ user?.email || '' }}</span>
@@ -164,6 +170,7 @@ import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { getFallbackMediaUrl, handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { useAdminNotifications } from '../composables/useAdminNotifications'
+import AdminShimmer from './AdminShimmer.vue'
 
 const props = defineProps({
   collapsed: Boolean,
@@ -178,6 +185,11 @@ const router = useRouter()
 const { clearSession } = useSession()
 const { showSnackbar } = useSnackbarSystem()
 const sidebarSettings = ref({})
+const sidebarLoading = ref(false)
+const logoLoaded = ref(false)
+const logoFailed = ref(false)
+const avatarLoaded = ref(false)
+const avatarFailed = ref(false)
 
 const {
   unreadByModule,
@@ -189,6 +201,8 @@ const {
 const orderNotificationsCount = computed(() => unreadByModule.value.orders || 0)
 const paymentNotificationsCount = computed(() => unreadByModule.value.payments || 0)
 const invoiceNotificationsCount = computed(() => unreadByModule.value.invoices || 0)
+const DEFAULT_PRIMARY_COLOR = '#0077b6'
+const DEFAULT_SECONDARY_COLOR = '#111111'
 
 const openMenus = reactive({
   productos: false,
@@ -201,21 +215,106 @@ const openMenus = reactive({
 
 const isDashboardActive = computed(() => route.path === '/admin' || route.name === 'admin-dashboard')
 
+const avatarPath = computed(() => {
+  return String(props.user?.image || '').trim()
+})
+
 const avatarUrl = computed(() => {
-  return resolveMediaUrl(props.user?.image, 'avatar')
+  return resolveMediaUrl(avatarPath.value, 'avatar')
+})
+
+const adminLogoPath = computed(() => {
+  return String(sidebarSettings.value?.brand_logo_secondary || sidebarSettings.value?.brand_logo || '').trim()
 })
 
 const adminLogo = computed(() => {
-  return resolveMediaUrl(sidebarSettings.value?.brand_logo_secondary || sidebarSettings.value?.brand_logo, 'brand')
+  return resolveMediaUrl(adminLogoPath.value, 'brand')
 })
 
+const showLogoShimmer = computed(() => {
+  if (sidebarLoading.value) return true
+  if (!adminLogoPath.value) return false
+  return !logoLoaded.value && !logoFailed.value
+})
+
+const showAvatarShimmer = computed(() => {
+  if (!avatarPath.value) return false
+  return !avatarLoaded.value && !avatarFailed.value
+})
+
+const sidebarThemeStyle = computed(() => {
+  const primary = normalizeHexColor(sidebarSettings.value?.primary_color, DEFAULT_PRIMARY_COLOR)
+  const secondary = normalizeHexColor(sidebarSettings.value?.secondary_color, DEFAULT_SECONDARY_COLOR)
+
+  return {
+    '--admin-sidebar-bg': secondary,
+    '--admin-sidebar-bg-soft': rgbaFromHex(secondary, 0.52),
+    '--admin-sidebar-footer-bg': darkenHex(secondary, 8),
+    '--admin-sidebar-accent': primary,
+    '--admin-sidebar-accent-soft': rgbaFromHex(primary, 0.2),
+    '--admin-sidebar-accent-strong': darkenHex(primary, 18),
+    '--admin-sidebar-scroll-track': rgbaFromHex(secondary, 0.7),
+    '--admin-sidebar-scroll-thumb': rgbaFromHex(primary, 0.72),
+    '--admin-sidebar-scroll-thumb-hover': primary,
+  }
+})
+
+function normalizeHexColor(value, fallback) {
+  const raw = String(value || '').trim()
+  const fullHexMatch = raw.match(/^#([0-9a-fA-F]{6})$/)
+  if (fullHexMatch) {
+    return `#${fullHexMatch[1].toLowerCase()}`
+  }
+
+  const shortHexMatch = raw.match(/^#([0-9a-fA-F]{3})$/)
+  if (shortHexMatch) {
+    const [r, g, b] = shortHexMatch[1].split('')
+    return `#${(r + r + g + g + b + b).toLowerCase()}`
+  }
+
+  return fallback
+}
+
+function hexToRgb(hexColor) {
+  const safeHex = normalizeHexColor(hexColor, DEFAULT_PRIMARY_COLOR).slice(1)
+  return {
+    r: Number.parseInt(safeHex.slice(0, 2), 16),
+    g: Number.parseInt(safeHex.slice(2, 4), 16),
+    b: Number.parseInt(safeHex.slice(4, 6), 16),
+  }
+}
+
+function rgbaFromHex(hexColor, alpha = 1) {
+  const { r, g, b } = hexToRgb(hexColor)
+  const safeAlpha = Math.max(0, Math.min(1, Number(alpha) || 0))
+  return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`
+}
+
+function darkenHex(hexColor, amount = 0) {
+  const { r, g, b } = hexToRgb(hexColor)
+  const safeAmount = Math.max(0, Math.min(100, Number(amount) || 0))
+  const factor = (100 - safeAmount) / 100
+  const toHex = (channel) => Math.round(channel * factor).toString(16).padStart(2, '0')
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+function onAvatarLoad() {
+  avatarLoaded.value = true
+}
+
 function onAvatarError(event) {
-  handleMediaError(event, props.user?.image, 'avatar')
+  avatarFailed.value = true
+  handleMediaError(event, avatarPath.value, 'avatar')
+}
+
+function onLogoLoad() {
+  logoLoaded.value = true
 }
 
 function onLogoError(event) {
-  const logoPath = sidebarSettings.value?.brand_logo_secondary || sidebarSettings.value?.brand_logo || ''
-  handleMediaError(event, logoPath, 'brand')
+  logoFailed.value = true
+  handleMediaError(event, adminLogoPath.value, 'brand')
 }
 
 function isActive(path) {
@@ -260,6 +359,7 @@ function handleNavigate() {
 }
 
 async function loadSidebarSettings() {
+  sidebarLoading.value = true
   try {
     const { data } = await catalogHttp.get('/settings')
     sidebarSettings.value = data?.data || {}
@@ -267,6 +367,8 @@ async function loadSidebarSettings() {
     sidebarSettings.value = {
       brand_logo_secondary: getFallbackMediaUrl('brand'),
     }
+  } finally {
+    sidebarLoading.value = false
   }
 }
 
@@ -288,6 +390,24 @@ watch(
   (nextPath) => {
     autoOpenSubmenu()
     markRouteNotificationsAsRead(nextPath)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => adminLogoPath.value,
+  () => {
+    logoLoaded.value = false
+    logoFailed.value = false
+  },
+  { immediate: true },
+)
+
+watch(
+  () => avatarPath.value,
+  () => {
+    avatarLoaded.value = false
+    avatarFailed.value = false
   },
   { immediate: true },
 )

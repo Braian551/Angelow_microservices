@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -67,7 +68,13 @@ class InternalCatalogController extends Controller
             return response()->json(['message' => 'Variante no encontrada'], 404);
         }
 
-        return response()->json(['data' => (array) $variant]);
+        $payload = (array) $variant;
+        $payload['quantity'] = $this->resolveRealtimeAvailableStock(
+            (int) $variant->id,
+            (int) ($payload['quantity'] ?? 0),
+        );
+
+        return response()->json(['data' => $payload]);
     }
 
     public function commitInventory(Request $request): JsonResponse
@@ -210,5 +217,27 @@ class InternalCatalogController extends Controller
         }
 
         return '';
+    }
+
+    private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
+    {
+        $safeFallback = max(0, $fallbackQuantity);
+
+        try {
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            if ($stockValue !== null && is_numeric((string) $stockValue)) {
+                return max(0, (int) $stockValue);
+            }
+
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
+                $reserved = max(0, (int) $reservedValue);
+                return max(0, $safeFallback - $reserved);
+            }
+        } catch (Throwable) {
+            // Fallback a inventario en base de datos si Redis no esta disponible.
+        }
+
+        return $safeFallback;
     }
 }

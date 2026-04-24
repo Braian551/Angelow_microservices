@@ -14,6 +14,60 @@
     height: 100%;
 }
 
+.hero-slider-loading {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.hero-slider-loading__media {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, #d9e1ea 20%, #edf2f7 40%, #d9e1ea 60%);
+    background-size: 220% 100%;
+    animation: heroShimmerSweep 1.35s ease-in-out infinite;
+}
+
+.hero-slider-loading__content {
+    position: absolute;
+    top: 50%;
+    left: 7%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(52rem, 82vw);
+    z-index: 2;
+}
+
+.hero-slider-loading__line {
+    display: block;
+    border-radius: 999px;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0.35) 15%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.35) 75%);
+    background-size: 220% 100%;
+    animation: heroShimmerSweep 1.35s ease-in-out infinite;
+}
+
+.hero-slider-loading__line--tag {
+    width: 8.5rem;
+    height: 2.2rem;
+}
+
+.hero-slider-loading__line--title {
+    width: min(32rem, 70vw);
+    height: 4.4rem;
+}
+
+.hero-slider-loading__line--subtitle {
+    width: min(27rem, 64vw);
+    height: 2.2rem;
+}
+
+.hero-slider-loading__line--cta {
+    width: 14.2rem;
+    height: 4rem;
+}
+
 /* ── Cada slide ── */
 .hero-slide {
     position: absolute;
@@ -28,12 +82,32 @@
     visibility: visible;
 }
 
+.hero-slide-media {
+    position: absolute;
+    inset: 0;
+}
+
 .hero-slide img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     object-position: center 30%;
     display: block;
+    opacity: 0;
+    transition: opacity 0.28s ease;
+}
+
+.hero-slide img.is-loaded {
+    opacity: 1;
+}
+
+.hero-slide-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, #d9e1ea 20%, #edf2f7 40%, #d9e1ea 60%);
+    background-size: 220% 100%;
+    animation: heroShimmerSweep 1.35s ease-in-out infinite;
+    z-index: 0;
 }
 
 /* ── Capa de gradiente sutil — sin efecto de caja, mantiene legibilidad ── */
@@ -58,7 +132,7 @@
     z-index: 1;
 }
 
-/* ── Contenido textual — neutraliza explícitamente los estilos del CSS legacy ── */
+/* ── Contenido textual del slider ── */
 .hero-content {
     position: absolute;
     top: 50%;
@@ -69,7 +143,7 @@
     z-index: 2;
     opacity: 0;
     pointer-events: none;
-    /* Neutraliza el cuadro del CSS legacy */
+    /* Mantiene el contenido limpio sobre la imagen */
     background: transparent;
     border: none;
     border-radius: 0;
@@ -78,7 +152,7 @@
     box-shadow: none;
 }
 
-/* Escudo anti-legacy: forza que el texto no tenga cuadro aunque style.css se cargue después */
+/* Refuerzo para mantener el contenido sin caja visual adicional */
 .hero-banner .hero-slider .hero-slide .hero-content.hero-content-clean {
     background: transparent !important;
     border: 0 !important;
@@ -203,6 +277,11 @@
 @keyframes heroProgress {
     from { width: 0%; }
     to   { width: 100%; }
+}
+
+@keyframes heroShimmerSweep {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
 }
 
 /* ── Dots de navegación ── */

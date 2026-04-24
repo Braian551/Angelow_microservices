@@ -34,7 +34,10 @@
       <p v-if="loading" class="loading-box cart-page-status">Cargando carrito...</p>
       <p v-else-if="errorMessage" class="error-box cart-page-status">{{ errorMessage }}</p>
 
-      <section v-else-if="cartItems.length === 0" class="cart-empty-state">
+      <template v-else>
+        <p v-if="actionMessage" class="error-box cart-page-status">{{ actionMessage }}</p>
+
+      <section v-if="cartItems.length === 0" class="cart-empty-state">
         <div class="cart-empty-icon">
           <i class="fas fa-shopping-cart" />
         </div>
@@ -174,6 +177,7 @@
           </div>
         </aside>
       </section>
+      </template>
     </section>
   </main>
 </template>
@@ -182,6 +186,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAppShell } from '../../../composables/useAppShell'
+import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useSession } from '../../../composables/useSession'
 import { getCart, removeCartItem, updateCartItem } from '../../../services/cartApi'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
@@ -194,30 +199,40 @@ const EMPTY_CART = {
 
 const { sessionId, user } = useSession()
 const { setCartCount } = useAppShell()
+const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
 const errorMessage = ref('')
+const actionMessage = ref('')
 const cart = ref({ ...EMPTY_CART })
 
 const cartItems = computed(() => (Array.isArray(cart.value?.items) ? cart.value.items : []))
 const orderSubtotal = computed(() => Number(cart.value?.subtotal || 0))
+
+function buildCartQuery() {
+  return {
+    user_id: user.value?.id || undefined,
+    session_id: user.value?.id ? undefined : sessionId.value,
+  }
+}
+
+async function syncCartState() {
+  const cartRes = await getCart(buildCartQuery())
+
+  const nextCart = cartRes?.data
+  cart.value = nextCart && typeof nextCart === 'object'
+    ? { ...EMPTY_CART, ...nextCart }
+    : { ...EMPTY_CART }
+
+  setCartCount(cart.value.item_count || 0)
+}
 
 async function loadCart() {
   loading.value = true
   errorMessage.value = ''
 
   try {
-    const cartRes = await getCart({
-      user_id: user.value?.id || undefined,
-      session_id: user.value?.id ? undefined : sessionId.value,
-    })
-
-    const nextCart = cartRes?.data
-    cart.value = nextCart && typeof nextCart === 'object'
-      ? { ...EMPTY_CART, ...nextCart }
-      : { ...EMPTY_CART }
-
-    setCartCount(cart.value.item_count || 0)
+    await syncCartState()
   } catch {
     errorMessage.value = 'No se pudo cargar el carrito.'
     cart.value = { ...EMPTY_CART }
@@ -228,22 +243,51 @@ async function loadCart() {
 }
 
 async function onQuantityChange(item) {
-  const nextQuantity = Math.max(1, Number.parseInt(item.quantity, 10) || 1)
+  const nextQuantity = Math.max(1, Math.min(Number.parseInt(item.quantity, 10) || 1, maxQuantityForItem(item)))
+  item.quantity = nextQuantity
 
   try {
     await updateCartItem(item.item_id, nextQuantity)
-    await loadCart()
-  } catch {
-    errorMessage.value = 'No se pudo actualizar la cantidad.'
+    await syncCartState()
+    actionMessage.value = ''
+  } catch (error) {
+    const message = extractErrorMessage(error, 'No se pudo actualizar la cantidad.')
+    actionMessage.value = message
+    showSnackbar({ type: 'warning', title: 'Cantidad no actualizada', message })
+
+    try {
+      await syncCartState()
+    } catch {
+      errorMessage.value = 'No se pudo sincronizar el carrito.'
+    }
   }
 }
 
 function onQuantityInput(item, event) {
-  item.quantity = Math.max(1, Number.parseInt(event?.target?.value, 10) || Number(item.quantity || 1))
+  item.quantity = Math.max(
+    1,
+    Math.min(Number.parseInt(event?.target?.value, 10) || Number(item.quantity || 1), maxQuantityForItem(item)),
+  )
   onQuantityChange(item)
 }
 
 function increaseQuantity(item) {
+  const availableStock = Math.max(0, Number(item.available_stock || 0))
+  if (availableStock <= 0) {
+    const message = 'La variante seleccionada no tiene stock disponible.'
+    actionMessage.value = message
+    showSnackbar({ type: 'warning', title: 'Sin stock', message })
+    return
+  }
+
+  const maxQuantity = maxQuantityForItem(item)
+  if (Number(item.quantity || 1) >= maxQuantity) {
+    const message = `Solo hay ${availableStock} unidades disponibles en este momento.`
+    actionMessage.value = message
+    showSnackbar({ type: 'warning', title: 'Límite de stock', message })
+    return
+  }
+
   item.quantity = Number(item.quantity || 1) + 1
   onQuantityChange(item)
 }
@@ -256,9 +300,12 @@ function decreaseQuantity(item) {
 async function deleteItem(itemId) {
   try {
     await removeCartItem(itemId)
-    await loadCart()
-  } catch {
-    errorMessage.value = 'No se pudo eliminar el producto.'
+    await syncCartState()
+    actionMessage.value = ''
+  } catch (error) {
+    const message = extractErrorMessage(error, 'No se pudo eliminar el producto.')
+    actionMessage.value = message
+    showSnackbar({ type: 'error', title: 'No se pudo eliminar', message })
   }
 }
 
@@ -271,6 +318,17 @@ function itemTotal(item) {
   if (Number.isFinite(total) && total > 0) return total
 
   return Number(item.price || 0) * Number(item.quantity || 1)
+}
+
+function maxQuantityForItem(item) {
+  const available = Number(item?.available_stock ?? 0)
+  const current = Math.max(1, Number(item?.quantity || 1))
+
+  if (!Number.isFinite(available) || available <= 0) {
+    return current
+  }
+
+  return Math.max(1, Math.floor(available))
 }
 
 function productRoute(item) {
@@ -288,6 +346,16 @@ function formatPrice(value) {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(Number(value || 0))
+}
+
+function extractErrorMessage(error, fallback) {
+  const apiError = String(error?.response?.data?.error || '').trim()
+  if (apiError) return apiError
+
+  const apiMessage = String(error?.response?.data?.message || '').trim()
+  if (apiMessage) return apiMessage
+
+  return fallback
 }
 
 onMounted(loadCart)

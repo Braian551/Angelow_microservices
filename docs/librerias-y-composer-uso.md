@@ -89,6 +89,23 @@ Este archivo centraliza las dependencias agregadas/usadas para tareas funcionale
   - `GET /api/admin/invoices/{id}/download`: descarga PDF de factura.
   - `POST /api/admin/invoices/{id}/resend`: reenvía factura al correo del cliente.
 
+## 2026-04-20 - Ajustes UI buscador/admin/perfil (sin dependencias nuevas)
+
+- Tipo: registro de control (sin cambios de dependencias)
+- Paquete/version: no aplica
+- Motivo: correcciones de UI/UX y búsqueda en frontend sin instalar ni actualizar librerías.
+- Comando usado: no aplica
+- Archivos donde se aplica:
+  - `frontend/src/modules/admin/components/AdminHeader.vue`
+  - `frontend/src/modules/admin/pages/AdminAdministratorsPage.vue`
+  - `frontend/src/modules/catalog/views/ProductDetailView.css`
+  - `docs/patrones-diseno-admin-buscador-avatar-producto-2026-04-20.md`
+- Contexto funcional:
+  - Se corrigió búsqueda tolerante a acentos/sinónimos en header admin.
+  - Se corrigió visualización de Último acceso.
+  - Se mejoró UI de cambio de foto en modal de administradores.
+  - Se refinó el botón Volver en detalle de producto.
+
 ## Plantilla para futuras entradas
 
 - Fecha:

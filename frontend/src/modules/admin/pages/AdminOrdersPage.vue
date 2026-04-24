@@ -26,7 +26,7 @@
               <option value="created">Creada</option>
               <option value="pending">Pendiente</option>
               <option value="pending_payment">Pendiente de pago</option>
-              <option value="in_review">En revision</option>
+              <option value="in_review">En revisión</option>
               <option value="processing">En proceso</option>
               <option value="shipped">Enviado</option>
               <option value="delivered">Entregado</option>
@@ -277,7 +277,7 @@
             <option value="created">Creada</option>
             <option value="pending">Pendiente</option>
             <option value="pending_payment">Pendiente de pago</option>
-            <option value="in_review">En revision</option>
+            <option value="in_review">En revisión</option>
             <option value="processing">En proceso</option>
             <option value="shipped">Enviado</option>
             <option value="delivered">Entregado</option>
@@ -385,7 +385,7 @@
             <option value="created">Creada</option>
             <option value="pending">Pendiente</option>
             <option value="pending_payment">Pendiente de pago</option>
-            <option value="in_review">En revision</option>
+            <option value="in_review">En revisión</option>
             <option value="processing">En proceso</option>
             <option value="shipped">Enviado</option>
             <option value="delivered">Entregado</option>
@@ -574,6 +574,9 @@ function findOrderBySelectionKey(selectionKey) {
 }
 
 function normalizeOrder(rawOrder) {
+  const resolvedCustomerName = rawOrder.user_name || rawOrder.customer_name || rawOrder.billing_name || ''
+  const resolvedCustomerEmail = rawOrder.user_email || rawOrder.customer_email || rawOrder.billing_email || ''
+
   return {
     ...rawOrder,
     id: Number(rawOrder.id),
@@ -581,8 +584,8 @@ function normalizeOrder(rawOrder) {
     order_number: rawOrder.order_number || `#${rawOrder.id}`,
     status: rawOrder.status || rawOrder.order_status || 'pending',
     payment_status: rawOrder.payment_status || 'pending',
-    customer_name: rawOrder.user_name || rawOrder.customer_name || rawOrder.billing_name || 'Cliente',
-    customer_email: rawOrder.user_email || rawOrder.customer_email || rawOrder.billing_email || '',
+    customer_name: resolvedCustomerName || (rawOrder.user_id ? `Cliente ${rawOrder.user_id}` : 'Cliente'),
+    customer_email: resolvedCustomerEmail,
     total: Number(rawOrder.total || 0),
   }
 }

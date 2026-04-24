@@ -57,9 +57,9 @@
     <!-- Barra de resultados -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} clientes`">
       <template #actions>
-        <button class="btn-icon" type="button" @click="exportCustomers">
-          <i class="fas fa-file-export"></i>
-          Exportar
+        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportCustomers">
+          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
+          <span>Exportar CSV</span>
         </button>
       </template>
     </AdminResultsBar>
@@ -204,10 +204,10 @@
               </div>
             </AdminCard>
 
-            <AdminCard title="Segmentacion" icon="fas fa-bullseye" style="margin-top: 1.2rem;">
+            <AdminCard title="Segmentación" icon="fas fa-bullseye" style="margin-top: 1.2rem;">
               <div class="admin-detail-summary">
                 <div class="admin-detail-row"><span>Tipo</span><strong>{{ customerSegmentLabel(selectedCustomer) }}</strong></div>
-                <div class="admin-detail-row"><span>Recompra</span><strong>{{ selectedCustomer.orders_count > 1 ? 'Si' : 'No' }}</strong></div>
+                <div class="admin-detail-row"><span>Recompra</span><strong>{{ selectedCustomer.orders_count > 1 ? 'Sí' : 'No' }}</strong></div>
                 <div class="admin-detail-row"><span>Ticket promedio</span><strong>{{ formatCurrency(selectedCustomer.average_ticket) }}</strong></div>
               </div>
             </AdminCard>
@@ -342,7 +342,7 @@ const hubStatsFormatted = computed(() => {
 
   return [
     { key: 'total', label: 'Total clientes', value: String(visibleCustomers.length), icon: 'fas fa-users', color: 'primary' },
-    { key: 'new', label: 'Nuevos (30 dias)', value: String(visibleCustomers.filter((customer) => isWithinLastDays(customer.created_at, 30)).length), icon: 'fas fa-user-plus', color: 'info' },
+    { key: 'new', label: 'Nuevos (30 días)', value: String(visibleCustomers.filter((customer) => isWithinLastDays(customer.created_at, 30)).length), icon: 'fas fa-user-plus', color: 'info' },
     { key: 'repeat', label: 'Tasa de recompra', value: `${repeatRate}%`, icon: 'fas fa-arrows-rotate', color: 'warning' },
     { key: 'ltv', label: 'LTV promedio', value: formatCurrency(ltvAverage), icon: 'fas fa-sack-dollar', color: 'success' },
     { key: 'active', label: 'Activos', value: String(visibleCustomers.filter((customer) => !customer.is_blocked).length), icon: 'fas fa-user-check', color: 'primary' },

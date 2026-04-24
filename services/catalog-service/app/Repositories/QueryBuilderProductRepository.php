@@ -4,7 +4,10 @@ namespace App\Repositories;
 
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Query Builder implementation of the Product repository.
@@ -32,16 +35,23 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
 
         // Fallback legacy durante migración cuando la base distribuida no tenga productos aún.
         if (($result['total'] ?? 0) === 0) {
-            $legacyResult = $this->runFilteredQueryByConnection(
-                'legacy_mysql',
-                $filters,
-                $limit,
-                $offset,
-                $userId,
-            );
+            try {
+                $legacyResult = $this->runFilteredQueryByConnection(
+                    'legacy_mysql',
+                    $filters,
+                    $limit,
+                    $offset,
+                    $userId,
+                );
 
-            if (($legacyResult['total'] ?? 0) > 0) {
-                $result = $legacyResult;
+                if (($legacyResult['total'] ?? 0) > 0) {
+                    $result = $legacyResult;
+                }
+            } catch (Throwable $exception) {
+                Log::warning('No se pudo consultar el fallback de catálogo desde legacy.', [
+                    'error' => $exception->getMessage(),
+                    'filters' => $filters,
+                ]);
             }
         }
 
@@ -101,16 +111,12 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         }
 
         if (!empty($filters['gender'])) {
-            $gender = mb_strtolower((string) $filters['gender']);
-            $genderKey = Str::ascii($gender);
-            $genderOptions = match ($genderKey) {
-                'nina' => ['nina', 'niña'],
-                'nino' => ['nino', 'niño'],
-                'bebe', 'bebes' => ['bebe', 'bebé', 'bebes', 'bebés'],
-                default => [(string) $filters['gender']],
-            };
-
-            $query->whereIn('p.gender', $genderOptions);
+            $genderCriteria = $this->resolveGenderSearchCriteria((string) $filters['gender']);
+            $query->where(function ($genderQuery) use ($genderCriteria, $searchOperator) {
+                foreach ($genderCriteria as $criterion) {
+                    $genderQuery->orWhere('p.gender', $searchOperator, $criterion);
+                }
+            });
         }
 
         if (isset($filters['min_price']) && $filters['min_price'] !== null) {
@@ -148,6 +154,25 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             'products' => array_map(fn($product) => (array) $product, $products),
             'total' => (int) $total,
         ];
+    }
+
+    /**
+     * Normaliza filtros de género para soportar variantes con acentos/plurales y valores mojibake heredados.
+     */
+    private function resolveGenderSearchCriteria(string $rawGender): array
+    {
+        $normalized = mb_strtolower(trim($rawGender));
+        $genderKey = Str::ascii($normalized);
+
+        $criteria = match ($genderKey) {
+            // Patrones tolerantes para cubrir nina/nino incluso cuando llegan con bytes degradados.
+            'nina', 'ninas' => ['%ni%a%', '%nina%', '%niña%', '%niÃ±a%', '%niñas%', '%niÃ±as%'],
+            'nino', 'ninos' => ['%ni%o%', '%nino%', '%niño%', '%niÃ±o%', '%niños%', '%niÃ±os%'],
+            'bebe', 'bebes' => ['%be%b%', '%bebe%', '%bebé%', '%bebes%', '%bebés%', '%bebÃ©%', '%bebÃ©s%'],
+            default => ["%{$normalized}%", '%' . Str::ascii($normalized) . '%'],
+        };
+
+        return array_values(array_unique(array_filter($criteria, static fn ($value) => trim((string) $value) !== '')));
     }
 
     /**
@@ -224,6 +249,11 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
 
             $sizes = [];
             foreach ($sizeVariants as $sv) {
+                $effectiveQuantity = $this->resolveRealtimeAvailableStock(
+                    (int) $sv->id,
+                    (int) ($sv->quantity ?? 0),
+                );
+
                 $sizes[$sv->size_id] = [
                     'size_id'       => $sv->size_id,
                     'size_name'     => $sv->size_name,
@@ -231,7 +261,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
                     'sku'           => $sv->sku,
                     'price'         => $sv->price,
                     'compare_price' => $sv->compare_price,
-                    'quantity'      => $sv->quantity,
+                    'quantity'      => $effectiveQuantity,
                 ];
             }
 
@@ -434,6 +464,32 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         }
 
         return $questions;
+    }
+
+    /**
+     * Normaliza la ruta del avatar para mantener compatibilidad con legacy.
+     */
+    private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
+    {
+        $safeFallback = max(0, $fallbackQuantity);
+
+        try {
+            // Redis mantiene stock en tiempo real incluyendo reservas temporales.
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            if ($stockValue !== null && is_numeric((string) $stockValue)) {
+                return max(0, (int) $stockValue);
+            }
+
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
+                $reserved = max(0, (int) $reservedValue);
+                return max(0, $safeFallback - $reserved);
+            }
+        } catch (Throwable) {
+            // Si Redis no responde, se conserva el stock de base de datos.
+        }
+
+        return $safeFallback;
     }
 
     /**

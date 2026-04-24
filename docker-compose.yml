@@ -212,6 +212,7 @@ services:
       CACHE_STORE: redis
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
     depends_on:
       - catalog-db
       - redis
@@ -277,6 +278,8 @@ services:
       CATALOG_SERVICE_URL: http://catalog-service:8000/api
       CATALOG_VARIANT_PATH: /internal/variants
       CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
       ORDER_STOCK_RESERVATION_TTL: 7200
       ORDER_STOCK_LOCK_SECONDS: 10
       ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
@@ -328,6 +331,8 @@ services:
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
     depends_on:
       - payment-db
       - redis

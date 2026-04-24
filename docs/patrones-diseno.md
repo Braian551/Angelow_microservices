@@ -1,5 +1,14 @@
 # Patrones de diseño aplicados
 
+## 2026-04-24 - Migracion de CSS legacy al flujo real frontend
+
+- Patron: Facade + Adapter + composicion por vista
+- Aplicacion: se reemplazaron imports `/legacy/...` por estilos locales en `src/styles`, se acotaron colisiones entre CSS global y detalle de producto, y se consolidaron estilos de Home en su vista real.
+- Ubicacion: frontend/src/styles/main.css, frontend/src/styles/style.css, frontend/src/styles/productos.css, frontend/src/styles/announcements.css, frontend/src/modules/catalog/views/ProductDetailView.css, frontend/src/modules/home/views/HomeView.css, frontend/src/modules/home/pages/HomePage.vue
+- Problema resuelto: eliminar duplicidad de fuentes de estilo, retirar carpeta `frontend/public/legacy` y mantener estabilidad visual en Home/Store/Detalle.
+- Referencia detallada:
+	docs/patrones-diseno-frontend-legacy-css-migracion-2026-04-24.md
+
 ## 2026-04-18 - Persistencia robusta de direcciones ante caida de legacy
 
 - Patron: Chain of Responsibility (Refactoring Guru)

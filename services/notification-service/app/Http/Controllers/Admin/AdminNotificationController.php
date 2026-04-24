@@ -19,6 +19,43 @@ class AdminNotificationController extends Controller
 
     // ── Anuncios ────────────────────────────────────────────
 
+    public function homeAnnouncements(): JsonResponse
+    {
+        $baseQuery = $this->activeAnnouncementsQuery();
+
+        if (!$baseQuery) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'top_bar' => null,
+                    'promo_banner' => null,
+                ],
+            ]);
+        }
+
+        $topBar = (clone $baseQuery)
+            ->whereIn('type', ['top_bar', 'bar'])
+            ->orderByDesc('priority')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $promoBanner = (clone $baseQuery)
+            ->whereIn('type', ['promo_banner', 'banner'])
+            ->orderByDesc('priority')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'top_bar' => $topBar ? $this->transformAnnouncement($topBar) : null,
+                'promo_banner' => $promoBanner ? $this->transformAnnouncement($promoBanner) : null,
+            ],
+        ]);
+    }
+
     public function announcements(): JsonResponse
     {
         $query = $this->announcementsQuery();
@@ -30,6 +67,7 @@ class AdminNotificationController extends Controller
         $items = $query
             ->orderByDesc('priority')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get()
             ->map(fn ($item) => $this->transformAnnouncement($item));
 
@@ -123,6 +161,25 @@ class AdminNotificationController extends Controller
         }
 
         return null;
+    }
+
+    private function activeAnnouncementsQuery(): ?Builder
+    {
+        $query = $this->announcementsQuery();
+        if (!$query) {
+            return null;
+        }
+
+        return $query
+            ->where('is_active', true)
+            ->where(function ($builder) {
+                $builder->whereNull('start_date')
+                    ->orWhere('start_date', '<=', now());
+            })
+            ->where(function ($builder) {
+                $builder->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            });
     }
 
     private function buildAnnouncementPayload(Request $request, bool $partial, object|null $current = null): array
@@ -286,12 +343,17 @@ class AdminNotificationController extends Controller
 
     private function transformAnnouncement(object $item): array
     {
+        $message = trim((string) ($item->message ?? ''));
+        if ($message === '') {
+            $message = trim((string) ($item->title ?? ''));
+        }
+
         return [
             'id' => $item->id,
             'type' => $item->type,
             'title' => $item->title,
-            'message' => $item->message,
-            'content' => $item->message,
+            'message' => $message !== '' ? $message : null,
+            'content' => $message !== '' ? $message : null,
             'subtitle' => $item->subtitle,
             'button_text' => $item->button_text,
             'button_link' => $item->button_link,

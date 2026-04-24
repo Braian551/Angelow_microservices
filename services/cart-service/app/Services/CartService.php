@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Repositories\Contracts\CartRepositoryInterface;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Redis;
+use Throwable;
 
 /**
  * Cart Service
@@ -39,8 +41,13 @@ class CartService
             throw new \InvalidArgumentException('La variante de color no coincide con la variante de tamano seleccionada');
         }
 
-        if ((int) ($variant['quantity'] ?? 0) < $quantity) {
-            throw new \InvalidArgumentException('No hay suficiente stock disponible');
+        $availableStock = $this->resolveRealtimeAvailableStock(
+            $sizeVariantId,
+            (int) ($variant['quantity'] ?? 0),
+        );
+
+        if ($availableStock < $quantity) {
+            throw new \InvalidArgumentException($this->buildOutOfStockMessage($availableStock));
         }
 
         $cartId = $this->cartRepository->getOrCreateCart($userId, $sessionId);
@@ -48,8 +55,8 @@ class CartService
 
         if ($existing) {
             $newQuantity = $existing->quantity + $quantity;
-            if ((int) ($variant['quantity'] ?? 0) < $newQuantity) {
-                throw new \InvalidArgumentException('No hay suficiente stock disponible para la cantidad solicitada');
+            if ($availableStock < $newQuantity) {
+                throw new \InvalidArgumentException($this->buildOutOfStockMessage($availableStock));
             }
             $this->cartRepository->updateItemQuantity($existing->id, $newQuantity);
         } else {
@@ -114,7 +121,10 @@ class CartService
                 'product_image' => $productImage,
                 'price' => (float) ($variant['price'] ?? 0),
                 'compare_price' => isset($variant['compare_price']) ? (float) $variant['compare_price'] : null,
-                'available_stock' => (int) ($variant['quantity'] ?? 0),
+                'available_stock' => $this->resolveRealtimeAvailableStock(
+                    $sizeVariantId,
+                    (int) ($variant['quantity'] ?? 0),
+                ),
                 'size_name' => $variant['size_name'] ?? null,
                 'color_name' => $variant['color_name'] ?? null,
                 'color_hex' => $variant['color_hex'] ?? null,
@@ -151,9 +161,14 @@ class CartService
         }
 
         $variant = $this->fetchVariantData((int) $item->size_variant_id);
-        $stock = (int) ($variant['quantity'] ?? 0);
-        if ($stock < $quantity) {
-            throw new \InvalidArgumentException('No hay suficiente stock disponible');
+        $availableStock = $this->resolveRealtimeAvailableStock(
+            (int) $item->size_variant_id,
+            (int) ($variant['quantity'] ?? 0),
+        );
+
+        $currentQuantity = (int) ($item->quantity ?? 0);
+        if ($quantity > $currentQuantity && $availableStock < $quantity) {
+            throw new \InvalidArgumentException($this->buildOutOfStockMessage($availableStock));
         }
 
         $this->cartRepository->updateItemQuantity($itemId, $quantity);
@@ -200,5 +215,33 @@ class CartService
     private function catalogBaseUrl(): string
     {
         return rtrim((string) env('CATALOG_API_URL', 'http://localhost:8002/api'), '/');
+    }
+
+    private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
+    {
+        $safeFallback = max(0, $fallbackQuantity);
+
+        try {
+            // Redis guarda el stock disponible en tiempo real para checkout.
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            if ($stockValue !== null && is_numeric((string) $stockValue)) {
+                return max(0, (int) $stockValue);
+            }
+
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
+                $reserved = max(0, (int) $reservedValue);
+                return max(0, $safeFallback - $reserved);
+            }
+        } catch (Throwable) {
+            // Si Redis falla, se mantiene el inventario calculado por catalog-service.
+        }
+
+        return $safeFallback;
+    }
+
+    private function buildOutOfStockMessage(int $availableStock): string
+    {
+        return "Stock insuficiente. Disponible en este momento: {$availableStock}.";
     }
 }

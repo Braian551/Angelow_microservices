@@ -48,7 +48,7 @@ WHERE table_schema = 'public';
 docker compose up -d --build
 docker compose ps
 ```
-![1776440031278](image/README/1776440031278.png)
+
 ## Ejecutar migraciones
 
 ```bash

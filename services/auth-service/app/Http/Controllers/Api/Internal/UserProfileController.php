@@ -34,12 +34,14 @@ class UserProfileController extends Controller
 
         $users = User::query()
             ->whereIn('id', $userIds)
-            ->get(['id', 'name', 'image']);
+            ->get(['id', 'name', 'email', 'phone', 'image']);
 
         $profiles = $users->map(function (User $user): array {
             return [
                 'id' => (string) $user->id,
                 'name' => $this->resolveUserName($user->name, $user->id),
+                'email' => $this->normalizeUserEmail($user->email),
+                'phone' => $this->normalizeUserPhone($user->phone),
                 'image' => $this->normalizeUserImagePath($user->image),
             ];
         })->values();
@@ -129,5 +131,27 @@ class UserProfileController extends Controller
         }
 
         return 'uploads/users/' . $cleanPath;
+    }
+
+    /**
+     * Normaliza correo visible para consumo interno entre servicios.
+     */
+    private function normalizeUserEmail(?string $email): ?string
+    {
+        $cleanEmail = trim((string) $email);
+        if ($cleanEmail === '' || !filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return $cleanEmail;
+    }
+
+    /**
+     * Normaliza teléfono y evita retornar valores vacíos.
+     */
+    private function normalizeUserPhone(?string $phone): ?string
+    {
+        $cleanPhone = trim((string) $phone);
+        return $cleanPhone === '' ? null : $cleanPhone;
     }
 }

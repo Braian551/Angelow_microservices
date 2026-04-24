@@ -44,6 +44,11 @@ return [
         'store_url' => env('FRONTEND_URL', 'http://localhost:5173'),
     ],
 
+    'auth' => [
+        'base_url' => env('AUTH_SERVICE_URL', 'http://auth-service:8000/api'),
+        'internal_token' => env('AUTH_INTERNAL_TOKEN', ''),
+    ],
+
     'catalog' => [
         'base_url' => env('CATALOG_SERVICE_URL', 'http://catalog-service:8000/api'),
         'variant_path' => env('CATALOG_VARIANT_PATH', '/internal/variants'),

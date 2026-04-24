@@ -18,9 +18,10 @@
           autocomplete="off"
           spellcheck="false"
           @input="handleSearch"
+          @keydown.enter.prevent="submitSearch"
           @keydown.escape="closeSearch"
         >
-        <button type="button" aria-label="Buscar">
+        <button type="button" aria-label="Buscar" @click="submitSearch">
           <i class="fas fa-search"></i>
         </button>
         <div v-if="showResults" class="search-results-panel">
@@ -174,6 +175,44 @@ const quickActions = [
   { id: 'view-reports', icon: 'fa-chart-bar', label: 'Ver informes', description: 'Estadísticas de ventas', path: '/admin/informes/ventas' },
 ]
 
+const searchableModules = [
+  { title: 'Dashboard', subtitle: 'Panel de control', url: '/admin', icon: 'fas fa-tachometer-alt', keywords: ['inicio', 'resumen', 'panel'] },
+  { title: 'Productos', subtitle: 'Gestión de productos', url: '/admin/productos', icon: 'fas fa-tshirt', keywords: ['producto', 'productos', 'inventario'] },
+  { title: 'Órdenes', subtitle: 'Gestión de pedidos', url: '/admin/ordenes', icon: 'fas fa-shopping-bag', keywords: ['orden', 'ordenes', 'pedido', 'pedidos', 'compras'] },
+  { title: 'Clientes', subtitle: 'Gestión de clientes', url: '/admin/clientes', icon: 'fas fa-users', keywords: ['cliente', 'clientes', 'usuarios'] },
+  { title: 'Categorías', subtitle: 'Categorías de productos', url: '/admin/categorias', icon: 'fas fa-folder-open', keywords: ['categoria', 'categorias'] },
+  { title: 'Colecciones', subtitle: 'Colecciones de productos', url: '/admin/colecciones', icon: 'fas fa-layer-group', keywords: ['coleccion', 'colecciones'] },
+  { title: 'Pagos', subtitle: 'Configuración de pagos', url: '/admin/pagos', icon: 'fas fa-money-bill-wave', keywords: ['pago', 'pagos', 'comprobante'] },
+  { title: 'Facturas', subtitle: 'Facturas generadas automáticamente', url: '/admin/facturas', icon: 'fas fa-file-invoice-dollar', keywords: ['factura', 'facturas'] },
+  { title: 'Descuentos', subtitle: 'Códigos y descuentos', url: '/admin/descuentos/codigos', icon: 'fas fa-percentage', keywords: ['descuento', 'descuentos', 'cupon', 'cupones'] },
+  { title: 'Envíos', subtitle: 'Métodos de envío', url: '/admin/envios/metodos', icon: 'fas fa-truck', keywords: ['envio', 'envios', 'domicilio'] },
+  { title: 'Anuncios', subtitle: 'Gestión de anuncios', url: '/admin/anuncios', icon: 'fas fa-bullhorn', keywords: ['anuncio', 'anuncios', 'campana'] },
+  { title: 'Informes', subtitle: 'Reportes y estadísticas', url: '/admin/informes/ventas', icon: 'fas fa-chart-line', keywords: ['reporte', 'reportes', 'informe', 'informes', 'estadisticas'] },
+  { title: 'Administradores', subtitle: 'Gestión de administradores', url: '/admin/administradores', icon: 'fas fa-user-shield', keywords: ['admin', 'administrador', 'administradores', 'usuarios'] },
+]
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function runSearch(query) {
+  const normalizedQuery = normalizeSearchText(query)
+  if (normalizedQuery.length < 2) return []
+
+  return searchableModules
+    .filter((module) => {
+      const haystack = [module.title, module.subtitle, module.url, ...(module.keywords || [])]
+        .map((entry) => normalizeSearchText(entry))
+        .join(' ')
+      return haystack.includes(normalizedQuery)
+    })
+    .map((module) => ({ ...module, id: module.url }))
+}
+
 function handleSearch() {
   clearTimeout(searchTimeout)
   if (searchQuery.value.length < 2) {
@@ -183,34 +222,40 @@ function handleSearch() {
   }
   showResults.value = true
   searching.value = true
-  searchTimeout = setTimeout(async () => {
-    // Búsqueda local en rutas/módulos del admin
-    const q = searchQuery.value.toLowerCase()
-    const modules = [
-      { title: 'Dashboard', subtitle: 'Panel de control', url: '/admin', icon: 'fas fa-tachometer-alt' },
-      { title: 'Productos', subtitle: 'Gestión de productos', url: '/admin/productos', icon: 'fas fa-tshirt' },
-      { title: 'Órdenes', subtitle: 'Gestión de pedidos', url: '/admin/ordenes', icon: 'fas fa-shopping-bag' },
-      { title: 'Clientes', subtitle: 'Gestión de clientes', url: '/admin/clientes', icon: 'fas fa-users' },
-      { title: 'Categorías', subtitle: 'Categorías de productos', url: '/admin/categorias', icon: 'fas fa-folder-open' },
-      { title: 'Colecciones', subtitle: 'Colecciones de productos', url: '/admin/colecciones', icon: 'fas fa-layer-group' },
-      { title: 'Pagos', subtitle: 'Configuración de pagos', url: '/admin/pagos', icon: 'fas fa-money-bill-wave' },
-      { title: 'Facturas', subtitle: 'Facturas generadas automáticamente', url: '/admin/facturas', icon: 'fas fa-file-invoice-dollar' },
-      { title: 'Descuentos', subtitle: 'Códigos y descuentos', url: '/admin/descuentos/codigos', icon: 'fas fa-percentage' },
-      { title: 'Envíos', subtitle: 'Métodos de envío', url: '/admin/envios/metodos', icon: 'fas fa-truck' },
-      { title: 'Anuncios', subtitle: 'Gestión de anuncios', url: '/admin/anuncios', icon: 'fas fa-bullhorn' },
-      { title: 'Informes', subtitle: 'Reportes y estadísticas', url: '/admin/informes/ventas', icon: 'fas fa-chart-line' },
-      { title: 'Administradores', subtitle: 'Gestión de administradores', url: '/admin/administradores', icon: 'fas fa-user-shield' },
-    ]
-    searchResults.value = modules
-      .filter(m => m.title.toLowerCase().includes(q) || m.subtitle.toLowerCase().includes(q))
-      .map((m, i) => ({ ...m, id: i }))
+  searchTimeout = setTimeout(() => {
+    searchResults.value = runSearch(searchQuery.value)
     searching.value = false
-  }, 300)
+  }, 220)
+}
+
+function submitSearch() {
+  if (searchQuery.value.length < 2) {
+    showResults.value = searchQuery.value.length > 0
+    searchResults.value = []
+    return
+  }
+
+  clearTimeout(searchTimeout)
+  showResults.value = true
+  searching.value = false
+  searchResults.value = runSearch(searchQuery.value)
+
+  const firstResult = searchResults.value[0]
+  if (!firstResult) return
+
+  const currentPath = router.currentRoute.value?.path || ''
+  if (currentPath !== firstResult.url) {
+    router.push(firstResult.url)
+  }
+  closeSearch()
 }
 
 function closeSearch() {
+  clearTimeout(searchTimeout)
   showResults.value = false
   searchQuery.value = ''
+  searchResults.value = []
+  searching.value = false
 }
 
 function toggleNotifications() {

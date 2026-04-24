@@ -27,6 +27,7 @@ class OrderController extends Controller
     private const RELEASE_RESERVATION_STATUS_VALUES = ['cancelled', 'canceled', 'rejected', 'failed', 'expired'];
     private const CONFIRM_RESERVATION_PAYMENT_VALUES = ['paid', 'approved', 'verified'];
     private const RELEASE_RESERVATION_PAYMENT_VALUES = ['rejected', 'failed', 'cancelled', 'canceled'];
+    private array $authProfilesById = [];
 
     public function __construct(
         private readonly OrderInvoiceService $orderInvoiceService,
@@ -393,36 +394,6 @@ class OrderController extends Controller
             return response()->json(['message' => 'No existe columna de estado en la orden'], 422);
         }
 
-        if ($this->supportsReservationWorkflow($sourceConnection)) {
-            $releaseResult = $this->stockReservationService->releaseReservation(
-                orderId: $id,
-                targetStatus: 'cancelled',
-                reason: 'order_deactivated',
-            );
-
-            if (!($releaseResult['ok'] ?? false)) {
-                return response()->json([
-                    'message' => $releaseResult['message'] ?? 'No fue posible liberar la reserva de inventario.',
-                    'code' => $releaseResult['code'] ?? 'reservation_release_failed',
-                ], (int) ($releaseResult['http_status'] ?? 422));
-            }
-        }
-
-        if ($this->supportsReservationWorkflow($sourceConnection)) {
-            $releaseResult = $this->stockReservationService->releaseReservation(
-                orderId: $id,
-                targetStatus: 'cancelled',
-                reason: 'customer_cancelled_order',
-            );
-
-            if (!($releaseResult['ok'] ?? false)) {
-                return response()->json([
-                    'message' => $releaseResult['message'] ?? 'No fue posible liberar la reserva de inventario.',
-                    'code' => $releaseResult['code'] ?? 'reservation_release_failed',
-                ], (int) ($releaseResult['http_status'] ?? 422));
-            }
-        }
-
         $paymentStatusColumn = $this->firstExistingColumn('orders', ['payment_status'], $sourceConnection);
         $oldStatus = $order->{$statusColumn} ?? $order->status ?? $order->order_status ?? null;
         $oldPaymentStatus = $paymentStatusColumn
@@ -556,12 +527,13 @@ class OrderController extends Controller
 
         $oldPaymentStatus = $order->{$paymentStatusColumn} ?? $order->payment_status ?? null;
         $targetPaymentStatus = (string) $data['payment_status'];
+        $paymentStatusChanged = !$this->sameNormalizedValue($oldPaymentStatus, $targetPaymentStatus);
         $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], $sourceConnection);
         $oldStatus = $statusColumn
             ? ($order->{$statusColumn} ?? $order->status ?? $order->order_status ?? null)
             : ($order->status ?? $order->order_status ?? null);
 
-        if ($this->supportsReservationWorkflow($sourceConnection)) {
+        if ($paymentStatusChanged && $this->supportsReservationWorkflow($sourceConnection)) {
             if ($this->shouldConfirmReservationForPaymentStatus($targetPaymentStatus)) {
                 $confirmResult = $this->stockReservationService->confirmReservation($id);
 
@@ -1242,19 +1214,122 @@ class OrderController extends Controller
 
     private function findUserById(?string $connection, string $userId): ?object
     {
+        $user = null;
+
         try {
-            if (!$this->hasTable('users', $connection)) {
+            if ($this->hasTable('users', $connection)) {
+                $user = $this->query($connection)
+                    ->table('users')
+                    ->select('id', 'name', 'email', 'phone')
+                    ->where('id', $userId)
+                    ->first();
+            }
+        } catch (Throwable) {
+            $user = null;
+        }
+
+        if ($user) {
+            return $user;
+        }
+
+        $authProfile = $this->findAuthUserById($userId);
+        if ($authProfile === null) {
+            return null;
+        }
+
+        return (object) $authProfile;
+    }
+
+    private function findAuthUserById(string $userId): ?array
+    {
+        $normalizedUserId = trim($userId);
+        if ($normalizedUserId === '' || app()->environment('testing')) {
+            return null;
+        }
+
+        if (array_key_exists($normalizedUserId, $this->authProfilesById)) {
+            return $this->authProfilesById[$normalizedUserId];
+        }
+
+        $endpoint = $this->resolveAuthProfilesEndpoint();
+        if ($endpoint === null) {
+            $this->authProfilesById[$normalizedUserId] = null;
+            return null;
+        }
+
+        try {
+            $request = Http::acceptJson()->timeout(4);
+            $token = trim((string) config('services.auth.internal_token', ''));
+
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Internal-Token' => $token]);
+            }
+
+            $response = $request->get($endpoint, [
+                'ids' => $normalizedUserId,
+            ]);
+
+            if (!$response->successful()) {
+                $this->authProfilesById[$normalizedUserId] = null;
                 return null;
             }
 
-            return $this->query($connection)
-                ->table('users')
-                ->select('id', 'name', 'email', 'phone')
-                ->where('id', $userId)
-                ->first();
-        } catch (Throwable) {
+            $profiles = $response->json('data');
+            if (!is_array($profiles)) {
+                $this->authProfilesById[$normalizedUserId] = null;
+                return null;
+            }
+
+            foreach ($profiles as $profile) {
+                if (!is_array($profile)) {
+                    continue;
+                }
+
+                $profileId = trim((string) ($profile['id'] ?? ''));
+                if ($profileId === '') {
+                    continue;
+                }
+
+                $email = trim((string) ($profile['email'] ?? ''));
+
+                $this->authProfilesById[$profileId] = [
+                    'id' => $profileId,
+                    'name' => trim((string) ($profile['name'] ?? '')),
+                    'email' => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null,
+                    'phone' => trim((string) ($profile['phone'] ?? '')),
+                ];
+            }
+
+            if (!array_key_exists($normalizedUserId, $this->authProfilesById)) {
+                $this->authProfilesById[$normalizedUserId] = null;
+            }
+
+            return $this->authProfilesById[$normalizedUserId];
+        } catch (Throwable $exception) {
+            Log::warning('No se pudo resolver perfil de usuario desde auth-service.', [
+                'user_id' => $normalizedUserId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            $this->authProfilesById[$normalizedUserId] = null;
             return null;
         }
+    }
+
+    private function resolveAuthProfilesEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/internal/users/profiles';
+        }
+
+        return $baseUrl . '/api/internal/users/profiles';
     }
 
     /**

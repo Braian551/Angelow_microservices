@@ -1,17 +1,32 @@
 <template>
   <section class="hero-banner">
-    <div class="hero-slider">
+    <div v-if="loading && sliderData.length === 0" class="hero-slider-loading" aria-hidden="true">
+      <div class="hero-slider-loading__media"></div>
+      <div class="hero-slider-loading__content">
+        <span class="hero-slider-loading__line hero-slider-loading__line--tag"></span>
+        <span class="hero-slider-loading__line hero-slider-loading__line--title"></span>
+        <span class="hero-slider-loading__line hero-slider-loading__line--subtitle"></span>
+        <span class="hero-slider-loading__line hero-slider-loading__line--cta"></span>
+      </div>
+    </div>
+
+    <div v-else class="hero-slider">
       <div
         v-for="(slide, index) in sliderData"
         :key="index"
         class="hero-slide"
         :class="{ 'is-active': index === activeIndex }"
       >
-        <img
-          :src="resolveMediaUrl(slide.image, 'slider')"
-          :alt="slide.title || 'Slide'"
-          @error="onImageError($event, slide.image)"
-        />
+        <div class="hero-slide-media">
+          <img
+            :src="resolveMediaUrl(slide.image, 'slider')"
+            :alt="slide.title || 'Slide'"
+            :class="{ 'is-loaded': isSlideImageLoaded(index) }"
+            @load="onSlideImageLoad(index)"
+            @error="onImageError($event, slide.image, index)"
+          />
+          <div v-if="!isSlideImageLoaded(index)" class="hero-slide-shimmer"></div>
+        </div>
         <!-- Degradado funcional para legibilidad del texto sobre imagen -->
         <div class="hero-gradient-overlay"></div>
 
@@ -72,20 +87,27 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const sliderData = ref([])
 const activeIndex = ref(0)
 const contentVisible = ref(false)
+const slideImageLoadedMap = ref({})
 let timerId = null
 
 watch(
-  () => props.slides,
-  (newSlides) => {
-    sliderData.value = Array.isArray(newSlides) && newSlides.length > 0
+  [() => props.slides, () => props.loading],
+  ([newSlides, isLoading]) => {
+    const hasSlides = Array.isArray(newSlides) && newSlides.length > 0
+    sliderData.value = hasSlides
       ? newSlides
-      : [{ title: 'Angelow', subtitle: 'Moda infantil premium', image: '/logo_principal.png' }]
+      : (isLoading ? [] : [{ title: 'Angelow', subtitle: 'Moda infantil premium', image: '/logo_principal.png' }])
     activeIndex.value = 0
+    slideImageLoadedMap.value = {}
   },
   { immediate: true },
 )
@@ -122,8 +144,24 @@ function resolveSlideLink(slide) {
   return raw
 }
 
-function onImageError(event, originalPath) {
+function isSlideImageLoaded(index) {
+  return Boolean(slideImageLoadedMap.value[index])
+}
+
+function markSlideImageLoaded(index) {
+  slideImageLoadedMap.value = {
+    ...slideImageLoadedMap.value,
+    [index]: true,
+  }
+}
+
+function onSlideImageLoad(index) {
+  markSlideImageLoaded(index)
+}
+
+function onImageError(event, originalPath, index) {
   handleMediaError(event, originalPath, 'slider')
+  markSlideImageLoaded(index)
 }
 
 function resetTimer() {

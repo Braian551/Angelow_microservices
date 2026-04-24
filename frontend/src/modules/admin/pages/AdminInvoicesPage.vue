@@ -113,7 +113,6 @@
               <th>Total</th>
               <th>Estado</th>
               <th>Pago</th>
-              <th>Fuente</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -144,11 +143,6 @@
               </td>
               <td>
                 <span class="status-badge" :class="paymentBadgeClass(invoice.payment_status)">{{ paymentLabel(invoice.payment_status) }}</span>
-              </td>
-              <td>
-                <span class="invoice-source-chip" :class="invoice.order_source === 'legacy' ? 'legacy' : 'microservice'">
-                  {{ sourceLabel(invoice.order_source) }}
-                </span>
               </td>
               <td>
                 <div class="admin-entity-actions">
@@ -355,10 +349,6 @@ function statusBadgeClass(status) {
 
 function paymentBadgeClass(status) {
   return getPaymentStatusBadgeClass(status)
-}
-
-function sourceLabel(source) {
-  return normalizeSource(source) === 'legacy' ? 'Respaldo' : 'Principal'
 }
 
 function formatCurrency(value) {
@@ -574,40 +564,9 @@ onMounted(() => {
   font-size: 0.75rem;
 }
 
-.invoice-source-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 7.5rem;
-  padding: 0.34rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border: 1px solid transparent;
-}
-
-.invoice-source-chip.microservice {
-  color: #086491;
-  background: #e7f3fb;
-  border-color: #b8dcf3;
-}
-
-.invoice-source-chip.legacy {
-  color: #1f2937;
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
 .invoices-results-actions {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-}
-
-@media (max-width: 768px) {
-  .invoice-source-chip {
-    min-width: 6.5rem;
-  }
 }
 </style>

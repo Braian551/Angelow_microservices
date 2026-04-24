@@ -10,8 +10,9 @@
 
       <!-- Logo -->
       <div class="content-logo2">
-        <RouterLink to="/">
-          <img :src="brandLogo" :alt="storeName" width="100" @error="onLogoError" />
+        <RouterLink to="/" class="brand-logo-link">
+          <span v-if="showLogoShimmer" class="brand-logo-shimmer" aria-hidden="true"></span>
+          <img :src="brandLogo" :alt="storeName" width="100" class="brand-logo-image" :class="{ 'is-ready': !showLogoShimmer }" @load="onLogoLoad" @error="onLogoError" />
         </RouterLink>
       </div>
 
@@ -157,7 +158,10 @@
       <nav v-if="isMobileMenuOpen" class="mobile-drawer" role="dialog" aria-modal="true" aria-label="Menú principal">
         <!-- Cabecera del drawer -->
         <div class="mobile-drawer__header">
-          <img :src="brandLogo" :alt="storeName" class="mobile-drawer__logo" @error="onLogoError" />
+          <div class="mobile-drawer__logo-wrap">
+            <span v-if="showLogoShimmer" class="mobile-drawer__logo-shimmer" aria-hidden="true"></span>
+            <img :src="brandLogo" :alt="storeName" class="mobile-drawer__logo-image" :class="{ 'is-ready': !showLogoShimmer }" @load="onLogoLoad" @error="onLogoError" />
+          </div>
           <button type="button" class="mobile-drawer__close" aria-label="Cerrar menú" @click="closeMobileMenu">
             <i class="fas fa-times"></i>
           </button>
@@ -241,6 +245,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  shellLoading: {
+    type: Boolean,
+    default: false,
+  },
   initialSearch: {
     type: String,
     default: '',
@@ -259,6 +267,8 @@ const showSuggestions = ref(false)
 const isMobileMenuOpen = ref(false)
 const searchContainer = ref(null)
 const searchInput = ref(null)
+const logoLoaded = ref(false)
+const logoFailed = ref(false)
 let searchDebounceTimer = null
 const GUEST_SEARCH_HISTORY_KEY = 'angelow_search_history'
 
@@ -320,8 +330,18 @@ watch(searchValue, (value) => {
   }, 280)
 })
 
+const brandLogoPath = computed(() => {
+  return String(props.settings?.brand_logo_secondary || props.settings?.brand_logo || '').trim()
+})
+
 const brandLogo = computed(() => {
-  return resolveMediaUrl(props.settings?.brand_logo_secondary || props.settings?.brand_logo, 'brand')
+  return resolveMediaUrl(brandLogoPath.value, 'brand')
+})
+
+const showLogoShimmer = computed(() => {
+  if (props.shellLoading) return true
+  if (!brandLogoPath.value) return false
+  return !logoLoaded.value && !logoFailed.value
 })
 
 const storeName = computed(() => props.settings?.store_name || 'Angelow')
@@ -502,7 +522,21 @@ watch(
   },
 )
 
+watch(
+  () => brandLogoPath.value,
+  () => {
+    logoLoaded.value = false
+    logoFailed.value = false
+  },
+  { immediate: true },
+)
+
+function onLogoLoad() {
+  logoLoaded.value = true
+}
+
 function onLogoError(event) {
-  handleMediaError(event, props.settings?.brand_logo_secondary || props.settings?.brand_logo, 'brand')
+  logoFailed.value = true
+  handleMediaError(event, brandLogoPath.value, 'brand')
 }
 </script>

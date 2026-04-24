@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -34,9 +37,11 @@ class AdminPaymentController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'data' => collect($legacyRows)
+                    'data' => $this->hydratePaymentsWithAuthProfiles(
+                        collect($legacyRows)
                         ->map(fn ($payment) => $this->transformPaymentRow($payment, 'legacy'))
-                        ->values(),
+                        ->values()
+                    ),
                     'meta' => [
                         'current_page' => $page,
                         'last_page' => $legacyTotal > 0 ? (int) ceil($legacyTotal / $perPage) : 1,
@@ -58,6 +63,8 @@ class AdminPaymentController extends Controller
             ->map(fn ($payment) => $this->transformPaymentRow($payment, 'microservice'))
             ->values();
 
+        $paymentRows = $this->hydratePaymentsWithAuthProfiles($paymentRows);
+
         return response()->json([
             'success' => true,
             'data'    => $paymentRows,
@@ -73,8 +80,10 @@ class AdminPaymentController extends Controller
 
         $hasUsersTable = $this->hasTable('users', $connection);
         $hasUsersNameColumn = $hasUsersTable && $this->hasColumn('users', 'name', $connection);
+        $hasUsersEmailColumn = $hasUsersTable && $this->hasColumn('users', 'email', $connection);
         $hasUsersIdColumn = $hasUsersTable && $this->hasColumn('users', 'id', $connection);
-        $joinedUsers = $hasUsersNameColumn && $hasUsersIdColumn;
+        $joinedUsers = $hasUsersIdColumn;
+        $canSearchUserEmail = $joinedUsers && $hasUsersEmailColumn;
 
         if ($joinedUsers) {
             $query->leftJoin('users as u', 'pt.user_id', '=', 'u.id');
@@ -82,8 +91,12 @@ class AdminPaymentController extends Controller
 
         $selectColumns = ['pt.*'];
 
-        if ($joinedUsers) {
+        if ($joinedUsers && $hasUsersNameColumn) {
             $selectColumns[] = DB::raw("NULLIF(TRIM(u.name), '') as customer_name");
+        }
+
+        if ($joinedUsers && $hasUsersEmailColumn) {
+            $selectColumns[] = DB::raw("NULLIF(TRIM(u.email), '') as customer_email");
         }
 
         $query->select($selectColumns);
@@ -115,13 +128,16 @@ class AdminPaymentController extends Controller
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search'));
 
-            $query->where(function ($q) use ($search, $connection, $joinedUsers) {
+            $query->where(function ($q) use ($search, $connection, $joinedUsers, $canSearchUserEmail) {
                 $q->where('pt.reference_number', 'like', "%{$search}%")
                     ->orWhere('pt.user_id', 'like', "%{$search}%")
                     ->orWhere('pt.order_id', 'like', "%{$search}%");
 
                 if ($joinedUsers) {
                     $q->orWhere('u.name', 'like', "%{$search}%");
+                    if ($canSearchUserEmail) {
+                        $q->orWhere('u.email', 'like', "%{$search}%");
+                    }
                 }
 
                 if ($this->hasColumn('payment_transactions', 'billing_email', $connection)) {
@@ -170,6 +186,126 @@ class AdminPaymentController extends Controller
             'proof_url' => $proofUrl,
             'proof_exists' => $resolvedProofPath !== null,
         ];
+    }
+
+    private function hydratePaymentsWithAuthProfiles(Collection $rows): Collection
+    {
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
+
+        $userIds = $rows
+            ->map(static fn (array $row): string => trim((string) ($row['user_id'] ?? '')))
+            ->filter(static fn (string $userId): bool => $userId !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($userIds === []) {
+            return $rows;
+        }
+
+        $profilesById = $this->fetchAuthProfilesByUserIds($userIds);
+        if ($profilesById === []) {
+            return $rows;
+        }
+
+        return $rows->map(static function (array $row) use ($profilesById): array {
+            $userId = trim((string) ($row['user_id'] ?? ''));
+            if ($userId === '' || !array_key_exists($userId, $profilesById)) {
+                return $row;
+            }
+
+            $profile = $profilesById[$userId];
+
+            if (trim((string) ($row['customer_name'] ?? '')) === '' && !empty($profile['name'])) {
+                $row['customer_name'] = $profile['name'];
+            }
+
+            if (trim((string) ($row['customer_email'] ?? '')) === '' && !empty($profile['email'])) {
+                $row['customer_email'] = $profile['email'];
+            }
+
+            return $row;
+        })->values();
+    }
+
+    private function fetchAuthProfilesByUserIds(array $userIds): array
+    {
+        if ($userIds === [] || app()->environment('testing')) {
+            return [];
+        }
+
+        $endpoint = $this->resolveAuthProfilesEndpoint();
+        if ($endpoint === null) {
+            return [];
+        }
+
+        try {
+            $request = Http::acceptJson()->timeout(4);
+            $token = trim((string) config('services.auth.internal_token', ''));
+
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Internal-Token' => $token]);
+            }
+
+            $response = $request->get($endpoint, [
+                'ids' => implode(',', $userIds),
+            ]);
+
+            if (!$response->successful()) {
+                return [];
+            }
+
+            $profiles = $response->json('data');
+            if (!is_array($profiles)) {
+                return [];
+            }
+
+            $indexedProfiles = [];
+            foreach ($profiles as $profile) {
+                if (!is_array($profile)) {
+                    continue;
+                }
+
+                $id = trim((string) ($profile['id'] ?? ''));
+                if ($id === '') {
+                    continue;
+                }
+
+                $email = trim((string) ($profile['email'] ?? ''));
+
+                $indexedProfiles[$id] = [
+                    'name' => trim((string) ($profile['name'] ?? '')),
+                    'email' => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null,
+                ];
+            }
+
+            return $indexedProfiles;
+        } catch (Throwable $exception) {
+            Log::warning('No se pudieron consultar perfiles desde auth-service para pagos admin.', [
+                'users_count' => count($userIds),
+                'error' => $exception->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    private function resolveAuthProfilesEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/internal/users/profiles';
+        }
+
+        return $baseUrl . '/api/internal/users/profiles';
     }
 
     private function buildPublicProofUrl(string $proofPath): ?string

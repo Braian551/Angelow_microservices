@@ -7,6 +7,7 @@ use Dompdf\Options;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -16,9 +17,11 @@ use Throwable;
 class OrderInvoiceService
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
+    private const DEFAULT_NOTIFICATION_TYPE_ID = 1;
 
     private const COMPLETED_ORDER_STATUSES = ['delivered', 'completed'];
     private const PAID_PAYMENT_STATUSES = ['paid', 'verified', 'approved'];
+    private array $authProfilesById = [];
 
     public function sendCheckoutConfirmationEmail(int $orderId, array $context = [], ?string $preferredConnection = null): array
     {
@@ -224,7 +227,7 @@ class OrderInvoiceService
         $orderId = (int) ($order['id'] ?? 0);
 
         $customerEmail = $this->resolveCustomerEmail($order, $connection);
-        if ($customerEmail === null) {
+        if ($forceSend && $customerEmail === null) {
             return [
                 'ok' => false,
                 'code' => 422,
@@ -237,26 +240,77 @@ class OrderInvoiceService
 
         try {
             $pdfContent = $this->generateInvoicePdfContent($order, $items, $invoiceNumber);
-            $emailHtml = $this->buildInvoiceEmailHtml($order, $customerName, $invoiceNumber);
-
-            Mail::html($emailHtml, function ($mail) use ($customerEmail, $customerName, $invoiceNumber, $pdfContent): void {
-                $mail
-                    ->to($customerEmail, $customerName)
-                    ->subject('Factura electrónica ' . $invoiceNumber)
-                    ->attachData(
-                        $pdfContent,
-                        'factura_' . $this->sanitizeFileSegment($invoiceNumber) . '.pdf',
-                        ['mime' => 'application/pdf']
-                    );
-            });
-
             $this->persistInvoiceMetadata($connection, $orderId, $invoiceNumber);
+
+            $emailSent = false;
+            $emailError = null;
+
+            if ($customerEmail !== null) {
+                try {
+                    $emailHtml = $this->buildInvoiceEmailHtml($order, $customerName, $invoiceNumber);
+
+                    Mail::html($emailHtml, function ($mail) use ($customerEmail, $customerName, $invoiceNumber, $pdfContent): void {
+                        $mail
+                            ->to($customerEmail, $customerName)
+                            ->subject('Factura electrónica ' . $invoiceNumber)
+                            ->attachData(
+                                $pdfContent,
+                                'factura_' . $this->sanitizeFileSegment($invoiceNumber) . '.pdf',
+                                ['mime' => 'application/pdf']
+                            );
+                    });
+
+                    $emailSent = true;
+                } catch (Throwable $exception) {
+                    $emailError = $exception;
+                    Log::warning('No se pudo enviar correo de factura al cliente.', [
+                        'order_id' => $orderId,
+                        'invoice_number' => $invoiceNumber,
+                        'email' => $customerEmail,
+                        'error' => $exception->getMessage(),
+                        'mailer' => (string) config('mail.default', 'log'),
+                    ]);
+                }
+            }
+
+            $notificationSent = $this->sendInvoiceNotification($order, $invoiceNumber, $forceSend);
+
+            if ($forceSend && !$emailSent) {
+                return [
+                    'ok' => false,
+                    'code' => 500,
+                    'message' => $emailError
+                        ? 'No fue posible reenviar la factura por correo en este momento.'
+                        : 'La orden no tiene correo válido para reenviar la factura.',
+                ];
+            }
+
+            if ($forceSend) {
+                return [
+                    'ok' => true,
+                    'message' => 'Factura reenviada correctamente.',
+                    'invoice_number' => $invoiceNumber,
+                    'order_id' => $orderId,
+                    'email_sent' => true,
+                    'notification_sent' => $notificationSent,
+                ];
+            }
+
+            if ($emailSent) {
+                $message = 'Factura generada y enviada correctamente.';
+            } elseif ($customerEmail === null) {
+                $message = 'Factura generada. No se envió correo porque el cliente no tiene un email válido.';
+            } else {
+                $message = 'Factura generada. No se pudo enviar el correo en este momento.';
+            }
 
             return [
                 'ok' => true,
-                'message' => $forceSend ? 'Factura reenviada correctamente.' : 'Factura generada y enviada correctamente.',
+                'message' => $message,
                 'invoice_number' => $invoiceNumber,
                 'order_id' => $orderId,
+                'email_sent' => $emailSent,
+                'notification_sent' => $notificationSent,
             ];
         } catch (Throwable $exception) {
             Log::warning('No se pudo generar/enviar la factura de la orden.', [
@@ -461,6 +515,15 @@ class OrderInvoiceService
             }
         }
 
+        $missingIdsAfterLegacy = $userIds
+            ->reject(static fn (string $userId): bool => $usersById->has($userId))
+            ->values();
+
+        if ($missingIdsAfterLegacy->isNotEmpty()) {
+            $authUsers = $this->loadUsersFromAuthService($missingIdsAfterLegacy->all());
+            $usersById = $usersById->merge($authUsers);
+        }
+
         return $rows
             ->map(static function (array $row) use ($usersById): array {
                 $userId = trim((string) ($row['user_id'] ?? ''));
@@ -501,6 +564,67 @@ class OrderInvoiceService
                 ->get()
                 ->keyBy(static fn ($user): string => (string) $user->id);
         } catch (Throwable) {
+            return collect();
+        }
+    }
+
+    private function loadUsersFromAuthService(array $userIds): Collection
+    {
+        if ($userIds === [] || app()->environment('testing')) {
+            return collect();
+        }
+
+        $endpoint = $this->resolveAuthProfilesEndpoint();
+        if ($endpoint === null) {
+            return collect();
+        }
+
+        try {
+            $request = Http::acceptJson()->timeout(4);
+            $token = trim((string) config('services.auth.internal_token', ''));
+
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Internal-Token' => $token]);
+            }
+
+            $response = $request->get($endpoint, [
+                'ids' => implode(',', $userIds),
+            ]);
+
+            if (!$response->successful()) {
+                return collect();
+            }
+
+            $profiles = $response->json('data');
+            if (!is_array($profiles)) {
+                return collect();
+            }
+
+            return collect($profiles)
+                ->filter(static fn ($profile): bool => is_array($profile))
+                ->map(static function (array $profile): ?object {
+                    $id = trim((string) ($profile['id'] ?? ''));
+                    if ($id === '') {
+                        return null;
+                    }
+
+                    $email = trim((string) ($profile['email'] ?? ''));
+
+                    return (object) [
+                        'id' => $id,
+                        'name' => trim((string) ($profile['name'] ?? '')),
+                        'email' => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null,
+                        'phone' => trim((string) ($profile['phone'] ?? '')),
+                    ];
+                })
+                ->filter()
+                ->keyBy(static fn ($user): string => (string) $user->id);
+        } catch (Throwable $exception) {
+            Log::warning('No se pudieron consultar perfiles en auth-service para facturas admin.', [
+                'users_count' => count($userIds),
+                'error' => $exception->getMessage(),
+            ]);
+
             return collect();
         }
     }
@@ -642,19 +766,63 @@ class OrderInvoiceService
 
     private function findUserById(?string $connection, string $userId): ?object
     {
-        if ($userId === '' || !$this->hasTable('users', $connection)) {
+        $normalizedUserId = trim($userId);
+        if ($normalizedUserId === '') {
             return null;
         }
 
+        $user = null;
         try {
-            return $this->query($connection)
-                ->table('users')
-                ->select('id', 'name', 'email', 'phone')
-                ->where('id', $userId)
-                ->first();
+            if ($this->hasTable('users', $connection)) {
+                $user = $this->query($connection)
+                    ->table('users')
+                    ->select('id', 'name', 'email', 'phone')
+                    ->where('id', $normalizedUserId)
+                    ->first();
+            }
         } catch (Throwable) {
+            $user = null;
+        }
+
+        if ($user) {
+            return $user;
+        }
+
+        return $this->findAuthUserById($normalizedUserId);
+    }
+
+    private function findAuthUserById(string $userId): ?object
+    {
+        if ($userId === '' || app()->environment('testing')) {
             return null;
         }
+
+        if (array_key_exists($userId, $this->authProfilesById)) {
+            return $this->authProfilesById[$userId];
+        }
+
+        $profiles = $this->loadUsersFromAuthService([$userId]);
+        $profile = $profiles->get($userId);
+
+        $this->authProfilesById[$userId] = $profile instanceof \stdClass ? $profile : null;
+
+        return $this->authProfilesById[$userId];
+    }
+
+    private function resolveAuthProfilesEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/internal/users/profiles';
+        }
+
+        return $baseUrl . '/api/internal/users/profiles';
     }
 
     private function isReadyForInvoice(array $order): bool
@@ -678,7 +846,7 @@ class OrderInvoiceService
     {
         $currentInvoice = trim((string) ($order['invoice_number'] ?? ''));
         if ($currentInvoice !== '') {
-            return $currentInvoice;
+            return $this->fitInvoiceNumberToColumn($currentInvoice, (int) ($order['id'] ?? 0));
         }
 
         $orderLabel = trim((string) ($order['order_number'] ?? ''));
@@ -687,8 +855,27 @@ class OrderInvoiceService
         }
 
         $suffix = strtoupper(preg_replace('/[^A-Za-z0-9-]/', '', $orderLabel) ?: (string) ($order['id'] ?? '0'));
+        $candidate = 'FAC-' . $suffix;
 
-        return 'FAC-' . $suffix;
+        return $this->fitInvoiceNumberToColumn($candidate, (int) ($order['id'] ?? 0));
+    }
+
+    private function fitInvoiceNumberToColumn(string $invoiceNumber, int $orderId): string
+    {
+        $normalized = strtoupper(trim($invoiceNumber));
+        if ($normalized === '') {
+            $normalized = 'FAC-' . (string) ($orderId > 0 ? $orderId : time());
+        }
+
+        if (strlen($normalized) <= 20) {
+            return $normalized;
+        }
+
+        // Ajusta al límite varchar(20) sin perder trazabilidad básica de la referencia.
+        $safeBase = substr(preg_replace('/[^A-Z0-9-]/', '', $normalized), 0, 13);
+        $hash = strtoupper(substr(sha1($normalized . '|' . (string) $orderId), 0, 6));
+
+        return $safeBase . '-' . $hash;
     }
 
     private function persistInvoiceMetadata(?string $connection, int $orderId, string $invoiceNumber): void
@@ -729,6 +916,80 @@ class OrderInvoiceService
                 'error' => $exception->getMessage(),
             ]);
         }
+    }
+
+    private function sendInvoiceNotification(array $order, string $invoiceNumber, bool $resent): bool
+    {
+        $userId = trim((string) ($order['user_id'] ?? ''));
+        if ($userId === '') {
+            return false;
+        }
+
+        $endpoint = $this->resolveNotificationEndpoint();
+        if ($endpoint === null) {
+            return false;
+        }
+
+        $orderId = (int) ($order['id'] ?? 0);
+        $orderLabel = trim((string) ($order['order_number'] ?? ''));
+        if ($orderLabel === '') {
+            $orderLabel = $orderId > 0 ? '#' . $orderId : 'N/A';
+        }
+
+        $title = $resent ? 'Factura reenviada' : 'Tu factura está disponible';
+        $message = $resent
+            ? "Reenviamos la factura {$invoiceNumber} de tu pedido {$orderLabel}."
+            : "Ya puedes consultar la factura {$invoiceNumber} de tu pedido {$orderLabel}.";
+
+        try {
+            $response = Http::acceptJson()
+                ->timeout(8)
+                ->post($endpoint, [
+                    'user_id' => $userId,
+                    'type_id' => (int) config('services.notifications.order_type_id', self::DEFAULT_NOTIFICATION_TYPE_ID),
+                    'title' => $title,
+                    'message' => $message,
+                    'related_entity_type' => 'order',
+                    'related_entity_id' => $orderId > 0 ? $orderId : null,
+                ]);
+
+            if (!$response->successful()) {
+                Log::warning('No se pudo registrar notificación de factura en notification-service.', [
+                    'order_id' => $orderId,
+                    'user_id' => $userId,
+                    'invoice_number' => $invoiceNumber,
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+            }
+
+            return $response->successful();
+        } catch (Throwable $exception) {
+            Log::warning('Fallo enviando notificación de factura.', [
+                'order_id' => $orderId,
+                'user_id' => $userId,
+                'invoice_number' => $invoiceNumber,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    private function resolveNotificationEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.notifications.base_url', 'http://notification-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/notifications';
+        }
+
+        return $baseUrl . '/api/notifications';
     }
 
     private function buildCheckoutConfirmationHtml(array $order, array $items, string $customerName, array $context): string

@@ -45,6 +45,7 @@ import AdminReportsPage from '../modules/admin/pages/AdminReportsPage.vue'
 import AdminSlidersPage from '../modules/admin/pages/AdminSlidersPage.vue'
 import AdminSettingsPage from '../modules/admin/pages/AdminSettingsPage.vue'
 import AdminAdministratorsPage from '../modules/admin/pages/AdminAdministratorsPage.vue'
+import AdminForgotPasswordPage from '../modules/admin/pages/AdminForgotPasswordPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -58,6 +59,7 @@ const router = createRouter({
     { path: '/checkout/confirmacion', name: 'confirmation', component: ConfirmationPage },
     { path: '/login', name: 'login', component: LoginPage, meta: { layout: 'auth' } },
     { path: '/recuperar', name: 'forgot-password', component: ForgotPasswordPage, meta: { layout: 'auth' } },
+    { path: '/admin/recuperar', name: 'admin-forgot-password', component: AdminForgotPasswordPage, meta: { layout: 'auth' } },
     { path: '/registro', name: 'register', component: RegisterPage, meta: { layout: 'auth' } },
     {
       path: '/mi-cuenta',

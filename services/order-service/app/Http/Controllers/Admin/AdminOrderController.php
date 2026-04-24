@@ -7,7 +7,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 
 class AdminOrderController extends Controller
@@ -415,18 +418,36 @@ class AdminOrderController extends Controller
 
     private function mergeAdminOrderRows(\Illuminate\Support\Collection $distributedRows, \Illuminate\Support\Collection $legacyRows): \Illuminate\Support\Collection
     {
-        return $distributedRows
-            ->concat($legacyRows)
-            ->unique(function ($row): string {
-                $orderNumber = strtolower(trim((string) ($row->order_number ?? '')));
+        $bestRowsByKey = [];
 
-                if ($orderNumber !== '') {
-                    return 'order_number:' . $orderNumber;
+        foreach ($distributedRows->concat($legacyRows) as $row) {
+            $mergeKey = $this->resolveOrderMergeKey($row);
+
+            if (!array_key_exists($mergeKey, $bestRowsByKey)) {
+                $bestRowsByKey[$mergeKey] = $row;
+                continue;
+            }
+
+            $currentRow = $bestRowsByKey[$mergeKey];
+            $currentScore = $this->orderRowInformationScore($currentRow);
+            $candidateScore = $this->orderRowInformationScore($row);
+
+            if ($candidateScore > $currentScore) {
+                $bestRowsByKey[$mergeKey] = $row;
+                continue;
+            }
+
+            if ($candidateScore === $currentScore) {
+                $currentTimestamp = strtotime((string) ($currentRow->updated_at ?? $currentRow->created_at ?? '')) ?: 0;
+                $candidateTimestamp = strtotime((string) ($row->updated_at ?? $row->created_at ?? '')) ?: 0;
+
+                if ($candidateTimestamp > $currentTimestamp) {
+                    $bestRowsByKey[$mergeKey] = $row;
                 }
+            }
+        }
 
-                $source = strtolower((string) ($row->order_source ?? 'microservice'));
-                return 'source:' . $source . ':id:' . (string) ($row->id ?? '');
-            })
+        return collect(array_values($bestRowsByKey))
             ->sortByDesc(static function ($row): int {
                 $rawDate = $row->created_at ?? null;
                 $timestamp = is_string($rawDate) ? strtotime($rawDate) : null;
@@ -466,7 +487,7 @@ class AdminOrderController extends Controller
             $usersById = collect();
         }
 
-        return $rows->map(static function ($row) use ($usersById) {
+        $enrichedRows = $rows->map(function ($row) use ($usersById) {
             $user = $usersById->get((string) ($row->user_id ?? ''));
 
             if (!$user) {
@@ -491,6 +512,184 @@ class AdminOrderController extends Controller
 
             return $row;
         })->values();
+
+        return $this->hydrateOrdersWithAuthProfiles($enrichedRows);
+    }
+
+    private function resolveOrderMergeKey(object $row): string
+    {
+        $orderNumber = strtolower(trim((string) ($row->order_number ?? '')));
+
+        if ($orderNumber !== '') {
+            return 'order_number:' . $orderNumber;
+        }
+
+        $source = strtolower((string) ($row->order_source ?? 'microservice'));
+        return 'source:' . $source . ':id:' . (string) ($row->id ?? '');
+    }
+
+    private function orderRowInformationScore(object $row): int
+    {
+        $name = trim((string) ($row->user_name ?? $row->customer_name ?? $row->billing_name ?? ''));
+        $email = trim((string) ($row->user_email ?? $row->customer_email ?? $row->billing_email ?? ''));
+        $phone = trim((string) ($row->user_phone ?? $row->customer_phone ?? $row->billing_phone ?? $row->phone ?? ''));
+        $userId = trim((string) ($row->user_id ?? ''));
+        $invoiceNumber = trim((string) ($row->invoice_number ?? ''));
+        $invoiceDate = trim((string) ($row->invoice_date ?? ''));
+
+        $score = 0;
+
+        if ($userId !== '') {
+            $score += 2;
+        }
+
+        if ($name !== '' && !in_array(Str::lower($name), ['cliente', 'sin nombre'], true)) {
+            $score += 4;
+        }
+
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $score += 5;
+        }
+
+        if ($phone !== '') {
+            $score += 1;
+        }
+
+        if ($invoiceNumber !== '' || $invoiceDate !== '') {
+            $score += 3;
+        }
+
+        if (strtolower((string) ($row->order_source ?? 'microservice')) === 'microservice') {
+            $score += 1;
+        }
+
+        return $score;
+    }
+
+    private function hydrateOrdersWithAuthProfiles(\Illuminate\Support\Collection $rows): \Illuminate\Support\Collection
+    {
+        if ($rows->isEmpty()) {
+            return $rows;
+        }
+
+        $userIds = $rows
+            ->map(static fn ($row) => trim((string) ($row->user_id ?? '')))
+            ->filter(static fn ($userId) => $userId !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($userIds === []) {
+            return $rows;
+        }
+
+        $profilesById = $this->fetchAuthProfilesByUserIds($userIds);
+        if ($profilesById === []) {
+            return $rows;
+        }
+
+        return $rows->map(static function ($row) use ($profilesById) {
+            $userId = trim((string) ($row->user_id ?? ''));
+            if ($userId === '' || !array_key_exists($userId, $profilesById)) {
+                return $row;
+            }
+
+            $profile = $profilesById[$userId];
+            $currentName = trim((string) ($row->user_name ?? $row->customer_name ?? $row->billing_name ?? ''));
+            $currentEmail = trim((string) ($row->user_email ?? $row->customer_email ?? $row->billing_email ?? ''));
+            $currentPhone = trim((string) ($row->user_phone ?? $row->customer_phone ?? $row->billing_phone ?? $row->phone ?? ''));
+
+            if ($currentName === '' && !empty($profile['name'])) {
+                $row->user_name = $profile['name'];
+            }
+
+            if ($currentEmail === '' && !empty($profile['email'])) {
+                $row->user_email = $profile['email'];
+            }
+
+            if ($currentPhone === '' && !empty($profile['phone'])) {
+                $row->user_phone = $profile['phone'];
+            }
+
+            return $row;
+        })->values();
+    }
+
+    private function fetchAuthProfilesByUserIds(array $userIds): array
+    {
+        if ($userIds === [] || app()->environment('testing')) {
+            return [];
+        }
+
+        $endpoint = $this->resolveAuthProfilesEndpoint();
+        if ($endpoint === null) {
+            return [];
+        }
+
+        try {
+            $request = Http::acceptJson()->timeout(4);
+            $token = trim((string) config('services.auth.internal_token', ''));
+
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Internal-Token' => $token]);
+            }
+
+            $response = $request->get($endpoint, [
+                'ids' => implode(',', $userIds),
+            ]);
+
+            if (!$response->successful()) {
+                return [];
+            }
+
+            $profiles = $response->json('data');
+            if (!is_array($profiles)) {
+                return [];
+            }
+
+            $indexedProfiles = [];
+            foreach ($profiles as $profile) {
+                if (!is_array($profile)) {
+                    continue;
+                }
+
+                $id = trim((string) ($profile['id'] ?? ''));
+                if ($id === '') {
+                    continue;
+                }
+
+                $indexedProfiles[$id] = [
+                    'name' => trim((string) ($profile['name'] ?? '')),
+                    'email' => trim((string) ($profile['email'] ?? '')),
+                    'phone' => trim((string) ($profile['phone'] ?? '')),
+                ];
+            }
+
+            return $indexedProfiles;
+        } catch (Throwable $exception) {
+            Log::warning('No se pudieron consultar perfiles de clientes en auth-service para órdenes admin.', [
+                'error' => $exception->getMessage(),
+                'users_count' => count($userIds),
+            ]);
+
+            return [];
+        }
+    }
+
+    private function resolveAuthProfilesEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/internal/users/profiles';
+        }
+
+        return $baseUrl . '/api/internal/users/profiles';
     }
 
     private function buildOrdersQuery(?string $connection, Request $request)

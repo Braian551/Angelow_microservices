@@ -2,6 +2,37 @@
 @import '/legacy/css/productos.css';
 @import '/legacy/css/announcements.css';
 
+:root {
+  --site-scrollbar-size: 10px;
+  --site-scrollbar-track: #e7eef5;
+  --site-scrollbar-thumb: #7fa7cb;
+  --site-scrollbar-thumb-hover: #5f95c7;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--site-scrollbar-thumb) var(--site-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--site-scrollbar-size);
+  height: var(--site-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--site-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--site-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--site-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--site-scrollbar-thumb-hover);
+}
+
 body {
   background: #fff;
 }

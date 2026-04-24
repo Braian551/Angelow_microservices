@@ -25,9 +25,34 @@
     flex: 0 0 auto;
 }
 
-.content-logo2 img {
+.brand-logo-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    min-height: 50px;
+}
+
+.brand-logo-image {
     width: 50px;
     margin: 6px;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+.brand-logo-image.is-ready {
+    opacity: 1;
+}
+
+.brand-logo-shimmer {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: linear-gradient(110deg, #d9e1ea 20%, #edf2f7 40%, #d9e1ea 60%);
+    background-size: 220% 100%;
+    animation: headerLogoShimmer 1.25s ease-in-out infinite;
 }
 
 /* â”€â”€ BotÃ³n hamburguesa con 3 barras animadas â”€â”€ */
@@ -283,6 +308,11 @@
     to { transform: rotate(360deg); }
 }
 
+@keyframes headerLogoShimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
 /* ===== HEADER ICONS ===== */
 .header-icons {
     display: flex;
@@ -386,10 +416,34 @@
     z-index: 1;
 }
 
-.mobile-drawer__logo {
+.mobile-drawer__logo-wrap {
+    position: relative;
     width: 44px;
-    height: auto;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-drawer__logo-image {
+    width: 44px;
+    height: 44px;
     object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.22s ease;
+}
+
+.mobile-drawer__logo-image.is-ready {
+    opacity: 1;
+}
+
+.mobile-drawer__logo-shimmer {
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    background: linear-gradient(110deg, #d9e1ea 20%, #edf2f7 40%, #d9e1ea 60%);
+    background-size: 220% 100%;
+    animation: headerLogoShimmer 1.25s ease-in-out infinite;
 }
 
 .mobile-drawer__close {
@@ -594,9 +648,20 @@
         justify-content: center;
     }
 
-    .content-logo2 img {
+    .brand-logo-link {
+        min-width: 42px;
+        min-height: 42px;
+    }
+
+    .brand-logo-image {
         width: 42px;
+        height: 42px;
         margin: 4px;
+    }
+
+    .brand-logo-shimmer {
+        width: 42px;
+        height: 42px;
     }
 
     .header-icons {
@@ -614,8 +679,19 @@
         gap: 0.6rem;
     }
 
-    .content-logo2 img {
+    .brand-logo-link {
+        min-width: 38px;
+        min-height: 38px;
+    }
+
+    .brand-logo-image {
         width: 38px;
+        height: 38px;
+    }
+
+    .brand-logo-shimmer {
+        width: 38px;
+        height: 38px;
     }
 
     .header-icons {

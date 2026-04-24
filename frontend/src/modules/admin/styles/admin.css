@@ -71,6 +71,12 @@
   --admin-radius-pill: 999px;
   --admin-card-radius: 12px;
 
+  /* ── Scrollbars ── */
+  --admin-scrollbar-size: 10px;
+  --admin-scrollbar-track: #dce6f1;
+  --admin-scrollbar-thumb: #7f9fbe;
+  --admin-scrollbar-thumb-hover: #627f9d;
+
   /* ── Layout ── */
   --admin-sidebar-width: 280px;
   --admin-sidebar-collapsed: 80px;
@@ -213,39 +219,20 @@
 /* ===== SIDEBAR ===== */
 .admin-sidebar {
   width: var(--admin-sidebar-width);
-  background-color: var(--admin-text-dark);
+  background-color: var(--admin-sidebar-bg, var(--admin-text-dark));
   color: white;
   transition: transform 0.3s ease, width 0.3s ease;
   height: 100vh;
   position: fixed;
-  overflow-y: auto;
+  overflow: hidden;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  scrollbar-width: thin;
-  scrollbar-color: var(--admin-primary-dark) transparent;
   max-width: 100%;
 }
 
 .admin-sidebar-overlay {
   display: none;
-}
-
-.admin-sidebar::-webkit-scrollbar {
-  width: 4px;
-}
-.admin-sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.admin-sidebar::-webkit-scrollbar-thumb {
-  background: var(--admin-primary-dark);
-  border-radius: 2px;
-}
-.admin-sidebar::-webkit-scrollbar-thumb:hover {
-  background: var(--admin-primary);
-}
-.admin-sidebar:not(:hover)::-webkit-scrollbar-thumb {
-  background: transparent;
 }
 
 .sidebar-header {
@@ -258,9 +245,26 @@
   position: relative;
 }
 
+.admin-logo-shell {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .admin-logo {
   width: 4rem;
-  height: auto;
+  height: 4rem;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.admin-logo.is-ready {
+  opacity: 1;
 }
 
 .sidebar-header h1 {
@@ -287,6 +291,27 @@
   padding: 2rem 0;
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-color: var(--admin-sidebar-scroll-thumb, var(--admin-primary-dark)) var(--admin-sidebar-scroll-track, transparent);
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 10px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: var(--admin-sidebar-scroll-track, transparent);
+  border-radius: 999px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: var(--admin-sidebar-scroll-thumb, var(--admin-primary-dark));
+  border-radius: 999px;
+  border: 2px solid var(--admin-sidebar-scroll-track, transparent);
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: var(--admin-sidebar-scroll-thumb-hover, var(--admin-primary));
 }
 
 .nav-menu {
@@ -335,12 +360,12 @@
 .nav-item.active > a,
 .nav-item.with-submenu.active > .menu-item {
   color: white;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--admin-sidebar-accent-soft, rgba(255, 255, 255, 0.1));
 }
 
 .nav-item.active > a,
 .nav-item.active > .menu-item {
-  border-left: 3px solid var(--admin-primary);
+  border-left: 3px solid var(--admin-sidebar-accent, var(--admin-primary));
 }
 
 .with-submenu .submenu-toggle {
@@ -350,7 +375,7 @@
 }
 
 .submenu {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--admin-sidebar-bg-soft, rgba(0, 0, 0, 0.2));
   overflow: hidden;
   list-style: none;
   margin: 0;
@@ -370,13 +395,13 @@
 
 .submenu li a:hover,
 .submenu li a.router-link-active {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--admin-sidebar-accent-soft, rgba(255, 255, 255, 0.05));
 }
 
 .badge {
   display: inline-block;
   padding: 0.2rem 0.6rem;
-  background-color: var(--admin-primary);
+  background-color: var(--admin-sidebar-accent, var(--admin-primary));
   color: white;
   border-radius: 10px;
   font-size: 1.2rem;
@@ -392,7 +417,7 @@
 
 .sidebar-footer {
   padding: 2rem;
-  background: var(--admin-text-dark);
+  background: var(--admin-sidebar-footer-bg, var(--admin-text-dark));
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
 }
@@ -404,11 +429,27 @@
   margin-bottom: 2rem;
 }
 
+.profile-avatar-shell {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .profile-avatar {
   width: 4rem;
   height: 4rem;
   border-radius: 50%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.profile-avatar.is-ready {
+  opacity: 1;
 }
 
 .profile-info {
@@ -1308,6 +1349,25 @@
   background: var(--admin-glass-bg-strong);
   box-shadow: var(--admin-glass-shadow);
   backdrop-filter: blur(18px);
+  scrollbar-gutter: stable both-edges;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #e7eef6;
+  border-radius: 999px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #7f9fbe;
+  border-radius: 999px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #627f9d;
 }
 
 .dashboard-table {

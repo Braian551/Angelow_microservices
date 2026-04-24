@@ -17,6 +17,7 @@ Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])
 
 Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
 Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
+Route::get('/announcements/home', [AdminNotificationController::class, 'homeAnnouncements']);
 
 // ── Admin ───────────────────────────────────────────────────
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {

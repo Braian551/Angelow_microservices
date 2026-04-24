@@ -91,7 +91,21 @@ class AdminUserController extends Controller
         $admins = User::query()
             ->whereIn('role', ['admin', 'super_admin'])
             ->orderByDesc('created_at')
-            ->get(['id', 'name', 'email', 'phone', 'image', 'role', 'is_blocked', 'created_at', 'last_access']);
+            ->get(['id', 'name', 'email', 'phone', 'image', 'is_blocked', 'created_at', 'last_access'])
+            ->map(static function (User $admin): array {
+                return [
+                    'id' => (string) $admin->id,
+                    'name' => (string) $admin->name,
+                    'email' => (string) $admin->email,
+                    'phone' => $admin->phone,
+                    'image' => $admin->image,
+                    'active' => !$admin->is_blocked,
+                    'is_blocked' => (bool) $admin->is_blocked,
+                    'created_at' => $admin->created_at,
+                    'last_access' => $admin->last_access,
+                ];
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -109,7 +123,7 @@ class AdminUserController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
-            'role' => ['nullable', 'string', 'in:admin,super_admin'],
+            'active' => ['nullable', 'boolean'],
         ]);
 
         $user = User::create([
@@ -117,13 +131,19 @@ class AdminUserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'role' => $data['role'] ?? 'admin',
+            'role' => 'admin',
+            'is_blocked' => array_key_exists('active', $data) ? !$data['active'] : false,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Administrador creado',
-            'data' => $user->only(['id', 'name', 'email', 'role']),
+            'data' => [
+                'id' => (string) $user->id,
+                'name' => (string) $user->name,
+                'email' => (string) $user->email,
+                'active' => !$user->is_blocked,
+            ],
         ], 201);
     }
 
@@ -143,7 +163,6 @@ class AdminUserController extends Controller
             'name' => ['sometimes', 'string', 'max:100'],
             'email' => ['sometimes', 'email', 'max:255', "unique:users,email,{$id}"],
             'password' => ['nullable', 'string', 'min:6'],
-            'role' => ['nullable', 'string', 'in:admin,super_admin'],
             'active' => ['nullable', 'boolean'],
         ]);
 
@@ -156,9 +175,7 @@ class AdminUserController extends Controller
         if (!empty($data['password'])) {
             $user->password = Hash::make($data['password']);
         }
-        if (isset($data['role'])) {
-            $user->role = $data['role'];
-        }
+        $user->role = 'admin';
         if (isset($data['active'])) {
             $user->is_blocked = !$data['active'];
         }

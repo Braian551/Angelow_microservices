@@ -69,6 +69,7 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
             })
             ->orderByDesc('priority')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->first();
     }
 
@@ -92,6 +93,7 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
             })
             ->orderByDesc('priority')
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->first();
     }
 
