@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'notifications' => [
+        'base_url' => env('NOTIFICATION_SERVICE_URL', 'http://notification-service:8000/api'),
+        'internal_token' => env('AUTH_INTERNAL_TOKEN', env('INTERNAL_API_TOKEN', '')),
+    ],
+
+    'frontend' => [
+        'store_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+    ],
+
 ];

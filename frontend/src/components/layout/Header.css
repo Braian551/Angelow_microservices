@@ -166,8 +166,7 @@
     border-radius: 18px;
     box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
     z-index: 2147483647;
-    max-height: 360px;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 0;
     animation: headerSearchFadeIn 0.16s ease;
 }
@@ -175,15 +174,6 @@
 .header-search-featured,
 .header-search-terms {
     width: 100%;
-}
-
-.header-search-results::-webkit-scrollbar {
-    width: 8px;
-}
-
-.header-search-results::-webkit-scrollbar-thumb {
-    background: rgba(95, 149, 217, 0.28);
-    border-radius: 999px;
 }
 
 @keyframes headerSearchFadeIn {

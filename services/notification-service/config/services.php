@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'internal' => [
+        'api_token' => env('INTERNAL_API_TOKEN', env('AUTH_INTERNAL_TOKEN', '')),
+    ],
+
+    'frontend' => [
+        'store_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+    ],
+
 ];

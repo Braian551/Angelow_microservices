@@ -32,6 +32,8 @@ class NotificationPreferenceController extends Controller
             ], 422);
         }
 
+        $this->ensureDefaultNotificationTypes();
+
         return response()->json([
             'data' => $this->buildPreferencesPayload($userId),
         ]);
@@ -58,6 +60,8 @@ class NotificationPreferenceController extends Controller
                 'message' => 'Debes enviar user_id o user_email válido.',
             ], 422);
         }
+
+        $this->ensureDefaultNotificationTypes();
 
         $typesByName = NotificationType::query()
             ->where('is_active', true)
@@ -136,6 +140,8 @@ class NotificationPreferenceController extends Controller
 
     private function buildPreferencesPayload(string $userId): array
     {
+        $this->ensureDefaultNotificationTypes();
+
         $typesByName = NotificationType::query()
             ->where('is_active', true)
             ->get(['id', 'name'])
@@ -218,5 +224,40 @@ class NotificationPreferenceController extends Controller
     {
         $normalized = trim((string) ($value ?? ''));
         return $normalized === '' ? null : $normalized;
+    }
+
+    /**
+     * Garantiza que existan los tipos base usados por preferencias de cliente.
+     */
+    private function ensureDefaultNotificationTypes(): void
+    {
+        $definitions = [
+            ['name' => 'product', 'description' => 'Nuevos productos disponibles'],
+            ['name' => 'promotion', 'description' => 'Promociones y ofertas'],
+            ['name' => 'order', 'description' => 'Recordatorios de carrito y avisos operativos'],
+        ];
+
+        foreach ($definitions as $definition) {
+            $existing = NotificationType::query()
+                ->whereRaw('LOWER(name) = ?', [Str::lower($definition['name'])])
+                ->first();
+
+            if ($existing) {
+                if (!$existing->is_active || trim((string) $existing->description) === '') {
+                    $existing->is_active = true;
+                    $existing->description = $definition['description'];
+                    $existing->updated_at = now();
+                    $existing->save();
+                }
+
+                continue;
+            }
+
+            NotificationType::query()->create([
+                'name' => $definition['name'],
+                'description' => $definition['description'],
+                'is_active' => true,
+            ]);
+        }
     }
 }

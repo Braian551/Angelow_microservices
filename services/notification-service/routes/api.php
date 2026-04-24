@@ -11,6 +11,7 @@ Route::get('/health', HealthController::class);
 
 Route::get('/notifications', [NotificationController::class, 'index']);
 Route::post('/notifications', [NotificationController::class, 'store']);
+Route::post('/notifications/triggers/dispatch', [NotificationController::class, 'dispatchTrigger']);
 Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);

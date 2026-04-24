@@ -266,6 +266,7 @@ const isSearching = ref(false)
 const showSuggestions = ref(false)
 const isMobileMenuOpen = ref(false)
 const searchContainer = ref(null)
+const mobileSearchContainer = ref(null)
 const searchInput = ref(null)
 const logoLoaded = ref(false)
 const logoFailed = ref(false)
@@ -314,7 +315,7 @@ watch(searchValue, (value) => {
       }
 
       searchSuggestions.value = response?.data?.suggestions || []
-      searchTerms.value = response?.data?.terms || []
+      searchTerms.value = (response?.data?.terms || []).slice(0, 4)
       showSuggestions.value = true
     } catch {
       if (searchValue.value.trim() === term) {
@@ -504,15 +505,27 @@ function resolveImageUrl(path) {
   return resolveMediaUrl(path, 'product')
 }
 
+function onDocumentClick(event) {
+  const desktop = searchContainer.value
+  const mobile = mobileSearchContainer.value
+  const clickedInsideDesktop = desktop && desktop.contains(event.target)
+  const clickedInsideMobile = mobile && mobile.contains(event.target)
+  if (!clickedInsideDesktop && !clickedInsideMobile) {
+    hideSuggestions()
+  }
+}
+
 onBeforeUnmount(() => {
   if (searchDebounceTimer) {
     clearTimeout(searchDebounceTimer)
     searchDebounceTimer = null
   }
+  document.removeEventListener('mousedown', onDocumentClick)
 })
 
 onMounted(() => {
   hydrateSearchHistory()
+  document.addEventListener('mousedown', onDocumentClick)
 })
 
 watch(

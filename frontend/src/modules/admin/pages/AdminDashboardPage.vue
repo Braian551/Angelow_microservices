@@ -224,7 +224,7 @@
           v-if="!loading && activities.length === 0"
           icon="fas fa-history"
           title="Sin actividad reciente"
-          description="Los eventos del sistema apareceran aqui."
+          description="Los eventos del sistema aparecerán aquí."
         />
         <div v-else class="dashboard-activity">
           <div v-for="a in activities" :key="a.id" class="dashboard-activity__item">
@@ -647,8 +647,12 @@ async function loadDashboard() {
   try {
     // Cargar órdenes recientes del endpoint admin global.
     const ordersRes = await orderHttp.get('/admin/orders', { params: { limit: 50 } })
-    const ordersData = ordersRes.data?.data || ordersRes.data || []
-    orders = Array.isArray(ordersData) ? ordersData : (ordersData.data || [])
+    const ordersPayload = ordersRes.data?.data || ordersRes.data || {}
+    orders = Array.isArray(ordersPayload)
+      ? ordersPayload
+      : (Array.isArray(ordersPayload.rows)
+          ? ordersPayload.rows
+          : (Array.isArray(ordersPayload.data) ? ordersPayload.data : []))
     recentOrders.value = orders.slice(0, 8).map(o => ({
       id: o.id,
       customer: o.user_name || o.customer_name || 'Cliente',
@@ -781,31 +785,59 @@ async function loadDashboard() {
     }))
 
     try {
-      const reportRes = await catalogHttp.get('/admin/reports/products')
-      const reportData = reportRes.data?.data || reportRes.data || []
-      const reportRows = Array.isArray(reportData) ? reportData : (reportData.data || [])
+      const reportFrom = formatIsoDate(daysAgo(30))
+      const reportTo = formatIsoDate(new Date())
+      const topProductsRes = await orderHttp.get('/admin/reports/products', {
+        params: {
+          from: reportFrom,
+          to: reportTo,
+          limit: 20,
+        },
+      })
 
-      topProducts.value = reportRows
-        .filter((row) => Number(row.units_sold || 0) > 0)
-        .sort((a, b) => Number(b.revenue || 0) - Number(a.revenue || 0))
+      const topProductsPayload = topProductsRes.data?.data || topProductsRes.data || []
+      const topRows = Array.isArray(topProductsPayload)
+        ? topProductsPayload
+        : (Array.isArray(topProductsPayload.rows) ? topProductsPayload.rows : [])
+
+      topProducts.value = topRows
+        .filter((row) => Number(row.total_quantity || row.units_sold || row.times_sold || 0) > 0)
+        .sort((a, b) => Number(b.total_revenue || b.revenue || 0) - Number(a.total_revenue || a.revenue || 0))
         .slice(0, 5)
         .map((row) => ({
-          id: row.id,
+          id: row.product_id || row.id,
           name: row.name || 'Sin nombre',
-          units: Number(row.units_sold || 0),
-          revenue: Number(row.revenue || 0).toLocaleString('es-CO'),
+          units: Number(row.total_quantity || row.units_sold || row.times_sold || 0),
+          revenue: Number(row.total_revenue || row.revenue || 0).toLocaleString('es-CO'),
         }))
     } catch {
-      topProducts.value = products
-        .filter((p) => p.sold_count > 0)
-        .sort((a, b) => b.sold_count - a.sold_count)
-        .slice(0, 5)
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          units: p.sold_count,
-          revenue: Number(p.revenue || (p.price * p.sold_count) || 0).toLocaleString('es-CO'),
-        }))
+      try {
+        const reportRes = await catalogHttp.get('/admin/reports/products')
+        const reportData = reportRes.data?.data || reportRes.data || []
+        const reportRows = Array.isArray(reportData) ? reportData : (reportData.data || [])
+
+        topProducts.value = reportRows
+          .filter((row) => Number(row.units_sold || row.total_quantity || 0) > 0)
+          .sort((a, b) => Number(b.total_revenue || b.revenue || 0) - Number(a.total_revenue || a.revenue || 0))
+          .slice(0, 5)
+          .map((row) => ({
+            id: row.id,
+            name: row.name || 'Sin nombre',
+            units: Number(row.units_sold || row.total_quantity || 0),
+            revenue: Number(row.total_revenue || row.revenue || 0).toLocaleString('es-CO'),
+          }))
+      } catch {
+        topProducts.value = products
+          .filter((p) => p.sold_count > 0)
+          .sort((a, b) => b.sold_count - a.sold_count)
+          .slice(0, 5)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            units: p.sold_count,
+            revenue: Number(p.revenue || (p.price * p.sold_count) || 0).toLocaleString('es-CO'),
+          }))
+      }
     }
   } catch (err) {
     console.warn('Error cargando productos:', err)

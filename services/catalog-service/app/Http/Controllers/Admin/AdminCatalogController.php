@@ -14,6 +14,8 @@ use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use League\Csv\Writer;
@@ -943,6 +945,13 @@ class AdminCatalogController extends Controller
             return $productId;
         });
 
+        $productName = trim((string) ($payload['name'] ?? ''));
+        if ($productName === '') {
+            $productName = 'Nuevo producto';
+        }
+
+        $this->dispatchNewProductNotification($id, $productName);
+
         return response()->json(['success' => true, 'message' => 'Producto creado', 'id' => $id], 201);
     }
 
@@ -1018,11 +1027,85 @@ class AdminCatalogController extends Controller
             'updated_at' => now(),
         ]);
 
+        if ($newStatus) {
+            $nameColumn = $this->firstExistingColumn('products', ['name', 'nombre']);
+            $productName = $nameColumn ? trim((string) ($product->{$nameColumn} ?? '')) : '';
+            if ($productName === '') {
+                $productName = 'Nuevo producto';
+            }
+
+            $this->dispatchNewProductNotification($id, $productName);
+        }
+
         return response()->json([
             'success' => true,
             'message' => $newStatus ? 'Producto activado' : 'Producto desactivado',
             'data' => ['is_active' => $newStatus],
         ]);
+    }
+
+    private function dispatchNewProductNotification(int $productId, string $productName): void
+    {
+        $endpoint = $this->resolveNotificationTriggerEndpoint();
+        if ($endpoint === null) {
+            return;
+        }
+
+        $safeName = trim($productName);
+        if ($safeName === '') {
+            $safeName = 'Nuevo producto';
+        }
+
+        $payload = [
+            'event_key' => 'product',
+            'title' => 'Nuevo producto disponible',
+            'message' => "Ya puedes descubrir {$safeName} en la tienda.",
+            'related_entity_type' => 'product',
+            'related_entity_id' => $productId,
+            'send_push' => true,
+            'send_email' => true,
+            'limit' => 500,
+        ];
+
+        try {
+            $request = Http::acceptJson()->timeout(8);
+            $token = trim((string) config('services.auth.internal_token', ''));
+
+            if ($token !== '') {
+                $request = $request->withHeaders(['X-Internal-Token' => $token]);
+            }
+
+            $response = $request->post($endpoint, $payload);
+
+            if (!$response->successful()) {
+                Log::warning('No se pudo disparar aviso de nuevo producto.', [
+                    'product_id' => $productId,
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Error disparando aviso de nuevo producto.', [
+                'product_id' => $productId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function resolveNotificationTriggerEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.notification.base_url', 'http://notification-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/notifications/triggers/dispatch';
+        }
+
+        return $baseUrl . '/api/notifications/triggers/dispatch';
     }
 
     // ── Categorias ──────────────────────────────────────────────────

@@ -217,6 +217,14 @@
                   {{ shippingAddressOriginLabel }}
                 </span>
               </div>
+
+              <!-- Mapa de ubicación de entrega -->
+              <AddressMapViewer
+                :latitude="shippingMapCoords?.lat ?? null"
+                :longitude="shippingMapCoords?.lng ?? null"
+                :address-text="shippingAddressLine"
+                height="230px"
+              />
             </div>
         </AdminCard>
 
@@ -568,6 +576,7 @@ import AdminPaymentProofModal from '../components/AdminPaymentProofModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AddressMapViewer from '../../../components/common/AddressMapViewer.vue'
 
 const route = useRoute()
 const { showAlert } = useAlertSystem()
@@ -712,6 +721,18 @@ const shippingBuildingTypeLabel = computed(() => {
 })
 
 const shippingBuildingNameLabel = computed(() => normalizeText(selectedShippingAddress.value?.building_name))
+
+// Coordenadas para el mapa: prioriza la dirección guardada, luego la orden
+const shippingMapCoords = computed(() => {
+  const addr = selectedShippingAddress.value
+  if (addr?.gps_latitude && addr?.gps_longitude) {
+    return { lat: addr.gps_latitude, lng: addr.gps_longitude }
+  }
+  if (order.value?.gps_latitude && order.value?.gps_longitude) {
+    return { lat: order.value.gps_latitude, lng: order.value.gps_longitude }
+  }
+  return null
+})
 
 const paymentProofIsImage = computed(() => {
   return Boolean(paymentRecord.value?.proof_url && /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(paymentRecord.value.proof_url))

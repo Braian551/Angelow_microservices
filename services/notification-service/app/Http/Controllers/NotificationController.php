@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\DispatchNotificationJob;
+use App\Services\NotificationDispatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -13,6 +13,10 @@ use Throwable;
 class NotificationController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
+
+    public function __construct(
+        private readonly NotificationDispatchService $dispatchService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -43,49 +47,140 @@ class NotificationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'user_id' => ['required', 'string', 'max:20'],
-            'type_id' => ['required', 'integer'],
+            'user_id' => ['nullable', 'string', 'max:40'],
+            'user_email' => ['nullable', 'string', 'email', 'max:255'],
+            'type_id' => ['nullable', 'integer'],
+            'event_key' => ['nullable', 'string', 'max:40'],
             'title' => ['required', 'string', 'max:100'],
             'message' => ['required', 'string'],
             'related_entity_type' => ['nullable', 'string', 'max:30'],
             'related_entity_id' => ['nullable', 'integer'],
+            'send_push' => ['nullable', 'boolean'],
+            'send_email' => ['nullable', 'boolean'],
         ]);
 
-        $id = DB::table('notifications')->insertGetId([
-            'user_id' => $data['user_id'],
-            'type_id' => $data['type_id'],
+        $resolvedUserId = $this->resolvePreferredUserId(
+            $this->nullableString($data['user_id'] ?? null),
+            $this->nullableString($data['user_email'] ?? null),
+        );
+
+        if ($resolvedUserId === null) {
+            return response()->json([
+                'message' => 'Debe enviar user_id o user_email',
+            ], 422);
+        }
+
+        $result = $this->dispatchService->dispatchToUser([
+            'user_id' => $resolvedUserId,
+            'user_email' => $this->nullableString($data['user_email'] ?? null),
+            'type_id' => isset($data['type_id']) ? (int) $data['type_id'] : null,
+            'event_key' => $this->nullableString($data['event_key'] ?? null),
             'title' => $data['title'],
             'message' => $data['message'],
             'related_entity_type' => $data['related_entity_type'] ?? null,
             'related_entity_id' => $data['related_entity_id'] ?? null,
-            'is_read' => false,
-            'is_email_sent' => false,
-            'is_sms_sent' => false,
-            'is_push_sent' => false,
-            'created_at' => now(),
+            'send_push' => array_key_exists('send_push', $data) ? (bool) $data['send_push'] : true,
+            'send_email' => (bool) ($data['send_email'] ?? false),
         ]);
 
-        $payload = [
-            'id' => $id,
-            'title' => $data['title'],
-            'message' => $data['message'],
-            'type_id' => $data['type_id'],
-        ];
-
-        DispatchNotificationJob::dispatch($id, $data['user_id'], $payload);
-
-        DB::table('notification_queue')->insert([
-            'notification_id' => $id,
-            'channel' => 'push',
-            'status' => 'pending',
-            'attempts' => 0,
-            'scheduled_at' => now(),
-        ]);
+        $status = $result['skipped'] ? 202 : 201;
 
         return response()->json([
-            'message' => 'Notificación creada y encolada',
-            'id' => $id,
-        ], 201);
+            'message' => $result['skipped']
+                ? 'Notificacion omitida por preferencias o canales inactivos'
+                : 'Notificacion creada y encolada',
+            'id' => $result['notification_id'],
+            'notification_sent' => $result['notification_sent'],
+            'email_sent' => $result['email_sent'],
+            'skipped' => $result['skipped'],
+            'reason' => $result['reason'],
+        ], $status);
+    }
+
+    /**
+     * Disparo interno por lotes para eventos del cliente (producto/oferta/carrito).
+     */
+    public function dispatchTrigger(Request $request): JsonResponse
+    {
+        if (!$this->hasInternalAccess($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No autorizado',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'event_key' => ['required', 'string', 'max:40'],
+            'title' => ['required', 'string', 'max:100'],
+            'message' => ['required', 'string'],
+            'related_entity_type' => ['nullable', 'string', 'max:30'],
+            'related_entity_id' => ['nullable', 'integer'],
+            'user_ids' => ['nullable', 'array'],
+            'user_ids.*' => ['string', 'max:64'],
+            'send_push' => ['nullable', 'boolean'],
+            'send_email' => ['nullable', 'boolean'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        $limit = (int) ($data['limit'] ?? 300);
+        $targetUserIds = $this->dispatchService->resolveTargetUserIds($data['user_ids'] ?? null, $limit);
+
+        if ($targetUserIds === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay usuarios destino para el disparador.',
+                'data' => [
+                    'summary' => [
+                        'total_candidates' => 0,
+                        'notifications' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
+                        'emails' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
+                    ],
+                ],
+            ], 422);
+        }
+
+        $summary = [
+            'total_candidates' => count($targetUserIds),
+            'notifications' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
+            'emails' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
+        ];
+
+        foreach ($targetUserIds as $userId) {
+            $result = $this->dispatchService->dispatchToUser([
+                'user_id' => $userId,
+                'event_key' => $data['event_key'],
+                'title' => $data['title'],
+                'message' => $data['message'],
+                'related_entity_type' => $data['related_entity_type'] ?? null,
+                'related_entity_id' => $data['related_entity_id'] ?? null,
+                'send_push' => array_key_exists('send_push', $data) ? (bool) $data['send_push'] : true,
+                'send_email' => (bool) ($data['send_email'] ?? true),
+            ]);
+
+            if ($result['notification_sent']) {
+                $summary['notifications']['sent']++;
+            } elseif ($result['skipped']) {
+                $summary['notifications']['skipped']++;
+            } else {
+                $summary['notifications']['failed']++;
+            }
+
+            if ($result['email_sent']) {
+                $summary['emails']['sent']++;
+            } elseif ($result['skipped'] || ($result['reason'] ?? '') === 'email_not_resolved') {
+                $summary['emails']['skipped']++;
+            } else {
+                $summary['emails']['failed']++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Disparador procesado.',
+            'data' => [
+                'summary' => $summary,
+            ],
+        ]);
     }
 
     public function markAllAsRead(Request $request): JsonResponse
@@ -282,6 +377,16 @@ class NotificationController extends Controller
         return $candidateUserIds;
     }
 
+    private function resolvePreferredUserId(?string $userId, ?string $userEmail): ?string
+    {
+        $candidateUserIds = $this->buildCandidateUserIds($userId, $userEmail);
+        if ($candidateUserIds === []) {
+            return null;
+        }
+
+        return $candidateUserIds[0];
+    }
+
     private function resolveLegacyUserIdByEmail(?string $userEmail): ?string
     {
         if ($userEmail === null || $userEmail === '') {
@@ -311,6 +416,21 @@ class NotificationController extends Controller
     private function query(?string $connection)
     {
         return $connection ? DB::connection($connection) : DB::connection();
+    }
+
+    private function hasInternalAccess(Request $request): bool
+    {
+        $expectedToken = trim((string) config('services.internal.api_token', config('services.auth.internal_token', '')));
+        if ($expectedToken === '') {
+            return true;
+        }
+
+        $providedToken = trim((string) $request->header('X-Internal-Token', ''));
+        if ($providedToken === '') {
+            return false;
+        }
+
+        return hash_equals($expectedToken, $providedToken);
     }
 
     private function nullableString(mixed $value): ?string

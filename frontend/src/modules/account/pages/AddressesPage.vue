@@ -66,7 +66,7 @@
 
           <div class="detail-item">
             <i class="fas fa-map-marker-alt" />
-            <p>{{ address.address }}</p>
+            <p class="detail-address-text">{{ address.address }}</p>
           </div>
 
           <div v-if="address.complement" class="detail-item">

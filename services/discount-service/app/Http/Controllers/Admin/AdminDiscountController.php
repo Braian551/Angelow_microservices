@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\BulkDiscountRule;
 use App\Models\DiscountCode;
 use App\Models\DiscountType;
-use App\Support\DiscountPdfAttachmentHelper;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +13,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -313,18 +311,6 @@ class AdminDiscountController extends Controller
             ], 422);
         }
 
-        if ($sendEmail && !$this->emailDeliveryConfigured()) {
-            Log::warning('Campaña de descuento sin envío real de correo: mailer no entregable.', [
-                'mailer' => (string) config('mail.default', 'log'),
-                'discount_code_id' => $discountCodeId,
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'El servicio de correo no está configurado para envío real. Configura SMTP para continuar.',
-            ], 422);
-        }
-
         $discountCode = $this->findCampaignDiscountCode($discountCodeId);
 
         if ($discountCode === null) {
@@ -334,41 +320,39 @@ class AdminDiscountController extends Controller
             ], 404);
         }
 
-        // Helper de adjunto PDF en memoria, reutilizable para ambos tipos de envío.
-        $pdfAttachment = $sendEmail ? DiscountPdfAttachmentHelper::build($discountCode) : null;
-
         $summary = [
             'total_recipients' => count($customers),
-            'notifications' => ['sent' => 0, 'failed' => 0],
-            'emails' => ['sent' => 0, 'failed' => 0],
+            'notifications' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
+            'emails' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
         ];
 
         foreach ($customers as $customer) {
+            $delivery = $this->sendCampaignNotification($customer, $discountCode, $sendNotification, $sendEmail);
+
             if ($sendNotification) {
-                if ($this->sendCampaignNotification($customer, $discountCode)) {
+                if ($delivery['notification_sent']) {
                     $summary['notifications']['sent']++;
+                } elseif ($delivery['skipped']) {
+                    $summary['notifications']['skipped']++;
                 } else {
                     $summary['notifications']['failed']++;
                 }
             }
 
             if ($sendEmail) {
-                if ($this->sendCampaignEmail($customer, $discountCode, $pdfAttachment)) {
+                if ($delivery['email_sent']) {
                     $summary['emails']['sent']++;
+                } elseif ($delivery['skipped'] || ($delivery['reason'] ?? '') === 'email_not_resolved') {
+                    $summary['emails']['skipped']++;
                 } else {
                     $summary['emails']['failed']++;
                 }
             }
         }
 
-        $message = 'Campaña procesada correctamente.';
-        if ($sendEmail && $pdfAttachment === null) {
-            $message .= ' No se pudo generar el PDF; los correos se enviaron sin adjunto.';
-        }
-
         return response()->json([
             'success' => true,
-            'message' => $message,
+            'message' => 'Campaña procesada correctamente.',
             'data' => [
                 'discount_code' => [
                     'id' => (int) ($discountCode['id'] ?? 0),
@@ -480,21 +464,38 @@ class AdminDiscountController extends Controller
         }
     }
 
-    private function sendCampaignNotification(array $customer, array $discountCode): bool
+    private function sendCampaignNotification(array $customer, array $discountCode, bool $sendPush, bool $sendEmail): array
     {
         $userId = trim((string) ($customer['id'] ?? ''));
         if ($userId === '') {
-            return false;
+            return [
+                'notification_sent' => false,
+                'email_sent' => false,
+                'skipped' => false,
+                'reason' => 'missing_user_id',
+            ];
         }
 
         $endpoint = $this->resolveNotificationEndpoint();
         if ($endpoint === null) {
-            return false;
+            return [
+                'notification_sent' => false,
+                'email_sent' => false,
+                'skipped' => false,
+                'reason' => 'notification_endpoint_not_resolved',
+            ];
+        }
+
+        $userEmail = trim((string) ($customer['email'] ?? ''));
+        if ($userEmail !== '' && !filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
+            $userEmail = '';
         }
 
         $payload = [
             'user_id' => $userId,
+            'user_email' => $userEmail !== '' ? $userEmail : null,
             'type_id' => (int) config('services.notifications.discount_type_id', self::DEFAULT_NOTIFICATION_TYPE_ID),
+            'event_key' => 'promotion',
             'title' => 'Nuevo descuento disponible',
             'message' => sprintf(
                 'Usa el código %s y obtén %s. %s',
@@ -504,6 +505,8 @@ class AdminDiscountController extends Controller
             ),
             'related_entity_type' => 'discount_code',
             'related_entity_id' => (int) ($discountCode['id'] ?? 0),
+            'send_push' => $sendPush,
+            'send_email' => $sendEmail,
         ];
 
         try {
@@ -511,7 +514,23 @@ class AdminDiscountController extends Controller
                 ->timeout(8)
                 ->post($endpoint, $payload);
 
-            return $response->successful();
+            if (!$response->successful()) {
+                return [
+                    'notification_sent' => false,
+                    'email_sent' => false,
+                    'skipped' => false,
+                    'reason' => 'dispatch_failed',
+                ];
+            }
+
+            $data = $response->json();
+
+            return [
+                'notification_sent' => (bool) ($data['notification_sent'] ?? false),
+                'email_sent' => (bool) ($data['email_sent'] ?? false),
+                'skipped' => (bool) ($data['skipped'] ?? false),
+                'reason' => (string) ($data['reason'] ?? 'ok'),
+            ];
         } catch (\Throwable $exception) {
             Log::warning('No se pudo enviar notificación de campaña de descuento.', [
                 'user_id' => $userId,
@@ -519,147 +538,13 @@ class AdminDiscountController extends Controller
                 'error' => $exception->getMessage(),
             ]);
 
-            return false;
+            return [
+                'notification_sent' => false,
+                'email_sent' => false,
+                'skipped' => false,
+                'reason' => 'dispatch_failed',
+            ];
         }
-    }
-
-    private function sendCampaignEmail(array $customer, array $discountCode, ?array $pdfAttachment): bool
-    {
-        $email = trim((string) ($customer['email'] ?? ''));
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return false;
-        }
-
-        $name = trim((string) ($customer['name'] ?? ''));
-        if ($name === '') {
-            $name = 'Cliente';
-        }
-
-        $html = $this->buildDiscountEmailHtml($name, $discountCode);
-
-        try {
-            Mail::html($html, function ($message) use ($email, $name, $pdfAttachment) {
-                $message->to($email, $name)
-                    ->subject('¡Tienes un descuento especial en Angelow!');
-
-                if ($pdfAttachment !== null) {
-                    $message->attachData(
-                        $pdfAttachment['content'],
-                        $pdfAttachment['filename'],
-                        ['mime' => $pdfAttachment['mime'] ?? 'application/pdf'],
-                    );
-                }
-            });
-
-            return true;
-        } catch (\Throwable $exception) {
-            Log::warning('No se pudo enviar correo de campaña de descuento.', [
-                'email' => $email,
-                'discount_code_id' => (int) ($discountCode['id'] ?? 0),
-                'mailer' => (string) config('mail.default', 'log'),
-                'error' => $exception->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    private function emailDeliveryConfigured(): bool
-    {
-        $defaultMailer = Str::lower((string) config('mail.default', 'log'));
-
-        if (in_array($defaultMailer, ['log', 'array'], true)) {
-            return false;
-        }
-
-        // Para SMTP exigimos datos base para evitar falsos positivos de envío.
-        if ($defaultMailer === 'smtp') {
-            $host = trim((string) config('mail.mailers.smtp.host', ''));
-            $port = (int) config('mail.mailers.smtp.port', 0);
-            $username = trim((string) config('mail.mailers.smtp.username', ''));
-
-            return $host !== '' && $port > 0 && $username !== '';
-        }
-
-        return true;
-    }
-
-    private function buildDiscountEmailHtml(string $customerName, array $discountCode): string
-    {
-        $safeName = e($customerName);
-        $safeCode = e((string) ($discountCode['code'] ?? 'PROMO'));
-        $safeValue = e($this->formatCampaignValue($discountCode));
-        $safeExpiry = e($this->formatCampaignEndDate($discountCode['end_date'] ?? null));
-        $storeUrl = rtrim((string) config('services.frontend.store_url', 'http://localhost:5173'), '/');
-        if ($storeUrl === '') {
-            $storeUrl = 'http://localhost:5173';
-        }
-
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>¡Descuento Especial!</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background-color: #2968c8; color: #fff; padding: 20px; text-align: center; border-radius: 6px 6px 0 0; }
-        .content { padding: 20px; background-color: #f9f9f9; border-left: 1px solid #ddd; border-right: 1px solid #ddd; }
-        .discount-code {
-            background-color: #2968c8;
-            color: #fff;
-            padding: 10px 20px;
-            font-size: 24px;
-            font-weight: bold;
-            text-align: center;
-            display: inline-block;
-            margin: 15px 0;
-            border-radius: 5px;
-        }
-        .btn {
-            background-color: #2968c8;
-            color: #fff;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            display: inline-block;
-            margin: 15px 0;
-        }
-        .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; border-top: 1px solid #ddd; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>¡Descuento Especial!</h1>
-            <p>Hola {$safeName},</p>
-        </div>
-        <div class="content">
-            <p>Hemos preparado un descuento especial para ti:</p>
-            <div style="text-align: center;">
-                <div class="discount-code">{$safeCode}</div>
-                <p style="font-size: 18px; margin: 5px 0;">{$safeValue}</p>
-                <p style="color: #666;">{$safeExpiry}</p>
-            </div>
-            <p>Para usar tu código de descuento:</p>
-            <ol>
-                <li>Agrega productos a tu carrito.</li>
-                <li>Ingresa el código en el checkout.</li>
-                <li>¡Disfruta de tu descuento!</li>
-            </ol>
-            <p style="text-align: center;">
-                <a href="{$storeUrl}" class="btn">Ir a la tienda</a>
-            </p>
-        </div>
-        <div class="footer">
-            <p>© Angelow. Todos los derechos reservados.</p>
-            <p>Este código es personal e intransferible.</p>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
     }
 
     private function formatCampaignValue(array $discountCode): string
