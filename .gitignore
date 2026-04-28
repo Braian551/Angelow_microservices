@@ -1,7 +1,7 @@
 # ===== Dependencies =====
 node_modules/
 vendor/
-
+basededatos.sql
 # ===== Environment files =====
 .env
 .env.local
