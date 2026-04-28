@@ -6,7 +6,7 @@ basededatos.sql
 .env
 .env.local
 .env.*.local
-
+.agents/
 # ===== Build output =====
 dist/
 build/
