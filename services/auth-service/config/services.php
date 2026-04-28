@@ -35,4 +35,28 @@ return [
         ],
     ],
 
+    'firebase' => [
+        'web_api_key' => env('FIREBASE_WEB_API_KEY', 'AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k'),
+    ],
+
+    'internal' => [
+        'api_token' => env('INTERNAL_API_TOKEN', ''),
+    ],
+
+    'password_recovery' => [
+        'code_ttl' => env('PASSWORD_RECOVERY_CODE_TTL', 900),
+        'resend_cooldown' => env('PASSWORD_RECOVERY_RESEND_COOLDOWN', 60),
+        'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+    ],
+
+    'phpmailer' => [
+        'host' => env('PHPMAILER_HOST', 'smtp.gmail.com'),
+        'port' => env('PHPMAILER_PORT', 587),
+        'username' => env('PHPMAILER_USERNAME', ''),
+        'password' => env('PHPMAILER_PASSWORD', ''),
+        'encryption' => env('PHPMAILER_ENCRYPTION', 'tls'),
+        'from_email' => env('PHPMAILER_FROM_EMAIL', 'seguridad@angelow.com'),
+        'from_name' => env('PHPMAILER_FROM_NAME', 'Seguridad Angelow'),
+    ],
+
 ];

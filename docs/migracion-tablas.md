@@ -1,4 +1,3 @@
-# Mapa de Tablas Migradas (`basededatos.sql`)
 
 ## auth-service
 

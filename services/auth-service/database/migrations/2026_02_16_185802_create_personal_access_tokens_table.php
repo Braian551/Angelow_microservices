@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
-            $table->morphs('tokenable');
+            // Los IDs de usuarios legacy son string (uniqid), no bigint.
+            $table->stringMorphs('tokenable');
             $table->text('name');
             $table->string('token', 64)->unique();
             $table->text('abilities')->nullable();

@@ -81,6 +81,48 @@ class ShippingApiTest extends TestCase
         $this->postJson('/api/shipping/estimate', [
             'subtotal' => 120000,
             'city' => 'Medellin',
-        ])->assertOk()->assertJsonPath('shipping_cost', '0.00');
+        ])
+            ->assertOk()
+            ->assertJsonPath('shipping_cost', 0)
+            ->assertJsonPath('range_rule_additional_cost', 0)
+            ->assertJsonPath('range_rule_label', 'Desde $100.000');
+    }
+
+    public function test_methods_endpoint_adds_price_rule_cost_when_subtotal_matches(): void
+    {
+        DB::table('shipping_methods')->insert([
+            'name' => 'Envio principal',
+            'description' => 'Metodo de prueba',
+            'base_cost' => 5000,
+            'delivery_time' => '2 dias',
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'free_shipping_threshold' => null,
+            'available_cities' => null,
+            'estimated_days_min' => 1,
+            'estimated_days_max' => 2,
+            'city' => 'Medellin',
+            'free_shipping_minimum' => 0,
+            'icon' => 'fas fa-truck',
+            'trial554' => null,
+        ]);
+
+        DB::table('shipping_price_rules')->insert([
+            'min_price' => 0,
+            'max_price' => 99999,
+            'shipping_cost' => 9000,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+            'trial554' => null,
+        ]);
+
+        $this->getJson('/api/shipping/methods?subtotal=20000')
+            ->assertOk()
+            ->assertJsonPath('data.0.method_cost', 5000)
+            ->assertJsonPath('data.0.range_rule_additional_cost', 9000)
+            ->assertJsonPath('data.0.applied_cost', 14000)
+            ->assertJsonPath('data.0.pricing_source', 'base_plus_price_rule');
     }
 }

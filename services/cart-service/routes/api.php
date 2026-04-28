@@ -20,5 +20,6 @@ Route::post('/cart/add', [CartController::class, 'add']);
 Route::put('/cart/{itemId}', [CartController::class, 'update']);
 Route::delete('/cart/{itemId}', [CartController::class, 'destroy']);
 Route::get('/cart/items', [CartController::class, 'productIds']);
+Route::post('/admin/cart/abandoned/reminders/dispatch', [CartController::class, 'dispatchAbandonedReminders']);
 
 Route::get('/health', HealthController::class);

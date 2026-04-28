@@ -1,11 +1,18 @@
 import axios from 'axios'
+import { normalizeUtf8Data } from '../utils/text'
 
 const baseConfig = {
   timeout: 15000,
   headers: {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
   },
+}
+
+function isBinaryResponseData(data) {
+  if (!data) return false
+  if (typeof Blob !== 'undefined' && data instanceof Blob) return true
+  if (typeof ArrayBuffer !== 'undefined' && data instanceof ArrayBuffer) return true
+  return false
 }
 
 function createClient(baseURL) {
@@ -15,12 +22,40 @@ function createClient(baseURL) {
   })
 
   client.interceptors.request.use((config) => {
+    // Cuando el payload es FormData, el navegador debe inyectar el boundary.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        if (typeof config.headers.delete === 'function') {
+          config.headers.delete('Content-Type')
+          config.headers.delete('content-type')
+        } else {
+          delete config.headers['Content-Type']
+          delete config.headers['content-type']
+        }
+      }
+    }
+
     const token = localStorage.getItem('angelow_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
   })
+
+  client.interceptors.response.use(
+    (response) => {
+      if (!isBinaryResponseData(response.data)) {
+        response.data = normalizeUtf8Data(response.data)
+      }
+      return response
+    },
+    (error) => {
+      if (error?.response?.data && !isBinaryResponseData(error.response.data)) {
+        error.response.data = normalizeUtf8Data(error.response.data)
+      }
+      return Promise.reject(error)
+    },
+  )
 
   return client
 }

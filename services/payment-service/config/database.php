@@ -83,6 +83,24 @@ return [
             ]) : [],
         ],
 
+        'legacy_mysql' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_DB_HOST', 'host.docker.internal'),
+            'port' => env('LEGACY_DB_PORT', '3306'),
+            'database' => env('LEGACY_DB_DATABASE', 'angelow'),
+            'username' => env('LEGACY_DB_USERNAME', 'root'),
+            'password' => env('LEGACY_DB_PASSWORD', ''),
+            'charset' => env('LEGACY_DB_CHARSET', 'utf8mb4'),
+            'collation' => env('LEGACY_DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('LEGACY_MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

@@ -1,6 +1,6 @@
 <template>
   <section class="featured-categories">
-    <h2 class="section-title">Explora nuestras categorias</h2>
+    <h2 class="section-title">Explora nuestras categorías</h2>
     <div class="categories-grid">
       <RouterLink
         v-for="category in categories"
@@ -8,7 +8,11 @@
         :to="{ name: 'store', query: { category: category.id } }"
         class="category-card"
       >
-        <img :src="resolveMediaUrl(category.image, '/logo.png')" :alt="category.name" />
+        <img
+          :src="resolveMediaUrl(category.image, 'category')"
+          :alt="category.name"
+          @error="onImageError($event, category.image)"
+        />
         <h3>{{ category.name }}</h3>
       </RouterLink>
     </div>
@@ -17,7 +21,7 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
-import { resolveMediaUrl } from '../../../utils/media'
+import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 
 defineProps({
   categories: {
@@ -25,4 +29,8 @@ defineProps({
     default: () => [],
   },
 })
+
+function onImageError(event, originalPath) {
+  handleMediaError(event, originalPath, 'category')
+}
 </script>

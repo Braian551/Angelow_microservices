@@ -4,6 +4,10 @@ namespace App\Repositories;
 
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Query Builder implementation of the Product repository.
@@ -21,53 +25,100 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
      */
     public function getFiltered(array $filters, int $limit, int $offset, ?string $userId = null): array
     {
-        $query = DB::table('products as p')
+        $result = $this->runFilteredQueryByConnection(
+            null,
+            $filters,
+            $limit,
+            $offset,
+            $userId,
+        );
+
+        // Fallback legacy durante migración cuando la base distribuida no tenga productos aún.
+        if (($result['total'] ?? 0) === 0) {
+            try {
+                $legacyResult = $this->runFilteredQueryByConnection(
+                    'legacy_mysql',
+                    $filters,
+                    $limit,
+                    $offset,
+                    $userId,
+                );
+
+                if (($legacyResult['total'] ?? 0) > 0) {
+                    $result = $legacyResult;
+                }
+            } catch (Throwable $exception) {
+                Log::warning('No se pudo consultar el fallback de catálogo desde legacy.', [
+                    'error' => $exception->getMessage(),
+                    'filters' => $filters,
+                ]);
+            }
+        }
+
+        return [
+            'products' => $result['products'],
+            'total'    => $result['total'],
+        ];
+    }
+
+    private function runFilteredQueryByConnection(
+        ?string $connection,
+        array $filters,
+        int $limit,
+        int $offset,
+        ?string $userId,
+    ): array {
+        $db = $connection ? DB::connection($connection) : DB::connection();
+        $searchOperator = $db->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        $query = $db->table('products as p')
             ->leftJoin('product_images as pi', function ($join) {
                 $join->on('p.id', '=', 'pi.product_id')
-                     ->where('pi.is_primary', '=', true);
+                    ->where('pi.is_primary', '=', true);
             })
             ->leftJoin('categories as c', 'p.category_id', '=', 'c.id')
-            ->leftJoin(DB::raw('(SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE is_approved = true GROUP BY product_id) as pr'), 'p.id', '=', 'pr.product_id')
+            ->leftJoin($db->raw('(SELECT product_id, AVG(rating) as avg_rating, COUNT(*) as review_count FROM product_reviews WHERE is_approved = true GROUP BY product_id) as pr'), 'p.id', '=', 'pr.product_id')
             ->where('p.is_active', true)
             ->select([
                 'p.*',
                 'pi.image_path as primary_image',
                 'c.name as category_name',
-                DB::raw('COALESCE(pr.avg_rating, 0) as avg_rating'),
-                DB::raw('COALESCE(pr.review_count, 0) as review_count'),
+                $db->raw('COALESCE(pr.avg_rating, 0) as avg_rating'),
+                $db->raw('COALESCE(pr.review_count, 0) as review_count'),
             ]);
 
-        // Join favorites if user provided
         if ($userId) {
             $query->leftJoin('wishlist as w', function ($join) use ($userId) {
                 $join->on('p.id', '=', 'w.product_id')
-                     ->where('w.user_id', '=', $userId);
+                    ->where('w.user_id', '=', $userId);
             });
-            $query->addSelect(DB::raw('CASE WHEN w.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite'));
+            $query->addSelect($db->raw('CASE WHEN w.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite'));
         } else {
-            $query->addSelect(DB::raw('0 as is_favorite'));
+            $query->addSelect($db->raw('0 as is_favorite'));
         }
 
-        // Search filter
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('p.name', 'like', "%{$search}%")
-                  ->orWhere('p.description', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search, $searchOperator) {
+                $q->where('p.name', $searchOperator, "%{$search}%")
+                    ->orWhere('p.description', $searchOperator, "%{$search}%")
+                    ->orWhere('c.name', $searchOperator, "%{$search}%");
             });
         }
 
-        // Category filter
         if (!empty($filters['category'])) {
             $query->where('p.category_id', $filters['category']);
         }
 
-        // Gender filter
         if (!empty($filters['gender'])) {
-            $query->where('p.gender', $filters['gender']);
+            $genderCriteria = $this->resolveGenderSearchCriteria((string) $filters['gender']);
+            $query->where(function ($genderQuery) use ($genderCriteria, $searchOperator) {
+                foreach ($genderCriteria as $criterion) {
+                    $genderQuery->orWhere('p.gender', $searchOperator, $criterion);
+                }
+            });
         }
 
-        // Price range filter
         if (isset($filters['min_price']) && $filters['min_price'] !== null) {
             $query->where('p.price', '>=', $filters['min_price']);
         }
@@ -75,41 +126,53 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             $query->where('p.price', '<=', $filters['max_price']);
         }
 
-        // Offers only filter
         if (!empty($filters['offers'])) {
             $query->whereNotNull('p.compare_price')
-                  ->whereColumn('p.price', '<', 'p.compare_price');
+                ->whereColumn('p.price', '<', 'p.compare_price');
         }
 
-        // Collection filter
         if (!empty($filters['collection'])) {
             $query->where('p.collection_id', $filters['collection']);
         }
 
-        // Get total count before limit/offset
         $totalQuery = clone $query;
         $total = $totalQuery->count('p.id');
 
-        // Sorting
         $sortBy = $filters['sort'] ?? 'newest';
         match ($sortBy) {
-            'popular'    => $query->orderByDesc('pr.review_count'),
-            'price_asc'  => $query->orderBy('p.price'),
+            'popular' => $query->orderByDesc('pr.review_count'),
+            'price_asc' => $query->orderBy('p.price'),
             'price_desc' => $query->orderByDesc('p.price'),
-            'name_asc'   => $query->orderBy('p.name'),
-            'name_desc'  => $query->orderByDesc('p.name'),
-            default      => $query->orderByDesc('p.created_at'),
+            'name_asc' => $query->orderBy('p.name'),
+            'name_desc' => $query->orderByDesc('p.name'),
+            default => $query->orderByDesc('p.is_featured')->orderByDesc('p.created_at'),
         };
 
         $products = $query->offset($offset)->limit($limit)->get()->toArray();
 
-        // Convert stdClass objects to arrays
-        $products = array_map(fn($p) => (array) $p, $products);
-
         return [
-            'products' => $products,
-            'total'    => $total,
+            'products' => array_map(fn($product) => (array) $product, $products),
+            'total' => (int) $total,
         ];
+    }
+
+    /**
+     * Normaliza filtros de género para soportar variantes con acentos/plurales y valores mojibake heredados.
+     */
+    private function resolveGenderSearchCriteria(string $rawGender): array
+    {
+        $normalized = mb_strtolower(trim($rawGender));
+        $genderKey = Str::ascii($normalized);
+
+        $criteria = match ($genderKey) {
+            // Patrones tolerantes para cubrir nina/nino incluso cuando llegan con bytes degradados.
+            'nina', 'ninas' => ['%ni%a%', '%nina%', '%niña%', '%niÃ±a%', '%niñas%', '%niÃ±as%'],
+            'nino', 'ninos' => ['%ni%o%', '%nino%', '%niño%', '%niÃ±o%', '%niños%', '%niÃ±os%'],
+            'bebe', 'bebes' => ['%be%b%', '%bebe%', '%bebé%', '%bebes%', '%bebés%', '%bebÃ©%', '%bebÃ©s%'],
+            default => ["%{$normalized}%", '%' . Str::ascii($normalized) . '%'],
+        };
+
+        return array_values(array_unique(array_filter($criteria, static fn ($value) => trim((string) $value) !== '')));
     }
 
     /**
@@ -140,7 +203,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get product variants (colors → sizes → images).
+     * Get product variants (colors -> sizes -> images).
      *
      * Migrated from getProductVariants() in product-functions.php
      */
@@ -186,6 +249,11 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
 
             $sizes = [];
             foreach ($sizeVariants as $sv) {
+                $effectiveQuantity = $this->resolveRealtimeAvailableStock(
+                    (int) $sv->id,
+                    (int) ($sv->quantity ?? 0),
+                );
+
                 $sizes[$sv->size_id] = [
                     'size_id'       => $sv->size_id,
                     'size_name'     => $sv->size_name,
@@ -193,7 +261,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
                     'sku'           => $sv->sku,
                     'price'         => $sv->price,
                     'compare_price' => $sv->compare_price,
-                    'quantity'      => $sv->quantity,
+                    'quantity'      => $effectiveQuantity,
                 ];
             }
 
@@ -272,22 +340,40 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         $query = DB::table('product_reviews as pr')
             ->where('pr.product_id', $productId)
             ->where('pr.is_approved', true)
-            ->orderByDesc('pr.is_verified')
-            ->orderByDesc('pr.created_at')
-            ->limit(10)
-            ->select(['pr.*']);
+            ->select([
+                'pr.*',
+                DB::raw('(SELECT COUNT(*) FROM review_votes rv WHERE rv.review_id = pr.id AND rv.is_helpful = true) as helpful_count'),
+            ]);
+
+        if ($userId) {
+            $query->selectRaw(
+                '(SELECT rv.is_helpful FROM review_votes rv WHERE rv.review_id = pr.id AND rv.user_id = ? LIMIT 1) as user_has_voted',
+                [$userId],
+            );
+        } else {
+            $query->addSelect(DB::raw('0 as user_has_voted'));
+        }
 
         $reviews = $query
+            ->orderByDesc('pr.is_verified')
+            ->orderByDesc('helpful_count')
+            ->orderByDesc('pr.created_at')
+            ->limit(10)
             ->get()
             ->map(function ($review) {
                 $item = (array) $review;
-                $item['user_name'] = 'Usuario ' . ($item['user_id'] ?? '');
-                $item['user_image'] = null;
+                $item['user_name'] = $this->resolveUserName(
+                    null,
+                    $item['user_id'] ?? null,
+                );
+                $item['user_image'] = $this->normalizeUserImagePath(null);
+                $item['helpful_count'] = (int) ($item['helpful_count'] ?? 0);
+                $item['user_has_voted'] = (int) ($item['user_has_voted'] ?? 0);
                 return $item;
             })
             ->toArray();
 
-        // Stats
+        // Estadisticas para la seccion de barras de calificacion.
         $stats = DB::table('product_reviews')
             ->where('product_id', $productId)
             ->where('is_approved', true)
@@ -300,15 +386,34 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             ->first();
 
         $stats = (array) ($stats ?: [
-            'total_reviews'  => 0,
+            'total_reviews' => 0,
             'average_rating' => 0,
-            'five_star' => 0, 'four_star' => 0, 'three_star' => 0,
-            'two_star' => 0, 'one_star' => 0,
+            'five_star' => 0,
+            'four_star' => 0,
+            'three_star' => 0,
+            'two_star' => 0,
+            'one_star' => 0,
         ]);
+
+        $totalReviews = (int) ($stats['total_reviews'] ?? 0);
+        $stats['five_star_percent'] = $totalReviews > 0 ? (int) round(((int) ($stats['five_star'] ?? 0) / $totalReviews) * 100) : 0;
+        $stats['four_star_percent'] = $totalReviews > 0 ? (int) round(((int) ($stats['four_star'] ?? 0) / $totalReviews) * 100) : 0;
+        $stats['three_star_percent'] = $totalReviews > 0 ? (int) round(((int) ($stats['three_star'] ?? 0) / $totalReviews) * 100) : 0;
+        $stats['two_star_percent'] = $totalReviews > 0 ? (int) round(((int) ($stats['two_star'] ?? 0) / $totalReviews) * 100) : 0;
+        $stats['one_star_percent'] = $totalReviews > 0 ? (int) round(((int) ($stats['one_star'] ?? 0) / $totalReviews) * 100) : 0;
+
+        $userHasReview = false;
+        if ($userId) {
+            $userHasReview = DB::table('product_reviews')
+                ->where('product_id', $productId)
+                ->where('user_id', $userId)
+                ->exists();
+        }
 
         return [
             'reviews' => $reviews,
-            'stats'   => $stats,
+            'stats' => $stats,
+            'user_has_review' => $userHasReview,
         ];
     }
 
@@ -317,18 +422,24 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
      *
      * Migrated from getProductQuestions() in product-functions.php
      */
-    public function getQuestions(int $productId, int $limit = 5): array
+    public function getQuestions(int $productId, int $limit = 5, ?string $userId = null): array
     {
         $questions = DB::table('product_questions as pq')
             ->where('pq.product_id', $productId)
             ->orderByDesc('pq.created_at')
             ->limit($limit)
-            ->select(['pq.*'])
+            ->select([
+                'pq.*',
+                DB::raw('(SELECT COUNT(*) FROM question_answers qa WHERE qa.question_id = pq.id) as answer_count'),
+            ])
             ->get()
             ->map(function ($question) {
                 $item = (array) $question;
-                $item['user_name'] = 'Usuario ' . ($item['user_id'] ?? '');
-                $item['user_image'] = null;
+                $item['user_name'] = $this->resolveUserName(
+                    null,
+                    $item['user_id'] ?? null,
+                );
+                $item['user_image'] = $this->normalizeUserImagePath(null);
                 return $item;
             })
             ->toArray();
@@ -342,8 +453,11 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
                 ->get()
                 ->map(function ($answer) {
                     $item = (array) $answer;
-                    $item['user_name'] = 'Usuario ' . ($item['user_id'] ?? '');
-                    $item['user_image'] = null;
+                    $item['user_name'] = $this->resolveUserName(
+                        null,
+                        $item['user_id'] ?? null,
+                    );
+                    $item['user_image'] = $this->normalizeUserImagePath(null);
                     return $item;
                 })
                 ->toArray();
@@ -351,4 +465,68 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
 
         return $questions;
     }
+
+    /**
+     * Normaliza la ruta del avatar para mantener compatibilidad con legacy.
+     */
+    private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
+    {
+        $safeFallback = max(0, $fallbackQuantity);
+
+        try {
+            // Redis mantiene stock en tiempo real incluyendo reservas temporales.
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            if ($stockValue !== null && is_numeric((string) $stockValue)) {
+                return max(0, (int) $stockValue);
+            }
+
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
+                $reserved = max(0, (int) $reservedValue);
+                return max(0, $safeFallback - $reserved);
+            }
+        } catch (Throwable) {
+            // Si Redis no responde, se conserva el stock de base de datos.
+        }
+
+        return $safeFallback;
+    }
+
+    /**
+     * Normaliza la ruta del avatar para mantener compatibilidad con legacy.
+     */
+    private function normalizeUserImagePath(?string $path): string
+    {
+        $cleanPath = trim((string) $path);
+
+        if ($cleanPath === '') {
+            return 'images/default-avatar.png';
+        }
+
+        if (str_contains($cleanPath, '/')) {
+            return ltrim(str_replace('\\', '/', $cleanPath), '/');
+        }
+
+        return 'uploads/users/' . $cleanPath;
+    }
+
+    /**
+     * Retorna el nombre mostrado del usuario con fallback consistente.
+     */
+    private function resolveUserName(?string $name, ?string $userId = null): string
+    {
+        $cleanName = trim((string) $name);
+        if ($cleanName !== '') {
+            return $cleanName;
+        }
+
+        $cleanUserId = trim((string) $userId);
+        if ($cleanUserId === '') {
+            return 'Usuario';
+        }
+
+        return 'Usuario ' . $cleanUserId;
+    }
 }
+
+

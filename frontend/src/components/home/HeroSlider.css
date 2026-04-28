@@ -1,161 +1,438 @@
 /* ===== HERO BANNER ===== */
 .hero-banner {
     position: relative;
-    height: 60vh;
-    min-height: 500px;
+    height: 70vh;
+    min-height: 560px;
     overflow: hidden;
+    background: #1a1a2e;
 }
 
+/* ── Slider contenedor ── */
 .hero-slider {
     position: relative;
     width: 100%;
     height: 100%;
 }
 
-.hero-slide {
-    position: absolute;
-    top: 0;
-    left: 0;
+.hero-slider-loading {
+    position: relative;
     width: 100%;
     height: 100%;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 1s ease, visibility 1s ease;
 }
 
-.hero-slide.active {
+.hero-slider-loading__media {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, #d9e1ea 20%, #edf2f7 40%, #d9e1ea 60%);
+    background-size: 220% 100%;
+    animation: heroShimmerSweep 1.35s ease-in-out infinite;
+}
+
+.hero-slider-loading__content {
+    position: absolute;
+    top: 50%;
+    left: 7%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(52rem, 82vw);
+    z-index: 2;
+}
+
+.hero-slider-loading__line {
+    display: block;
+    border-radius: 999px;
+    background: linear-gradient(110deg, rgba(255, 255, 255, 0.35) 15%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.35) 75%);
+    background-size: 220% 100%;
+    animation: heroShimmerSweep 1.35s ease-in-out infinite;
+}
+
+.hero-slider-loading__line--tag {
+    width: 8.5rem;
+    height: 2.2rem;
+}
+
+.hero-slider-loading__line--title {
+    width: min(32rem, 70vw);
+    height: 4.4rem;
+}
+
+.hero-slider-loading__line--subtitle {
+    width: min(27rem, 64vw);
+    height: 2.2rem;
+}
+
+.hero-slider-loading__line--cta {
+    width: 14.2rem;
+    height: 4rem;
+}
+
+/* ── Cada slide ── */
+.hero-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.9s ease, visibility 0.9s ease;
+}
+
+.hero-slide.is-active {
     opacity: 1;
     visibility: visible;
+}
+
+.hero-slide-media {
+    position: absolute;
+    inset: 0;
 }
 
 .hero-slide img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center 30%;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.28s ease;
 }
 
+.hero-slide img.is-loaded {
+    opacity: 1;
+}
+
+.hero-slide-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, #d9e1ea 20%, #edf2f7 40%, #d9e1ea 60%);
+    background-size: 220% 100%;
+    animation: heroShimmerSweep 1.35s ease-in-out infinite;
+    z-index: 0;
+}
+
+/* ── Capa de gradiente sutil — sin efecto de caja, mantiene legibilidad ── */
+.hero-gradient-overlay {
+    position: absolute;
+    inset: 0;
+    /* Degradado suave de izquierda a derecha: se funde naturalmente con la imagen */
+    background:
+        linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0.52) 0%,
+            rgba(0, 0, 0, 0.28) 38%,
+            rgba(0, 0, 0, 0.06) 70%,
+            rgba(0, 0, 0, 0.00) 100%
+        ),
+        /* Vignette inferior para profundidad */
+        linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.30) 0%,
+            rgba(0, 0, 0, 0.00) 40%
+        );
+    z-index: 1;
+}
+
+/* ── Contenido textual del slider ── */
 .hero-content {
     position: absolute;
-    padding: 20px;
-    border-radius: 24px;
-    backdrop-filter: blur(2px);
     top: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(0, 0, 0, 0.34);
-    left: 10%;
+    left: 7%;
     transform: translateY(-50%);
-    max-width: 500px;
-    color: white;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    max-width: 520px;
+    color: #fff;
     z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    /* Mantiene el contenido limpio sobre la imagen */
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    backdrop-filter: none;
+    box-shadow: none;
 }
 
-.hero-content h1 {
-    font-size: 4rem;
-    animation: slideInLeft 0.8s ease;
+/* Refuerzo para mantener el contenido sin caja visual adicional */
+.hero-banner .hero-slider .hero-slide .hero-content.hero-content-clean {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
 }
 
-.hero-content p {
-    font-size: 1.8rem;
-    margin-bottom: 2rem;
-    animation: slideInLeft 1s ease;
+.hero-content.is-visible {
+    opacity: 1;
+    pointer-events: auto;
 }
 
-.hero-content .btn {
+/* Tag/categoría del slide */
+.hero-tag {
     display: inline-block;
-    padding: 1rem 2rem;
-    background-color: #0077b6;
-    color: white;
-    border-radius: 4px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.30);
+    border-radius: 99px;
+    padding: 0.28rem 0.9rem;
+    margin-bottom: 1.2rem;
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.hero-content.is-visible .hero-tag {
+    animation: heroSlideUp 0.5s ease 0.05s both;
+}
+
+/* Título principal */
+.hero-title {
+    font-size: clamp(3.2rem, 5vw, 5.4rem);
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: #fff;
+    margin: 0 0 1.0rem;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55), 0 0 40px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    transform: translateY(16px);
+}
+
+.hero-content.is-visible .hero-title {
+    animation: heroSlideUp 0.55s ease 0.1s both;
+}
+
+/* Subtítulo */
+.hero-subtitle {
+    font-size: clamp(1.5rem, 2vw, 1.9rem);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0 0 2.2rem;
+    line-height: 1.5;
+    max-width: 44ch;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transform: translateY(14px);
+}
+
+.hero-content.is-visible .hero-subtitle {
+    animation: heroSlideUp 0.55s ease 0.18s both;
+}
+
+/* Botón CTA */
+.hero-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 1.1rem 2.4rem;
+    background: #0077b6;
+    color: #fff;
+    border-radius: 99px;
+    font-size: 1.5rem;
     font-weight: 600;
     text-decoration: none;
-    transition: all 0.3s ease;
-    animation: fadeIn 1.2s ease;
+    transition: background 0.25s ease, transform 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 4px 20px rgba(0, 119, 182, 0.4);
+    opacity: 0;
+    transform: translateY(12px);
 }
 
-.hero-content .btn:hover {
-    background-color: #6a96cf;
+.hero-content.is-visible .hero-cta {
+    animation: heroSlideUp 0.55s ease 0.26s both;
+}
+
+.hero-cta:hover {
+    background: #005f8e;
     transform: translateY(-2px);
+    box-shadow: 0 6px 26px rgba(0, 119, 182, 0.55);
+    color: #fff;
+    text-decoration: none;
 }
 
-/* Dots */
+.hero-cta i {
+    font-size: 1.3rem;
+    transition: transform 0.2s ease;
+}
+
+.hero-cta:hover i {
+    transform: translateX(3px);
+}
+
+/* ── Barra de progreso del autoplay ── */
+.hero-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: #0077b6;
+    width: 0%;
+    z-index: 10;
+    animation: heroProgress 5s linear forwards;
+}
+
+@keyframes heroProgress {
+    from { width: 0%; }
+    to   { width: 100%; }
+}
+
+@keyframes heroShimmerSweep {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+/* ── Dots de navegación ── */
 .hero-dots {
     position: absolute;
-    bottom: 2rem;
+    bottom: 2.4rem;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 1rem;
-    z-index: 3;
+    gap: 0.8rem;
+    z-index: 5;
 }
 
-.dot {
-    width: 1.2rem;
-    height: 1.2rem;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.5);
+.hero-dot {
+    display: block;
+    height: 0.7rem;
+    width: 0.7rem;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.45);
+    border: none;
     cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid rgba(255, 255, 255, 0.8);
+    padding: 0;
+    transition: width 0.3s ease, background 0.3s ease;
 }
 
-.dot:hover {
-    background-color: rgba(255, 255, 255, 0.8);
+.hero-dot.is-active {
+    width: 2.4rem;
+    background: #fff;
 }
 
-.dot.active {
-    background-color: white;
-    transform: scale(1.3);
+/* ── Contador de slides ── */
+.hero-counter {
+    position: absolute;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    z-index: 5;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
 }
 
-/* Nav buttons */
-.hero-prev,
-.hero-next {
+.hero-counter__current {
+    font-size: 1.8rem;
+    color: #fff;
+    font-weight: 700;
+}
+
+.hero-counter__sep {
+    font-size: 1.3rem;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+/* ── Botones prev/next ── */
+.hero-nav {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
+    width: 4.8rem;
+    height: 4.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    backdrop-filter: blur(6px);
+    color: #fff;
     border-radius: 50%;
-    font-size: 2.5rem;
-    padding: 1.5rem 2rem;
+    font-size: 1.6rem;
     cursor: pointer;
-    border: none;
-    z-index: 3;
-    transition: all 0.3s ease;
+    z-index: 5;
+    transition: background 0.22s ease, transform 0.22s ease;
 }
 
-.hero-prev:hover,
-.hero-next:hover {
-    background-color: rgba(0, 0, 0, 0.8);
+.hero-nav:hover {
+    background: rgba(255, 255, 255, 0.26);
+    transform: translateY(-50%) scale(1.08);
 }
 
-.hero-prev {
-    left: 2rem;
-}
+.hero-nav--prev { left: 2rem; }
+.hero-nav--next { right: 2rem; }
 
-.hero-next {
-    right: 2rem;
-}
-
-@keyframes slideInLeft {
+/* ── Animación de entrada del contenido ── */
+@keyframes heroSlideUp {
     from {
         opacity: 0;
-        transform: translateX(-30px);
+        transform: translateY(20px);
     }
-
     to {
         opacity: 1;
-        transform: translateX(0);
+        transform: translateY(0);
     }
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
+/* ── Responsive tablet ── */
+@media (max-width: 900px) {
+    .hero-banner {
+        height: 56vh;
+        min-height: 420px;
     }
 
-    to {
-        opacity: 1;
+    .hero-content {
+        left: 6%;
+        max-width: 80%;
+    }
+
+    .hero-nav {
+        width: 4rem;
+        height: 4rem;
+        font-size: 1.3rem;
+    }
+
+    .hero-nav--prev { left: 1rem; }
+    .hero-nav--next { right: 1rem; }
+}
+
+/* ── Responsive móvil ── */
+@media (max-width: 600px) {
+    .hero-banner {
+        height: 52vh;
+        min-height: 360px;
+    }
+
+    .hero-content {
+        left: 5%;
+        right: 5%;
+        max-width: 100%;
+        top: auto;
+        bottom: 5rem;
+        transform: none;
+    }
+
+    .hero-gradient-overlay {
+        background: linear-gradient(
+            180deg,
+            rgba(8, 12, 28, 0.20) 0%,
+            rgba(8, 12, 28, 0.70) 60%,
+            rgba(8, 12, 28, 0.88) 100%
+        );
+    }
+
+    .hero-counter {
+        display: none;
+    }
+
+    .hero-nav {
+        width: 3.4rem;
+        height: 3.4rem;
+        font-size: 1.1rem;
     }
 }

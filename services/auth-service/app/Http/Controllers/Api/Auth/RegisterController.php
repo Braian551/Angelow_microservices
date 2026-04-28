@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\DTOs\RegisterUserDTO;
+use App\Exceptions\AuthException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Services\AuthService;
-use App\Exceptions\AuthException;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -37,13 +37,15 @@ class RegisterController extends Controller
                 'message' => '¡Registro exitoso! Bienvenido/a a Angelow.',
                 'data' => [
                     'user' => [
-                        'id'    => $result['user']->id,
-                        'name'  => $result['user']->name,
+                        'id' => $result['user']->id,
+                        'name' => $result['user']->name,
                         'email' => $result['user']->email,
                         'phone' => $result['user']->phone,
-                        'role'  => $result['user']->role,
+                        'image' => $result['user']->image,
+                        'role' => $result['user']->role,
+                        'created_at' => $result['user']->created_at?->toISOString(),
                     ],
-                    'token'      => $result['token'],
+                    'token' => $result['token'],
                     'token_type' => 'Bearer',
                 ],
             ], 201);

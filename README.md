@@ -6,7 +6,7 @@ Migracion del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, R
 
 | Servicio | Puerto API | Base de datos |
 |---|---:|---|
-| `auth-service` | 8001 | `angelow_auth` |
+| `auth-servi![1776289969924](image/README/1776289969924.png)ce` | 8001 | `angelow_auth` |
 | `catalog-service` | 8002 | `angelow_catalog` |
 | `cart-service` | 8003 | `angelow_cart` |
 | `order-service` | 8004 | `angelow_orders` |

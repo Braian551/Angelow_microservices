@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api\Auth;
 
 use App\DTOs\LoginUserDTO;
+use App\Exceptions\AuthException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GoogleLoginRequest;
 use App\Http\Requests\LoginRequest;
 use App\Services\AuthService;
-use App\Exceptions\AuthException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,13 +39,50 @@ class LoginController extends Controller
                 'message' => 'Inicio de sesión exitoso',
                 'data' => [
                     'user' => [
-                        'id'    => $result['user']->id,
-                        'name'  => $result['user']->name,
+                        'id' => $result['user']->id,
+                        'name' => $result['user']->name,
                         'email' => $result['user']->email,
                         'phone' => $result['user']->phone,
-                        'role'  => $result['user']->role,
+                        'image' => $this->normalizeUserImagePath($result['user']->image),
+                        'role' => $result['user']->role,
+                        'created_at' => $result['user']->created_at?->toISOString(),
                     ],
-                    'token'      => $result['token'],
+                    'token' => $result['token'],
+                    'token_type' => 'Bearer',
+                ],
+            ], 200);
+        } catch (AuthException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], $e->getCode());
+        }
+    }
+
+    /**
+     * Authenticate a user with Google (Firebase ID token).
+     *
+     * POST /api/auth/google
+     */
+    public function google(GoogleLoginRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->authService->loginWithGoogleToken($request->string('id_token')->toString());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inicio de sesión con Google exitoso',
+                'data' => [
+                    'user' => [
+                        'id' => $result['user']->id,
+                        'name' => $result['user']->name,
+                        'email' => $result['user']->email,
+                        'phone' => $result['user']->phone,
+                        'image' => $this->normalizeUserImagePath($result['user']->image),
+                        'role' => $result['user']->role,
+                        'created_at' => $result['user']->created_at?->toISOString(),
+                    ],
+                    'token' => $result['token'],
                     'token_type' => 'Bearer',
                 ],
             ], 200);
@@ -83,12 +121,31 @@ class LoginController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'id'    => $user->id,
-                'name'  => $user->name,
+                'id' => $user->id,
+                'name' => $user->name,
                 'email' => $user->email,
                 'phone' => $user->phone,
-                'role'  => $user->role,
+                'image' => $this->normalizeUserImagePath($user->image),
+                'role' => $user->role,
+                'created_at' => $user->created_at?->toISOString(),
             ],
         ]);
+    }
+
+    /**
+     * Normaliza la ruta de imagen de usuario para el frontend SPA.
+     */
+    private function normalizeUserImagePath(?string $path): string
+    {
+        $cleanPath = trim((string) $path);
+        if ($cleanPath === '') {
+            return 'images/default-avatar.png';
+        }
+
+        if (str_contains($cleanPath, '/')) {
+            return ltrim(str_replace('\\', '/', $cleanPath), '/');
+        }
+
+        return 'uploads/users/' . $cleanPath;
     }
 }

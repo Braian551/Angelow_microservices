@@ -32,7 +32,41 @@ class WishlistService
             throw new \App\Exceptions\NotFoundException('Producto no disponible');
         }
 
-        return ['action' => 'added', 'message' => 'Producto añadido a tu lista de deseos'];
+        return ['action' => 'added', 'message' => 'Producto anadido a tu lista de deseos'];
+    }
+
+    /**
+     * Verifica si un producto ya existe en la lista de deseos del usuario.
+     */
+    public function hasProduct(string $userId, int $productId): bool
+    {
+        return $this->wishlistRepository->exists($userId, $productId);
+    }
+
+    /**
+     * Agrega un producto de forma idempotente.
+     *
+     * @throws \App\Exceptions\NotFoundException
+     */
+    public function addProduct(string $userId, int $productId): void
+    {
+        if ($this->wishlistRepository->exists($userId, $productId)) {
+            return;
+        }
+
+        $added = $this->wishlistRepository->add($userId, $productId);
+
+        if (!$added) {
+            throw new \App\Exceptions\NotFoundException('Producto no disponible');
+        }
+    }
+
+    /**
+     * Elimina un producto de la lista de deseos.
+     */
+    public function removeProduct(string $userId, int $productId): void
+    {
+        $this->wishlistRepository->remove($userId, $productId);
     }
 
     /**
