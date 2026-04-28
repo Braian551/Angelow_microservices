@@ -21,6 +21,9 @@ build/
 *~
 .DS_Store
 Thumbs.db
+# ===== Temporal =====
+angelow/
+
 
 # ===== Laravel =====
 services/*/storage/logs/*
