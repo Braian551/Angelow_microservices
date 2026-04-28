@@ -138,4 +138,52 @@ class CartController extends Controller
             'items'   => $ids,
         ]);
     }
+
+    /**
+     * POST /api/admin/cart/abandoned/reminders/dispatch
+     *
+     * Dispara recordatorios para carritos abandonados.
+     */
+    public function dispatchAbandonedReminders(Request $request): JsonResponse
+    {
+        if (!$this->hasInternalAccess($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No autorizado',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'inactive_minutes' => ['nullable', 'integer', 'min:30', 'max:10080'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+        ]);
+
+        $summary = $this->cartService->dispatchAbandonedCartReminders(
+            (int) ($data['inactive_minutes'] ?? 180),
+            (int) ($data['limit'] ?? 120),
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Disparo de carritos abandonados ejecutado.',
+            'data' => [
+                'summary' => $summary,
+            ],
+        ]);
+    }
+
+    private function hasInternalAccess(Request $request): bool
+    {
+        $expectedToken = trim((string) config('services.notifications.internal_token', env('AUTH_INTERNAL_TOKEN', '')));
+        if ($expectedToken === '') {
+            return true;
+        }
+
+        $providedToken = trim((string) $request->header('X-Internal-Token', ''));
+        if ($providedToken === '') {
+            return false;
+        }
+
+        return hash_equals($expectedToken, $providedToken);
+    }
 }

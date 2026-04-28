@@ -28,6 +28,7 @@ return new class extends Migration
             $table->datetime('last_access')->nullable();
             $table->string('remember_token', 255)->nullable();
             $table->datetime('token_expiry')->nullable();
+            $table->char('trial548', 1)->nullable();
 
             // Indexes
             $table->index('email');

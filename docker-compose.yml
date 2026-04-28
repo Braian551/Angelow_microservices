@@ -1,53 +1,593 @@
-version: '3.8'
-
 services:
-  # ─── Auth Database ───────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: angelow_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - angelow_network
+
   auth-db:
-    image: mysql:8.0
+    image: postgres:17-alpine
     container_name: angelow_auth_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root_secret
-      MYSQL_DATABASE: angelow_auth
-      MYSQL_USER: auth_user
-      MYSQL_PASSWORD: auth_secret
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_auth
     ports:
-      - "3307:3306"
+      - "5433:5432"
     volumes:
-      - auth_db_data:/var/lib/mysql
+      - auth_db_data:/var/lib/postgresql/data
     networks:
       - angelow_network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # ─── Auth Service (Laravel API) ──────────────────────────
+  catalog-db:
+    image: postgres:17-alpine
+    container_name: angelow_catalog_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_catalog
+    ports:
+      - "5434:5432"
+    volumes:
+      - catalog_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  cart-db:
+    image: postgres:17-alpine
+    container_name: angelow_cart_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_cart
+    ports:
+      - "5435:5432"
+    volumes:
+      - cart_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  order-db:
+    image: postgres:17-alpine
+    container_name: angelow_order_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_orders
+    ports:
+      - "5436:5432"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  payment-db:
+    image: postgres:17-alpine
+    container_name: angelow_payment_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_payments
+    ports:
+      - "5437:5432"
+    volumes:
+      - payment_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  discount-db:
+    image: postgres:17-alpine
+    container_name: angelow_discount_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_discounts
+    ports:
+      - "5438:5432"
+    volumes:
+      - discount_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  shipping-db:
+    image: postgres:17-alpine
+    container_name: angelow_shipping_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_shipping
+    ports:
+      - "5439:5432"
+    volumes:
+      - shipping_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  notification-db:
+    image: postgres:17-alpine
+    container_name: angelow_notification_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_notifications
+    ports:
+      - "5440:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
+  audit-db:
+    image: postgres:17-alpine
+    container_name: angelow_audit_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: angelow_audit
+    ports:
+      - "5441:5432"
+    volumes:
+      - audit_db_data:/var/lib/postgresql/data
+    networks:
+      - angelow_network
+
   auth-service:
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
     container_name: angelow_auth_service
     restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
     ports:
       - "8001:8000"
     volumes:
-      - ./services/auth-service:/var/www/html
+      - ./uploads:/var/www/html/public/uploads
     environment:
-      DB_CONNECTION: mysql
+      APP_KEY: base64:hhKtGX+01uVuWgO2vXd1rrnSmmM5Eq1eLUpo19PuFaM=
+      DB_CONNECTION: pgsql
       DB_HOST: auth-db
-      DB_PORT: 3306
+      DB_PORT: 5432
       DB_DATABASE: angelow_auth
-      DB_USERNAME: auth_user
-      DB_PASSWORD: auth_secret
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      FIREBASE_WEB_API_KEY: AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k
+      INTERNAL_API_TOKEN: angelow-internal-token
+      FRONTEND_URL: http://localhost:5173
+      PASSWORD_RECOVERY_CODE_TTL: 900
+      PASSWORD_RECOVERY_RESEND_COOLDOWN: 60
+      PHPMAILER_HOST: smtp.gmail.com
+      PHPMAILER_PORT: 587
+      PHPMAILER_USERNAME: angelow2025sen@gmail.com
+      PHPMAILER_PASSWORD: "djaf tdju nyhr scgd"
+      PHPMAILER_ENCRYPTION: tls
+      PHPMAILER_FROM_EMAIL: seguridad@angelow.com
+      PHPMAILER_FROM_NAME: Seguridad Angelow
     depends_on:
-      auth-db:
-        condition: service_healthy
+      - auth-db
+      - redis
     networks:
       - angelow_network
 
-  # ─── Frontend (Vue 3 + Vite) ─────────────────────────────
+  catalog-service:
+    build:
+      context: ./services/catalog-service
+      dockerfile: Dockerfile
+    container_name: angelow_catalog_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:l96roLa+w/UkM9WFpsterxKZrp5JLZXkfJ08GFx8/yE=
+      DB_CONNECTION: pgsql
+      DB_HOST: catalog-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_catalog
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+    depends_on:
+      - catalog-db
+      - redis
+    networks:
+      - angelow_network
+
+  cart-service:
+    build:
+      context: ./services/cart-service
+      dockerfile: Dockerfile
+    container_name: angelow_cart_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:gyvX9HPyZUqFmlVGPE6oMDMKTFUaXWVPe1Ws97nWNtM=
+      DB_CONNECTION: pgsql
+      DB_HOST: cart-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_cart
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      CATALOG_API_URL: http://catalog-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+    depends_on:
+      - cart-db
+      - redis
+    networks:
+      - angelow_network
+
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: angelow_order_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:a1u48b3DphC6+pfj7T8StQOvaYZflL9OTB8A89zXZEs=
+      DB_CONNECTION: pgsql
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_orders
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      CATALOG_SERVICE_URL: http://catalog-service:8000/api
+      CATALOG_VARIANT_PATH: /internal/variants
+      CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+      ORDER_STOCK_RESERVATION_TTL: 7200
+      ORDER_STOCK_LOCK_SECONDS: 10
+      ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
+      ORDER_STOCK_RESERVATION_EXTEND_ON_CONFIRMATION: 1800
+      ORDER_STOCK_WS_CHANNEL: ws:orders:stock
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_ORDER_TYPE_ID: 1
+      FRONTEND_URL: http://localhost:5173
+      ORDER_REFUND_TEAM_EMAIL: angelow2025sen@gmail.com
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Pedidos
+    depends_on:
+      - order-db
+      - redis
+      - catalog-service
+    networks:
+      - angelow_network
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: angelow_payment_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8005:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:TQToAhwQB2KZj6nGglTg23Ug8X5e/hY5tsUfR2HjMBw=
+      DB_CONNECTION: pgsql
+      DB_HOST: payment-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_payments
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+    depends_on:
+      - payment-db
+      - redis
+    networks:
+      - angelow_network
+
+  discount-service:
+    build:
+      context: ./services/discount-service
+      dockerfile: Dockerfile
+    container_name: angelow_discount_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8006:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:AEsN1C0+CvKeHj+8luyCLtfPSoWBRQiJPW7BiODhRsg=
+      DB_CONNECTION: pgsql
+      DB_HOST: discount-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_discounts
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_DISCOUNT_TYPE_ID: 1
+      FRONTEND_STORE_URL: http://localhost:5173
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Descuentos
+    depends_on:
+      - discount-db
+      - redis
+    networks:
+      - angelow_network
+
+  shipping-service:
+    build:
+      context: ./services/shipping-service
+      dockerfile: Dockerfile
+    container_name: angelow_shipping_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8007:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:AI2pQg8FE0jT5U+22VJ45cyEV+VUMvpDVgR390fMh6M=
+      DB_CONNECTION: pgsql
+      DB_HOST: shipping-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_shipping
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: file
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+    depends_on:
+      - shipping-db
+      - redis
+    networks:
+      - angelow_network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: angelow_notification_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8008:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:adCjvTuJK2mrSupIzpXdNx7vteBWA1z5pV3Vul2pMk0=
+      DB_CONNECTION: pgsql
+      DB_HOST: notification-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_notifications
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+      BROADCAST_CONNECTION: log
+    depends_on:
+      - notification-db
+      - redis
+    networks:
+      - angelow_network
+
+  audit-service:
+    build:
+      context: ./services/audit-service
+      dockerfile: Dockerfile
+    container_name: angelow_audit_service
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan serve --no-reload --host=0.0.0.0 --port=8000"]
+    ports:
+      - "8009:8000"
+    volumes:
+      - ./uploads:/var/www/html/public/uploads
+    environment:
+      APP_KEY: base64:e00SSmeO+Qpo7ULFUeysc8d0egE0/e9AWQGPl7QhmAc=
+      DB_CONNECTION: pgsql
+      DB_HOST: audit-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_audit
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+    depends_on:
+      - audit-db
+      - redis
+    networks:
+      - angelow_network
+
+  order-worker:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: angelow_order_worker
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan queue:work --queue=orders --sleep=1 --tries=3 --timeout=120"]
+    environment:
+      APP_KEY: base64:a1u48b3DphC6+pfj7T8StQOvaYZflL9OTB8A89zXZEs=
+      DB_CONNECTION: pgsql
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_orders
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      CATALOG_SERVICE_URL: http://catalog-service:8000/api
+      CATALOG_VARIANT_PATH: /internal/variants
+      CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      ORDER_STOCK_RESERVATION_TTL: 7200
+      ORDER_STOCK_LOCK_SECONDS: 10
+      ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
+      ORDER_STOCK_RESERVATION_EXTEND_ON_CONFIRMATION: 1800
+      ORDER_STOCK_WS_CHANNEL: ws:orders:stock
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_ORDER_TYPE_ID: 1
+      FRONTEND_URL: http://localhost:5173
+      ORDER_REFUND_TEAM_EMAIL: angelow2025sen@gmail.com
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Pedidos
+    depends_on:
+      - order-db
+      - redis
+      - catalog-service
+    networks:
+      - angelow_network
+
+  order-scheduler:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: angelow_order_scheduler
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan schedule:work"]
+    environment:
+      APP_KEY: base64:a1u48b3DphC6+pfj7T8StQOvaYZflL9OTB8A89zXZEs=
+      DB_CONNECTION: pgsql
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_orders
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      CATALOG_SERVICE_URL: http://catalog-service:8000/api
+      CATALOG_VARIANT_PATH: /internal/variants
+      CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
+      ORDER_STOCK_RESERVATION_TTL: 7200
+      ORDER_STOCK_LOCK_SECONDS: 10
+      ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
+      ORDER_STOCK_RESERVATION_EXTEND_ON_CONFIRMATION: 1800
+      ORDER_STOCK_WS_CHANNEL: ws:orders:stock
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      NOTIFICATION_ORDER_TYPE_ID: 1
+      FRONTEND_URL: http://localhost:5173
+      ORDER_REFUND_TEAM_EMAIL: angelow2025sen@gmail.com
+    depends_on:
+      - order-db
+      - redis
+      - catalog-service
+    networks:
+      - angelow_network
+
+  notification-worker:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: angelow_notification_worker
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan queue:work --queue=default --sleep=1 --tries=3 --timeout=120"]
+    environment:
+      APP_KEY: base64:adCjvTuJK2mrSupIzpXdNx7vteBWA1z5pV3Vul2pMk0=
+      DB_CONNECTION: pgsql
+      DB_HOST: notification-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_notifications
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      BROADCAST_CONNECTION: log
+    depends_on:
+      - notification-db
+      - redis
+    networks:
+      - angelow_network
+
   frontend:
     build:
       context: ./frontend
@@ -59,13 +599,36 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - ./uploads:/app/public/uploads
     environment:
       VITE_AUTH_API_URL: http://localhost:8001/api
+      VITE_CATALOG_API_URL: http://localhost:8002/api
+      VITE_CART_API_URL: http://localhost:8003/api
+      VITE_ORDER_API_URL: http://localhost:8004/api
+      VITE_PAYMENT_API_URL: http://localhost:8005/api
+      VITE_DISCOUNT_API_URL: http://localhost:8006/api
+      VITE_SHIPPING_API_URL: http://localhost:8007/api
+      VITE_NOTIFICATION_API_URL: http://localhost:8008/api
+      VITE_FIREBASE_API_KEY: AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k
+      VITE_FIREBASE_AUTH_DOMAIN: angelow-4e5fe.firebaseapp.com
+      VITE_FIREBASE_PROJECT_ID: angelow-4e5fe
+      VITE_FIREBASE_STORAGE_BUCKET: angelow-4e5fe.firebasestorage.app
+      VITE_FIREBASE_MESSAGING_SENDER_ID: "77139939464"
+      VITE_FIREBASE_APP_ID: 1:77139939464:web:b5a6e06b7c89fd510fcf3d
+      VITE_FIREBASE_MEASUREMENT_ID: G-NFE4E4F0BF
     networks:
       - angelow_network
 
 volumes:
   auth_db_data:
+  catalog_db_data:
+  cart_db_data:
+  order_db_data:
+  payment_db_data:
+  discount_db_data:
+  shipping_db_data:
+  notification_db_data:
+  audit_db_data:
 
 networks:
   angelow_network:

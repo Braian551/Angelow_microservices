@@ -1,0 +1,98 @@
+.snackbar {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  z-index: 1500;
+  min-width: 320px;
+  max-width: min(560px, calc(100vw - 32px));
+  border-radius: 12px;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 0.95rem;
+}
+
+.snackbar-success {
+  background: #16a34a;
+}
+
+.snackbar-error {
+  background: #dc2626;
+}
+
+.snackbar-warning {
+  background: #d97706;
+}
+
+.snackbar-info {
+  background: #0284c7;
+}
+
+.snackbar-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.snackbar-content {
+  min-width: 0;
+}
+
+.snackbar-title {
+  display: block;
+  margin-bottom: 0.1rem;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.snackbar-message {
+  margin: 0;
+  font-size: 1.22rem;
+  line-height: 1.35;
+}
+
+.snackbar-close {
+  border: 0;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.snackbar-close:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.snackbar-slide-enter-active,
+.snackbar-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.snackbar-slide-enter-from,
+.snackbar-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+@media (max-width: 768px) {
+  .snackbar {
+    top: auto;
+    bottom: 14px;
+    right: 8px;
+    left: 8px;
+    min-width: 0;
+    max-width: none;
+  }
+}

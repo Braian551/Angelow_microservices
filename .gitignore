@@ -1,7 +1,7 @@
 # ===== Dependencies =====
 node_modules/
 vendor/
-
+basededatos.sql
 # ===== Environment files =====
 .env
 .env.local
@@ -57,3 +57,6 @@ backend/ms-catalog/node_modules/
 
 # ===== Monolith (referencia, no subir archivos pesados) =====
 angelow/uploads/
+uploads/
+.composer-cache/
+.composer-home/

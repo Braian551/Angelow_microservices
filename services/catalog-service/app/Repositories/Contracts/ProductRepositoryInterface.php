@@ -42,5 +42,5 @@ interface ProductRepositoryInterface
     /**
      * Get questions and answers for a product.
      */
-    public function getQuestions(int $productId, int $limit = 5): array;
+    public function getQuestions(int $productId, int $limit = 5, ?string $userId = null): array;
 }

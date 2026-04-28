@@ -1,0 +1,64 @@
+@import '/legacy/css/style.css';
+@import '/legacy/css/productos.css';
+@import '/legacy/css/announcements.css';
+
+:root {
+  --site-scrollbar-size: 10px;
+  --site-scrollbar-track: #e7eef5;
+  --site-scrollbar-thumb: #7fa7cb;
+  --site-scrollbar-thumb-hover: #5f95c7;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--site-scrollbar-thumb) var(--site-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--site-scrollbar-size);
+  height: var(--site-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--site-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--site-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--site-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--site-scrollbar-thumb-hover);
+}
+
+body {
+  background: #fff;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.section-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.loading-box {
+  font-size: 1.5rem;
+  color: #6b7280;
+  padding: 2rem;
+}
+
+.error-box {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1.2rem 1.4rem;
+  font-size: 1.4rem;
+}

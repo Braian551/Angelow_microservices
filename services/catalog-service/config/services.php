@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'auth' => [
+        'base_url' => env('AUTH_SERVICE_URL', 'http://auth-service:8000/api'),
+        'internal_token' => env('AUTH_INTERNAL_TOKEN', ''),
+    ],
+
+    'notification' => [
+        'base_url' => env('NOTIFICATION_SERVICE_URL', 'http://notification-service:8000/api'),
+    ],
+
 ];

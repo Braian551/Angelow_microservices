@@ -15,9 +15,10 @@ class QueryBuilderCategoryRepository implements CategoryRepositoryInterface
     public function getAllActive(): array
     {
         return DB::table('categories')
-            ->where('is_active', 1)
-            ->orderBy('name')
-            ->select(['id', 'name', 'slug'])
+            ->where('is_active', true)
+            ->whereNull('parent_id')
+            ->orderBy('id')
+            ->select(['id', 'name', 'slug', 'image'])
             ->get()
             ->map(fn($c) => (array) $c)
             ->toArray();
@@ -33,9 +34,9 @@ class QueryBuilderCategoryRepository implements CategoryRepositoryInterface
     public function getAllCollections(): array
     {
         return DB::table('collections')
-            ->where('is_active', 1)
-            ->orderBy('name')
-            ->select(['id', 'name', 'description', 'slug'])
+            ->where('is_active', true)
+            ->orderByDesc('launch_date')
+            ->select(['id', 'name', 'description', 'slug', 'image', 'launch_date'])
             ->get()
             ->map(fn($c) => (array) $c)
             ->toArray();
