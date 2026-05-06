@@ -2,6 +2,7 @@
 node_modules/
 vendor/
 basededatos.sql
+.sql
 # ===== Environment files =====
 .env
 .env.local
@@ -23,6 +24,7 @@ build/
 Thumbs.db
 # ===== Temporal =====
 angelow/
+SKILL.md
 
 
 # ===== Laravel =====
