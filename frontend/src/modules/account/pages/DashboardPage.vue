@@ -125,6 +125,7 @@ import { getOrders } from '../../../services/orderApi'
 import { getUserAddresses } from '../../../services/shippingApi'
 import { getWishlist } from '../../../services/wishlistApi'
 import { useSession } from '../../../composables/useSession'
+import { getOrderStatusLabel, normalizeOrderStatus } from '../../../utils/orderPresentation'
 
 const router = useRouter()
 const { user, isLoggedIn } = useSession()
@@ -275,28 +276,18 @@ function formatDate(value) {
 }
 
 function statusLabel(status) {
-  const value = String(status || '').toLowerCase()
-
-  if (value === 'pending') return 'Pendiente'
-  if (value === 'processing') return 'Procesando'
-  if (value === 'paid') return 'Pagado'
-  if (value === 'confirmed') return 'Confirmado'
-  if (value === 'shipped') return 'Enviado'
-  if (value === 'delivered') return 'Entregado'
-  if (value === 'completed') return 'Completado'
-  if (value === 'cancelled') return 'Cancelado'
-  if (value === 'failed') return 'Fallido'
-
-  return status || 'Sin estado'
+  return getOrderStatusLabel(status) || status || 'Sin estado'
 }
 
 function statusClass(status) {
-  const value = String(status || '').toLowerCase()
+  const normalizedStatus = normalizeOrderStatus(status)
+  const rawStatus = String(status || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
 
-  if (['pending', 'processing'].includes(value)) return `status-${value}`
-  if (['paid', 'confirmed', 'shipped'].includes(value)) return `status-${value}`
-  if (['delivered', 'completed'].includes(value)) return `status-${value}`
-  if (['cancelled', 'failed'].includes(value)) return `status-${value}`
+  if (normalizedStatus === 'pending') return 'status-pending'
+  if (['in_review', 'processing'].includes(normalizedStatus)) return 'status-processing'
+  if (['paid', 'confirmed', 'shipped'].includes(rawStatus)) return `status-${rawStatus}`
+  if (['delivered', 'completed'].includes(normalizedStatus)) return `status-${normalizedStatus}`
+  if (['cancelled', 'canceled', 'failed', 'refunded'].includes(rawStatus)) return 'status-cancelled'
 
   return 'status-processing'
 }

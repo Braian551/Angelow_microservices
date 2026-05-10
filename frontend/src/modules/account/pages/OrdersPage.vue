@@ -107,6 +107,7 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { cancelOrder, getOrders } from '../../../services/orderApi'
 import { useSession } from '../../../composables/useSession'
+import { getOrderStatusLabel, getPaymentStatusLabel, normalizeOrderStatus, normalizePaymentStatus } from '../../../utils/orderPresentation'
 
 const route = useRoute()
 const { user, isLoggedIn } = useSession()
@@ -173,44 +174,36 @@ function formatDate(value) {
 }
 
 function statusLabel(status) {
-  const value = String(status || '').toLowerCase()
-
-  if (value === 'pending') return 'Pendiente'
-  if (value === 'processing') return 'Procesando'
-  if (value === 'paid') return 'Pagado'
-  if (value === 'confirmed') return 'Confirmado'
-  if (value === 'shipped') return 'Enviado'
-  if (value === 'delivered') return 'Entregado'
-  if (value === 'completed') return 'Completado'
-  if (value === 'cancelled') return 'Cancelado'
-  if (value === 'failed') return 'Fallido'
-
-  return status || 'Sin estado'
+  return getOrderStatusLabel(status) || status || 'Sin estado'
 }
 
 function statusClass(status) {
-  const value = String(status || '').toLowerCase()
+  const normalizedStatus = normalizeOrderStatus(status)
+  const rawStatus = String(status || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
 
-  if (['pending', 'processing'].includes(value)) return `status-${value}`
-  if (['paid', 'confirmed', 'shipped'].includes(value)) return `status-${value}`
-  if (['delivered', 'completed'].includes(value)) return `status-${value}`
-  if (['cancelled', 'failed'].includes(value)) return `status-${value}`
+  if (normalizedStatus === 'pending') return 'status-pending'
+  if (['in_review', 'processing'].includes(normalizedStatus)) return 'status-processing'
+  if (['paid', 'confirmed', 'shipped'].includes(rawStatus)) return `status-${rawStatus}`
+  if (['delivered', 'completed'].includes(normalizedStatus)) return `status-${normalizedStatus}`
+  if (['cancelled', 'canceled', 'failed', 'refunded'].includes(rawStatus)) return 'status-cancelled'
 
   return 'status-processing'
 }
 
 function paymentStatusLabel(order) {
-  const paymentStatus = String(order?.payment_status || '').toLowerCase().trim()
+  const paymentStatus = normalizePaymentStatus(order?.payment_status)
 
   if (paymentStatus === 'verified' || paymentStatus === 'approved') return 'Pago verificado'
+  if (paymentStatus === 'pending') return 'Pendiente de pago'
   if (paymentStatus === 'pending_refund') return 'Reembolso en proceso'
   if (paymentStatus === 'refunded') return 'Reembolsado'
   if (paymentStatus === 'paid') return 'Pagado'
   if (paymentStatus === 'failed' || paymentStatus === 'rejected') return 'Pago rechazado'
-  if (paymentStatus === 'pending') return 'Pendiente de pago'
+  if (paymentStatus) return getPaymentStatusLabel(paymentStatus)
 
-  const status = String(order?.status || '').toLowerCase().trim()
-  if (['delivered', 'completed', 'paid', 'confirmed'].includes(status)) {
+  const status = normalizeOrderStatus(order?.status)
+  const rawStatus = String(order?.status || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
+  if (['delivered', 'completed'].includes(status) || ['paid', 'confirmed'].includes(rawStatus)) {
     return 'Pagado'
   }
 

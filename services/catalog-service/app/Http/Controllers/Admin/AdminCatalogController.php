@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use League\Csv\Writer;
@@ -50,6 +51,59 @@ class AdminCatalogController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Entrega una fecha operativa de variante aunque el esquema no tenga updated_at.
+     */
+    private function addVariantUpdatedAtSelect($query, string $variantAlias = 'psv', string $productAlias = 'p', string $alias = 'updated_at'): void
+    {
+        if (Schema::hasTable('stock_history')) {
+            $query->selectSub(
+                DB::table('stock_history as sh')
+                    ->select('sh.created_at')
+                    ->whereColumn('sh.variant_id', "{$variantAlias}.id")
+                    ->orderByDesc('sh.created_at')
+                    ->limit(1),
+                $alias,
+            );
+
+            return;
+        }
+
+        if (Schema::hasColumn('product_size_variants', 'updated_at')) {
+            $query->addSelect("{$variantAlias}.updated_at as {$alias}");
+            return;
+        }
+
+        if (Schema::hasColumn('products', 'updated_at')) {
+            $query->addSelect("{$productAlias}.updated_at as {$alias}");
+            return;
+        }
+
+        $query->addSelect(DB::raw("NULL as {$alias}"));
+    }
+
+    /**
+     * Adjunta metadatos persistidos de agotado y recordatorios a la fila de inventario.
+     */
+    private function addInventoryAlertMetadataSelect($query, string $variantAlias = 'psv'): void
+    {
+        if (!Schema::hasTable('inventory_alerts')) {
+            $query->addSelect(DB::raw('NULL as out_of_stock_since'));
+            $query->addSelect(DB::raw('NULL as last_initial_notification_at'));
+            $query->addSelect(DB::raw('NULL as last_reminder_at'));
+            $query->addSelect(DB::raw('NULL as inventory_alert_status'));
+            return;
+        }
+
+        $query->leftJoin('inventory_alerts as ia', "{$variantAlias}.id", '=', 'ia.variant_id');
+        $query->addSelect(
+            'ia.out_of_stock_since',
+            'ia.last_initial_notification_at',
+            'ia.last_reminder_at',
+            'ia.status as inventory_alert_status',
+        );
     }
 
     /**
@@ -88,6 +142,56 @@ class AdminCatalogController extends Controller
         $decoded = json_decode($value, true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * El admin debe ver la misma disponibilidad efectiva que usa tienda y checkout.
+     */
+    private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
+    {
+        $safeFallback = max(0, $fallbackQuantity);
+
+        try {
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            if ($stockValue !== null && is_numeric((string) $stockValue)) {
+                return max(0, (int) $stockValue);
+            }
+
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
+                $reserved = max(0, (int) $reservedValue);
+                return max(0, $safeFallback - $reserved);
+            }
+        } catch (\Throwable) {
+            // Si Redis falla, el admin conserva el dato persistido en BD.
+        }
+
+        return $safeFallback;
+    }
+
+    /**
+     * Mantiene Redis alineado cuando el admin ajusta stock directamente.
+     */
+    private function syncRealtimeStockSnapshot(int $sizeVariantId, int $databaseStock): void
+    {
+        try {
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            $reserved = $reservedValue !== null && is_numeric((string) $reservedValue)
+                ? max(0, (int) $reservedValue)
+                : 0;
+
+            Redis::set("stock:{$sizeVariantId}", (string) max(0, $databaseStock - $reserved));
+
+            if ($reservedValue === null) {
+                Redis::setnx("reserved:{$sizeVariantId}", '0');
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('No se pudo sincronizar stock admin en Redis.', [
+                'variant_id' => $sizeVariantId,
+                'database_stock' => $databaseStock,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -805,6 +909,7 @@ class AdminCatalogController extends Controller
         $totalStock = 0;
         $minPrice = 0;
         $maxPrice = 0;
+        $lowStockThreshold = $this->resolveLowStockThreshold();
 
         if (Schema::hasTable('product_color_variants')) {
             $colorNameColumn = $this->firstExistingColumn('colors', ['name', 'nombre']);
@@ -878,8 +983,16 @@ class AdminCatalogController extends Controller
             if ($comparePriceCol) $svQuery->addSelect("psv.{$comparePriceCol} as compare_price");
             if ($stockCol) $svQuery->addSelect("psv.{$stockCol} as quantity");
             if ($activeCol) $svQuery->addSelect("psv.{$activeCol} as is_active");
+            $this->addVariantUpdatedAtSelect($svQuery);
 
-            $sizeVariants = $svQuery->get();
+            $sizeVariants = $svQuery->get()->map(function ($row) use ($lowStockThreshold) {
+                $rawQuantity = max(0, (int) ($row->quantity ?? 0));
+                $row->raw_quantity = $rawQuantity;
+                $row->quantity = $this->resolveRealtimeAvailableStock((int) ($row->id ?? 0), $rawQuantity);
+                $row->low_stock_threshold = $lowStockThreshold;
+                $row->inventory_status = $this->resolveInventoryStatus((int) ($row->quantity ?? 0), $lowStockThreshold);
+                return $row;
+            });
 
             // Calcular stock total y rango de precios
             if ($stockCol) {
@@ -1650,6 +1763,52 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Talla eliminada']);
     }
 
+    /**
+     * Umbral operativo de stock bajo configurado en ajustes generales.
+     */
+    private function resolveLowStockThreshold(): int
+    {
+        $defaultThreshold = (int) (SiteSettingsCatalog::definitions()['low_stock_threshold']['default'] ?? 5);
+
+        try {
+            $table = (new SiteSetting())->getTable();
+            if (!Schema::hasTable($table)) {
+                return max(1, $defaultThreshold);
+            }
+
+            $storedValue = SiteSetting::query()
+                ->where('setting_key', 'low_stock_threshold')
+                ->value('setting_value');
+
+            $threshold = is_numeric((string) $storedValue)
+                ? (int) $storedValue
+                : $defaultThreshold;
+
+            return max(1, $threshold);
+        } catch (\Throwable) {
+            return max(1, $defaultThreshold);
+        }
+    }
+
+    /**
+     * Convierte stock efectivo en estado operativo reutilizable para admin.
+     */
+    private function resolveInventoryStatus(int $stock, int $lowStockThreshold): string
+    {
+        $safeStock = max(0, $stock);
+        $safeThreshold = max(1, $lowStockThreshold);
+
+        if ($safeStock <= 0) {
+            return 'out';
+        }
+
+        if ($safeStock <= $safeThreshold) {
+            return 'low';
+        }
+
+        return 'active';
+    }
+
     // ── Inventario ──────────────────────────────────────────────────
 
     public function inventory(Request $request): JsonResponse
@@ -1662,12 +1821,15 @@ class AdminCatalogController extends Controller
         $productNameColumn = $this->firstExistingColumn('products', ['nombre', 'name']);
         $productImageColumn = $this->firstExistingColumn('products', ['imagen', 'image', 'image_url', 'main_image_path']);
         $hasProductImagesTable = Schema::hasTable('product_images');
-        $colorNameColumn = $this->firstExistingColumn('product_color_variants', ['color_name', 'name']);
+        $inlineColorNameColumn = $this->firstExistingColumn('product_color_variants', ['color_name', 'name']);
+        $colorNameColumn = Schema::hasTable('colors') ? $this->firstExistingColumn('colors', ['name', 'nombre']) : null;
         $sizeNameColumn = $this->firstExistingColumn('sizes', ['name', 'nombre', 'size_label']);
         $stockColumn = $this->firstExistingColumn('product_size_variants', ['stock', 'quantity']);
+        $hasColorId = Schema::hasColumn('product_color_variants', 'color_id');
         $hasSizeId = Schema::hasColumn('product_size_variants', 'size_id');
         $hasSku = Schema::hasColumn('product_size_variants', 'sku');
         $hasInlineSizeLabel = Schema::hasColumn('product_size_variants', 'size_label');
+        $lowStockThreshold = $this->resolveLowStockThreshold();
 
         if (!$stockColumn) {
             return response()->json(['success' => true, 'data' => []]);
@@ -1681,10 +1843,24 @@ class AdminCatalogController extends Controller
                 'p.id as product_id',
                 'pcv.id as color_variant_id',
                 DB::raw(($productNameColumn ? "p.{$productNameColumn}" : "'Producto'") . ' as product_name'),
-                DB::raw(($colorNameColumn ? "pcv.{$colorNameColumn}" : 'NULL') . ' as color_name'),
                 DB::raw("psv.{$stockColumn} as stock"),
                 DB::raw($hasSku ? 'psv.sku' : 'NULL as sku'),
             );
+
+        if ($hasColorId && Schema::hasTable('colors')) {
+            $query->leftJoin('colors as c', 'pcv.color_id', '=', 'c.id');
+        }
+
+        if ($hasColorId && Schema::hasTable('colors') && $colorNameColumn) {
+            $query->addSelect(DB::raw("c.{$colorNameColumn} as color_name"));
+        } elseif ($inlineColorNameColumn) {
+            $query->addSelect(DB::raw("pcv.{$inlineColorNameColumn} as color_name"));
+        } else {
+            $query->addSelect(DB::raw('NULL as color_name'));
+        }
+
+        $this->addVariantUpdatedAtSelect($query);
+        $this->addInventoryAlertMetadataSelect($query);
 
         if ($hasProductImagesTable) {
             $query->selectSub(
@@ -1722,19 +1898,32 @@ class AdminCatalogController extends Controller
             }
         }
 
-        if ($request->input('stock_filter') === 'low') {
-            $query->where("psv.{$stockColumn}", '>', 0)->where("psv.{$stockColumn}", '<=', 5);
-        } elseif (in_array($request->input('stock_filter'), ['out', 'zero'], true)) {
-            $query->where("psv.{$stockColumn}", '<=', 0);
-        }
-
         if ($productNameColumn) {
             $query->orderBy("p.{$productNameColumn}");
         } else {
             $query->orderBy('p.id');
         }
 
-        $items = $query->limit(500)->get();
+        $items = $query->limit(500)->get()
+            ->map(function ($item) use ($lowStockThreshold) {
+                $rawStock = max(0, (int) ($item->stock ?? 0));
+                $item->raw_stock = $rawStock;
+                $item->stock = $this->resolveRealtimeAvailableStock((int) ($item->id ?? 0), $rawStock);
+                $item->low_stock_threshold = $lowStockThreshold;
+                $item->inventory_status = $this->resolveInventoryStatus((int) ($item->stock ?? 0), $lowStockThreshold);
+                return $item;
+            });
+
+        $stockFilter = trim((string) $request->input('stock_filter', ''));
+        if ($stockFilter === 'low') {
+            $items = $items
+                ->filter(fn ($item) => ($item->inventory_status ?? null) === 'low')
+                ->values();
+        } elseif (in_array($stockFilter, ['out', 'zero'], true)) {
+            $items = $items
+                ->filter(fn ($item) => ($item->inventory_status ?? null) === 'out')
+                ->values();
+        }
 
         return response()->json(['success' => true, 'data' => $items]);
     }
@@ -1823,6 +2012,7 @@ class AdminCatalogController extends Controller
         }
 
         DB::table('product_size_variants')->where('id', $variantId)->update($payload);
+        $this->syncRealtimeStockSnapshot($variantId, $newStock);
 
         if (Schema::hasTable('stock_history')) {
             DB::table('stock_history')->insert([
@@ -1835,6 +2025,9 @@ class AdminCatalogController extends Controller
                 'created_at' => now(),
             ]);
         }
+
+        $effectiveStock = $this->resolveRealtimeAvailableStock($variantId, $newStock);
+        app('App\\Services\\InventoryAlertService')->syncVariantState($variantId, $effectiveStock);
 
         return response()->json([
             'success' => true,
@@ -1857,7 +2050,9 @@ class AdminCatalogController extends Controller
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        DB::transaction(function () use ($data, $stockColumn, $request) {
+        $stockChanges = [];
+
+        DB::transaction(function () use ($data, $stockColumn, $request, &$stockChanges) {
             $source = DB::table('product_size_variants')->where('id', $data['source_variant_id'])->lockForUpdate()->first();
             $target = DB::table('product_size_variants')->where('id', $data['target_variant_id'])->lockForUpdate()->first();
 
@@ -1872,8 +2067,33 @@ class AdminCatalogController extends Controller
                 abort(response()->json(['success' => false, 'message' => 'La variante origen no tiene stock suficiente'], 422));
             }
 
-            DB::table('product_size_variants')->where('id', $source->id)->update([$stockColumn => $sourceQty - $data['quantity']]);
-            DB::table('product_size_variants')->where('id', $target->id)->update([$stockColumn => $targetQty + $data['quantity']]);
+            $sourceNewQty = $sourceQty - $data['quantity'];
+            $targetNewQty = $targetQty + $data['quantity'];
+
+            $sourcePayload = [$stockColumn => $sourceNewQty];
+            $targetPayload = [$stockColumn => $targetNewQty];
+
+            if (Schema::hasColumn('product_size_variants', 'updated_at')) {
+                $sourcePayload['updated_at'] = now();
+                $targetPayload['updated_at'] = now();
+            }
+
+            DB::table('product_size_variants')->where('id', $source->id)->update($sourcePayload);
+            DB::table('product_size_variants')->where('id', $target->id)->update($targetPayload);
+
+            $this->syncRealtimeStockSnapshot((int) $source->id, $sourceNewQty);
+            $this->syncRealtimeStockSnapshot((int) $target->id, $targetNewQty);
+
+            $stockChanges = [
+                [
+                    'variant_id' => (int) $source->id,
+                    'stock' => $this->resolveRealtimeAvailableStock((int) $source->id, $sourceNewQty),
+                ],
+                [
+                    'variant_id' => (int) $target->id,
+                    'stock' => $this->resolveRealtimeAvailableStock((int) $target->id, $targetNewQty),
+                ],
+            ];
 
             if (Schema::hasTable('stock_history')) {
                 $userId = (string) ($request->user()?->id ?? 'admin');
@@ -1884,7 +2104,7 @@ class AdminCatalogController extends Controller
                         'variant_id' => $source->id,
                         'user_id' => $userId,
                         'previous_qty' => $sourceQty,
-                        'new_qty' => $sourceQty - $data['quantity'],
+                        'new_qty' => $sourceNewQty,
                         'operation' => 'transfer',
                         'notes' => $note,
                         'created_at' => now(),
@@ -1893,7 +2113,7 @@ class AdminCatalogController extends Controller
                         'variant_id' => $target->id,
                         'user_id' => $userId,
                         'previous_qty' => $targetQty,
-                        'new_qty' => $targetQty + $data['quantity'],
+                        'new_qty' => $targetNewQty,
                         'operation' => 'transfer',
                         'notes' => $note,
                         'created_at' => now(),
@@ -1901,6 +2121,10 @@ class AdminCatalogController extends Controller
                 ]);
             }
         });
+
+        foreach ($stockChanges as $change) {
+            app('App\\Services\\InventoryAlertService')->syncVariantState((int) $change['variant_id'], (int) $change['stock']);
+        }
 
         return response()->json(['success' => true, 'message' => 'Stock transferido correctamente']);
     }

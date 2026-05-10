@@ -16,6 +16,11 @@ use Throwable;
 class AdminOrderController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
+    private const ADMIN_STATUS_FILTER_GROUPS = [
+        'pending' => ['pending', 'created', 'pending_payment'],
+        'in_review' => ['in_review', 'en_revision'],
+        'cancelled' => ['cancelled', 'canceled', 'refunded'],
+    ];
 
     private function likeOperator(?string $connection = null): string
     {
@@ -34,6 +39,17 @@ class AdminOrderController extends Controller
         }
 
         return null;
+    }
+
+    private function expandAdminStatusFilterValues(?string $status): array
+    {
+        $normalizedStatus = Str::of((string) $status)->trim()->lower()->replace('-', '_')->value();
+
+        if ($normalizedStatus === '') {
+            return [];
+        }
+
+        return self::ADMIN_STATUS_FILTER_GROUPS[$normalizedStatus] ?? [$normalizedStatus];
     }
 
     /**
@@ -731,7 +747,13 @@ class AdminOrderController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where($statusCol, $request->string('status')->toString());
+            $statusValues = $this->expandAdminStatusFilterValues($request->string('status')->toString());
+
+            if (count($statusValues) <= 1) {
+                $query->where($statusCol, $statusValues[0] ?? $request->string('status')->toString());
+            } else {
+                $query->whereIn($statusCol, $statusValues);
+            }
         }
 
         if ($paymentStatusCol && $request->filled('payment_status')) {

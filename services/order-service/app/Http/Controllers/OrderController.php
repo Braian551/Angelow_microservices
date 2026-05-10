@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class OrderController extends Controller
@@ -23,6 +24,7 @@ class OrderController extends Controller
     private const DEFAULT_NOTIFICATION_TYPE_ID = 1;
     private const REVIEWABLE_ORDER_STATUSES = ['pending', 'pending_payment', 'created'];
     private const REVIEW_STATUS = 'in_review';
+    private const ALLOWED_ORDER_STATUS_VALUES = ['created', 'pending', 'pending_payment', 'in_review', 'en_revision', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'canceled', 'refunded'];
     private const CONFIRM_RESERVATION_STATUS_VALUES = ['paid', 'confirmed', 'processing', 'completed', 'delivered'];
     private const RELEASE_RESERVATION_STATUS_VALUES = ['cancelled', 'canceled', 'rejected', 'failed', 'expired'];
     private const CONFIRM_RESERVATION_PAYMENT_VALUES = ['paid', 'approved', 'verified'];
@@ -376,7 +378,7 @@ class OrderController extends Controller
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
-            'status' => ['required', 'string', 'max:20'],
+            'status' => ['required', 'string', 'max:20', Rule::in(self::ALLOWED_ORDER_STATUS_VALUES)],
             'changed_by' => ['nullable', 'string', 'max:20'],
             'changed_by_name' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string'],

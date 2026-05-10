@@ -144,7 +144,7 @@
           <div class="dashboard-section-head">
             <div>
               <h3 class="dashboard-section-title"><i class="fas fa-warehouse"></i> Inventario en riesgo</h3>
-              <p class="dashboard-section-subtitle">Productos activos con stock crítico.</p>
+              <p class="dashboard-section-subtitle">Productos y variantes con stock crítico o agotado.</p>
             </div>
             <RouterLink to="/admin/inventario" class="btn-link">Ver inventario</RouterLink>
           </div>
@@ -152,8 +152,12 @@
 
         <div class="dashboard-inventory-pills">
           <div class="dashboard-inventory-pill">
-            <p>Total de productos</p>
+            <p>Total de variantes</p>
             <strong>{{ inventoryTotal }}</strong>
+          </div>
+          <div class="dashboard-inventory-pill">
+            <p>Bajo stock</p>
+            <strong>{{ inventoryLow }}</strong>
           </div>
           <div class="dashboard-inventory-pill">
             <p>Sin stock</p>
@@ -162,20 +166,26 @@
         </div>
 
         <AdminEmptyState
-          v-if="!loading && lowStockItems.length === 0"
+          v-if="!loading && inventoryAlerts.length === 0"
           icon="fas fa-check-circle"
           title="Sin productos en riesgo"
-          description="El inventario está en buen estado."
+          description="No hay variantes agotadas ni con stock crítico."
         />
         <div v-else class="dashboard-low-stock">
-          <div v-for="item in lowStockItems" :key="item.id" class="dashboard-low-stock__item">
+          <button
+            v-for="item in inventoryAlerts"
+            :key="item.id"
+            type="button"
+            class="dashboard-low-stock__item dashboard-low-stock__item--interactive"
+            @click="openInventoryAlert(item)"
+          >
             <AdminTableImage :src="item.image" :alt="item.name" type="product" size="sm" />
             <div class="dashboard-low-stock__info">
               <strong>{{ item.name }}</strong>
-              <span>{{ item.sku || 'Sin SKU' }}</span>
+              <span>{{ item.variantLabel }}</span>
             </div>
-            <span class="admin-stat-card__pill pill-warning">{{ item.stock }} uds</span>
-          </div>
+            <span class="status-badge" :class="item.status === 'out' ? 'cancelled' : 'pending'">{{ item.alertLabel }}</span>
+          </button>
         </div>
       </AdminCard>
 
@@ -257,10 +267,22 @@ import {  ArcElement,
   Tooltip,
 } from 'chart.js'
 import { ref, onBeforeUnmount, onMounted, computed, watch, nextTick } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { authHttp, orderHttp, catalogHttp } from '../../../services/http'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import {
+  getOrderStatusLabel,
+  getPaymentStatusBadgeClass,
+  getPaymentStatusLabel,
+  normalizeOrderStatus,
+} from '../../../utils/orderPresentation'
 import { useAppShell } from '../../../composables/useAppShell'
+import {
+  buildInventoryTargetRoute,
+  buildInventoryVariantLabel as formatInventoryVariantLabel,
+  normalizeInventoryStatus as resolveInventoryStatus,
+  resolveInventoryThreshold,
+} from '../utils/inventoryPresentation'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminCard from '../components/AdminCard.vue'
@@ -268,6 +290,7 @@ import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
 
+const router = useRouter()
 const { settings: shellSettings } = useAppShell()
 // Mensaje de bienvenida y nombre de tienda desde configuración
 const dashboardWelcome = computed(() => shellSettings.value?.dashboard_welcome || 'Panel de control')
@@ -303,9 +326,10 @@ const stats = ref([
   { key: 'orders', icon: 'fas fa-receipt', color: 'primary', label: 'Órdenes hoy', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
   { key: 'revenue', icon: 'fas fa-dollar-sign', color: 'success', label: 'Ingresos hoy', value: '$ 0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
   { key: 'customers', icon: 'fas fa-user-plus', color: 'warning', label: 'Nuevos clientes', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. últimos 7 días' } },
-  { key: 'inventory', icon: 'fas fa-boxes-stacked', color: 'info', label: 'Inventario activo', value: '0', pills: [
-    { label: 'Activos', value: '0', class: 'pill-success' },
+  { key: 'inventory', icon: 'fas fa-boxes-stacked', color: 'info', label: 'Variantes activas', value: '0', pills: [
+    { label: 'Activas', value: '0', class: 'pill-success' },
     { label: 'Bajo stock', value: '0', class: 'pill-warning' },
+    { label: 'Sin stock', value: '0', class: 'pill-danger' },
   ] },
 ])
 
@@ -317,26 +341,12 @@ const metrics = ref([
 
 const orderStatuses = ref([])
 const recentOrders = ref([])
-const lowStockItems = ref([])
+const inventoryAlerts = ref([])
 const topProducts = ref([])
 const activities = ref([])
 const inventoryTotal = ref(0)
+const inventoryLow = ref(0)
 const inventoryZero = ref(0)
-
-const statusMap = {
-  pending: 'Pendiente',
-  processing: 'En proceso',
-  shipped: 'Enviado',
-  delivered: 'Entregado',
-  cancelled: 'Cancelado',
-}
-
-const paymentMap = {
-  pending: 'Pendiente',
-  paid: 'Pagado',
-  verified: 'Verificado',
-  rejected: 'Rechazado',
-}
 
 function parseDate(value) {
   if (!value) return null
@@ -352,8 +362,71 @@ function productImagePath(product) {
   return product.primary_image || product.image || product.product_image || product.imagen || product.image_url || null
 }
 
+function normalizeInventoryStatus(stock) {
+  const value = Number(stock || 0)
+  if (value <= 0) return 'out'
+  if (value <= 5) return 'low'
+  return 'active'
+}
+
+function normalizeInventoryRow(row) {
+  return {
+    ...row,
+    id: Number(row.id || 0),
+    product_id: Number(row.product_id || 0),
+    product_name: row.product_name || row.name || 'Sin nombre',
+    color_name: row.color_name || 'Sin color',
+    size_label: row.size_label || row.size_name || 'Sin talla',
+    sku: row.sku || '',
+    stock: Number(row.stock || row.quantity || 0),
+    low_stock_threshold: resolveInventoryThreshold(row),
+    updated_at: row.updated_at || row.created_at || null,
+    image: productImagePath(row),
+  }
+}
+
+function buildInventoryVariantLabel(row) {
+  return formatInventoryVariantLabel(row)
+}
+
+function summarizeInventoryProducts(rows = []) {
+  const grouped = new Map()
+
+  rows.forEach((row) => {
+    const key = Number(row.product_id || 0)
+    const current = grouped.get(key) || {
+      id: key,
+      name: row.product_name || 'Sin nombre',
+      image: row.image,
+      variants: [],
+    }
+
+    current.variants.push(row)
+    grouped.set(key, current)
+  })
+
+  return Array.from(grouped.values()).map((product) => {
+    const totalStock = product.variants.reduce((sum, variant) => sum + Number(variant.stock || 0), 0)
+    const outVariantCount = product.variants.filter((variant) => normalizeInventoryStatus(variant.stock) === 'out').length
+    const lowVariantCount = product.variants.filter((variant) => normalizeInventoryStatus(variant.stock) === 'low').length
+
+    return {
+      ...product,
+      totalStock,
+      outVariantCount,
+      lowVariantCount,
+      status: outVariantCount > 0 ? 'out' : lowVariantCount > 0 ? 'low' : 'active',
+    }
+  })
+}
+
 function onLowStockImageError(event, imagePath) {
   handleMediaError(event, imagePath, 'product')
+}
+
+function openInventoryAlert(item) {
+  const targetRoute = item?.route || buildInventoryTargetRoute(item)
+  router.push(targetRoute)
 }
 
 function statusPercentage(count) {
@@ -414,7 +487,7 @@ function timeAgo(value) {
   return parsed.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
 }
 
-function buildActivities({ orders = [], customers = [], lowStock = [] }) {
+function buildActivities({ orders = [], customers = [], inventoryAlerts = [] }) {
   const items = []
 
   orders.slice(0, 3).forEach((order) => {
@@ -439,13 +512,17 @@ function buildActivities({ orders = [], customers = [], lowStock = [] }) {
     })
   })
 
-  lowStock.slice(0, 2).forEach((product) => {
+  inventoryAlerts.slice(0, 3).forEach((product) => {
     items.push({
       id: `inventory-${product.id}`,
       type: 'inventory',
       icon: 'fas fa-box-open',
-      title: `Stock bajo en ${product.name || 'producto'}`,
-      description: `Quedan ${Number(product.stock || 0)} unidades${product.sku ? ` · SKU ${product.sku}` : ''}`,
+      title: product.status === 'out'
+        ? `Sin stock en ${product.name || 'producto'}`
+        : `Stock bajo en ${product.name || 'producto'}`,
+      description: product.status === 'out'
+        ? `${product.variantLabel} agotada.`
+        : `${product.variantLabel} · Quedan ${Number(product.stock || 0)} unidades.`,
       sortAt: parseDate(product.updated_at || product.created_at),
     })
   })
@@ -590,9 +667,10 @@ async function loadSalesStats() {
 
   salesSeries.value = Array.isArray(rangedReport.rows) ? rangedReport.rows : []
 
-  // Reusa el agregado por estado del endpoint admin para doughnut y lista.
+  // Reutiliza el agregado por estado del endpoint admin para doughnut y lista.
   const statusColors = {
     pending: '#f59e0b',
+    in_review: '#d97706',
     processing: '#0077b6',
     shipped: '#17a2b8',
     delivered: '#4bb543',
@@ -604,9 +682,9 @@ async function loadSalesStats() {
   const reportStatuses = Array.isArray(rangedReport.by_status) ? rangedReport.by_status : []
   if (reportStatuses.length > 0) {
     orderStatuses.value = reportStatuses.map((entry) => {
-      const key = String(entry.status || 'pending')
+      const key = normalizeOrderStatus(entry.status || 'pending')
       return {
-        label: statusMap[key] || key,
+        label: getOrderStatusLabel(key),
         count: Number(entry.count || 0),
         color: statusColors[key] || '#64748b',
       }
@@ -624,7 +702,7 @@ async function loadSalesStats() {
 
   // Órdenes pendientes: desde reporte o desde órdenes recientes como fallback
   const pendingFromReport = orderStatuses.value
-    .filter((status) => ['Pendiente', 'En proceso'].includes(status.label))
+    .filter((status) => ['Pendiente', 'En revisión', 'En proceso'].includes(status.label))
     .reduce((acc, status) => acc + Number(status.count || 0), 0)
   if (pendingFromReport > 0) {
     metrics.value[1].value = String(pendingFromReport)
@@ -642,7 +720,7 @@ async function loadDashboard() {
   loading.value = true
   let orders = []
   let customerRows = []
-  let lowStockProducts = []
+  let inventoryAlertRows = []
 
   try {
     // Cargar órdenes recientes del endpoint admin global.
@@ -658,10 +736,10 @@ async function loadDashboard() {
       customer: o.user_name || o.customer_name || 'Cliente',
       date: o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO') : '-',
       total: Number(o.total || 0).toLocaleString('es-CO'),
-      status: o.order_status || o.status || 'pending',
-      statusLabel: statusMap[o.order_status || o.status] || o.order_status || 'Pendiente',
-      paymentStatus: o.payment_status || 'pending',
-      paymentLabel: paymentMap[o.payment_status] || o.payment_status || 'Pendiente',
+      status: normalizeOrderStatus(o.order_status || o.status),
+      statusLabel: getOrderStatusLabel(o.order_status || o.status),
+      paymentStatus: getPaymentStatusBadgeClass(o.payment_status),
+      paymentLabel: getPaymentStatusLabel(o.payment_status),
     }))
 
     // Filtrar órdenes de hoy para las stat cards
@@ -692,18 +770,18 @@ async function loadDashboard() {
     }
 
     // Pendientes como cálculo inicial (loadSalesStats puede sobreescribir)
-    const pendingCount = orders.filter(o => ['pending', 'processing'].includes(o.order_status || o.status)).length
+    const pendingCount = orders.filter((o) => ['pending', 'processing', 'in_review'].includes(normalizeOrderStatus(o.order_status || o.status))).length
     metrics.value[1].value = String(pendingCount)
 
-    // Order statuses para gráfico (datos iniciales, el reporte los puede sobreescribir)
+    // Estados de orden para el gráfico; el reporte los puede sobreescribir.
     const statusCounts = {}
     orders.forEach(o => {
-      const s = o.order_status || o.status || 'pending'
+      const s = normalizeOrderStatus(o.order_status || o.status)
       statusCounts[s] = (statusCounts[s] || 0) + 1
     })
-    const colors = { pending: '#f59e0b', processing: '#0077b6', shipped: '#17a2b8', delivered: '#4bb543', cancelled: '#ff3333' }
+    const colors = { pending: '#f59e0b', in_review: '#d97706', processing: '#0077b6', shipped: '#17a2b8', delivered: '#4bb543', completed: '#2f855a', cancelled: '#ff3333' }
     orderStatuses.value = Object.entries(statusCounts).map(([key, count]) => ({
-      label: statusMap[key] || key,
+      label: getOrderStatusLabel(key),
       count,
       color: colors[key] || '#777',
     }))
@@ -736,12 +814,14 @@ async function loadDashboard() {
   }
 
   try {
-    // Cargar productos para inventario
     let productsData = []
+    let inventoryData = []
 
     try {
       const productsRes = await catalogHttp.get('/admin/products', { params: { limit: 200 } })
       productsData = productsRes.data?.data || productsRes.data || []
+      const inventoryRes = await catalogHttp.get('/admin/inventory', { params: { limit: 500 } })
+      inventoryData = inventoryRes.data?.data || inventoryRes.data || []
     } catch (adminError) {
       if (adminError?.response?.status !== 401 && adminError?.response?.status !== 403) {
         throw adminError
@@ -764,24 +844,44 @@ async function loadDashboard() {
       sold_count: Number(product.sold_count ?? product.total_sold ?? 0),
     }))
 
-    inventoryTotal.value = products.length
-    const activeProducts = products.filter(p => p.is_active !== false)
-    const lowStock = products.filter(p => p.stock > 0 && p.stock <= 5)
-    const zeroStock = products.filter(p => p.stock === 0)
-    lowStockProducts = lowStock
+    const inventoryRowsRaw = Array.isArray(inventoryData) ? inventoryData : (inventoryData.data || [])
+    const inventoryRows = inventoryRowsRaw.map(normalizeInventoryRow)
+    const activeVariants = inventoryRows.filter((row) => resolveInventoryStatus(row.stock, row) === 'active')
+    const lowStockVariants = inventoryRows.filter((row) => resolveInventoryStatus(row.stock, row) === 'low')
+    const outOfStockVariants = inventoryRows.filter((row) => resolveInventoryStatus(row.stock, row) === 'out')
 
-    inventoryZero.value = zeroStock.length
-    stats.value[3].value = String(activeProducts.length)
-    stats.value[3].pills[0].value = String(activeProducts.length)
-    stats.value[3].pills[1].value = String(lowStock.length)
+    inventoryTotal.value = inventoryRows.length
+    inventoryLow.value = lowStockVariants.length
+    inventoryZero.value = outOfStockVariants.length
+    stats.value[3].value = String(activeVariants.length)
+    stats.value[3].pills[0].value = String(activeVariants.length)
+    stats.value[3].pills[1].value = String(lowStockVariants.length)
+    stats.value[3].pills[2].value = String(outOfStockVariants.length)
 
-    lowStockItems.value = lowStock.slice(0, 5).map(p => ({
-      id: p.id,
-      name: p.name,
-      sku: p.sku,
-      stock: p.stock,
-      rawImage: p.image,
-      image: resolveMediaUrl(p.image, 'product'),
+    inventoryAlertRows = inventoryRows
+      .filter((row) => resolveInventoryStatus(row.stock, row) !== 'active')
+      .sort((left, right) => {
+        const statusWeight = (row) => (resolveInventoryStatus(row.stock, row) === 'out' ? 0 : 1)
+        const statusDiff = statusWeight(left) - statusWeight(right)
+        if (statusDiff !== 0) return statusDiff
+        return (parseDate(right.updated_at)?.getTime() || 0) - (parseDate(left.updated_at)?.getTime() || 0)
+      })
+
+    inventoryAlerts.value = inventoryAlertRows.slice(0, 5).map((row) => ({
+      id: `${row.product_id}-${row.id}`,
+      product_id: row.product_id,
+      variant_id: row.id,
+      name: row.product_name,
+      stock: row.stock,
+      status: resolveInventoryStatus(row.stock, row),
+      variantLabel: buildInventoryVariantLabel(row),
+      alertLabel: resolveInventoryStatus(row.stock, row) === 'out'
+        ? 'Sin stock'
+        : `${row.stock} de ${resolveInventoryThreshold(row)} uds`,
+      route: buildInventoryTargetRoute(row),
+      rawImage: row.image,
+      image: resolveMediaUrl(row.image, 'product'),
+      updated_at: row.updated_at,
     }))
 
     try {
@@ -846,7 +946,7 @@ async function loadDashboard() {
   activities.value = buildActivities({
     orders,
     customers: customerRows,
-    lowStock: lowStockProducts,
+    inventoryAlerts: inventoryAlerts.value,
   })
 
   // Cargar reportes de ventas (resiliente, no bloquea dashboard si falla)

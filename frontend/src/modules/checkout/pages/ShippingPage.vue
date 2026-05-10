@@ -9,7 +9,7 @@
 
       <div class="shipping-page-divider" />
 
-      <p v-if="loading" class="loading-box shipping-page-status">Cargando datos de envío...</p>
+      <CheckoutShimmer v-if="loading" />
       <p v-else-if="errorMessage" class="error-box shipping-page-status">{{ errorMessage }}</p>
 
       <section v-else-if="cartItems.length === 0" class="shipping-empty-state">
@@ -25,27 +25,11 @@
       </section>
 
       <form v-else class="shipping-page-form" @submit.prevent="continueToPayment">
-        <!-- Banner de validación: aparece dentro del form, no lo reemplaza -->
-        <transition name="shipping-alert-slide">
-          <div v-if="formValidationError" class="shipping-form-alert" role="alert" aria-live="polite">
-            <div class="shipping-form-alert__icon">
-              <i class="fas fa-exclamation-circle" />
-            </div>
-            <div class="shipping-form-alert__body">
-              <strong>Antes de continuar, completa lo siguiente:</strong>
-              <ul class="shipping-form-alert__list">
-                <li v-if="selectionErrors.address">
-                  <i class="fas fa-map-marker-alt" />
-                  {{ selectionErrors.address }}
-                </li>
-                <li v-if="selectionErrors.shipping">
-                  <i class="fas fa-truck" />
-                  {{ selectionErrors.shipping }}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </transition>
+        <!-- Banner de validación reutilizable -->
+        <CheckoutValidationAlert
+          :visible="formValidationError"
+          :errors="shippingValidationErrors"
+        />
         <div class="shipping-page-layout">
           <div class="shipping-page-sections">
             <section class="shipping-section-card">
@@ -373,6 +357,8 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import CheckoutFlowHeader from '../components/CheckoutFlowHeader.vue'
+import CheckoutValidationAlert from '../components/CheckoutValidationAlert.vue'
+import CheckoutShimmer from '../components/CheckoutShimmer.vue'
 import { useAppShell } from '../../../composables/useAppShell'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useSession } from '../../../composables/useSession'
@@ -434,6 +420,18 @@ const cartSelectionState = computed(() => buildCartSelectionSummary(
   selectionMap.value,
 ))
 const cartItems = computed(() => cartSelectionState.value.selectedItems.map(normalizeCheckoutCartItem))
+
+// Errores de validación formateados para CheckoutValidationAlert
+const shippingValidationErrors = computed(() => {
+  const errors = []
+  if (selectionErrors.value.address) {
+    errors.push({ icon: 'fas fa-map-marker-alt', text: selectionErrors.value.address })
+  }
+  if (selectionErrors.value.shipping) {
+    errors.push({ icon: 'fas fa-truck', text: selectionErrors.value.shipping })
+  }
+  return errors
+})
 const subtotal = computed(() => cartSelectionState.value.selectedSubtotal)
 const itemCount = computed(() => cartSelectionState.value.selectedUnits)
 
@@ -887,7 +885,7 @@ async function continueToPayment() {
     formValidationError.value = true
     // Scroll al banner de errores para que el usuario lo vea
     await nextTick()
-    const banner = document.querySelector('.shipping-form-alert')
+    const banner = document.querySelector('.checkout-validation-alert')
     if (banner) {
       banner.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
@@ -1652,81 +1650,7 @@ function parseStoredJson(rawValue) {
   animation: shippingFieldErrorIn 0.2s ease;
 }
 
-/* Banner de validación global dentro del formulario */
-.shipping-form-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.2rem;
-  margin: 0 0 2rem;
-  padding: 1.6rem 2rem;
-  border-radius: 1.4rem;
-  background: #fff5f5;
-  border: 1.5px solid rgba(198, 40, 40, 0.25);
-  box-shadow: 0 2px 8px rgba(198, 40, 40, 0.08);
-}
-
-.shipping-form-alert__icon {
-  flex-shrink: 0;
-  width: 3.4rem;
-  height: 3.4rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(198, 40, 40, 0.1);
-  color: #c62828;
-  font-size: 1.5rem;
-}
-
-.shipping-form-alert__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.shipping-form-alert__body strong {
-  display: block;
-  margin-bottom: 0.8rem;
-  color: #8b1a1a;
-  font-size: 1.35rem;
-  font-weight: 700;
-}
-
-.shipping-form-alert__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.shipping-form-alert__list li {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  color: #c62828;
-  font-size: 1.28rem;
-  font-weight: 600;
-}
-
-.shipping-form-alert__list li i {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-  color: #c62828;
-  opacity: 0.75;
-}
-
-/* Transition del banner */
-.shipping-alert-slide-enter-active,
-.shipping-alert-slide-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.shipping-alert-slide-enter-from,
-.shipping-alert-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
+/* Los estilos del banner de validación se gestionan en CheckoutValidationAlert.vue */
 
 @keyframes shippingFieldErrorIn {
   from { opacity: 0; transform: translateY(-4px); }

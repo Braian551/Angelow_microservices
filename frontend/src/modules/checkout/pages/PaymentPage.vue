@@ -9,7 +9,7 @@
 
       <div class="payment-page-divider" />
 
-      <p v-if="loading" class="loading-box payment-page-status">Preparando tu resumen de pago...</p>
+      <CheckoutShimmer v-if="loading" />
       <p v-else-if="errorMessage && !shippingData" class="error-box payment-page-status">{{ errorMessage }}</p>
 
       <section v-else-if="!shippingData" class="payment-empty-state">
@@ -25,7 +25,11 @@
       </section>
 
       <form v-else class="payment-page-form" @submit.prevent="confirmOrder">
-        <p v-if="errorMessage" class="error-box payment-page-status">{{ errorMessage }}</p>
+        <!-- Alerta de validación de campos del formulario -->
+        <CheckoutValidationAlert
+          :visible="formValidationError"
+          :errors="paymentValidationErrors"
+        />
         <p v-if="infoMessage" class="loading-box payment-page-status">{{ infoMessage }}</p>
 
         <div class="payment-page-layout">
@@ -339,9 +343,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import CheckoutFlowHeader from '../components/CheckoutFlowHeader.vue'
+import CheckoutValidationAlert from '../components/CheckoutValidationAlert.vue'
+import CheckoutShimmer from '../components/CheckoutShimmer.vue'
 import PaymentAccountSummaryCard from '../../../components/payments/PaymentAccountSummaryCard.vue'
 import { useAppShell } from '../../../composables/useAppShell'
 import { useSession } from '../../../composables/useSession'
@@ -369,6 +375,8 @@ const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const infoMessage = ref('')
+// Control del banner de validación de formulario (estilo CheckoutValidationAlert)
+const formValidationError = ref(false)
 const banks = ref([])
 const cart = ref({ items: [], item_count: 0 })
 const selectionMap = ref({})
@@ -487,6 +495,27 @@ const discountSummaryLabel = computed(() => {
   return discountCode ? `Descuento (${discountCode})` : 'Descuento'
 })
 
+// Lista de errores formateada para el componente CheckoutValidationAlert
+const paymentValidationErrors = computed(() => {
+  const errors = []
+  if (fieldErrors.value.bank_code) {
+    errors.push({ icon: 'fas fa-building-columns', text: fieldErrors.value.bank_code })
+  }
+  if (fieldErrors.value.reference_number) {
+    errors.push({ icon: 'fas fa-hashtag', text: fieldErrors.value.reference_number })
+  }
+  if (fieldErrors.value.customer_email) {
+    errors.push({ icon: 'fas fa-envelope', text: fieldErrors.value.customer_email })
+  }
+  if (fieldErrors.value.payment_proof) {
+    errors.push({ icon: 'fas fa-file-arrow-up', text: fieldErrors.value.payment_proof })
+  }
+  if (fieldErrors.value.accept_terms) {
+    errors.push({ icon: 'fas fa-square-check', text: fieldErrors.value.accept_terms })
+  }
+  return errors
+})
+
 const selectedBank = computed(() => {
   return banks.value.find((bank) => bank.bank_code === form.value.bank_code) || null
 })
@@ -586,6 +615,12 @@ function validateField(fieldName) {
     fieldErrors.value.accept_terms = form.value.accept_terms
       ? ''
       : 'Debes aceptar los términos para continuar.'
+  }
+
+  // Ocultar el banner si ya no quedan errores pendientes
+  if (!fieldErrors.value[fieldName] && formValidationError.value) {
+    const hasAnyError = Object.values(fieldErrors.value).some(Boolean)
+    if (!hasAnyError) formValidationError.value = false
   }
 
   return !fieldErrors.value[fieldName]
@@ -770,6 +805,7 @@ function translateCheckoutApiMessage(message) {
 async function confirmOrder() {
   errorMessage.value = ''
   infoMessage.value = ''
+  formValidationError.value = false
 
   if (!shippingData.value) {
     errorMessage.value = 'Faltan los datos del paso de envío.'
@@ -777,7 +813,13 @@ async function confirmOrder() {
   }
 
   if (!validateAllFields()) {
-    errorMessage.value = 'Corrige los campos marcados antes de confirmar el pedido.'
+    // Mostrar el banner de validación y hacer scroll hasta él
+    formValidationError.value = true
+    await nextTick()
+    const banner = document.querySelector('.checkout-validation-alert')
+    if (banner) {
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     return
   }
 

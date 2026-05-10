@@ -41,3 +41,12 @@ Fecha: 2026-04-18
 ## Resultado esperado en UI
 - Admin anuncios deja de mostrar error de servidor por ausencia de tabla y vuelve a listar anuncios.
 - En el modal de pagos, el selector de bancos vuelve a poblarse con el catálogo activo.
+
+## Patrón 4: Compensating Action pragmática para sincronización pago-orden
+- Nota: no existe un patrón GoF exacto para esta compensación distribuida; se documenta la acción compensatoria como mecanismo pragmático de consistencia entre servicios.
+- Problema que resuelve: evitar que un pago quede marcado como verificado en `payment-service` cuando `order-service` rechaza la actualización por conflicto de inventario o por fallo de sincronización.
+- Aplicación:
+  - `frontend/src/modules/admin/pages/AdminPaymentsPage.vue`
+  - La acción administrativa primero actualiza el pago y luego sincroniza la orden.
+  - Si `order-service` responde con error, la vista revierte el pago al estado anterior o lo lleva a `rejected` cuando la orden fue cancelada por falta de stock.
+  - La IU muestra al administrador el mensaje real devuelto por backend en lugar de un warning genérico.

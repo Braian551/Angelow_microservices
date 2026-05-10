@@ -31,7 +31,7 @@
 
       <div class="cart-page-divider" />
 
-      <p v-if="loading" class="loading-box cart-page-status">Cargando carrito...</p>
+      <CheckoutShimmer v-if="loading" />
       <p v-else-if="errorMessage" class="error-box cart-page-status">{{ errorMessage }}</p>
 
       <section v-else-if="rawCartItems.length === 0" class="cart-empty-state">
@@ -48,6 +48,12 @@
 
       <section v-else class="cart-page-layout">
         <article class="cart-items-panel">
+          <!-- Alerta de validación: se muestra si el usuario intenta proceder sin productos seleccionados -->
+          <CheckoutValidationAlert
+            :visible="selectionValidationError"
+            title="Selecciona productos para continuar:"
+            :errors="selectionValidationErrors"
+          />
           <div class="cart-selection-toolbar">
             <label class="cart-selection-toggle" :class="{ 'cart-selection-toggle--disabled': !hasSelectableItems }">
               <span class="cart-checkbox">
@@ -302,8 +308,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import CheckoutValidationAlert from '../../../modules/checkout/components/CheckoutValidationAlert.vue'
+import CheckoutShimmer from '../../../modules/checkout/components/CheckoutShimmer.vue'
 import { useAppShell } from '../../../composables/useAppShell'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useSession } from '../../../composables/useSession'
@@ -332,6 +340,8 @@ const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
 const errorMessage = ref('')
+// Control del banner de validación al intentar continuar sin selección
+const selectionValidationError = ref(false)
 const cart = ref({ ...EMPTY_CART })
 const selectionMap = ref({})
 const busyItemIds = ref({})
@@ -349,6 +359,14 @@ const blockedProductCount = computed(() => selectionState.value.blockedProductCo
 const allSelectableSelected = computed(() => selectionState.value.allSelectableSelected)
 const hasSelectableItems = computed(() => selectionState.value.hasSelectableItems)
 const canProceedToShipping = computed(() => selectedProductCount.value > 0)
+
+// Errores de validación para el banner de CheckoutValidationAlert
+const selectionValidationErrors = computed(() => {
+  if (blockedProductCount.value > 0 && selectedProductCount.value === 0) {
+    return [{ icon: 'fas fa-triangle-exclamation', text: 'Los productos seleccionados no tienen stock suficiente. Ajusta las cantidades o elimínalos del carrito.' }]
+  }
+  return [{ icon: 'fas fa-shopping-cart', text: 'Selecciona al menos un producto disponible para continuar al envío.' }]
+})
 
 function buildCartQuery() {
   return {
@@ -486,22 +504,31 @@ async function deleteItem(itemId) {
 
 function toggleItemSelection(itemId, event) {
   selectionMap.value = setStoredCartItemSelection(itemId, Boolean(event?.target?.checked), selectionMap.value)
+  // Ocultar el banner si ya hay productos seleccionados
+  if (selectionValidationError.value && canProceedToShipping.value) {
+    selectionValidationError.value = false
+  }
 }
 
 function toggleAllSelections(event) {
   selectionMap.value = setAllStoredCartSelections(rawCartItems.value, Boolean(event?.target?.checked), selectionMap.value)
+  if (selectionValidationError.value && canProceedToShipping.value) {
+    selectionValidationError.value = false
+  }
 }
 
-function goToShipping() {
+async function goToShipping() {
   if (!canProceedToShipping.value) {
-    showSnackbar({
-      type: 'info',
-      title: 'Selecciona productos',
-      message: 'Selecciona al menos un producto disponible para continuar al envío.',
-    })
+    selectionValidationError.value = true
+    await nextTick()
+    const banner = document.querySelector('.checkout-validation-alert')
+    if (banner) {
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     return
   }
 
+  selectionValidationError.value = false
   router.push({ name: 'shipping' })
 }
 
