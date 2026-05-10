@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { catalogHttp, orderHttp } from '../../../services/http'
+import { catalogHttp, notificationHttp, orderHttp } from '../../../services/http'
 import {
   buildInventoryTargetRoute,
   buildInventoryVariantLabel,
@@ -61,6 +61,7 @@ const PAYMENT_STATUS_LABELS = {
 const PAYMENT_REVIEW_STATUSES = new Set(['pending', 'pending_payment', 'in_review', 'en_revision', 'created'])
 
 const notifications = ref([])
+const dismissedNotificationReadAt = ref({})
 const unreadCount = computed(() => notifications.value.filter((item) => !item?.read_at).length)
 
 const unreadByModule = computed(() => {
@@ -89,6 +90,8 @@ let inventorySnapshot = new Map()
 let orderNotificationsTimer = null
 let activeSubscribers = 0
 let lastVisitedRoutePath = null
+let dismissedNotificationsLoaded = false
+let dismissedNotificationsPromise = null
 
 function startAdminNotifications() {
   activeSubscribers += 1
@@ -123,6 +126,10 @@ function stopAdminNotifications() {
   orderSnapshot = new Map()
   inventorySnapshot = new Map()
   lastVisitedRoutePath = null
+  notifications.value = []
+  dismissedNotificationReadAt.value = {}
+  dismissedNotificationsLoaded = false
+  dismissedNotificationsPromise = null
 }
 
 async function loadNotifications({ initialize = false } = {}) {
@@ -133,6 +140,8 @@ async function loadNotifications({ initialize = false } = {}) {
   loadingNotifications = true
 
   try {
+    await ensureDismissedNotificationsLoaded()
+
     const [ordersResult, inventoryResult] = await Promise.allSettled([
       fetchRecentOrdersForNotifications(),
       fetchInventoryRowsForNotifications(),
@@ -178,11 +187,52 @@ async function loadNotifications({ initialize = false } = {}) {
 
     orderSnapshot = currentOrderSnapshot
     inventorySnapshot = currentInventorySnapshot
+
+    if (lastVisitedRoutePath) {
+      markRouteNotificationsAsRead(lastVisitedRoutePath, { force: true })
+    }
   } catch {
     // El panel debe continuar operativo aunque falle el polling.
   } finally {
     loadingNotifications = false
   }
+}
+
+async function ensureDismissedNotificationsLoaded() {
+  if (dismissedNotificationsLoaded) {
+    return
+  }
+
+  if (dismissedNotificationsPromise) {
+    await dismissedNotificationsPromise
+    return
+  }
+
+  dismissedNotificationsPromise = (async () => {
+    try {
+      const response = await notificationHttp.get('/admin/notification-dismissals')
+      const rows = Array.isArray(response?.data?.data) ? response.data.data : []
+      const nextState = {}
+
+      rows.forEach((row) => {
+        const notificationKey = String(row?.notification_key || '').trim()
+        if (!notificationKey) {
+          return
+        }
+
+        nextState[notificationKey] = row?.dismissed_at || new Date().toISOString()
+      })
+
+      dismissedNotificationReadAt.value = nextState
+    } catch {
+      dismissedNotificationReadAt.value = {}
+    } finally {
+      dismissedNotificationsLoaded = true
+      dismissedNotificationsPromise = null
+    }
+  })()
+
+  await dismissedNotificationsPromise
 }
 
 function mergeNotifications(incomingNotifications) {
@@ -200,26 +250,82 @@ function mergeNotifications(incomingNotifications) {
       return
     }
 
+    const persistedReadAt = dismissedNotificationReadAt.value[notificationId] || null
     const previous = mergedById.get(notificationId)
     if (previous) {
       mergedById.set(notificationId, {
         ...notification,
-        read_at: previous.read_at || notification.read_at || null,
+        read_at: previous.read_at || notification.read_at || persistedReadAt,
       })
       return
     }
 
-    mergedById.set(notificationId, notification)
+    mergedById.set(notificationId, {
+      ...notification,
+      read_at: notification.read_at || persistedReadAt,
+    })
   })
 
   notifications.value = sortNotifications(Array.from(mergedById.values())).slice(0, MAX_VISIBLE_NOTIFICATIONS)
 }
 
+function normalizeNotificationKey(notificationKey) {
+  return String(notificationKey || '').trim()
+}
+
+function rememberDismissedNotifications(notificationKeys, dismissedAt) {
+  if (!Array.isArray(notificationKeys) || notificationKeys.length === 0) {
+    return
+  }
+
+  const nextState = {
+    ...dismissedNotificationReadAt.value,
+  }
+
+  notificationKeys.forEach((notificationKey) => {
+    const normalizedKey = normalizeNotificationKey(notificationKey)
+    if (!normalizedKey) {
+      return
+    }
+
+    nextState[normalizedKey] = nextState[normalizedKey] || dismissedAt
+  })
+
+  dismissedNotificationReadAt.value = nextState
+}
+
+async function persistDismissedNotifications(notificationKeys, dismissedAt = new Date().toISOString()) {
+  const uniqueKeys = Array.from(new Set(
+    (Array.isArray(notificationKeys) ? notificationKeys : [])
+      .map((notificationKey) => normalizeNotificationKey(notificationKey))
+      .filter(Boolean),
+  ))
+
+  if (uniqueKeys.length === 0) {
+    return
+  }
+
+  rememberDismissedNotifications(uniqueKeys, dismissedAt)
+
+  try {
+    await notificationHttp.patch('/admin/notification-dismissals', {
+      notification_keys: uniqueKeys,
+    })
+  } catch {
+    // Se conserva el estado local para no bloquear la navegación del admin.
+  }
+}
+
 function markNotificationAsRead(notificationId) {
+  const normalizedId = normalizeNotificationKey(notificationId)
+  if (!normalizedId) {
+    return
+  }
+
   const now = new Date().toISOString()
 
   notifications.value = notifications.value.map((item) => {
-    if (String(item?.id || '') !== String(notificationId)) {
+    if (String(item?.id || '') !== normalizedId) {
       return item
     }
 
@@ -232,14 +338,30 @@ function markNotificationAsRead(notificationId) {
       read_at: now,
     }
   })
+
+  void persistDismissedNotifications([normalizedId], now)
 }
 
 function markAllNotificationsAsRead() {
   const now = new Date().toISOString()
+  const unreadKeys = []
+
   notifications.value = notifications.value.map((item) => ({
     ...item,
+    ...(item?.read_at
+      ? {}
+      : (() => {
+          const notificationKey = normalizeNotificationKey(item?.id)
+          if (notificationKey) {
+            unreadKeys.push(notificationKey)
+          }
+
+          return {}
+        })()),
     read_at: item?.read_at || now,
   }))
+
+  void persistDismissedNotifications(unreadKeys, now)
 }
 
 function markModuleAsRead(moduleKey) {
@@ -249,6 +371,7 @@ function markModuleAsRead(moduleKey) {
   }
 
   const now = new Date().toISOString()
+  const unreadKeys = []
 
   notifications.value = notifications.value.map((item) => {
     const itemModule = String(item?.module_key || '').trim().toLowerCase()
@@ -256,44 +379,57 @@ function markModuleAsRead(moduleKey) {
       return item
     }
 
+    const notificationKey = normalizeNotificationKey(item?.id)
+    if (notificationKey) {
+      unreadKeys.push(notificationKey)
+    }
+
     return {
       ...item,
       read_at: now,
     }
   })
+
+  void persistDismissedNotifications(unreadKeys, now)
 }
 
-function markRouteNotificationsAsRead(routePath) {
+function resolveModuleFromRoute(routePath) {
+  if (routePath.startsWith('/admin/ordenes')) {
+    return 'orders'
+  }
+
+  if (routePath.startsWith('/admin/pagos')) {
+    return 'payments'
+  }
+
+  if (routePath.startsWith('/admin/facturas')) {
+    return 'invoices'
+  }
+
+  if (routePath.startsWith('/admin/inventario')) {
+    return 'inventory'
+  }
+
+  return ''
+}
+
+function markRouteNotificationsAsRead(routePath, options = {}) {
   const normalizedPath = String(routePath || '').trim().toLowerCase()
   if (!normalizedPath) {
     return
   }
 
-  if (lastVisitedRoutePath === null) {
-    lastVisitedRoutePath = normalizedPath
-    return
-  }
-
-  if (lastVisitedRoutePath === normalizedPath) {
-    return
-  }
-
+  const force = Boolean(options?.force)
+  const routeChanged = lastVisitedRoutePath !== normalizedPath
   lastVisitedRoutePath = normalizedPath
 
-  if (normalizedPath.startsWith('/admin/ordenes')) {
-    markModuleAsRead('orders')
+  if (!force && !routeChanged) {
+    return
   }
 
-  if (normalizedPath.startsWith('/admin/pagos')) {
-    markModuleAsRead('payments')
-  }
-
-  if (normalizedPath.startsWith('/admin/facturas')) {
-    markModuleAsRead('invoices')
-  }
-
-  if (normalizedPath.startsWith('/admin/inventario')) {
-    markModuleAsRead('inventory')
+  const moduleKey = resolveModuleFromRoute(normalizedPath)
+  if (moduleKey) {
+    markModuleAsRead(moduleKey)
   }
 }
 

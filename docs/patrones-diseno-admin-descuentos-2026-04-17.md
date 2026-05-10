@@ -86,3 +86,23 @@ Se corrigió la desincronización de anuncios en home (arriba/abajo) y se implem
   - frontend/src/modules/admin/pages/AdminDiscountSpecificCampaignPage.vue
 - Evidencia técnica:
   - Acciones `selectAllFilteredCustomers`, `clearSpecificCustomerSelection` y `submitSpecificCampaign` quedan separadas, con validación en tiempo real antes del envío.
+
+## Extensión 2026-05-10: prioridad visual del snackbar y código automático
+
+### 8) State
+- Patrón: State (Refactoring Guru)
+- Problema que resuelve:
+  El formulario de códigos necesitaba alternar entre captura manual y generación automática sin duplicar campos, manteniendo la validación en tiempo real y la misma experiencia dentro del modal.
+- Aplicado en:
+  - frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue
+- Evidencia técnica:
+  - El estado reactivo `autoGenerateCode` gobierna el modo del campo, el texto auxiliar, el bloqueo temporal del input y la regeneración del código sugerido desde el mismo flujo.
+
+### 9) Composition
+- Patrón: Composition (Refactoring Guru)
+- Problema que resuelve:
+  Mantener un único sistema global de feedback visible por encima de los modales del admin, evitando reimplementar notificaciones locales en la vista de descuentos.
+- Aplicado en:
+  - frontend/src/components/ui/UserSnackbarSystem.css
+- Evidencia técnica:
+  - El snackbar global conserva una sola capa reutilizable y ahora se renderiza por encima del `AdminModal`, por lo que los mensajes operativos siguen visibles aun con overlays activos.

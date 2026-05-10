@@ -2,7 +2,7 @@
   position: fixed;
   right: 20px;
   top: 20px;
-  z-index: 1500;
+  z-index: 3200;
   min-width: 320px;
   max-width: min(560px, calc(100vw - 32px));
   border-radius: 12px;

@@ -185,12 +185,46 @@
       <div class="editor-grid editor-grid--discounts admin-editor-grid">
         <div>
           <div class="form-group">
-            <label for="discount-code-field">
-              Código *
-              <AdminInfoTooltip text="Palabra clave que el cliente escribe al finalizar la compra. Solo mayúsculas, números y guiones. Entre 4 y 20 caracteres." />
-            </label>
-            <input id="discount-code-field" v-model.trim="form.code" type="text" class="form-control" :class="{ 'is-invalid': formErrors.code }" @input="handleCodeInput">
+            <div class="discount-code-field__header">
+              <label for="discount-code-field">
+                Código *
+                <AdminInfoTooltip text="Palabra clave que el cliente escribe al finalizar la compra. Puedes escribirla manualmente o generar una propuesta aleatoria antes de guardar." />
+              </label>
+              <button
+                v-if="autoGenerateCode"
+                type="button"
+                class="discount-code-field__generate"
+                @click="regenerateAutomaticCode"
+              >
+                <i class="fas fa-sync-alt"></i>
+                Generar otro
+              </button>
+            </div>
+            <input
+              id="discount-code-field"
+              v-model.trim="form.code"
+              type="text"
+              class="form-control"
+              :class="{ 'is-invalid': formErrors.code }"
+              :readonly="autoGenerateCode"
+              placeholder="Ej. PROMO-AB12CD"
+              @input="handleCodeInput"
+            >
+            <p class="discount-code-field__hint">
+              {{ autoGenerateCode
+                ? 'Modo automático activo. Se propone un código aleatorio en mayúsculas que puedes regenerar antes de guardar.'
+                : 'Escribe entre 4 y 20 caracteres en mayúsculas, números o guiones.' }}
+            </p>
             <p v-if="formErrors.code" class="form-error">{{ formErrors.code }}</p>
+            <div class="discount-code-field__mode">
+              <AdminToggleSwitch
+                id="discount-code-auto-generate"
+                :model-value="autoGenerateCode"
+                layout="inline"
+                label="Generar código automáticamente"
+                @update:modelValue="handleCodeGenerationToggle"
+              />
+            </div>
           </div>
 
           <div class="form-row">
@@ -559,6 +593,7 @@ const campaignSubmitting = ref(false)
 const campaignCustomersLoading = ref(false)
 const campaignCustomers = ref([])
 const specificCampaignSearch = ref('')
+const autoGenerateCode = ref(true)
 
 const filters = reactive({ search: '', state: 'all', type: 'all' })
 
@@ -645,7 +680,30 @@ const filteredCampaignCustomers = computed(() => {
   return campaignCustomers.value.filter((customer) => [customer.name, customer.email].join(' ').toLowerCase().includes(term))
 })
 
+function buildAutomaticDiscountCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const segment = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
+  return `PROMO-${segment}`
+}
+
+function regenerateAutomaticCode() {
+  form.code = buildAutomaticDiscountCode()
+  validateField('code')
+}
+
+function handleCodeGenerationToggle(nextValue) {
+  autoGenerateCode.value = Boolean(nextValue)
+
+  if (autoGenerateCode.value) {
+    regenerateAutomaticCode()
+    return
+  }
+
+  validateField('code')
+}
+
 function resetForm() {
+  autoGenerateCode.value = true
   form.code = ''
   form.type = 'percent'
   form.value = 10
@@ -655,6 +713,7 @@ function resetForm() {
   form.active = true
   form.is_single_use = false
   clearErrors()
+  regenerateAutomaticCode()
 }
 
 function clearErrors() {
@@ -681,6 +740,7 @@ function navigateToSpecificCampaignPage() {
 
 function openEditModal(code) {
   editingCodeId.value = code.id
+  autoGenerateCode.value = false
   clearErrors()
   form.code = code.code || ''
   form.type = code.type || 'percent'
@@ -1107,6 +1167,47 @@ onMounted(loadCodes)
   border: 1px solid rgba(15, 122, 191, 0.12);
 }
 
+.discount-code-field__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.discount-code-field__header label {
+  margin-bottom: 0;
+}
+
+.discount-code-field__generate {
+  border: 1px solid rgba(15, 122, 191, 0.18);
+  background: rgba(15, 122, 191, 0.08);
+  color: var(--admin-primary);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.discount-code-field__generate:hover {
+  background: rgba(15, 122, 191, 0.14);
+}
+
+.discount-code-field__hint {
+  margin: 0.55rem 0 0;
+  color: var(--admin-text-light);
+  font-size: 1.18rem;
+  line-height: 1.45;
+}
+
+.discount-code-field__mode {
+  margin-top: 1rem;
+}
+
 .discount-hero-card h3,
 .discount-preview-card h3 {
   font-size: 2.6rem;
@@ -1518,6 +1619,16 @@ onMounted(loadCodes)
 }
 
 @media (max-width: 640px) {
+  .discount-code-field__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .discount-code-field__generate {
+    width: 100%;
+    justify-content: center;
+  }
+
   .specific-campaign-users-panel {
     flex-direction: column;
     align-items: stretch;
