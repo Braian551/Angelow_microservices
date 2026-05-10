@@ -359,6 +359,7 @@ import {
   normalizeCheckoutCartItem,
   normalizeCheckoutMethod,
 } from '../utils/checkoutHelpers'
+import { buildCartSelectionSummary, synchronizeCartSelectionMap } from '../../cart/utils/cartSelection'
 
 const router = useRouter()
 const { sessionId, user } = useSession()
@@ -370,6 +371,7 @@ const errorMessage = ref('')
 const infoMessage = ref('')
 const banks = ref([])
 const cart = ref({ items: [], item_count: 0 })
+const selectionMap = ref({})
 const shippingData = ref(null)
 const paymentAccount = ref(null)
 const paymentProofFile = ref(null)
@@ -393,15 +395,18 @@ const fieldErrors = ref({
 
 const selectedAddress = computed(() => normalizeCheckoutAddress(shippingData.value?.selected_address || {}))
 const selectedShippingMethod = computed(() => normalizeCheckoutMethod(shippingData.value?.selected_shipping_method || {}))
+const cartSelectionState = computed(() => buildCartSelectionSummary(
+  Array.isArray(cart.value?.items) ? cart.value.items : [],
+  selectionMap.value,
+))
 
 const orderItems = computed(() => {
-  const cartItems = Array.isArray(cart.value?.items) ? cart.value.items : []
-  if (cartItems.length > 0) {
-    return cartItems.map(normalizeCheckoutCartItem)
+  const snapshotItems = Array.isArray(shippingData.value?.items_snapshot) ? shippingData.value.items_snapshot : []
+  if (snapshotItems.length > 0) {
+    return snapshotItems.map(normalizeCheckoutCartItem)
   }
 
-  const snapshotItems = Array.isArray(shippingData.value?.items_snapshot) ? shippingData.value.items_snapshot : []
-  return snapshotItems.map(normalizeCheckoutCartItem)
+  return cartSelectionState.value.selectedItems.map(normalizeCheckoutCartItem)
 })
 
 const itemCount = computed(() => orderItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0))
@@ -535,6 +540,7 @@ async function loadInitialData() {
     cart.value = cartRes?.data && typeof cartRes.data === 'object'
       ? cartRes.data
       : { items: [], item_count: 0 }
+    selectionMap.value = synchronizeCartSelectionMap(Array.isArray(cart.value?.items) ? cart.value.items : [])
 
     form.value.bank_code = shippingData.value?.bank_code || banks.value[0]?.bank_code || ''
     form.value.customer_email = String(user.value?.email || shippingData.value?.user_email || '').trim()
@@ -876,7 +882,21 @@ async function confirmOrder() {
         .map((item) => removeCartItem(item.item_id)),
     )
 
-    setCartCount(0)
+    try {
+      const refreshedCart = await getCart({
+        user_id: user.value?.id || undefined,
+        session_id: user.value?.id ? undefined : sessionId.value,
+      })
+
+      cart.value = refreshedCart?.data && typeof refreshedCart.data === 'object'
+        ? refreshedCart.data
+        : { items: [], item_count: 0 }
+      selectionMap.value = synchronizeCartSelectionMap(Array.isArray(cart.value?.items) ? cart.value.items : [])
+      setCartCount(Number(cart.value?.item_count || 0))
+    } catch {
+      const fallbackCount = Math.max(0, Number(cart.value?.item_count || 0) - itemCount.value)
+      setCartCount(fallbackCount)
+    }
 
     localStorage.setItem('angelow_checkout_result', JSON.stringify({
       order_id: orderId,

@@ -38,3 +38,12 @@
 - Ubicación: `frontend/src/modules/checkout/utils/checkoutHelpers.js`
 - Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
 - Problema resuelto: algunos ítems llegaban al paso de pago sin `size_variant_id`, provocando rechazo de validación en creación de orden y un error visible para el usuario.
+
+## State
+
+- Aplicación: resolución centralizada de estados de disponibilidad (`available`, `low-stock`, `quantity-exceeded`, `sold-out`) para controlar selección, bloqueo de cantidad y feedback inline desde el carrito hasta el checkout.
+- Ubicación: `frontend/src/modules/cart/utils/cartSelection.js`
+- Ubicación: `frontend/src/modules/cart/pages/CartPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
+- Problema resuelto: evitar que productos agotados o con cantidad inválida sigan incluidos en el pago, y mantener el mismo criterio para subtotal, resumen y compra parcial en todo el flujo.
