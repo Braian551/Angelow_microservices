@@ -297,11 +297,28 @@ class AdminNotificationController extends Controller
             $payload['button_link'] = $this->nullableTrim($buttonLink);
         }
 
-        if ($uploadedImage !== null) {
+        $resolvedType = $type ?? $this->normalizeAnnouncementType((string) ($current->type ?? 'top_bar'));
+
+        if ($resolvedType === 'top_bar') {
+            if ($uploadedImage !== null) {
+                $this->deleteStoredImage($uploadedImage);
+            }
+
+            $this->deleteStoredImage($current?->image ?? null);
+            $payload['subtitle'] = null;
+            $payload['button_text'] = null;
+            $payload['button_link'] = null;
+            $payload['image'] = null;
+        } elseif ($uploadedImage !== null) {
             $payload['image'] = $uploadedImage;
             $this->deleteStoredImage($current?->image ?? null);
         } elseif (array_key_exists('image', $data) && is_string($data['image'])) {
-            $payload['image'] = $this->nullableTrim($data['image']);
+            $normalizedImage = $this->nullableTrim($data['image']);
+            if ($normalizedImage === null && $current?->image) {
+                $this->deleteStoredImage($current->image);
+            }
+
+            $payload['image'] = $normalizedImage;
         }
 
         if (array_key_exists('background_color', $data)) {

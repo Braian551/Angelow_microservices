@@ -108,99 +108,76 @@ class AdminOrderController extends Controller
             'status' => $request->input('status'),
         ]);
 
-        $connection = null;
-        $query = $this->buildAnalyticsOrdersQuery($connection, $filtersRequest);
+        $distributedRows = $this->fetchAnalyticsOrdersRows(null, $filtersRequest);
+        $legacyRows = $this->fetchAnalyticsOrdersRows(self::LEGACY_CONNECTION, $filtersRequest);
+        $orders = $this->mergeAdminOrderRows($distributedRows, $legacyRows);
 
-        // Si no hay datos en la BD distribuida, usa fallback legacy para no romper reportes.
-        if ((clone $query)->count() === 0) {
-            $connection = self::LEGACY_CONNECTION;
-            $query = $this->buildAnalyticsOrdersQuery($connection, $filtersRequest);
-        }
-
-        $dbConnection = $connection ?: config('database.default');
-        $totalOrders   = (clone $query)->count();
-        $totalRevenue  = (clone $query)->sum('total');
+        $totalOrders = $orders->count();
+        $totalRevenue = round($orders->sum(fn ($row) => $this->orderTotalValue($row)), 2);
+        $totalShipping = round($orders->sum(fn ($row) => $this->orderShippingValue($row)), 2);
+        $totalDiscount = round($orders->sum(fn ($row) => $this->orderDiscountValue($row)), 2);
         $avgOrderValue = $totalOrders > 0 ? round($totalRevenue / $totalOrders, 2) : 0;
-        $subtotalColumn = $this->firstExistingColumn('orders', ['subtotal'], $connection);
-        $shippingColumn = $this->firstExistingColumn('orders', ['shipping_cost', 'shipping'], $connection);
-        $discountColumn = $this->firstExistingColumn('orders', ['discount_amount', 'discount'], $connection);
-        $subtotalExpression = $subtotalColumn ? "COALESCE({$subtotalColumn}, total)" : 'COALESCE(total, 0)';
-        $shippingExpression = $shippingColumn ? "COALESCE({$shippingColumn}, 0)" : '0';
-        $discountExpression = $discountColumn ? "COALESCE({$discountColumn}, 0)" : '0';
 
-        // Detectar columna de estado real
-        $statusCol = 'status';
-        if (!Schema::connection($dbConnection)->hasColumn('orders', 'status')
-            && Schema::connection($dbConnection)->hasColumn('orders', 'order_status')) {
-            $statusCol = 'order_status';
-        }
+        $byStatus = $orders
+            ->groupBy(fn ($row) => $this->normalizeReportStatus($row->status ?? $row->order_status ?? null))
+            ->map(fn ($rows, $status) => [
+                'status' => $status,
+                'count' => $rows->count(),
+                'revenue' => round($rows->sum(fn ($row) => $this->orderTotalValue($row)), 2),
+            ])
+            ->values();
 
-        $byStatus = (clone $query)
-            ->select(
-                DB::raw($statusCol . ' as status'),
-                DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(total) as revenue'),
-            )
-            ->groupBy($statusCol)
-            ->get();
+        $dailySales = $orders
+            ->groupBy(fn ($row) => $this->reportDateKey($row))
+            ->reject(fn ($rows, $date) => $date === null || $date === '')
+            ->map(function ($rows, $date) {
+                $ordersCount = $rows->count();
+                $revenue = round($rows->sum(fn ($row) => $this->orderTotalValue($row)), 2);
 
-        $dailySales = (clone $query)
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('COUNT(*) as orders'),
-                DB::raw('SUM(total) as revenue'),
-                DB::raw("SUM({$subtotalExpression}) as subtotal"),
-                DB::raw("SUM({$shippingExpression}) as shipping"),
-                DB::raw("SUM({$discountExpression}) as discount"),
-                DB::raw('AVG(total) as avg_order_value'),
-            )
-            ->groupBy(DB::raw('DATE(created_at)'))
-            ->orderBy('date')
-            ->get();
+                return [
+                    'date' => $date,
+                    'orders' => $ordersCount,
+                    'subtotal' => round($rows->sum(fn ($row) => $this->orderSubtotalValue($row)), 2),
+                    'shipping' => round($rows->sum(fn ($row) => $this->orderShippingValue($row)), 2),
+                    'discount' => round($rows->sum(fn ($row) => $this->orderDiscountValue($row)), 2),
+                    'revenue' => $revenue,
+                    'avg_order_value' => $ordersCount > 0 ? round($revenue / $ordersCount, 2) : 0,
+                ];
+            })
+            ->sortBy('date')
+            ->values();
 
-        $rows = $dailySales->map(static function ($row) {
-            return [
-                'date' => $row->date,
-                'orders' => (int) ($row->orders ?? 0),
-                'subtotal' => (float) ($row->subtotal ?? 0),
-                'shipping' => (float) ($row->shipping ?? 0),
-                'discount' => (float) ($row->discount ?? 0),
-                'revenue' => (float) ($row->revenue ?? 0),
-                'avg_order_value' => (float) ($row->avg_order_value ?? 0),
-                'products' => 0,
-            ];
-        })->values();
+        $rows = $dailySales
+            ->map(static fn (array $row) => [...$row, 'products' => 0])
+            ->values();
 
-        // Metodos de pago
-        $byPaymentMethod = collect();
-        if (Schema::connection($dbConnection)->hasColumn('orders', 'payment_method')) {
-            $byPaymentMethod = (clone $query)
-                ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as revenue'))
-                ->whereNotNull('payment_method')
-                ->groupBy('payment_method')
-                ->get();
-        }
-
-        $totalShipping = (clone $query)->sum(DB::raw($shippingExpression));
-        $totalDiscount = (clone $query)->sum(DB::raw($discountExpression));
+        $byPaymentMethod = $orders
+            ->groupBy(fn ($row) => trim((string) ($row->payment_method ?? '')))
+            ->reject(fn ($rows, $paymentMethod) => $paymentMethod === '')
+            ->map(fn ($rows, $paymentMethod) => [
+                'payment_method' => $paymentMethod,
+                'count' => $rows->count(),
+                'revenue' => round($rows->sum(fn ($row) => $this->orderTotalValue($row)), 2),
+            ])
+            ->values();
 
         // Compatibilidad: se devuelven claves snake_case y camelCase.
         $payload = [
             'total_orders' => $totalOrders,
-            'total_revenue' => round($totalRevenue, 2),
+            'total_revenue' => $totalRevenue,
             'avg_order_value' => $avgOrderValue,
-            'total_shipping' => round((float) $totalShipping, 2),
-            'total_discount' => round((float) $totalDiscount, 2),
+            'total_shipping' => $totalShipping,
+            'total_discount' => $totalDiscount,
             'total_products' => 0,
             'by_status' => $byStatus,
             'daily_sales' => $dailySales,
             'by_payment_method' => $byPaymentMethod,
             'rows' => $rows,
             'totalOrders' => $totalOrders,
-            'totalRevenue' => round($totalRevenue, 2),
+            'totalRevenue' => $totalRevenue,
             'avgOrderValue' => $avgOrderValue,
-            'totalShipping' => round((float) $totalShipping, 2),
-            'totalDiscount' => round((float) $totalDiscount, 2),
+            'totalShipping' => $totalShipping,
+            'totalDiscount' => $totalDiscount,
             'totalProducts' => 0,
         ];
 
@@ -221,46 +198,56 @@ class AdminOrderController extends Controller
             'to_date' => $request->input('to'),
         ]);
 
-        $connection = null;
-        $query = $this->buildAnalyticsOrderItemsQuery($connection, $filtersRequest);
+        $distributedRows = $this->fetchAnalyticsOrderItemRows(null, $filtersRequest);
+        $legacyRows = $this->fetchAnalyticsOrderItemRows(self::LEGACY_CONNECTION, $filtersRequest);
 
-        if ((clone $query)->count() === 0) {
-            $connection = self::LEGACY_CONNECTION;
-            $query = $this->buildAnalyticsOrderItemsQuery($connection, $filtersRequest);
-        }
+        $rows = $this->mergeAnalyticsOrderItemRows($distributedRows, $legacyRows)
+            ->groupBy(static fn ($row) => (int) ($row->product_id ?? 0))
+            ->filter(static fn ($items, $productId) => (int) $productId > 0)
+            ->map(function ($items, $productId) {
+                $bestItem = $items
+                    ->sortByDesc(fn ($row) => $this->orderItemInformationScore($row))
+                    ->first();
 
-        $productNameColumn = $this->firstExistingColumn('order_items', ['product_name', 'name'], $connection) ?: 'product_name';
+                $name = trim((string) ($bestItem->product_name ?? ''));
+                $timesSold = $items
+                    ->map(static fn ($row) => trim((string) ($row->order_merge_key ?? '')))
+                    ->filter(static fn ($mergeKey) => $mergeKey !== '')
+                    ->unique()
+                    ->count();
 
-        $rows = (clone $query)
-            ->select(
-                'oi.product_id',
-                DB::raw("COALESCE(MAX(oi.{$productNameColumn}), CONCAT('Producto #', oi.product_id)) as name"),
-                DB::raw('COUNT(DISTINCT oi.order_id) as times_sold'),
-                DB::raw('SUM(oi.quantity) as total_quantity'),
-                DB::raw('AVG(oi.price) as avg_price'),
-                DB::raw('SUM(oi.total) as total_revenue'),
-                DB::raw('MIN(o.created_at) as first_order_at'),
-                DB::raw('MAX(o.created_at) as last_order_at'),
-            )
-            ->groupBy('oi.product_id')
-            ->orderByDesc('total_revenue')
-            ->limit($limit)
-            ->get()
-            ->map(static function ($row) {
+                $firstOrderAt = $items
+                    ->map(static fn ($row) => $row->created_at ?? null)
+                    ->filter()
+                    ->sort()
+                    ->first();
+
+                $lastOrderAt = $items
+                    ->map(static fn ($row) => $row->created_at ?? null)
+                    ->filter()
+                    ->sortDesc()
+                    ->first();
+
+                $avgPrice = $items->avg(static fn ($row) => (float) ($row->price ?? 0)) ?? 0;
+                $totalQuantity = (int) $items->sum(static fn ($row) => (int) ($row->quantity ?? 0));
+                $totalRevenue = (float) $items->sum(static fn ($row) => (float) ($row->total ?? 0));
+
                 return [
-                    'id' => (int) ($row->product_id ?? 0),
-                    'product_id' => (int) ($row->product_id ?? 0),
-                    'name' => $row->name,
-                    'times_sold' => (int) ($row->times_sold ?? 0),
-                    'total_quantity' => (int) ($row->total_quantity ?? 0),
-                    'units_sold' => (int) ($row->total_quantity ?? 0),
-                    'avg_price' => round((float) ($row->avg_price ?? 0), 2),
-                    'total_revenue' => round((float) ($row->total_revenue ?? 0), 2),
-                    'revenue' => round((float) ($row->total_revenue ?? 0), 2),
-                    'first_order_at' => $row->first_order_at,
-                    'last_order_at' => $row->last_order_at,
+                    'id' => (int) $productId,
+                    'product_id' => (int) $productId,
+                    'name' => $name !== '' ? $name : 'Producto #' . $productId,
+                    'times_sold' => $timesSold,
+                    'total_quantity' => $totalQuantity,
+                    'units_sold' => $totalQuantity,
+                    'avg_price' => round($avgPrice, 2),
+                    'total_revenue' => round($totalRevenue, 2),
+                    'revenue' => round($totalRevenue, 2),
+                    'first_order_at' => $firstOrderAt,
+                    'last_order_at' => $lastOrderAt,
                 ];
             })
+            ->sortByDesc('total_revenue')
+            ->take($limit)
             ->values();
 
         return response()->json([
@@ -280,27 +267,36 @@ class AdminOrderController extends Controller
             'to_date' => $request->input('to'),
         ]);
 
-        $connection = null;
-        $query = $this->buildAnalyticsOrdersQuery($connection, $filtersRequest);
-
-        if ((clone $query)->count() === 0) {
-            $connection = self::LEGACY_CONNECTION;
-            $query = $this->buildAnalyticsOrdersQuery($connection, $filtersRequest);
-        }
-
-        $orders = (clone $query)
-            ->orderByDesc('created_at')
-            ->get();
+        $orders = $this->enrichAdminOrdersWithCustomerData(
+            $this->mergeAdminOrderRows(
+                $this->fetchAnalyticsOrdersRows(null, $filtersRequest),
+                $this->fetchAnalyticsOrdersRows(self::LEGACY_CONNECTION, $filtersRequest)
+            )
+        );
 
         $customers = [];
+        $customerKeyByUserId = [];
+        $customerKeyByEmail = [];
 
         foreach ($orders as $order) {
             $userId = trim((string) ($order->user_id ?? ''));
             $name = trim((string) ($order->user_name ?? $order->customer_name ?? $order->billing_name ?? ''));
             $email = strtolower(trim((string) ($order->user_email ?? $order->customer_email ?? $order->billing_email ?? '')));
-            $customerKey = $userId !== ''
-                ? 'id:' . $userId
-                : ($email !== '' ? 'email:' . $email : 'guest:' . (string) $order->id);
+            $phone = trim((string) ($order->user_phone ?? $order->customer_phone ?? $order->billing_phone ?? $order->phone ?? ''));
+
+            $customerKey = null;
+
+            if ($userId !== '' && array_key_exists($userId, $customerKeyByUserId)) {
+                $customerKey = $customerKeyByUserId[$userId];
+            } elseif ($email !== '' && array_key_exists($email, $customerKeyByEmail)) {
+                $customerKey = $customerKeyByEmail[$email];
+            } elseif ($userId !== '') {
+                $customerKey = 'id:' . $userId;
+            } elseif ($email !== '') {
+                $customerKey = 'email:' . $email;
+            } else {
+                $customerKey = 'guest:' . $this->resolveOrderMergeKey($order);
+            }
 
             if (!isset($customers[$customerKey])) {
                 $customers[$customerKey] = [
@@ -308,6 +304,7 @@ class AdminOrderController extends Controller
                     'user_id' => $userId !== '' ? $userId : null,
                     'name' => $name !== '' ? $name : 'Cliente sin nombre',
                     'email' => $email !== '' ? $email : null,
+                    'phone' => $phone !== '' ? $phone : null,
                     'orders_count' => 0,
                     'total_spent' => 0.0,
                     'first_order' => null,
@@ -315,8 +312,36 @@ class AdminOrderController extends Controller
                 ];
             }
 
+            if ($customers[$customerKey]['user_id'] === null && $userId !== '') {
+                $customers[$customerKey]['user_id'] = $userId;
+                $customers[$customerKey]['id'] = $userId;
+            }
+
+            if (($customers[$customerKey]['name'] === null
+                    || trim((string) $customers[$customerKey]['name']) === ''
+                    || in_array(Str::lower(trim((string) $customers[$customerKey]['name'])), ['cliente sin nombre', 'cliente', 'sin nombre'], true))
+                && $name !== '') {
+                $customers[$customerKey]['name'] = $name;
+            }
+
+            if ($customers[$customerKey]['email'] === null && $email !== '') {
+                $customers[$customerKey]['email'] = $email;
+            }
+
+            if ($customers[$customerKey]['phone'] === null && $phone !== '') {
+                $customers[$customerKey]['phone'] = $phone;
+            }
+
+            if ($userId !== '') {
+                $customerKeyByUserId[$userId] = $customerKey;
+            }
+
+            if ($email !== '') {
+                $customerKeyByEmail[$email] = $customerKey;
+            }
+
             $customers[$customerKey]['orders_count']++;
-            $customers[$customerKey]['total_spent'] += (float) ($order->total ?? 0);
+            $customers[$customerKey]['total_spent'] += $this->orderTotalValue($order);
 
             $createdAt = $order->created_at ? Carbon::parse($order->created_at) : null;
             if ($createdAt) {
@@ -383,7 +408,7 @@ class AdminOrderController extends Controller
         $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], $connection) ?: 'status';
 
         if (!$request->filled('status')) {
-            $query->where($statusColumn, '!=', 'cancelled');
+            $query->whereNotIn($statusColumn, self::ADMIN_STATUS_FILTER_GROUPS['cancelled']);
         }
 
         return $query;
@@ -407,10 +432,86 @@ class AdminOrderController extends Controller
         if ($request->filled('status')) {
             $query->where('o.' . $statusColumn, $request->string('status')->toString());
         } else {
-            $query->where('o.' . $statusColumn, '!=', 'cancelled');
+            $query->whereNotIn('o.' . $statusColumn, self::ADMIN_STATUS_FILTER_GROUPS['cancelled']);
         }
 
         return $query;
+    }
+
+    private function fetchAnalyticsOrdersRows(?string $connection, Request $request): \Illuminate\Support\Collection
+    {
+        try {
+            $source = $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice';
+
+            return $this->buildAnalyticsOrdersQuery($connection, $request)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(static function ($row) use ($source) {
+                    $row->order_source = $source;
+                    return $row;
+                })
+                ->values();
+        } catch (Throwable) {
+            return collect();
+        }
+    }
+
+    private function fetchAnalyticsOrderItemRows(?string $connection, Request $request): \Illuminate\Support\Collection
+    {
+        try {
+            $source = $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice';
+            $productNameColumn = $this->firstExistingColumn('order_items', ['product_name', 'name'], $connection) ?: 'product_name';
+            $variantNameColumn = $this->firstExistingColumn('order_items', ['variant_name'], $connection);
+            $orderNumberColumn = $this->firstExistingColumn('orders', ['order_number'], $connection);
+
+            $query = $this->buildAnalyticsOrderItemsQuery($connection, $request)
+                ->select(
+                    'oi.order_id',
+                    'oi.product_id',
+                    'oi.quantity',
+                    'oi.price',
+                    'oi.total',
+                    'o.created_at',
+                    'o.updated_at'
+                )
+                ->selectRaw("oi.{$productNameColumn} as product_name");
+
+            if ($variantNameColumn !== null) {
+                if ($variantNameColumn === 'variant_name') {
+                    $query->addSelect('oi.variant_name');
+                } else {
+                    $query->selectRaw("oi.{$variantNameColumn} as variant_name");
+                }
+            } else {
+                $query->selectRaw('NULL as variant_name');
+            }
+
+            if ($orderNumberColumn !== null) {
+                if ($orderNumberColumn === 'order_number') {
+                    $query->addSelect('o.order_number');
+                } else {
+                    $query->selectRaw("o.{$orderNumberColumn} as order_number");
+                }
+            } else {
+                $query->selectRaw('NULL as order_number');
+            }
+
+            return $query
+                ->get()
+                ->map(function ($row) use ($source) {
+                    $row->order_source = $source;
+                    $row->order_merge_key = $this->resolveOrderMergeKey((object) [
+                        'order_number' => $row->order_number ?? null,
+                        'id' => $row->order_id ?? null,
+                        'order_source' => $source,
+                    ]);
+
+                    return $row;
+                })
+                ->values();
+        } catch (Throwable) {
+            return collect();
+        }
     }
 
     private function fetchAdminOrdersRows(?string $connection, Request $request, int $limit): \Illuminate\Support\Collection
@@ -447,6 +548,46 @@ class AdminOrderController extends Controller
             $currentRow = $bestRowsByKey[$mergeKey];
             $currentScore = $this->orderRowInformationScore($currentRow);
             $candidateScore = $this->orderRowInformationScore($row);
+
+            if ($candidateScore > $currentScore) {
+                $bestRowsByKey[$mergeKey] = $row;
+                continue;
+            }
+
+            if ($candidateScore === $currentScore) {
+                $currentTimestamp = strtotime((string) ($currentRow->updated_at ?? $currentRow->created_at ?? '')) ?: 0;
+                $candidateTimestamp = strtotime((string) ($row->updated_at ?? $row->created_at ?? '')) ?: 0;
+
+                if ($candidateTimestamp > $currentTimestamp) {
+                    $bestRowsByKey[$mergeKey] = $row;
+                }
+            }
+        }
+
+        return collect(array_values($bestRowsByKey))
+            ->sortByDesc(static function ($row): int {
+                $rawDate = $row->created_at ?? null;
+                $timestamp = is_string($rawDate) ? strtotime($rawDate) : null;
+                return $timestamp ?: 0;
+            })
+            ->values();
+    }
+
+    private function mergeAnalyticsOrderItemRows(\Illuminate\Support\Collection $distributedRows, \Illuminate\Support\Collection $legacyRows): \Illuminate\Support\Collection
+    {
+        $bestRowsByKey = [];
+
+        foreach ($distributedRows->concat($legacyRows) as $row) {
+            $mergeKey = $this->resolveOrderItemMergeKey($row);
+
+            if (!array_key_exists($mergeKey, $bestRowsByKey)) {
+                $bestRowsByKey[$mergeKey] = $row;
+                continue;
+            }
+
+            $currentRow = $bestRowsByKey[$mergeKey];
+            $currentScore = $this->orderItemInformationScore($currentRow);
+            $candidateScore = $this->orderItemInformationScore($row);
 
             if ($candidateScore > $currentScore) {
                 $bestRowsByKey[$mergeKey] = $row;
@@ -544,6 +685,30 @@ class AdminOrderController extends Controller
         return 'source:' . $source . ':id:' . (string) ($row->id ?? '');
     }
 
+    private function resolveOrderItemMergeKey(object $row): string
+    {
+        $orderMergeKey = trim((string) ($row->order_merge_key ?? ''));
+
+        if ($orderMergeKey === '') {
+            $orderMergeKey = $this->resolveOrderMergeKey((object) [
+                'order_number' => $row->order_number ?? null,
+                'id' => $row->order_id ?? null,
+                'order_source' => $row->order_source ?? null,
+            ]);
+        }
+
+        $variantName = Str::of((string) ($row->variant_name ?? ''))->trim()->lower()->value();
+
+        return implode('|', [
+            $orderMergeKey,
+            'product:' . (string) ($row->product_id ?? ''),
+            'variant:' . $variantName,
+            'price:' . number_format((float) ($row->price ?? 0), 2, '.', ''),
+            'qty:' . (int) ($row->quantity ?? 0),
+            'total:' . number_format((float) ($row->total ?? 0), 2, '.', ''),
+        ]);
+    }
+
     private function orderRowInformationScore(object $row): int
     {
         $name = trim((string) ($row->user_name ?? $row->customer_name ?? $row->billing_name ?? ''));
@@ -573,6 +738,38 @@ class AdminOrderController extends Controller
 
         if ($invoiceNumber !== '' || $invoiceDate !== '') {
             $score += 3;
+        }
+
+        if (strtolower((string) ($row->order_source ?? 'microservice')) === 'microservice') {
+            $score += 1;
+        }
+
+        return $score;
+    }
+
+    private function orderItemInformationScore(object $row): int
+    {
+        $productId = (int) ($row->product_id ?? 0);
+        $productName = trim((string) ($row->product_name ?? $row->name ?? ''));
+        $variantName = trim((string) ($row->variant_name ?? ''));
+        $total = (float) ($row->total ?? 0);
+
+        $score = 0;
+
+        if ($productId > 0) {
+            $score += 2;
+        }
+
+        if ($productName !== '' && !Str::startsWith(Str::lower($productName), 'producto #')) {
+            $score += 4;
+        }
+
+        if ($variantName !== '') {
+            $score += 1;
+        }
+
+        if ($total > 0) {
+            $score += 2;
         }
 
         if (strtolower((string) ($row->order_source ?? 'microservice')) === 'microservice') {
@@ -637,6 +834,20 @@ class AdminOrderController extends Controller
             return [];
         }
 
+        $profilesById = $this->fetchInternalAuthProfilesByUserIds($userIds);
+        $missingUserIds = array_values(array_diff($userIds, array_keys($profilesById)));
+
+        if ($missingUserIds !== []) {
+            foreach ($this->fetchAdminAuthProfilesByUserIds($missingUserIds) as $userId => $profile) {
+                $profilesById[$userId] = $profile;
+            }
+        }
+
+        return $profilesById;
+    }
+
+    private function fetchInternalAuthProfilesByUserIds(array $userIds): array
+    {
         $endpoint = $this->resolveAuthProfilesEndpoint();
         if ($endpoint === null) {
             return [];
@@ -692,6 +903,61 @@ class AdminOrderController extends Controller
         }
     }
 
+    private function fetchAdminAuthProfilesByUserIds(array $userIds): array
+    {
+        $token = trim((string) request()->bearerToken());
+        $endpoint = $this->resolveAuthAdminCustomersEndpoint();
+
+        if ($token === '' || $endpoint === null) {
+            return [];
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->withToken($token)
+                ->timeout(4)
+                ->get($endpoint, [
+                    'ids' => implode(',', $userIds),
+                ]);
+
+            if (!$response->successful()) {
+                return [];
+            }
+
+            $profiles = $response->json('data');
+            if (!is_array($profiles)) {
+                return [];
+            }
+
+            $indexedProfiles = [];
+            foreach ($profiles as $profile) {
+                if (!is_array($profile)) {
+                    continue;
+                }
+
+                $id = trim((string) ($profile['id'] ?? ''));
+                if ($id === '') {
+                    continue;
+                }
+
+                $indexedProfiles[$id] = [
+                    'name' => trim((string) ($profile['name'] ?? '')),
+                    'email' => trim((string) ($profile['email'] ?? '')),
+                    'phone' => trim((string) ($profile['phone'] ?? '')),
+                ];
+            }
+
+            return $indexedProfiles;
+        } catch (Throwable $exception) {
+            Log::warning('No se pudieron consultar perfiles de clientes vía endpoint admin de auth-service.', [
+                'error' => $exception->getMessage(),
+                'users_count' => count($userIds),
+            ]);
+
+            return [];
+        }
+    }
+
     private function resolveAuthProfilesEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
@@ -706,6 +972,77 @@ class AdminOrderController extends Controller
         }
 
         return $baseUrl . '/api/internal/users/profiles';
+    }
+
+    private function resolveAuthAdminCustomersEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/admin/customers';
+        }
+
+        return $baseUrl . '/api/admin/customers';
+    }
+
+    private function normalizeReportStatus(mixed $status): string
+    {
+        $normalizedStatus = Str::of((string) $status)->trim()->lower()->replace('-', '_')->value();
+
+        return $normalizedStatus !== '' ? $normalizedStatus : 'sin_estado';
+    }
+
+    private function reportDateKey(object $row): ?string
+    {
+        try {
+            $createdAt = $row->created_at ?? null;
+            return $createdAt ? Carbon::parse($createdAt)->toDateString() : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function orderTotalValue(object $row): float
+    {
+        return $this->orderNumericValue($row, ['total'], 0.0);
+    }
+
+    private function orderSubtotalValue(object $row): float
+    {
+        return $this->orderNumericValue($row, ['subtotal'], $this->orderTotalValue($row));
+    }
+
+    private function orderShippingValue(object $row): float
+    {
+        return $this->orderNumericValue($row, ['shipping_cost', 'shipping'], 0.0);
+    }
+
+    private function orderDiscountValue(object $row): float
+    {
+        return $this->orderNumericValue($row, ['discount_amount', 'discount'], 0.0);
+    }
+
+    private function orderNumericValue(object $row, array $candidates, float $fallback = 0.0): float
+    {
+        foreach ($candidates as $candidate) {
+            if (!property_exists($row, $candidate)) {
+                continue;
+            }
+
+            $value = $row->{$candidate};
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            return (float) $value;
+        }
+
+        return $fallback;
     }
 
     private function buildOrdersQuery(?string $connection, Request $request)

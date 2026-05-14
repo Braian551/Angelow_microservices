@@ -207,6 +207,9 @@
                   placeholder="Ejemplo: llamar antes de llegar, entregar a portería, horario recomendado..."
                 />
               </label>
+              <p class="shipping-notes-help">
+                Si la dirección seleccionada ya tiene indicaciones de entrega, las cargamos aquí automáticamente para que no tengas que escribirlas dos veces.
+              </p>
             </section>
           </div>
 
@@ -354,7 +357,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import CheckoutFlowHeader from '../components/CheckoutFlowHeader.vue'
 import CheckoutValidationAlert from '../components/CheckoutValidationAlert.vue'
@@ -394,6 +397,7 @@ const { showSnackbar } = useSnackbarSystem()
 const loading = ref(true)
 const errorMessage = ref('')
 const orderNotes = ref('')
+const lastAutoFilledOrderNotes = ref('')
 const discountCode = ref('')
 const discountAmount = ref(0)
 const discountSource = ref('none')
@@ -439,6 +443,8 @@ const selectedAddress = computed(() => {
   return addresses.value.find((address) => address.id === selectedAddressId.value) || null
 })
 
+const selectedAddressInstructions = computed(() => String(selectedAddress.value?.delivery_instructions || '').trim())
+
 const selectedShippingMethod = computed(() => {
   return methods.value.find((method) => method.id === selectedShippingMethodId.value) || null
 })
@@ -469,6 +475,10 @@ const discountSummaryLabel = computed(() => {
   return discountCode.value ? `Descuento (${discountCode.value})` : 'Descuento'
 })
 const orderTotal = computed(() => Math.max(0, subtotal.value + shippingCost.value - discountAmount.value))
+
+watch(selectedAddressInstructions, (nextValue, previousValue) => {
+  syncOrderNotesWithSelectedAddress(nextValue, previousValue)
+})
 
 onMounted(loadPage)
 
@@ -567,6 +577,7 @@ function restoreSavedState() {
     ? saved.bulk_discount
     : null
   orderNotes.value = String(saved?.notes || '').trim()
+  lastAutoFilledOrderNotes.value = ''
 
   const savedAddressId = Number(saved?.selected_address_id || saved?.selected_address?.id || 0)
   const savedMethodId = Number(saved?.selected_shipping_method_id || saved?.selected_shipping_method?.id || 0)
@@ -594,6 +605,35 @@ function preferredShippingCity() {
   const firstAddress = defaultAddress || addresses.value[0] || null
   const city = String(firstAddress?.city || '').trim()
   return city || undefined
+}
+
+function syncOrderNotesWithSelectedAddress(nextValue = selectedAddressInstructions.value, previousValue = '') {
+  const normalizedNext = String(nextValue || '').trim()
+  const normalizedPrevious = String(previousValue || '').trim()
+  const currentNotes = String(orderNotes.value || '').trim()
+
+  const shouldAutofill = currentNotes === ''
+    || currentNotes === lastAutoFilledOrderNotes.value
+    || (normalizedPrevious !== '' && currentNotes === normalizedPrevious)
+
+  if (shouldAutofill) {
+    orderNotes.value = normalizedNext
+    lastAutoFilledOrderNotes.value = normalizedNext
+    return
+  }
+
+  if (currentNotes === normalizedNext) {
+    lastAutoFilledOrderNotes.value = normalizedNext
+  }
+}
+
+function normalizedOrderNotesValue() {
+  const notes = String(orderNotes.value || '').trim()
+  if (!notes) {
+    return ''
+  }
+
+  return notes === selectedAddressInstructions.value ? '' : notes
 }
 
 function selectAddress(addressId) {
@@ -931,7 +971,7 @@ async function continueToPayment() {
       range_rule_label: shippingBreakdown.range_rule_label,
       shipping_cost: shippingCost.value,
     },
-    notes: orderNotes.value.trim(),
+    notes: normalizedOrderNotesValue(),
     discount_code: discountCode.value.trim(),
     discount_amount: discountAmount.value,
     discount_source: discountSource.value,
@@ -1306,6 +1346,13 @@ function parseStoredJson(rawValue) {
   outline: none;
   border-color: #0077b6;
   box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.12);
+}
+
+.shipping-notes-help {
+  margin: 0.9rem 0 0;
+  color: #667085;
+  font-size: 1.28rem;
+  line-height: 1.5;
 }
 
 .shipping-summary-column {

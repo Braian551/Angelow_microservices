@@ -47,3 +47,19 @@
 - Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
 - Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
 - Problema resuelto: evitar que productos agotados o con cantidad inválida sigan incluidos en el pago, y mantener el mismo criterio para subtotal, resumen y compra parcial en todo el flujo.
+
+## Extensión 2026-05-10: sincronización de notas e indicaciones de entrega
+
+### Observer
+
+- Aplicación: observar el cambio de dirección seleccionada para autocompletar las notas del pedido con `delivery_instructions` sin sobrescribir una nota manual del cliente.
+- Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
+- Problema resuelto: las notas del pedido y las indicaciones de la dirección representaban el mismo dato operativo y terminaban duplicándose durante el checkout.
+
+### Adapter
+
+- Aplicación: normalización de las instrucciones de envío para separar lo heredado de la dirección y la nota adicional del pedido antes de persistir y mostrar el resumen.
+- Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/ConfirmationPage.vue`
+- Problema resuelto: evitar guardar dos veces la misma instrucción y, al mismo tiempo, conservar visibles las notas realmente distintas en pago y confirmación.

@@ -34,6 +34,10 @@ function normalizePath(value) {
   return value.trim().replace(/\\/g, '/')
 }
 
+function isBrowserPreviewUrl(value) {
+  return /^(blob:|data:)/i.test(String(value || '').trim())
+}
+
 function joinUrl(base, relativePath) {
   const cleanBase = String(base || '').replace(/\/+$/, '')
   const cleanRelative = String(relativePath || '').replace(/^\/+/, '')
@@ -124,6 +128,10 @@ export function getMediaCandidates(path, fallbackType = 'product') {
 
   if (!normalized) return [fallbackUrl]
 
+  if (isBrowserPreviewUrl(normalized)) {
+    return unique([normalized, fallbackUrl])
+  }
+
   if (fallbackType === 'avatar') {
     return buildAvatarCandidates(normalized, fallbackUrl)
   }
@@ -163,6 +171,10 @@ export function getUploadCandidates(path) {
   const normalized = normalizePath(path)
 
   if (!normalized) return []
+
+  if (isBrowserPreviewUrl(normalized)) {
+    return unique([normalized])
+  }
 
   if (/^https?:\/\//i.test(normalized)) {
     return unique([normalized])

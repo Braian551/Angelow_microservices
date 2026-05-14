@@ -1,34 +1,37 @@
 <template>
-  <section class="dashboard-header">
-    <h1>Ajustes de tu cuenta</h1>
-    <p>Administra tu información personal, seguridad y preferencias.</p>
-  </section>
+  <AccountShimmer v-if="loading" variant="settings" />
 
-  <section class="settings-container account-card">
-    <aside class="settings-sidebar">
-      <ul>
-        <li :class="{ active: activeTab === 'profile' }">
-          <button type="button" @click="setTab('profile')">
-            <i class="fas fa-user" />
-            Perfil
-          </button>
-        </li>
-        <li :class="{ active: activeTab === 'security' }">
-          <button type="button" @click="setTab('security')">
-            <i class="fas fa-lock" />
-            Seguridad
-          </button>
-        </li>
-        <li :class="{ active: activeTab === 'notifications' }">
-          <button type="button" @click="setTab('notifications')">
-            <i class="fas fa-bell" />
-            Notificaciones
-          </button>
-        </li>
-      </ul>
-    </aside>
+  <template v-else>
+    <section class="dashboard-header">
+      <h1>Ajustes de tu cuenta</h1>
+      <p>Administra tu información personal, seguridad y preferencias.</p>
+    </section>
 
-    <div class="settings-content">
+    <section class="settings-container account-card">
+      <aside class="settings-sidebar">
+        <ul>
+          <li :class="{ active: activeTab === 'profile' }">
+            <button type="button" @click="setTab('profile')">
+              <i class="fas fa-user" />
+              Perfil
+            </button>
+          </li>
+          <li :class="{ active: activeTab === 'security' }">
+            <button type="button" @click="setTab('security')">
+              <i class="fas fa-lock" />
+              Seguridad
+            </button>
+          </li>
+          <li :class="{ active: activeTab === 'notifications' }">
+            <button type="button" @click="setTab('notifications')">
+              <i class="fas fa-bell" />
+              Notificaciones
+            </button>
+          </li>
+        </ul>
+      </aside>
+
+      <div class="settings-content">
       <section id="profile" class="settings-section" :class="{ active: activeTab === 'profile' }">
         <h2><i class="fas fa-user" /> Información del Perfil</h2>
 
@@ -213,13 +216,15 @@
           </button>
         </form>
       </section>
-    </div>
-  </section>
+      </div>
+    </section>
+  </template>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import { useSession } from '../../../composables/useSession'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { getProfile, updatePassword, updateProfile } from '../../../services/authApi'
@@ -239,6 +244,7 @@ const activeTab = ref(resolveTabFromHash(route.hash))
 const imageInputRef = ref(null)
 const selectedAvatarFile = ref(null)
 const localAvatarPreview = ref('')
+const loading = ref(true)
 
 const savingProfile = ref(false)
 const savingPassword = ref(false)
@@ -299,12 +305,17 @@ watch(
 )
 
 onMounted(async () => {
+  loading.value = true
   hydrateProfileForm()
 
-  await Promise.all([
-    refreshProfile(),
-    loadNotificationSettings(),
-  ])
+  try {
+    await Promise.all([
+      refreshProfile(),
+      loadNotificationSettings(),
+    ])
+  } finally {
+    loading.value = false
+  }
 })
 
 onBeforeUnmount(() => {

@@ -215,8 +215,11 @@
                   <p><strong>{{ selectedAddress.recipient_name }}</strong> ({{ selectedAddress.recipient_phone }})</p>
                   <p>{{ buildCheckoutAddressLine(selectedAddress) }}</p>
                   <p v-if="buildCheckoutZoneLine(selectedAddress)">{{ buildCheckoutZoneLine(selectedAddress) }}</p>
-                  <p v-if="selectedAddress.delivery_instructions" class="payment-summary-note">
-                    {{ selectedAddress.delivery_instructions }}
+                  <p v-if="addressDeliveryInstructions" class="payment-summary-note">
+                    {{ addressDeliveryInstructions }}
+                  </p>
+                  <p v-if="hasDistinctOrderNotes" class="payment-summary-note payment-summary-note--order">
+                    <strong>Nota del pedido:</strong> {{ orderNotes }}
                   </p>
                 </article>
 
@@ -403,6 +406,9 @@ const fieldErrors = ref({
 
 const selectedAddress = computed(() => normalizeCheckoutAddress(shippingData.value?.selected_address || {}))
 const selectedShippingMethod = computed(() => normalizeCheckoutMethod(shippingData.value?.selected_shipping_method || {}))
+const addressDeliveryInstructions = computed(() => String(selectedAddress.value?.delivery_instructions || '').trim())
+const orderNotes = computed(() => String(shippingData.value?.notes || '').trim())
+const hasDistinctOrderNotes = computed(() => orderNotes.value !== '' && orderNotes.value !== addressDeliveryInstructions.value)
 const cartSelectionState = computed(() => buildCartSelectionSummary(
   Array.isArray(cart.value?.items) ? cart.value.items : [],
   selectionMap.value,
@@ -960,7 +966,8 @@ async function confirmOrder() {
         recipient_phone: selectedAddress.value.recipient_phone,
         address: buildCheckoutAddressLine(selectedAddress.value),
         zone: buildCheckoutZoneLine(selectedAddress.value),
-        instructions: selectedAddress.value.delivery_instructions,
+        instructions: addressDeliveryInstructions.value || null,
+        notes: hasDistinctOrderNotes.value ? orderNotes.value : null,
         method_name: selectedShippingMethod.value.name,
         method_description: selectedShippingMethod.value.description,
         method_eta: selectedShippingMethod.value.delivery_time,

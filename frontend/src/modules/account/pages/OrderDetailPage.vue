@@ -1,94 +1,97 @@
 <template>
   <section class="order-detail-page">
-    <section class="dashboard-header">
-      <h1>Detalle de pedido</h1>
-      <p>Consulta los datos completos de tu orden.</p>
-    </section>
+    <AccountShimmer v-if="loading" variant="order-detail" />
 
-    <p v-if="loading" class="loading-box">Cargando detalle del pedido...</p>
-    <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
-
-    <template v-else-if="orderDetail">
-      <section class="order-hero account-card">
-        <h2>Pedido #{{ orderDetail.order_number }}</h2>
-        <p><i class="fas fa-calendar-alt" /> Realizado el {{ formatDate(orderDetail.created_at) }}</p>
-
-        <div class="hero-badges">
-          <span class="status-badge" :class="statusClass(orderDetail.status)">
-            {{ statusLabel(orderDetail.status) }}
-          </span>
-          <span class="status-badge" :class="paymentBadgeClass(orderDetail.payment_status)">
-            {{ paymentStatusLabel(orderDetail.payment_status) }}
-          </span>
-        </div>
-
-        <div v-if="canCancelCurrentOrder" class="order-hero-actions">
-          <button type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
-            <i class="fas fa-ban" />
-            {{ cancellingOrder ? 'Cancelando...' : 'Cancelar pedido' }}
-          </button>
-        </div>
+    <template v-else>
+      <section class="dashboard-header">
+        <h1>Detalle de pedido</h1>
+        <p>Consulta los datos completos de tu orden.</p>
       </section>
 
-      <section class="account-card">
-        <header class="section-header">
-          <h2>Productos del pedido</h2>
-        </header>
+      <p v-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
-        <article v-for="item in orderItems" :key="item.id" class="order-item-row">
-          <div class="order-item-media">
-            <img
-              :src="resolveOrderItemImage(item)"
-              :alt="item.product_name || 'Producto'"
-              class="order-item-media__image"
-              @error="onOrderItemImageError($event, item)"
-            />
-          </div>
-          <div class="item-main">
-            <h3>{{ item.product_name }}</h3>
-            <p>Cantidad: {{ item.quantity }} | {{ item.variant_name || 'Sin variante' }}</p>
-            <p>{{ formatPrice(item.price) }} c/u</p>
-          </div>
-          <strong class="item-total">{{ formatPrice(item.total) }}</strong>
-        </article>
-      </section>
+      <template v-else-if="orderDetail">
+        <section class="order-hero account-card">
+          <h2>Pedido #{{ orderDetail.order_number }}</h2>
+          <p><i class="fas fa-calendar-alt" /> Realizado el {{ formatDate(orderDetail.created_at) }}</p>
 
-      <section class="account-card">
-        <header class="section-header">
-          <h2>Estado del pedido</h2>
-        </header>
-
-        <div
-          class="order-v2-progress"
-          :class="{ 'order-v2-progress--refund': isRefundFlow(orderDetail) }"
-        >
-          <div class="progress-line" />
-          <div
-            v-for="step in orderProgressSteps(orderDetail)"
-            :key="step.key"
-            class="progress-step"
-            :class="{ active: isStepActive(orderDetail, step.key) }"
-          >
-            <span class="progress-step-icon">
-              <i :class="step.icon" />
+          <div class="hero-badges">
+            <span class="status-badge" :class="statusClass(orderDetail.status)">
+              {{ statusLabel(orderDetail.status) }}
             </span>
-            <span class="progress-step-label">{{ step.label }}</span>
+            <span class="status-badge" :class="paymentBadgeClass(orderDetail.payment_status)">
+              {{ paymentStatusLabel(orderDetail.payment_status) }}
+            </span>
           </div>
-        </div>
-      </section>
 
-      <section v-if="orderHistory.length > 0" class="account-card">
-        <header class="section-header">
-          <h2>Historial de cambios</h2>
-        </header>
+          <div v-if="canCancelCurrentOrder" class="order-hero-actions">
+            <button type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
+              <i class="fas fa-ban" />
+              {{ cancellingOrder ? 'Cancelando...' : 'Cancelar pedido' }}
+            </button>
+          </div>
+        </section>
 
-        <ul class="history-list">
-          <li v-for="entry in orderHistory" :key="entry.id">
-            <span>{{ formatDate(entry.created_at) }}</span>
-            <strong>{{ entry.description || 'Actualización de pedido' }}</strong>
-          </li>
-        </ul>
-      </section>
+        <section class="account-card">
+          <header class="section-header">
+            <h2>Productos del pedido</h2>
+          </header>
+
+          <article v-for="item in orderItems" :key="item.id" class="order-item-row">
+            <div class="order-item-media">
+              <img
+                :src="resolveOrderItemImage(item)"
+                :alt="item.product_name || 'Producto'"
+                class="order-item-media__image"
+                @error="onOrderItemImageError($event, item)"
+              />
+            </div>
+            <div class="item-main">
+              <h3>{{ item.product_name }}</h3>
+              <p>Cantidad: {{ item.quantity }} | {{ item.variant_name || 'Sin variante' }}</p>
+              <p>{{ formatPrice(item.price) }} c/u</p>
+            </div>
+            <strong class="item-total">{{ formatPrice(item.total) }}</strong>
+          </article>
+        </section>
+
+        <section class="account-card">
+          <header class="section-header">
+            <h2>Estado del pedido</h2>
+          </header>
+
+          <div
+            class="order-v2-progress"
+            :class="{ 'order-v2-progress--refund': isRefundFlow(orderDetail) }"
+          >
+            <div class="progress-line" />
+            <div
+              v-for="step in orderProgressSteps(orderDetail)"
+              :key="step.key"
+              class="progress-step"
+              :class="{ active: isStepActive(orderDetail, step.key) }"
+            >
+              <span class="progress-step-icon">
+                <i :class="step.icon" />
+              </span>
+              <span class="progress-step-label">{{ step.label }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="orderHistory.length > 0" class="account-card">
+          <header class="section-header">
+            <h2>Historial de cambios</h2>
+          </header>
+
+          <ul class="history-list">
+            <li v-for="entry in orderHistory" :key="entry.id">
+              <span>{{ formatDate(entry.created_at) }}</span>
+              <strong>{{ entry.description || 'Actualización de pedido' }}</strong>
+            </li>
+          </ul>
+        </section>
+      </template>
     </template>
   </section>
 </template>
@@ -96,6 +99,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'

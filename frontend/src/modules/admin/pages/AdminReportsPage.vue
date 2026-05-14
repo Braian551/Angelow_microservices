@@ -751,10 +751,10 @@ const monthlyComparison = computed(() => {
 
 function initializeFilters() {
   const today = new Date()
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const salesWindowStart = new Date(today.getFullYear(), today.getMonth() - 3, 1)
   const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate())
 
-  filters.sales.from = toInputDate(startOfMonth)
+  filters.sales.from = toInputDate(salesWindowStart)
   filters.sales.to = toInputDate(today)
   filters.products.from = toInputDate(threeMonthsAgo)
   filters.products.to = toInputDate(today)

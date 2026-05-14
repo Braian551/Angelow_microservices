@@ -1,70 +1,68 @@
 <template>
   <section class="wishlist-page-container">
-    <div class="wishlist-header">
-      <h1><i class="fas fa-heart" /> Mi Lista de Deseos</h1>
-      <p>Guarda tus productos favoritos aquí</p>
-    </div>
+    <AccountShimmer v-if="loading" variant="wishlist" />
 
-    <template v-if="loading">
-      <section class="account-card">
-        <p class="loading-box">Cargando favoritos...</p>
-      </section>
-    </template>
+    <template v-else>
+      <div class="wishlist-header">
+        <h1><i class="fas fa-heart" /> Mi Lista de Deseos</h1>
+        <p>Guarda tus productos favoritos aquí</p>
+      </div>
 
-    <template v-else-if="errorMessage">
-      <section class="account-card">
-        <p class="error-box">{{ errorMessage }}</p>
-      </section>
-    </template>
+      <template v-if="errorMessage">
+        <section class="account-card">
+          <p class="error-box">{{ errorMessage }}</p>
+        </section>
+      </template>
 
-    <template v-else-if="products.length > 0">
-      <section class="wishlist-controls">
-        <div class="wishlist-actions">
-          <div class="total-products">
-            <p>{{ products.length }} producto{{ products.length === 1 ? '' : 's' }} en tu lista</p>
+      <template v-else-if="products.length > 0">
+        <section class="wishlist-controls">
+          <div class="wishlist-actions">
+            <div class="total-products">
+              <p>{{ products.length }} producto{{ products.length === 1 ? '' : 's' }} en tu lista</p>
+            </div>
+
+            <button type="button" class="clear-all-btn" :disabled="busy" @click="confirmClearAll">
+              <i class="fas fa-trash" />
+              Limpiar lista
+            </button>
           </div>
 
-          <button type="button" class="clear-all-btn" :disabled="busy" @click="confirmClearAll">
-            <i class="fas fa-trash" />
-            Limpiar lista
-          </button>
+          <div class="wishlist-stats">
+            <article class="stat-card">
+              <div class="stat-icon">
+                <i class="fas fa-heart" />
+              </div>
+              <div class="stat-content">
+                <span class="stat-value">{{ products.length }}</span>
+                <span class="stat-label">Producto{{ products.length === 1 ? '' : 's' }} guardado{{ products.length === 1 ? '' : 's' }}</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="products-grid">
+          <ProductCard
+            v-for="product in products"
+            :key="product.id"
+            :product="product"
+            @add-cart="openProduct"
+            @wishlist-change="onWishlistChange"
+          />
+        </section>
+      </template>
+
+      <div v-else class="empty-wishlist">
+        <div class="empty-wishlist-content">
+          <i class="fas fa-heart-broken" />
+          <h2>Tu lista de deseos está vacía</h2>
+          <p>Agrega productos a tu lista de deseos para guardarlos aquí</p>
+          <RouterLink :to="{ name: 'store' }" class="btn">
+            <i class="fas fa-shopping-bag" />
+            Explorar productos
+          </RouterLink>
         </div>
-
-        <div class="wishlist-stats">
-          <article class="stat-card">
-            <div class="stat-icon">
-              <i class="fas fa-heart" />
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ products.length }}</span>
-              <span class="stat-label">Producto{{ products.length === 1 ? '' : 's' }} guardado{{ products.length === 1 ? '' : 's' }}</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="products-grid">
-        <ProductCard
-          v-for="product in products"
-          :key="product.id"
-          :product="product"
-          @add-cart="openProduct"
-          @wishlist-change="onWishlistChange"
-        />
-      </section>
-    </template>
-
-    <div v-else class="empty-wishlist">
-      <div class="empty-wishlist-content">
-        <i class="fas fa-heart-broken" />
-        <h2>Tu lista de deseos está vacía</h2>
-        <p>Agrega productos a tu lista de deseos para guardarlos aquí</p>
-        <RouterLink :to="{ name: 'store' }" class="btn">
-          <i class="fas fa-shopping-bag" />
-          Explorar productos
-        </RouterLink>
       </div>
-    </div>
+    </template>
   </section>
 </template>
 
@@ -72,6 +70,7 @@
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import ProductCard from '../../catalog/components/ProductCard.vue'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import { useSession } from '../../../composables/useSession'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { getWishlist, toggleWishlist } from '../../../services/wishlistApi'

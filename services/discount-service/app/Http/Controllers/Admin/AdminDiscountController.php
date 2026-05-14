@@ -405,12 +405,90 @@ class AdminDiscountController extends Controller
 
     private function loadCampaignCustomers(?string $search = null, array $ids = [], ?int $limit = null): array
     {
+        $authCustomers = $this->loadAuthServiceCustomers(request(), $search, $ids, $limit);
+        if ($authCustomers !== null) {
+            return $authCustomers;
+        }
+
         $legacyCustomers = $this->queryCampaignCustomers(self::LEGACY_CONNECTION, $search, $ids, $limit);
         if (!empty($legacyCustomers)) {
             return $legacyCustomers;
         }
 
         return $this->queryCampaignCustomers(null, $search, $ids, $limit);
+    }
+
+    private function loadAuthServiceCustomers(?Request $request, ?string $search, array $ids, ?int $limit): ?array
+    {
+        $endpoint = $this->resolveAuthCustomersEndpoint();
+        $token = trim((string) ($request?->bearerToken() ?? ''));
+
+        if ($endpoint === null || $token === '') {
+            return null;
+        }
+
+        $params = [];
+        $normalizedSearch = trim((string) $search);
+
+        if ($normalizedSearch !== '') {
+            $params['search'] = $normalizedSearch;
+        }
+
+        if (!empty($ids)) {
+            $params['ids'] = collect($ids)
+                ->map(static fn ($id) => trim((string) $id))
+                ->filter(static fn ($id) => $id !== '')
+                ->unique()
+                ->take(200)
+                ->implode(',');
+        }
+
+        try {
+            $response = Http::withToken($token)
+                ->acceptJson()
+                ->timeout(8)
+                ->get($endpoint, $params);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $rows = $response->json('data');
+            if (!is_array($rows)) {
+                $rows = [];
+            }
+
+            return collect($rows)
+                ->map(fn (array|object $row) => $this->normalizeCustomer($row))
+                ->filter(fn (array $customer) => $customer['id'] !== '' && !$customer['is_blocked'])
+                ->when($limit !== null, fn (Collection $customers) => $customers->take($limit))
+                ->values()
+                ->all();
+        } catch (\Throwable $exception) {
+            Log::warning('No se pudo consultar clientes desde auth-service para la campaña de descuentos.', [
+                'search' => $normalizedSearch,
+                'ids_count' => count($ids),
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function resolveAuthCustomersEndpoint(): ?string
+    {
+        $baseUrl = trim((string) env('AUTH_SERVICE_URL', 'http://auth-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (str_ends_with($baseUrl, '/api')) {
+            return $baseUrl . '/admin/customers';
+        }
+
+        return $baseUrl . '/api/admin/customers';
     }
 
     private function queryCampaignCustomers(?string $connection, ?string $search, array $ids, ?int $limit): array
@@ -589,15 +667,20 @@ class AdminDiscountController extends Controller
         return $baseUrl . '/api/notifications';
     }
 
-    private function normalizeCustomer(object $row): array
+    private function normalizeCustomer(array|object $row): array
     {
-        $name = trim((string) ($row->name ?? ''));
+        $id = is_array($row) ? ($row['id'] ?? '') : ($row->id ?? '');
+        $name = trim((string) (is_array($row) ? ($row['name'] ?? '') : ($row->name ?? '')));
+        $email = trim((string) (is_array($row) ? ($row['email'] ?? '') : ($row->email ?? '')));
+        $phone = trim((string) (is_array($row) ? ($row['phone'] ?? '') : ($row->phone ?? '')));
+        $isBlocked = (bool) (is_array($row) ? ($row['is_blocked'] ?? false) : ($row->is_blocked ?? false));
 
         return [
-            'id' => trim((string) ($row->id ?? '')),
+            'id' => trim((string) $id),
             'name' => $name !== '' ? $name : 'Cliente',
-            'email' => trim((string) ($row->email ?? '')),
-            'phone' => trim((string) ($row->phone ?? '')),
+            'email' => $email,
+            'phone' => $phone,
+            'is_blocked' => $isBlocked,
         ];
     }
 

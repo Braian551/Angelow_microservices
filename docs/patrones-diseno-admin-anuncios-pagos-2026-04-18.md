@@ -50,3 +50,15 @@ Fecha: 2026-04-18
   - La acción administrativa primero actualiza el pago y luego sincroniza la orden.
   - Si `order-service` responde con error, la vista revierte el pago al estado anterior o lo lleva a `rejected` cuando la orden fue cancelada por falta de stock.
   - La IU muestra al administrador el mensaje real devuelto por backend en lugar de un warning genérico.
+
+## Extensión 2026-05-10: formulario adaptable por tipo de anuncio
+
+### Patrón 5: Strategy de variantes de formulario
+- Referencia: https://refactoring.guru/es/design-patterns/strategy
+- Problema que resuelve: el modal de anuncios mostraba campos de banner aun cuando el admin elegía `Barra superior`, lo que inducía a errores y dejaba datos ocultos inconsistentes.
+- Aplicación:
+  - `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`
+  - `services/notification-service/app/Http/Controllers/Admin/AdminNotificationController.php`
+- Evidencia técnica:
+  - El frontend cambia los campos visibles según `form.type` y solo envía subtítulo, botón, enlace e imagen cuando el tipo es `promo_banner`.
+  - El backend refuerza la misma estrategia y limpia esos atributos cuando el anuncio queda en `top_bar`, incluyendo la eliminación segura de la imagen previa.

@@ -1,137 +1,139 @@
 
 <template>
-  <section class="dashboard-header">
-    <h1>Mis Direcciones</h1>
-    <p>Administra tus direcciones de envío para una experiencia de compra más rápida.</p>
-  </section>
+  <AccountShimmer v-if="loading && viewMode === 'list'" variant="addresses" />
 
-  <section v-if="viewMode === 'list'" class="addresses-list-container account-card">
-    <header class="addresses-header">
-      <h2>
-        <i class="fas fa-map-marked-alt" />
-        Mis Direcciones Guardadas
-      </h2>
+  <template v-else>
+    <section class="dashboard-header">
+      <h1>Mis Direcciones</h1>
+      <p>Administra tus direcciones de envío para una experiencia de compra más rápida.</p>
+    </section>
 
-      <button type="button" class="btn-primary-small btn-add-address" @click="openCreateForm">
-        <i class="fas fa-plus-circle" />
-        Agregar Nueva Dirección
-      </button>
-    </header>
+    <section v-if="viewMode === 'list'" class="addresses-list-container account-card">
+      <header class="addresses-header">
+        <h2>
+          <i class="fas fa-map-marked-alt" />
+          Mis Direcciones Guardadas
+        </h2>
 
-    <p v-if="loading" class="loading-box">Cargando direcciones...</p>
-    <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
-
-    <div v-else-if="addresses.length === 0" class="no-addresses">
-      <div class="empty-state">
-        <div class="empty-icon">
-          <i class="fas fa-map-marker-alt" />
-        </div>
-        <h3>Aún no tienes direcciones guardadas</h3>
-        <p>Agrega tu primera dirección para recibir tus pedidos</p>
-        <button type="button" class="btn-primary-small" @click="openCreateForm">
-          <i class="fas fa-plus" />
-          Agregar mi primera dirección
+        <button type="button" class="btn-primary-small btn-add-address" @click="openCreateForm">
+          <i class="fas fa-plus-circle" />
+          Agregar Nueva Dirección
         </button>
-      </div>
-    </div>
+      </header>
 
-    <div v-else class="addresses-grid">
-      <article
-        v-for="address in addresses"
-        :key="address.id"
-        class="address-card"
-        :class="{ 'default-address': address.is_default }"
-      >
-        <header class="address-header">
-          <div class="address-icon">
-            <i :class="addressTypeIcon(address.address_type)" />
-          </div>
+      <p v-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
-          <div class="address-title">
-            <h3>{{ address.alias }}</h3>
-            <span class="address-type">{{ labelAddressType(address.address_type) }}</span>
-          </div>
-
-          <span v-if="address.is_default" class="default-badge">
-            <i class="fas fa-star" />
-            Principal
-          </span>
-        </header>
-
-        <div class="address-details">
-          <div class="detail-item">
-            <i class="fas fa-user" />
-            <p>{{ address.recipient_name }} ({{ address.recipient_phone }})</p>
-          </div>
-
-          <div class="detail-item">
+      <div v-else-if="addresses.length === 0" class="no-addresses">
+        <div class="empty-state">
+          <div class="empty-icon">
             <i class="fas fa-map-marker-alt" />
-            <p class="detail-address-text">{{ address.address }}</p>
           </div>
-
-          <div v-if="address.complement" class="detail-item">
-            <i class="fas fa-plus-circle" />
-            <p>{{ address.complement }}</p>
-          </div>
-
-          <div class="detail-item">
-            <i class="fas fa-city" />
-            <p>{{ address.neighborhood }}</p>
-          </div>
-
-          <div class="detail-item">
-            <i class="fas fa-building" />
-            <p>{{ labelBuilding(address) }}</p>
-          </div>
-
-          <div v-if="address.apartment_number" class="detail-item">
-            <i class="fas fa-door-open" />
-            <p>{{ address.apartment_number }}</p>
-          </div>
-
-          <div v-if="address.delivery_instructions" class="detail-item">
-            <i class="fas fa-info-circle" />
-            <p>{{ address.delivery_instructions }}</p>
-          </div>
+          <h3>Aún no tienes direcciones guardadas</h3>
+          <p>Agrega tu primera dirección para recibir tus pedidos</p>
+          <button type="button" class="btn-primary-small" @click="openCreateForm">
+            <i class="fas fa-plus" />
+            Agregar mi primera dirección
+          </button>
         </div>
+      </div>
 
-        <footer class="address-actions">
-          <button
-            v-if="!address.is_default"
-            type="button"
-            class="btn-outline-small btn-set-default"
-            :disabled="savingAddressId === address.id"
-            @click="setAsDefault(address)"
-          >
-            <i class="fas fa-star" />
-            Establecer como principal
-          </button>
+      <div v-else class="addresses-grid">
+        <article
+          v-for="address in addresses"
+          :key="address.id"
+          class="address-card"
+          :class="{ 'default-address': address.is_default }"
+        >
+          <header class="address-header">
+            <div class="address-icon">
+              <i :class="addressTypeIcon(address.address_type)" />
+            </div>
 
-          <button
-            type="button"
-            class="btn-outline-small"
-            :disabled="savingAddressId === address.id"
-            @click="openEditForm(address)"
-          >
-            <i class="fas fa-edit" />
-            Editar
-          </button>
+            <div class="address-title">
+              <h3>{{ address.alias }}</h3>
+              <span class="address-type">{{ labelAddressType(address.address_type) }}</span>
+            </div>
 
-          <button
-            type="button"
-            class="btn-outline-small btn-danger-outline"
-            :disabled="savingAddressId === address.id"
-            @click="confirmDelete(address)"
-          >
-            <i class="fas fa-trash" />
-            Eliminar
-          </button>
-        </footer>
-      </article>
-    </div>
-  </section>
+            <span v-if="address.is_default" class="default-badge">
+              <i class="fas fa-star" />
+              Principal
+            </span>
+          </header>
 
-  <section v-else class="address-form-container account-card">
+          <div class="address-details">
+            <div class="detail-item">
+              <i class="fas fa-user" />
+              <p>{{ address.recipient_name }} ({{ address.recipient_phone }})</p>
+            </div>
+
+            <div class="detail-item">
+              <i class="fas fa-map-marker-alt" />
+              <p class="detail-address-text">{{ address.address }}</p>
+            </div>
+
+            <div v-if="address.complement" class="detail-item">
+              <i class="fas fa-plus-circle" />
+              <p>{{ address.complement }}</p>
+            </div>
+
+            <div class="detail-item">
+              <i class="fas fa-city" />
+              <p>{{ address.neighborhood }}</p>
+            </div>
+
+            <div class="detail-item">
+              <i class="fas fa-building" />
+              <p>{{ labelBuilding(address) }}</p>
+            </div>
+
+            <div v-if="address.apartment_number" class="detail-item">
+              <i class="fas fa-door-open" />
+              <p>{{ address.apartment_number }}</p>
+            </div>
+
+            <div v-if="address.delivery_instructions" class="detail-item">
+              <i class="fas fa-info-circle" />
+              <p>{{ address.delivery_instructions }}</p>
+            </div>
+          </div>
+
+          <footer class="address-actions">
+            <button
+              v-if="!address.is_default"
+              type="button"
+              class="btn-outline-small btn-set-default"
+              :disabled="savingAddressId === address.id"
+              @click="setAsDefault(address)"
+            >
+              <i class="fas fa-star" />
+              Establecer como principal
+            </button>
+
+            <button
+              type="button"
+              class="btn-outline-small"
+              :disabled="savingAddressId === address.id"
+              @click="openEditForm(address)"
+            >
+              <i class="fas fa-edit" />
+              Editar
+            </button>
+
+            <button
+              type="button"
+              class="btn-outline-small btn-danger-outline"
+              :disabled="savingAddressId === address.id"
+              @click="confirmDelete(address)"
+            >
+              <i class="fas fa-trash" />
+              Eliminar
+            </button>
+          </footer>
+        </article>
+      </div>
+    </section>
+
+    <section v-else class="address-form-container account-card">
     <header class="form-header">
       <h2>
         <i :class="isEditMode ? 'fas fa-edit' : 'fas fa-plus-circle'" />
@@ -406,21 +408,23 @@
         </div>
       </div>
     </form>
-  </section>
+    </section>
 
-  <AddressLocationPickerModal
-    v-model="isGpsModalOpen"
-    :initial-address="form.address"
-    :initial-neighborhood="form.neighborhood"
-    :initial-gps-address="form.gps_address"
-    :initial-latitude="form.gps_latitude"
-    :initial-longitude="form.gps_longitude"
-    @confirm="applyGpsSelection"
-  />
+    <AddressLocationPickerModal
+      v-model="isGpsModalOpen"
+      :initial-address="form.address"
+      :initial-neighborhood="form.neighborhood"
+      :initial-gps-address="form.gps_address"
+      :initial-latitude="form.gps_latitude"
+      :initial-longitude="form.gps_longitude"
+      @confirm="applyGpsSelection"
+    />
+  </template>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import AddressLocationPickerModal from '../components/AddressLocationPickerModal.vue'
 import { useSession } from '../../../composables/useSession'
 import { useAlertSystem } from '../../../composables/useAlertSystem'

@@ -45,3 +45,22 @@ Se migró la vista de informes de ventas, productos populares y clientes recurre
 - Ventas excluye canceladas por defecto y respeta filtros reales.
 - Productos populares usa agregados de `order_items` y enriquece categoría/imagen desde catálogo.
 - Clientes recurrentes usa órdenes reales para recurrencia y auth para total/perfil.
+
+## Extensión 2026-05-10: consolidación real de ventas distribuidas + legacy
+
+### 5. Adapter
+- Problema que resuelve: el reporte de ventas tomaba solo una fuente a la vez y dejaba datos vacíos o parciales cuando las órdenes estaban repartidas entre la base distribuida y la base legacy; además, por defecto solo excluía `cancelled` y dejaba entrar variantes como `canceled` o `refunded`.
+- Aplicado en archivos:
+  - services/order-service/app/Http/Controllers/Admin/AdminOrderController.php
+- Implementación:
+  - `reportSales` ahora combina filas de órdenes del microservicio y legacy usando la misma estrategia de mezcla que el dashboard de órdenes recientes antes de calcular ingresos, períodos, estados y métodos de pago.
+  - La exclusión por defecto de canceladas se alinea con el grupo administrativo completo (`cancelled`, `canceled`, `refunded`) para que las cifras y gráficas no queden incoherentes.
+
+### 6. Aggregator
+- Problema que resuelve: productos populares y clientes recurrentes podían quedar parciales cuando cada reporte elegía una sola fuente o cuando los perfiles de cliente dependían de tablas locales no disponibles en el servicio de órdenes.
+- Aplicado en archivos:
+  - services/order-service/app/Http/Controllers/Admin/AdminOrderController.php
+- Implementación:
+  - `reportProducts` ahora mezcla líneas de pedido del microservicio y legacy antes de agrupar por producto, evitando que el ranking dependa de un fallback de una sola fuente.
+  - `reportCustomers` ahora arma la recurrencia sobre órdenes ya consolidadas e hidratadas, y usa un fallback adicional hacia auth-service con el bearer admin actual para completar nombre, correo y teléfono cuando el endpoint interno no resuelve todos los perfiles.
+  - Si un `user_id` no existe ni en auth ni en legacy disponible, el sistema conserva el registro como cliente sin identidad resoluble en lugar de inventar datos.

@@ -1,7 +1,7 @@
 <template>
   <main class="product-detail-page">
     <div class="section-container">
-      <p v-if="loading" class="loading-box">Cargando producto...</p>
+      <ProductDetailShimmer v-if="loading" />
       <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
       <template v-else>
@@ -14,10 +14,13 @@
 
         <section class="product-main-section">
           <div class="product-gallery">
-            <div class="gallery-main">
+            <div class="gallery-main" :class="{ 'is-loading': showMainImageShimmer }">
+              <span v-if="showMainImageShimmer" class="product-image-shimmer" aria-hidden="true"></span>
               <img
                 :src="mainImage.src"
                 :alt="mainImage.alt"
+                :class="{ 'is-loaded': !showMainImageShimmer }"
+                @load="onMainImageLoad"
                 @error="onMainImageError"
                 @click="openZoom(mainImage)"
               />
@@ -380,7 +383,9 @@
                       />
                     </div>
                     <div class="user-info">
-                      <strong>{{ question.userName }}</strong>
+                      <div class="user-info-top">
+                        <strong>{{ question.userName }}</strong>
+                      </div>
                       <span class="time">{{ question.dateTime }}</span>
                     </div>
                   </div>
@@ -398,11 +403,15 @@
                             @error="onImageError($event, answer.avatarRawPath, 'avatar')"
                           />
                         </div>
-                        <strong>{{ answer.userName }}</strong>
-                        <span v-if="answer.isSeller" class="badge seller">Vendedor</span>
-                        <span class="time">{{ answer.dateTime }}</span>
+                        <div class="answer-user-info">
+                          <div class="user-info-top">
+                            <strong>{{ answer.userName }}</strong>
+                            <span v-if="answer.isSeller" class="badge seller">Vendedor</span>
+                          </div>
+                          <span class="time">{{ answer.dateTime }}</span>
+                        </div>
                       </div>
-                      <p>{{ answer.text }}</p>
+                      <p class="answer-text">{{ answer.text }}</p>
                     </div>
                   </div>
                 </article>
@@ -424,6 +433,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import ProductDetailShimmer from '../components/ProductDetailShimmer.vue'
 import { getProductBySlug } from '../../../services/catalogApi'
 import { addToCart } from '../../../services/cartApi'
 import { useAppShell } from '../../../composables/useAppShell'
@@ -452,6 +462,7 @@ const selectedColorId = ref(null)
 const selectedSizeVariantId = ref(null)
 const quantity = ref(1)
 const currentImageIndex = ref(0)
+const mainImageLoaded = ref(false)
 const wishlistBusy = ref(false)
 const isFavorite = ref(false)
 const activeTab = ref('description')
@@ -652,6 +663,8 @@ const mainImage = computed(() => {
   return galleryImages.value[safeIndex]
 })
 
+const showMainImageShimmer = computed(() => Boolean(mainImage.value?.src) && !mainImageLoaded.value)
+
 const reviewItems = computed(() => {
   const items = Array.isArray(reviews.value?.reviews) ? reviews.value.reviews : []
 
@@ -795,6 +808,10 @@ watch(activeColor, () => {
 watch(activeImages, () => {
   currentImageIndex.value = 0
 })
+
+watch(() => mainImage.value.src, () => {
+  mainImageLoaded.value = false
+}, { immediate: true })
 
 watch(zoomModalOpen, (isOpen) => {
   document.body.style.overflow = isOpen ? 'hidden' : ''
@@ -947,7 +964,12 @@ function changeQuantity(step) {
   quantity.value = Math.max(1, Math.min(nextValue, quantityMax.value))
 }
 
+function onMainImageLoad() {
+  mainImageLoaded.value = true
+}
+
 function onMainImageError(event) {
+  mainImageLoaded.value = true
   handleMediaError(event, mainImage.value.rawPath || product.value.primary_image, 'product')
 }
 
@@ -1000,6 +1022,7 @@ function extractErrorMessage(error, fallback) {
 
 async function loadData() {
   loading.value = true
+  mainImageLoaded.value = false
   errorMessage.value = ''
   infoMessage.value = ''
 

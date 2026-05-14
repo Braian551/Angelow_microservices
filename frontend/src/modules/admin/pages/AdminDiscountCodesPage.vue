@@ -320,6 +320,14 @@
           Envía un código de descuento a todos los clientes con notificación interna, correo o ambos canales.
         </p>
 
+        <div class="campaign-modal__availability" :class="{ 'campaign-modal__availability--empty': !campaignCustomersLoading && !massCampaignHasRecipients }">
+          <i :class="campaignCustomersLoading ? 'fas fa-spinner fa-spin' : massCampaignHasRecipients ? 'fas fa-users' : 'fas fa-user-slash'"></i>
+          <div>
+            <strong>{{ massCampaignAvailabilityTitle }}</strong>
+            <p>{{ massCampaignAvailabilityMessage }}</p>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="mass-campaign-code">Código de descuento *</label>
           <select id="mass-campaign-code" v-model="massCampaignForm.discount_code_id" class="form-control" :class="{ 'is-invalid': massCampaignErrors.discount_code_id }" @change="validateMassCampaignField('discount_code_id')">
@@ -346,7 +354,7 @@
 
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="campaignSubmitting" @click="closeMassCampaignModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" :disabled="campaignSubmitting" @click="submitMassCampaign">
+        <button class="btn btn-primary" type="button" :disabled="campaignSubmitting || campaignCustomersLoading || !massCampaignHasRecipients" @click="submitMassCampaign">
           <i class="fas fa-paper-plane"></i>
           {{ campaignSubmitting ? 'Enviando...' : 'Enviar masivo' }}
         </button>
@@ -666,6 +674,31 @@ const campaignCodeOptions = computed(() => codes.value.map((code) => ({
   type: code.type,
   value: code.value,
 })))
+const massCampaignHasRecipients = computed(() => campaignCustomers.value.length > 0)
+const massCampaignAvailabilityTitle = computed(() => {
+  if (campaignCustomersLoading.value) {
+    return 'Validando clientes disponibles'
+  }
+
+  return massCampaignHasRecipients.value
+    ? 'Clientes listos para la campaña'
+    : 'No hay clientes disponibles para este envío'
+})
+const massCampaignAvailabilityMessage = computed(() => {
+  if (campaignCustomersLoading.value) {
+    return 'Estamos consultando la base de clientes antes de habilitar el envío masivo.'
+  }
+
+  if (!massCampaignHasRecipients.value) {
+    return 'Registra o habilita clientes antes de lanzar esta campaña. Cuando existan destinatarios válidos, el envío masivo se activará automáticamente.'
+  }
+
+  if (campaignCustomers.value.length >= 200) {
+    return 'Se detectaron al menos 200 clientes disponibles para la campaña.'
+  }
+
+  return `Se detectaron ${campaignCustomers.value.length} clientes disponibles para esta campaña.`
+})
 
 // Código completo seleccionado en campaña específica (para vista previa)
 const selectedSpecificCode = computed(() =>
@@ -800,9 +833,10 @@ function resetSpecificCampaignForm() {
   specificCampaignSearch.value = ''
 }
 
-function openMassCampaignModal() {
+async function openMassCampaignModal() {
   resetMassCampaignForm()
   showMassCampaignModal.value = true
+  await loadCampaignCustomers()
 }
 
 function closeMassCampaignModal() {
@@ -907,6 +941,16 @@ function campaignSummaryMessage(summary) {
 async function submitMassCampaign() {
   if (!validateMassCampaignForm()) {
     showSnackbar({ type: 'warning', message: 'Completa correctamente los campos del envío masivo.' })
+    return
+  }
+
+  if (campaignCustomersLoading.value) {
+    showSnackbar({ type: 'info', message: 'Todavía estamos validando los clientes disponibles para la campaña.' })
+    return
+  }
+
+  if (!massCampaignHasRecipients.value) {
+    showSnackbar({ type: 'warning', message: 'No hay clientes disponibles para el envío masivo. Registra al menos un cliente antes de continuar.' })
     return
   }
 
@@ -1222,6 +1266,41 @@ onMounted(loadCodes)
 .campaign-modal__intro {
   margin: 0;
   color: var(--admin-text-muted);
+}
+
+.campaign-modal__availability {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 122, 191, 0.18);
+  background: rgba(15, 122, 191, 0.05);
+}
+
+.campaign-modal__availability i {
+  margin-top: 0.2rem;
+  color: var(--admin-primary);
+  font-size: 1.7rem;
+}
+
+.campaign-modal__availability strong {
+  display: block;
+  color: var(--admin-text);
+}
+
+.campaign-modal__availability p {
+  margin: 0.3rem 0 0;
+  color: var(--admin-text-muted);
+}
+
+.campaign-modal__availability--empty {
+  border-color: rgba(219, 39, 119, 0.14);
+  background: rgba(219, 39, 119, 0.05);
+}
+
+.campaign-modal__availability--empty i {
+  color: #be185d;
 }
 
 .campaign-form-grid {

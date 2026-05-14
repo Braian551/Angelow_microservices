@@ -1,108 +1,112 @@
 <template>
-  <section class="dashboard-header">
-    <h1>Mis pedidos</h1>
-    <p>Consulta el estado y detalle de todas tus órdenes.</p>
-  </section>
+  <AccountShimmer v-if="loading" variant="orders" />
 
-  <section class="account-card">
-    <header class="section-header">
-      <h2>Historial de pedidos</h2>
-    </header>
+  <template v-else>
+    <section class="dashboard-header">
+      <h1>Mis pedidos</h1>
+      <p>Consulta el estado y detalle de todas tus órdenes.</p>
+    </section>
 
-    <p v-if="loading" class="loading-box">Cargando pedidos...</p>
-    <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
+    <section class="account-card">
+      <header class="section-header">
+        <h2>Historial de pedidos</h2>
+      </header>
 
-    <div v-else-if="orders.length === 0" class="empty-state">
-      <i class="fas fa-box-open" />
-      <p>No tienes pedidos aún.</p>
-      <RouterLink :to="{ name: 'store' }" class="btn-primary-small">Comprar ahora</RouterLink>
-    </div>
+      <p v-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
-    <div v-else class="orders-v2-list">
-      <article
-        v-for="order in orders"
-        :key="order.id"
-        class="order-v2-card"
-        :class="{ 'order-highlight': String(selectedOrderId) === String(order.id) }"
-      >
-        <div class="order-v2-header">
-          <div class="order-v2-title">
-            <h3>Pedido #{{ order.order_number }}</h3>
-            <span class="order-v2-date">
-              <i class="fas fa-calendar-alt" /> {{ formatDate(order.created_at) }}
-            </span>
-          </div>
-          <span class="status-badge" :class="statusClass(order.status)">
-            {{ statusLabel(order.status) }}
-          </span>
-        </div>
+      <div v-else-if="orders.length === 0" class="empty-state">
+        <i class="fas fa-box-open" />
+        <p>No tienes pedidos aún.</p>
+        <RouterLink :to="{ name: 'store' }" class="btn-primary-small">Comprar ahora</RouterLink>
+      </div>
 
-        <div class="order-v2-metrics">
-          <div class="metric-item">
-            <i class="fas fa-box" />
-            <span>{{ order.items_count || 0 }} producto(s)</span>
-          </div>
-
-          <div class="metric-item metric-total">
-            <i class="fas fa-dollar-sign" />
-            <span>{{ formatPrice(order.total) }}</span>
-          </div>
-
-          <div class="metric-item">
-            <i class="fas fa-credit-card" />
-            <span>{{ paymentStatusLabel(order) }}</span>
-          </div>
-        </div>
-
-        <div v-if="order.shipping_address" class="order-v2-address">
-          <i class="fas fa-map-marker-alt" />
-          <span>{{ order.shipping_address }}</span>
-        </div>
-
-        <div class="order-v2-actions">
-          <RouterLink :to="{ name: 'account-order-detail', params: { id: order.id } }" class="btn-view-order">
-            <i class="fas fa-eye" /> Ver detalles
-          </RouterLink>
-          <RouterLink :to="{ name: 'store' }" class="btn-repeat-order">
-            <i class="fas fa-redo-alt" /> Volver a pedir
-          </RouterLink>
-          <button
-            v-if="canCancelOrder(order)"
-            type="button"
-            class="btn-cancel-order"
-            :disabled="cancellingOrderId === order.id"
-            @click="confirmCancelOrder(order)"
-          >
-            <i class="fas fa-ban" />
-            {{ cancellingOrderId === order.id ? 'Cancelando...' : 'Cancelar pedido' }}
-          </button>
-        </div>
-
-        <div
-          class="order-v2-progress"
-          :class="{ 'order-v2-progress--refund': isRefundFlow(order) }"
+      <div v-else class="orders-v2-list">
+        <article
+          v-for="order in orders"
+          :key="order.id"
+          class="order-v2-card"
+          :class="{ 'order-highlight': String(selectedOrderId) === String(order.id) }"
         >
-          <div class="progress-line" />
-          <div
-            v-for="step in orderProgressSteps(order)"
-            :key="`${order.id}-${step.key}`"
-            class="progress-step"
-            :class="{ active: isStepActive(order, step.key) }"
-          >
-            <span class="progress-step-icon">
-              <i :class="step.icon" />
+          <div class="order-v2-header">
+            <div class="order-v2-title">
+              <h3>Pedido #{{ order.order_number }}</h3>
+              <span class="order-v2-date">
+                <i class="fas fa-calendar-alt" /> {{ formatDate(order.created_at) }}
+              </span>
+            </div>
+            <span class="status-badge" :class="statusClass(order.status)">
+              {{ statusLabel(order.status) }}
             </span>
-            <span class="progress-step-label">{{ step.label }}</span>
           </div>
-        </div>
-      </article>
-    </div>
-  </section>
+
+          <div class="order-v2-metrics">
+            <div class="metric-item">
+              <i class="fas fa-box" />
+              <span>{{ order.items_count || 0 }} producto(s)</span>
+            </div>
+
+            <div class="metric-item metric-total">
+              <i class="fas fa-dollar-sign" />
+              <span>{{ formatPrice(order.total) }}</span>
+            </div>
+
+            <div class="metric-item">
+              <i class="fas fa-credit-card" />
+              <span>{{ paymentStatusLabel(order) }}</span>
+            </div>
+          </div>
+
+          <div v-if="order.shipping_address" class="order-v2-address">
+            <i class="fas fa-map-marker-alt" />
+            <span>{{ order.shipping_address }}</span>
+          </div>
+
+          <div class="order-v2-actions">
+            <RouterLink :to="{ name: 'account-order-detail', params: { id: order.id } }" class="btn-view-order">
+              <i class="fas fa-eye" /> Ver detalles
+            </RouterLink>
+            <RouterLink :to="{ name: 'store' }" class="btn-repeat-order">
+              <i class="fas fa-redo-alt" /> Volver a pedir
+            </RouterLink>
+            <button
+              v-if="canCancelOrder(order)"
+              type="button"
+              class="btn-cancel-order"
+              :disabled="cancellingOrderId === order.id"
+              @click="confirmCancelOrder(order)"
+            >
+              <i class="fas fa-ban" />
+              {{ cancellingOrderId === order.id ? 'Cancelando...' : 'Cancelar pedido' }}
+            </button>
+          </div>
+
+          <div
+            class="order-v2-progress"
+            :class="{ 'order-v2-progress--refund': isRefundFlow(order) }"
+          >
+            <div class="progress-line" />
+            <div
+              v-for="step in orderProgressSteps(order)"
+              :key="`${order.id}-${step.key}`"
+              class="progress-step"
+              :class="{ active: isStepActive(order, step.key) }"
+            >
+              <span class="progress-step-icon">
+                <i :class="step.icon" />
+              </span>
+              <span class="progress-step-label">{{ step.label }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </template>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { cancelOrder, getOrders } from '../../../services/orderApi'
