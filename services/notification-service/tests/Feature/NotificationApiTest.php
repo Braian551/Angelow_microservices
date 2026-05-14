@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\DispatchNotificationJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -89,11 +90,52 @@ class NotificationApiTest extends TestCase
 
         $this->patchJson("/api/notifications/{$notificationId}/read")
             ->assertOk()
-            ->assertJsonPath('message', 'Notificacion marcada como leida');
+            ->assertJsonPath('message', 'Notificación marcada como leída');
 
         $this->assertDatabaseHas('notifications', [
             'id' => $notificationId,
             'is_read' => true,
         ]);
+    }
+
+    public function test_admin_can_persist_notification_dismissals(): void
+    {
+        Http::fake([
+            '*' => Http::response([
+                'data' => [
+                    'id' => '15',
+                    'email' => 'admin@angelow.test',
+                    'role' => 'admin',
+                ],
+            ], 200),
+        ]);
+
+        $headers = [
+            'Authorization' => 'Bearer token-admin-prueba',
+        ];
+
+        $keys = [
+            'new-microservice:22-2026-05-10T18:00:00Z',
+            'inventory-variant:9-out-2026-05-10T18:05:00Z',
+        ];
+
+        $this->patchJson('/api/admin/notification-dismissals', [
+            'notification_keys' => $keys,
+        ], $headers)
+            ->assertOk()
+            ->assertJsonPath('message', 'Lecturas de notificaciones guardadas.');
+
+        $response = $this->getJson('/api/admin/notification-dismissals', $headers)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        foreach ($keys as $key) {
+            $response->assertJsonFragment(['notification_key' => $key]);
+
+            $this->assertDatabaseHas('admin_notification_dismissals', [
+                'admin_id' => '15',
+                'notification_key' => $key,
+            ]);
+        }
     }
 }

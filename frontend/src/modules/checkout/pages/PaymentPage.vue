@@ -9,7 +9,7 @@
 
       <div class="payment-page-divider" />
 
-      <p v-if="loading" class="loading-box payment-page-status">Preparando tu resumen de pago...</p>
+      <CheckoutShimmer v-if="loading" />
       <p v-else-if="errorMessage && !shippingData" class="error-box payment-page-status">{{ errorMessage }}</p>
 
       <section v-else-if="!shippingData" class="payment-empty-state">
@@ -25,7 +25,11 @@
       </section>
 
       <form v-else class="payment-page-form" @submit.prevent="confirmOrder">
-        <p v-if="errorMessage" class="error-box payment-page-status">{{ errorMessage }}</p>
+        <!-- Alerta de validación de campos del formulario -->
+        <CheckoutValidationAlert
+          :visible="formValidationError"
+          :errors="paymentValidationErrors"
+        />
         <p v-if="infoMessage" class="loading-box payment-page-status">{{ infoMessage }}</p>
 
         <div class="payment-page-layout">
@@ -211,8 +215,11 @@
                   <p><strong>{{ selectedAddress.recipient_name }}</strong> ({{ selectedAddress.recipient_phone }})</p>
                   <p>{{ buildCheckoutAddressLine(selectedAddress) }}</p>
                   <p v-if="buildCheckoutZoneLine(selectedAddress)">{{ buildCheckoutZoneLine(selectedAddress) }}</p>
-                  <p v-if="selectedAddress.delivery_instructions" class="payment-summary-note">
-                    {{ selectedAddress.delivery_instructions }}
+                  <p v-if="addressDeliveryInstructions" class="payment-summary-note">
+                    {{ addressDeliveryInstructions }}
+                  </p>
+                  <p v-if="hasDistinctOrderNotes" class="payment-summary-note payment-summary-note--order">
+                    <strong>Nota del pedido:</strong> {{ orderNotes }}
                   </p>
                 </article>
 
@@ -339,9 +346,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import CheckoutFlowHeader from '../components/CheckoutFlowHeader.vue'
+import CheckoutValidationAlert from '../components/CheckoutValidationAlert.vue'
+import CheckoutShimmer from '../components/CheckoutShimmer.vue'
 import PaymentAccountSummaryCard from '../../../components/payments/PaymentAccountSummaryCard.vue'
 import { useAppShell } from '../../../composables/useAppShell'
 import { useSession } from '../../../composables/useSession'
@@ -359,6 +368,7 @@ import {
   normalizeCheckoutCartItem,
   normalizeCheckoutMethod,
 } from '../utils/checkoutHelpers'
+import { buildCartSelectionSummary, synchronizeCartSelectionMap } from '../../cart/utils/cartSelection'
 
 const router = useRouter()
 const { sessionId, user } = useSession()
@@ -368,8 +378,11 @@ const loading = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const infoMessage = ref('')
+// Control del banner de validación de formulario (estilo CheckoutValidationAlert)
+const formValidationError = ref(false)
 const banks = ref([])
 const cart = ref({ items: [], item_count: 0 })
+const selectionMap = ref({})
 const shippingData = ref(null)
 const paymentAccount = ref(null)
 const paymentProofFile = ref(null)
@@ -393,15 +406,21 @@ const fieldErrors = ref({
 
 const selectedAddress = computed(() => normalizeCheckoutAddress(shippingData.value?.selected_address || {}))
 const selectedShippingMethod = computed(() => normalizeCheckoutMethod(shippingData.value?.selected_shipping_method || {}))
+const addressDeliveryInstructions = computed(() => String(selectedAddress.value?.delivery_instructions || '').trim())
+const orderNotes = computed(() => String(shippingData.value?.notes || '').trim())
+const hasDistinctOrderNotes = computed(() => orderNotes.value !== '' && orderNotes.value !== addressDeliveryInstructions.value)
+const cartSelectionState = computed(() => buildCartSelectionSummary(
+  Array.isArray(cart.value?.items) ? cart.value.items : [],
+  selectionMap.value,
+))
 
 const orderItems = computed(() => {
-  const cartItems = Array.isArray(cart.value?.items) ? cart.value.items : []
-  if (cartItems.length > 0) {
-    return cartItems.map(normalizeCheckoutCartItem)
+  const snapshotItems = Array.isArray(shippingData.value?.items_snapshot) ? shippingData.value.items_snapshot : []
+  if (snapshotItems.length > 0) {
+    return snapshotItems.map(normalizeCheckoutCartItem)
   }
 
-  const snapshotItems = Array.isArray(shippingData.value?.items_snapshot) ? shippingData.value.items_snapshot : []
-  return snapshotItems.map(normalizeCheckoutCartItem)
+  return cartSelectionState.value.selectedItems.map(normalizeCheckoutCartItem)
 })
 
 const itemCount = computed(() => orderItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0))
@@ -482,6 +501,27 @@ const discountSummaryLabel = computed(() => {
   return discountCode ? `Descuento (${discountCode})` : 'Descuento'
 })
 
+// Lista de errores formateada para el componente CheckoutValidationAlert
+const paymentValidationErrors = computed(() => {
+  const errors = []
+  if (fieldErrors.value.bank_code) {
+    errors.push({ icon: 'fas fa-building-columns', text: fieldErrors.value.bank_code })
+  }
+  if (fieldErrors.value.reference_number) {
+    errors.push({ icon: 'fas fa-hashtag', text: fieldErrors.value.reference_number })
+  }
+  if (fieldErrors.value.customer_email) {
+    errors.push({ icon: 'fas fa-envelope', text: fieldErrors.value.customer_email })
+  }
+  if (fieldErrors.value.payment_proof) {
+    errors.push({ icon: 'fas fa-file-arrow-up', text: fieldErrors.value.payment_proof })
+  }
+  if (fieldErrors.value.accept_terms) {
+    errors.push({ icon: 'fas fa-square-check', text: fieldErrors.value.accept_terms })
+  }
+  return errors
+})
+
 const selectedBank = computed(() => {
   return banks.value.find((bank) => bank.bank_code === form.value.bank_code) || null
 })
@@ -535,6 +575,7 @@ async function loadInitialData() {
     cart.value = cartRes?.data && typeof cartRes.data === 'object'
       ? cartRes.data
       : { items: [], item_count: 0 }
+    selectionMap.value = synchronizeCartSelectionMap(Array.isArray(cart.value?.items) ? cart.value.items : [])
 
     form.value.bank_code = shippingData.value?.bank_code || banks.value[0]?.bank_code || ''
     form.value.customer_email = String(user.value?.email || shippingData.value?.user_email || '').trim()
@@ -580,6 +621,12 @@ function validateField(fieldName) {
     fieldErrors.value.accept_terms = form.value.accept_terms
       ? ''
       : 'Debes aceptar los términos para continuar.'
+  }
+
+  // Ocultar el banner si ya no quedan errores pendientes
+  if (!fieldErrors.value[fieldName] && formValidationError.value) {
+    const hasAnyError = Object.values(fieldErrors.value).some(Boolean)
+    if (!hasAnyError) formValidationError.value = false
   }
 
   return !fieldErrors.value[fieldName]
@@ -764,6 +811,7 @@ function translateCheckoutApiMessage(message) {
 async function confirmOrder() {
   errorMessage.value = ''
   infoMessage.value = ''
+  formValidationError.value = false
 
   if (!shippingData.value) {
     errorMessage.value = 'Faltan los datos del paso de envío.'
@@ -771,7 +819,13 @@ async function confirmOrder() {
   }
 
   if (!validateAllFields()) {
-    errorMessage.value = 'Corrige los campos marcados antes de confirmar el pedido.'
+    // Mostrar el banner de validación y hacer scroll hasta él
+    formValidationError.value = true
+    await nextTick()
+    const banner = document.querySelector('.checkout-validation-alert')
+    if (banner) {
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     return
   }
 
@@ -876,7 +930,21 @@ async function confirmOrder() {
         .map((item) => removeCartItem(item.item_id)),
     )
 
-    setCartCount(0)
+    try {
+      const refreshedCart = await getCart({
+        user_id: user.value?.id || undefined,
+        session_id: user.value?.id ? undefined : sessionId.value,
+      })
+
+      cart.value = refreshedCart?.data && typeof refreshedCart.data === 'object'
+        ? refreshedCart.data
+        : { items: [], item_count: 0 }
+      selectionMap.value = synchronizeCartSelectionMap(Array.isArray(cart.value?.items) ? cart.value.items : [])
+      setCartCount(Number(cart.value?.item_count || 0))
+    } catch {
+      const fallbackCount = Math.max(0, Number(cart.value?.item_count || 0) - itemCount.value)
+      setCartCount(fallbackCount)
+    }
 
     localStorage.setItem('angelow_checkout_result', JSON.stringify({
       order_id: orderId,
@@ -898,7 +966,8 @@ async function confirmOrder() {
         recipient_phone: selectedAddress.value.recipient_phone,
         address: buildCheckoutAddressLine(selectedAddress.value),
         zone: buildCheckoutZoneLine(selectedAddress.value),
-        instructions: selectedAddress.value.delivery_instructions,
+        instructions: addressDeliveryInstructions.value || null,
+        notes: hasDistinctOrderNotes.value ? orderNotes.value : null,
         method_name: selectedShippingMethod.value.name,
         method_description: selectedShippingMethod.value.description,
         method_eta: selectedShippingMethod.value.delivery_time,

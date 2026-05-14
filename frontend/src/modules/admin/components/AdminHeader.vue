@@ -283,12 +283,13 @@ async function openNotification(notification) {
     return
   }
 
-  const currentPath = router.currentRoute.value?.path || ''
-  if (currentPath !== targetRoute) {
+  const resolvedTarget = router.resolve(targetRoute)
+  const currentPath = router.currentRoute.value?.fullPath || router.currentRoute.value?.path || ''
+  if (currentPath !== resolvedTarget.fullPath) {
     await router.push(targetRoute)
   }
 
-  markRouteNotificationsAsRead(targetRoute)
+  markRouteNotificationsAsRead(resolvedTarget.path)
 }
 
 function notificationModuleLabel(notification) {
@@ -300,6 +301,7 @@ function notificationIcon(type) {
     order: 'fas fa-shopping-bag',
     payment: 'fas fa-money-bill-wave',
     invoice: 'fas fa-file-invoice-dollar',
+    inventory: 'fas fa-warehouse',
     review: 'fas fa-star',
     system: 'fas fa-cog',
   }
@@ -318,7 +320,7 @@ function formatTime(date) {
   return d.toLocaleDateString('es-CO')
 }
 
-// Ctrl+K shortcut
+// Atajo Ctrl + K
 function handleKeydown(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault()
@@ -326,7 +328,7 @@ function handleKeydown(e) {
   }
 }
 
-// Click outside to close dropdowns
+// Cierra los paneles al hacer clic fuera.
 function handleClickOutside(e) {
   if (!e.target.closest('.header-action') && !e.target.closest('.search-box')) {
     showNotifications.value = false

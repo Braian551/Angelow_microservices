@@ -53,15 +53,32 @@
   height: 110px;
   border-radius: 50%;
   overflow: hidden;
+  position: relative;
   border: 3px solid #90e0ef;
   margin: 0 auto 1.4rem;
+  background: #e8f3f9;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.user-avatar__shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, #e4edf5 0%, #f8fbfd 50%, #e4edf5 100%);
+  background-size: 200% 100%;
+  animation: accountShimmerWave 1.35s ease-in-out infinite;
 }
 
 .user-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.user-avatar img.is-ready {
+  opacity: 1;
 }
 
 .user-info h3 {
@@ -409,6 +426,315 @@
   gap: 1.8rem;
 }
 
+@keyframes accountShimmerWave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.account-shimmer {
+  display: grid;
+  gap: 2rem;
+}
+
+.account-shimmer__surface,
+.account-shimmer__line,
+.account-shimmer__circle,
+.account-shimmer__rect,
+.account-shimmer__pill,
+.account-shimmer__btn,
+.account-shimmer__progress-dot {
+  background: linear-gradient(90deg, #e4edf5 0%, #f8fbfd 50%, #e4edf5 100%);
+  background-size: 200% 100%;
+  animation: accountShimmerWave 1.35s ease-in-out infinite;
+}
+
+.account-shimmer__surface {
+  overflow: hidden;
+}
+
+.account-shimmer__summary {
+  margin-bottom: 0;
+}
+
+.account-shimmer__summary-card {
+  border-left-color: #7fb9d6;
+}
+
+.account-shimmer__summary-card--single {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  margin-top: 1.8rem;
+}
+
+.account-shimmer__header {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-shimmer__list,
+.account-shimmer__stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-shimmer__stack--spaced {
+  gap: 0.8rem;
+}
+
+.account-shimmer__stack--grow {
+  flex: 1;
+}
+
+.account-shimmer__row,
+.account-shimmer__metric-row,
+.account-shimmer__action-row,
+.account-shimmer__toolbar,
+.account-shimmer__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.account-shimmer__row--between {
+  justify-content: space-between;
+}
+
+.account-shimmer__row--wrap,
+.account-shimmer__action-row,
+.account-shimmer__toolbar {
+  flex-wrap: wrap;
+}
+
+.account-shimmer__line,
+.account-shimmer__pill,
+.account-shimmer__btn {
+  display: block;
+  border-radius: 999px;
+}
+
+.account-shimmer__line {
+  height: 1.3rem;
+}
+
+.account-shimmer__line--title {
+  width: min(46rem, 72%);
+  height: 2.8rem;
+}
+
+.account-shimmer__line--subtitle {
+  width: min(38rem, 58%);
+  height: 1.5rem;
+}
+
+.account-shimmer__line--heading {
+  width: min(24rem, 72%);
+  height: 1.9rem;
+}
+
+.account-shimmer__line--small {
+  width: min(18rem, 52%);
+  height: 1.2rem;
+}
+
+.account-shimmer__line--text {
+  width: min(22rem, 68%);
+}
+
+.account-shimmer__line--wide {
+  width: 100%;
+}
+
+.account-shimmer__line--link {
+  width: 12rem;
+  height: 1.2rem;
+}
+
+.account-shimmer__line--price {
+  width: 10rem;
+  height: 2rem;
+}
+
+.account-shimmer__line--filter {
+  width: 16rem;
+  height: 3.6rem;
+}
+
+.account-shimmer__line--nav {
+  width: 100%;
+  height: 4.4rem;
+  border-radius: 10px;
+}
+
+.account-shimmer__circle {
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+}
+
+.account-shimmer__circle--icon {
+  width: 60px;
+  height: 60px;
+}
+
+.account-shimmer__circle--small {
+  width: 44px;
+  height: 44px;
+}
+
+.account-shimmer__circle--avatar {
+  width: 88px;
+  height: 88px;
+}
+
+.account-shimmer__rect {
+  display: block;
+  border-radius: 16px;
+}
+
+.account-shimmer__rect--product {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.account-shimmer__rect--thumb {
+  width: 88px;
+  height: 88px;
+  flex: none;
+  border-radius: 14px;
+}
+
+.account-shimmer__rect--input {
+  width: 100%;
+  height: 4.8rem;
+  border-radius: 12px;
+}
+
+.account-shimmer__pill {
+  height: 3.2rem;
+}
+
+.account-shimmer__pill--status {
+  width: 11rem;
+}
+
+.account-shimmer__pill--small {
+  width: 9rem;
+  height: 2.8rem;
+}
+
+.account-shimmer__btn {
+  width: 14rem;
+  height: 4.2rem;
+  border-radius: 12px;
+}
+
+.account-shimmer__btn--ghost {
+  width: 12rem;
+}
+
+.account-shimmer__btn--full {
+  width: 100%;
+}
+
+.account-shimmer__order-card,
+.account-shimmer__address-card,
+.account-shimmer__product-card,
+.account-shimmer__notification-row,
+.account-shimmer__detail-row {
+  border: 1px solid #dce4eb;
+  border-radius: 14px;
+  padding: 1.6rem;
+}
+
+.account-shimmer__order-card,
+.account-shimmer__address-card,
+.account-shimmer__notification-row {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.account-shimmer__order-card--detailed {
+  gap: 1.4rem;
+}
+
+.account-shimmer__metric-row {
+  justify-content: space-between;
+}
+
+.account-shimmer__progress-row {
+  gap: 1.2rem;
+}
+
+.account-shimmer__progress-row--wide {
+  justify-content: space-between;
+}
+
+.account-shimmer__progress-dot {
+  flex: 1;
+  height: 1.2rem;
+  border-radius: 999px;
+}
+
+.account-shimmer__product-grid,
+.account-shimmer__address-grid {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.account-shimmer__product-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.account-shimmer__address-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.account-shimmer__notification-row,
+.account-shimmer__detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.4rem;
+}
+
+.account-shimmer__settings-shell {
+  padding: 0;
+}
+
+.account-shimmer__settings-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+
+.account-shimmer__settings-sidebar {
+  border-right: 1px solid #e0e0e0;
+  padding: 2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.account-shimmer__settings-content {
+  padding: 2rem;
+  display: grid;
+  gap: 1.6rem;
+}
+
+.account-shimmer__settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.account-shimmer__field-block {
+  display: grid;
+  gap: 0.8rem;
+}
+
 .loading-box {
   font-size: 1.5rem;
   color: #6b7280;
@@ -484,6 +810,27 @@
 
   .user-main-content {
     padding: 1.5rem;
+  }
+
+  .account-shimmer__notification-row,
+  .account-shimmer__detail-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .account-shimmer__settings-layout,
+  .account-shimmer__settings-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .account-shimmer__settings-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .account-shimmer__btn,
+  .account-shimmer__line--filter {
+    width: 100%;
   }
 
   .order-header,

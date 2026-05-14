@@ -20,6 +20,7 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 11. La UX de estados (éxito/error/info/warning) debe mantener paridad con legacy usando componentes reutilizables tipo snackbar/toast/alerta; no se permiten mensajes dispersos o implementaciones ad hoc por vista.
 12. En vistas migradas de dashboard (ejemplo: direcciones), la lógica y el flujo funcional deben replicar legacy antes de introducir mejoras nuevas.
 13. Todo cambio frontend/backend debe seguir código limpio: sin código espagueti, con separación de responsabilidades, funciones/métodos pequeños y nombres claros.
+13b. Cada vez que se edite un archivo, si el archivo intervenido contiene comentarios o documentación interna en inglés, se deben traducir al español en esa misma intervención, manteniendo precisión técnica y contexto para facilitar mantenimiento del equipo.
 14. Los elementos repetibles (feedback visual, formularios, tarjetas, modales, tablas, estados vacíos, loaders) deben implementarse como componentes reutilizables, escalables y mantenibles.
 14b. En ningún caso se deben reimplementar ad hoc en una vista componentes ya existentes en el sistema (`AdminStatsGrid`, `AdminCard`, `AdminPageHeader`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminShimmer`, `AdminTableShimmer`, `AdminTableImage`). Toda vista nueva o mejorada debe consumir estos componentes directamente. Si un componente existente no cubre el caso de uso, se debe ampliar o parametrizar ese componente, nunca duplicarlo.
 14c. Todo componente reutilizable del módulo admin debe ser responsivo por diseño: no se considera terminada la intervención sobre un componente si solo funciona en desktop. Cualquier componente compartido que no sea responsivo en móvil y tablet debe corregirse en la misma tarea donde se detecte el problema, incluso si no era el objetivo principal.
@@ -109,6 +110,7 @@ Una tarea NO se considera terminada si falta alguno de estos pasos:
 ## Criterio de calidad
 - Código limpio, nombres claros, sin duplicación innecesaria.
 - Comentarios cortos en español cuando una parte no sea obvia.
+- Si en un archivo intervenido existen comentarios, notas técnicas o documentación local en inglés, traducirlos al español antes de cerrar la tarea.
 - Preferencia operativa: al modificar archivos, agregar comentarios breves en español en lógica no trivial para facilitar mantenimiento y soporte.
 - Validaciones de formulario y mensajes consistentes con Angelow.
 - En todo texto visible del admin, revisar ortografía española completa antes de cerrar: tildes, `ñ`, signos, nombres de estados, placeholders, títulos, breadcrumbs, botones, modales, tablas, empty states, snackbars y encabezados de exportación.

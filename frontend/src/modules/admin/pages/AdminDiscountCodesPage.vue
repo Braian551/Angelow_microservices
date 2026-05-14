@@ -185,12 +185,46 @@
       <div class="editor-grid editor-grid--discounts admin-editor-grid">
         <div>
           <div class="form-group">
-            <label for="discount-code-field">
-              Código *
-              <AdminInfoTooltip text="Palabra clave que el cliente escribe al finalizar la compra. Solo mayúsculas, números y guiones. Entre 4 y 20 caracteres." />
-            </label>
-            <input id="discount-code-field" v-model.trim="form.code" type="text" class="form-control" :class="{ 'is-invalid': formErrors.code }" @input="handleCodeInput">
+            <div class="discount-code-field__header">
+              <label for="discount-code-field">
+                Código *
+                <AdminInfoTooltip text="Palabra clave que el cliente escribe al finalizar la compra. Puedes escribirla manualmente o generar una propuesta aleatoria antes de guardar." />
+              </label>
+              <button
+                v-if="autoGenerateCode"
+                type="button"
+                class="discount-code-field__generate"
+                @click="regenerateAutomaticCode"
+              >
+                <i class="fas fa-sync-alt"></i>
+                Generar otro
+              </button>
+            </div>
+            <input
+              id="discount-code-field"
+              v-model.trim="form.code"
+              type="text"
+              class="form-control"
+              :class="{ 'is-invalid': formErrors.code }"
+              :readonly="autoGenerateCode"
+              placeholder="Ej. PROMO-AB12CD"
+              @input="handleCodeInput"
+            >
+            <p class="discount-code-field__hint">
+              {{ autoGenerateCode
+                ? 'Modo automático activo. Se propone un código aleatorio en mayúsculas que puedes regenerar antes de guardar.'
+                : 'Escribe entre 4 y 20 caracteres en mayúsculas, números o guiones.' }}
+            </p>
             <p v-if="formErrors.code" class="form-error">{{ formErrors.code }}</p>
+            <div class="discount-code-field__mode">
+              <AdminToggleSwitch
+                id="discount-code-auto-generate"
+                :model-value="autoGenerateCode"
+                layout="inline"
+                label="Generar código automáticamente"
+                @update:modelValue="handleCodeGenerationToggle"
+              />
+            </div>
           </div>
 
           <div class="form-row">
@@ -286,6 +320,14 @@
           Envía un código de descuento a todos los clientes con notificación interna, correo o ambos canales.
         </p>
 
+        <div class="campaign-modal__availability" :class="{ 'campaign-modal__availability--empty': !campaignCustomersLoading && !massCampaignHasRecipients }">
+          <i :class="campaignCustomersLoading ? 'fas fa-spinner fa-spin' : massCampaignHasRecipients ? 'fas fa-users' : 'fas fa-user-slash'"></i>
+          <div>
+            <strong>{{ massCampaignAvailabilityTitle }}</strong>
+            <p>{{ massCampaignAvailabilityMessage }}</p>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="mass-campaign-code">Código de descuento *</label>
           <select id="mass-campaign-code" v-model="massCampaignForm.discount_code_id" class="form-control" :class="{ 'is-invalid': massCampaignErrors.discount_code_id }" @change="validateMassCampaignField('discount_code_id')">
@@ -312,7 +354,7 @@
 
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="campaignSubmitting" @click="closeMassCampaignModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" :disabled="campaignSubmitting" @click="submitMassCampaign">
+        <button class="btn btn-primary" type="button" :disabled="campaignSubmitting || campaignCustomersLoading || !massCampaignHasRecipients" @click="submitMassCampaign">
           <i class="fas fa-paper-plane"></i>
           {{ campaignSubmitting ? 'Enviando...' : 'Enviar masivo' }}
         </button>
@@ -559,6 +601,7 @@ const campaignSubmitting = ref(false)
 const campaignCustomersLoading = ref(false)
 const campaignCustomers = ref([])
 const specificCampaignSearch = ref('')
+const autoGenerateCode = ref(true)
 
 const filters = reactive({ search: '', state: 'all', type: 'all' })
 
@@ -631,6 +674,31 @@ const campaignCodeOptions = computed(() => codes.value.map((code) => ({
   type: code.type,
   value: code.value,
 })))
+const massCampaignHasRecipients = computed(() => campaignCustomers.value.length > 0)
+const massCampaignAvailabilityTitle = computed(() => {
+  if (campaignCustomersLoading.value) {
+    return 'Validando clientes disponibles'
+  }
+
+  return massCampaignHasRecipients.value
+    ? 'Clientes listos para la campaña'
+    : 'No hay clientes disponibles para este envío'
+})
+const massCampaignAvailabilityMessage = computed(() => {
+  if (campaignCustomersLoading.value) {
+    return 'Estamos consultando la base de clientes antes de habilitar el envío masivo.'
+  }
+
+  if (!massCampaignHasRecipients.value) {
+    return 'Registra o habilita clientes antes de lanzar esta campaña. Cuando existan destinatarios válidos, el envío masivo se activará automáticamente.'
+  }
+
+  if (campaignCustomers.value.length >= 200) {
+    return 'Se detectaron al menos 200 clientes disponibles para la campaña.'
+  }
+
+  return `Se detectaron ${campaignCustomers.value.length} clientes disponibles para esta campaña.`
+})
 
 // Código completo seleccionado en campaña específica (para vista previa)
 const selectedSpecificCode = computed(() =>
@@ -645,7 +713,30 @@ const filteredCampaignCustomers = computed(() => {
   return campaignCustomers.value.filter((customer) => [customer.name, customer.email].join(' ').toLowerCase().includes(term))
 })
 
+function buildAutomaticDiscountCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const segment = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
+  return `PROMO-${segment}`
+}
+
+function regenerateAutomaticCode() {
+  form.code = buildAutomaticDiscountCode()
+  validateField('code')
+}
+
+function handleCodeGenerationToggle(nextValue) {
+  autoGenerateCode.value = Boolean(nextValue)
+
+  if (autoGenerateCode.value) {
+    regenerateAutomaticCode()
+    return
+  }
+
+  validateField('code')
+}
+
 function resetForm() {
+  autoGenerateCode.value = true
   form.code = ''
   form.type = 'percent'
   form.value = 10
@@ -655,6 +746,7 @@ function resetForm() {
   form.active = true
   form.is_single_use = false
   clearErrors()
+  regenerateAutomaticCode()
 }
 
 function clearErrors() {
@@ -681,6 +773,7 @@ function navigateToSpecificCampaignPage() {
 
 function openEditModal(code) {
   editingCodeId.value = code.id
+  autoGenerateCode.value = false
   clearErrors()
   form.code = code.code || ''
   form.type = code.type || 'percent'
@@ -740,9 +833,10 @@ function resetSpecificCampaignForm() {
   specificCampaignSearch.value = ''
 }
 
-function openMassCampaignModal() {
+async function openMassCampaignModal() {
   resetMassCampaignForm()
   showMassCampaignModal.value = true
+  await loadCampaignCustomers()
 }
 
 function closeMassCampaignModal() {
@@ -847,6 +941,16 @@ function campaignSummaryMessage(summary) {
 async function submitMassCampaign() {
   if (!validateMassCampaignForm()) {
     showSnackbar({ type: 'warning', message: 'Completa correctamente los campos del envío masivo.' })
+    return
+  }
+
+  if (campaignCustomersLoading.value) {
+    showSnackbar({ type: 'info', message: 'Todavía estamos validando los clientes disponibles para la campaña.' })
+    return
+  }
+
+  if (!massCampaignHasRecipients.value) {
+    showSnackbar({ type: 'warning', message: 'No hay clientes disponibles para el envío masivo. Registra al menos un cliente antes de continuar.' })
     return
   }
 
@@ -1107,6 +1211,47 @@ onMounted(loadCodes)
   border: 1px solid rgba(15, 122, 191, 0.12);
 }
 
+.discount-code-field__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.discount-code-field__header label {
+  margin-bottom: 0;
+}
+
+.discount-code-field__generate {
+  border: 1px solid rgba(15, 122, 191, 0.18);
+  background: rgba(15, 122, 191, 0.08);
+  color: var(--admin-primary);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.discount-code-field__generate:hover {
+  background: rgba(15, 122, 191, 0.14);
+}
+
+.discount-code-field__hint {
+  margin: 0.55rem 0 0;
+  color: var(--admin-text-light);
+  font-size: 1.18rem;
+  line-height: 1.45;
+}
+
+.discount-code-field__mode {
+  margin-top: 1rem;
+}
+
 .discount-hero-card h3,
 .discount-preview-card h3 {
   font-size: 2.6rem;
@@ -1121,6 +1266,41 @@ onMounted(loadCodes)
 .campaign-modal__intro {
   margin: 0;
   color: var(--admin-text-muted);
+}
+
+.campaign-modal__availability {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 122, 191, 0.18);
+  background: rgba(15, 122, 191, 0.05);
+}
+
+.campaign-modal__availability i {
+  margin-top: 0.2rem;
+  color: var(--admin-primary);
+  font-size: 1.7rem;
+}
+
+.campaign-modal__availability strong {
+  display: block;
+  color: var(--admin-text);
+}
+
+.campaign-modal__availability p {
+  margin: 0.3rem 0 0;
+  color: var(--admin-text-muted);
+}
+
+.campaign-modal__availability--empty {
+  border-color: rgba(219, 39, 119, 0.14);
+  background: rgba(219, 39, 119, 0.05);
+}
+
+.campaign-modal__availability--empty i {
+  color: #be185d;
 }
 
 .campaign-form-grid {
@@ -1518,6 +1698,16 @@ onMounted(loadCodes)
 }
 
 @media (max-width: 640px) {
+  .discount-code-field__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .discount-code-field__generate {
+    width: 100%;
+    justify-content: center;
+  }
+
   .specific-campaign-users-panel {
     flex-direction: column;
     align-items: stretch;

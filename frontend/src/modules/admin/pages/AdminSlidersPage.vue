@@ -120,10 +120,25 @@
 
           <div class="form-group">
             <label for="slider-link">
-              URL o ruta
-              <AdminInfoTooltip text="Destino al que lleva el slide al hacer clic. Usa rutas relativas como /tienda o URLs completas." />
+              Destino del slider
+              <AdminInfoTooltip text="Página de la tienda a la que lleva el slider al hacer clic. Elige «Otro enlace personalizado» si necesitas una URL específica." />
             </label>
-            <input id="slider-link" v-model.trim="form.link" type="text" class="form-control" :class="{ 'is-invalid': formErrors.link }" placeholder="/tienda o https://..." @input="validateField('link')">
+            <select id="slider-link" v-model="selectedLinkOption" class="form-control" @change="onLinkOptionChange(selectedLinkOption)">
+              <optgroup v-for="group in linkOptionGroups" :key="group.label" :label="group.label">
+                <option v-for="page in group.options" :key="page.value" :value="page.value">{{ page.label }}</option>
+              </optgroup>
+            </select>
+            <small class="slider-link-help">Usa un destino rápido o escribe una ruta propia para campañas, productos o páginas específicas.</small>
+            <input
+              v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE"
+              v-model.trim="form.link"
+              type="text"
+              class="form-control mt-1"
+              :class="{ 'is-invalid': formErrors.link }"
+              placeholder="Ej. /producto/vestido-verano, /tienda?collection=12 o https://..."
+              @input="validateField('link')"
+            >
+            <small v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE" class="slider-link-help slider-link-help--muted">Puedes enlazar a un producto por slug, a una colección concreta o a una URL externa.</small>
             <p v-if="formErrors.link" class="form-error">{{ formErrors.link }}</p>
           </div>
 
@@ -168,17 +183,16 @@
             </div>
           </div>
 
-          <div class="slider-preview-card">
-            <p class="slider-preview-card__label">Vista previa</p>
-            <div class="slider-preview-card__surface">
-              <img v-if="imagePreviewUrl" :src="imagePreviewUrl" alt="Preview">
-              <div class="slider-preview-card__overlay">
-                <h3>{{ form.title || 'Título del slider' }}</h3>
-                <p>{{ form.subtitle || 'Añade un subtítulo para complementar el mensaje principal.' }}</p>
-                <span class="slider-preview-card__cta">{{ form.link || '/tienda' }}</span>
-              </div>
-            </div>
-          </div>
+        </div>
+      </div>
+
+      <div class="slider-preview-card">
+        <p class="slider-preview-card__label">
+          <i class="fas fa-eye"></i>
+          Vista previa del carrusel
+        </p>
+        <div class="slider-preview-card__surface slider-preview-card__surface--home">
+          <HomeHeroSlider :key="sliderPreviewKey" :slides="sliderPreviewSlides" :loading="false" :preview-mode="true" />
         </div>
       </div>
 
@@ -199,6 +213,8 @@ import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import HomeHeroSlider from '../../home/components/HomeHeroSlider.vue'
+import { buildStoreLinkGroups, CUSTOM_STORE_LINK_VALUE, detectStoreLinkOption, loadStoreLinkCatalogs } from '../utils/storeLinkOptions'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
@@ -219,6 +235,9 @@ const editingSliderId = ref(null)
 const imageInputRef = ref(null)
 const selectedImageFile = ref(null)
 const imagePreviewUrl = ref('')
+const selectedLinkOption = ref('/tienda')
+const linkCategories = ref([])
+const linkCollections = ref([])
 const dragState = reactive({
   draggingId: null,
   overId: null,
@@ -247,6 +266,23 @@ const sliderStats = computed(() => [
   { key: 'last-order', label: 'Último orden', value: sliders.value.length ? Math.max(...sliders.value.map((slider) => Number(slider.sort_order || 0))) : 0, icon: 'fas fa-sort-numeric-down', color: 'info' },
 ])
 
+const sliderPreviewSlides = computed(() => [
+  {
+    title: form.title || 'Bienvenido a Angelow',
+    subtitle: form.subtitle || 'Moda infantil de calidad',
+    image: imagePreviewUrl.value || form.image || '',
+    link: form.link || '/tienda',
+    button_text: 'Ver más',
+  },
+])
+
+const sliderPreviewKey = computed(() => [form.title, form.subtitle, imagePreviewUrl.value || form.image || '', form.link].join('|'))
+
+const linkOptionGroups = computed(() => buildStoreLinkGroups({
+  categories: linkCategories.value,
+  collections: linkCollections.value,
+}))
+
 function normalizeSlider(slider) {
   return {
     id: Number(slider?.id || 0),
@@ -262,10 +298,11 @@ function normalizeSlider(slider) {
 function resetForm() {
   form.title = ''
   form.subtitle = ''
-  form.link = ''
+  form.link = '/tienda'
   form.image = ''
   form.sort_order = sliders.value.length
   form.active = true
+  selectedLinkOption.value = '/tienda'
   clearErrors()
   clearSelectedImage(false)
 }
@@ -287,7 +324,8 @@ function openEditModal(slider) {
   clearErrors()
   form.title = slider.title
   form.subtitle = slider.subtitle
-  form.link = slider.link
+  form.link = slider.link || '/tienda'
+  detectLinkOption(form.link)
   form.image = slider.image
   form.sort_order = slider.sort_order
   form.active = slider.active
@@ -300,6 +338,24 @@ function closeModal() {
   showModal.value = false
   editingSliderId.value = null
   resetForm()
+}
+
+function detectLinkOption(link) {
+  selectedLinkOption.value = detectStoreLinkOption(link, linkOptionGroups.value, '/tienda')
+}
+
+function onLinkOptionChange(value) {
+  selectedLinkOption.value = value
+  if (value !== CUSTOM_STORE_LINK_VALUE) {
+    form.link = value
+    validateField('link')
+  }
+}
+
+async function loadLinkOptions() {
+  const { categories, collections } = await loadStoreLinkCatalogs()
+  linkCategories.value = categories
+  linkCollections.value = collections
 }
 
 function openImagePicker() {
@@ -529,7 +585,10 @@ function extractErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback
 }
 
-onMounted(loadSliders)
+onMounted(async () => {
+  await loadLinkOptions()
+  await loadSliders()
+})
 
 onBeforeUnmount(() => {
   if (imagePreviewUrl.value.startsWith('blob:')) {
@@ -607,7 +666,7 @@ onBeforeUnmount(() => {
 }
 
 .slider-preview-card {
-  margin-top: 1rem;
+  margin-top: 1.4rem;
 }
 
 .slider-preview-card__label {
@@ -617,48 +676,58 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--admin-text-light);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .slider-preview-card__surface {
-  min-height: 24rem;
   position: relative;
   overflow: hidden;
   border-radius: var(--admin-radius-xl);
-  background: #0f172a;
+  border: 1px solid var(--admin-border-light);
+  background: #f4f8fb;
 }
 
-.slider-preview-card__surface img {
-  position: absolute;
-  inset: 0;
+.slider-preview-card__surface--home {
   width: 100%;
+  height: 30rem;
+}
+
+.slider-preview-card__surface--home :deep(.hero-banner) {
+  min-height: 100%;
   height: 100%;
-  object-fit: cover;
-  opacity: 0.8;
+  border-radius: inherit;
 }
 
-.slider-preview-card__overlay {
-  position: relative;
-  z-index: 1;
-  height: 100%;
-  display: grid;
-  align-content: end;
-  gap: 0.8rem;
-  padding: 1.8rem;
-  color: #ffffff;
-  background: linear-gradient(to top, rgba(12, 21, 35, 0.88), rgba(12, 21, 35, 0.12));
+.slider-preview-card__surface--home :deep(.hero-title) {
+  font-size: clamp(2.8rem, 3.8vw, 4.8rem);
 }
 
-.slider-preview-card__overlay h3,
-.slider-preview-card__overlay p {
-  margin: 0;
+.slider-link-help {
+  display: block;
+  margin-top: 0.6rem;
+  font-size: 1.2rem;
+  color: var(--admin-text-soft);
+  line-height: 1.5;
 }
 
-.slider-preview-card__cta {
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  padding: 0.6rem 1rem;
-  border-radius: var(--admin-radius-pill);
-  background: rgba(255, 255, 255, 0.18);
+.slider-link-help--muted {
+  margin-top: 0.5rem;
+}
+
+.mt-1 {
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 768px) {
+  .slider-preview-card__surface--home {
+    height: 24rem;
+  }
+
+  .slider-preview-card__surface--home :deep(.hero-banner) {
+    min-height: 100%;
+    height: 100%;
+  }
 }
 </style>

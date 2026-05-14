@@ -1,94 +1,97 @@
 <template>
   <section class="order-detail-page">
-    <section class="dashboard-header">
-      <h1>Detalle de pedido</h1>
-      <p>Consulta los datos completos de tu orden.</p>
-    </section>
+    <AccountShimmer v-if="loading" variant="order-detail" />
 
-    <p v-if="loading" class="loading-box">Cargando detalle del pedido...</p>
-    <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
-
-    <template v-else-if="orderDetail">
-      <section class="order-hero account-card">
-        <h2>Pedido #{{ orderDetail.order_number }}</h2>
-        <p><i class="fas fa-calendar-alt" /> Realizado el {{ formatDate(orderDetail.created_at) }}</p>
-
-        <div class="hero-badges">
-          <span class="status-badge" :class="statusClass(orderDetail.status)">
-            {{ statusLabel(orderDetail.status) }}
-          </span>
-          <span class="status-badge" :class="paymentBadgeClass(orderDetail.payment_status)">
-            {{ paymentStatusLabel(orderDetail.payment_status) }}
-          </span>
-        </div>
-
-        <div v-if="canCancelCurrentOrder" class="order-hero-actions">
-          <button type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
-            <i class="fas fa-ban" />
-            {{ cancellingOrder ? 'Cancelando...' : 'Cancelar pedido' }}
-          </button>
-        </div>
+    <template v-else>
+      <section class="dashboard-header">
+        <h1>Detalle de pedido</h1>
+        <p>Consulta los datos completos de tu orden.</p>
       </section>
 
-      <section class="account-card">
-        <header class="section-header">
-          <h2>Productos del pedido</h2>
-        </header>
+      <p v-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
-        <article v-for="item in orderItems" :key="item.id" class="order-item-row">
-          <div class="order-item-media">
-            <img
-              :src="resolveOrderItemImage(item)"
-              :alt="item.product_name || 'Producto'"
-              class="order-item-media__image"
-              @error="onOrderItemImageError($event, item)"
-            />
-          </div>
-          <div class="item-main">
-            <h3>{{ item.product_name }}</h3>
-            <p>Cantidad: {{ item.quantity }} | {{ item.variant_name || 'Sin variante' }}</p>
-            <p>{{ formatPrice(item.price) }} c/u</p>
-          </div>
-          <strong class="item-total">{{ formatPrice(item.total) }}</strong>
-        </article>
-      </section>
+      <template v-else-if="orderDetail">
+        <section class="order-hero account-card">
+          <h2>Pedido #{{ orderDetail.order_number }}</h2>
+          <p><i class="fas fa-calendar-alt" /> Realizado el {{ formatDate(orderDetail.created_at) }}</p>
 
-      <section class="account-card">
-        <header class="section-header">
-          <h2>Estado del pedido</h2>
-        </header>
-
-        <div
-          class="order-v2-progress"
-          :class="{ 'order-v2-progress--refund': isRefundFlow(orderDetail) }"
-        >
-          <div class="progress-line" />
-          <div
-            v-for="step in orderProgressSteps(orderDetail)"
-            :key="step.key"
-            class="progress-step"
-            :class="{ active: isStepActive(orderDetail, step.key) }"
-          >
-            <span class="progress-step-icon">
-              <i :class="step.icon" />
+          <div class="hero-badges">
+            <span class="status-badge" :class="statusClass(orderDetail.status)">
+              {{ statusLabel(orderDetail.status) }}
             </span>
-            <span class="progress-step-label">{{ step.label }}</span>
+            <span class="status-badge" :class="paymentBadgeClass(orderDetail.payment_status)">
+              {{ paymentStatusLabel(orderDetail.payment_status) }}
+            </span>
           </div>
-        </div>
-      </section>
 
-      <section v-if="orderHistory.length > 0" class="account-card">
-        <header class="section-header">
-          <h2>Historial de cambios</h2>
-        </header>
+          <div v-if="canCancelCurrentOrder" class="order-hero-actions">
+            <button type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
+              <i class="fas fa-ban" />
+              {{ cancellingOrder ? 'Cancelando...' : 'Cancelar pedido' }}
+            </button>
+          </div>
+        </section>
 
-        <ul class="history-list">
-          <li v-for="entry in orderHistory" :key="entry.id">
-            <span>{{ formatDate(entry.created_at) }}</span>
-            <strong>{{ entry.description || 'Actualización de pedido' }}</strong>
-          </li>
-        </ul>
-      </section>
+        <section class="account-card">
+          <header class="section-header">
+            <h2>Productos del pedido</h2>
+          </header>
+
+          <article v-for="item in orderItems" :key="item.id" class="order-item-row">
+            <div class="order-item-media">
+              <img
+                :src="resolveOrderItemImage(item)"
+                :alt="item.product_name || 'Producto'"
+                class="order-item-media__image"
+                @error="onOrderItemImageError($event, item)"
+              />
+            </div>
+            <div class="item-main">
+              <h3>{{ item.product_name }}</h3>
+              <p>Cantidad: {{ item.quantity }} | {{ item.variant_name || 'Sin variante' }}</p>
+              <p>{{ formatPrice(item.price) }} c/u</p>
+            </div>
+            <strong class="item-total">{{ formatPrice(item.total) }}</strong>
+          </article>
+        </section>
+
+        <section class="account-card">
+          <header class="section-header">
+            <h2>Estado del pedido</h2>
+          </header>
+
+          <div
+            class="order-v2-progress"
+            :class="{ 'order-v2-progress--refund': isRefundFlow(orderDetail) }"
+          >
+            <div class="progress-line" />
+            <div
+              v-for="step in orderProgressSteps(orderDetail)"
+              :key="step.key"
+              class="progress-step"
+              :class="{ active: isStepActive(orderDetail, step.key) }"
+            >
+              <span class="progress-step-icon">
+                <i :class="step.icon" />
+              </span>
+              <span class="progress-step-label">{{ step.label }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="orderHistory.length > 0" class="account-card">
+          <header class="section-header">
+            <h2>Historial de cambios</h2>
+          </header>
+
+          <ul class="history-list">
+            <li v-for="entry in orderHistory" :key="entry.id">
+              <span>{{ formatDate(entry.created_at) }}</span>
+              <strong>{{ entry.description || 'Actualización de pedido' }}</strong>
+            </li>
+          </ul>
+        </section>
+      </template>
     </template>
   </section>
 </template>
@@ -96,11 +99,13 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { cancelOrder, getOrderById } from '../../../services/orderApi'
+import { getOrderStatusLabel, getPaymentStatusLabel, normalizeOrderStatus, normalizePaymentStatus } from '../../../utils/orderPresentation'
 
 const route = useRoute()
 const { user } = useSession()
@@ -174,49 +179,41 @@ function formatPrice(value) {
 }
 
 function statusLabel(status) {
-  const value = String(status || '').toLowerCase()
-
-  if (value === 'pending') return 'Pendiente'
-  if (value === 'processing') return 'En proceso'
-  if (value === 'paid') return 'Pagado'
-  if (value === 'confirmed') return 'Confirmado'
-  if (value === 'shipped') return 'Enviado'
-  if (value === 'delivered') return 'Entregado'
-  if (value === 'completed') return 'Completado'
-  if (value === 'cancelled') return 'Cancelado'
-  if (value === 'failed') return 'Fallido'
-
-  return status || 'Sin estado'
+  return getOrderStatusLabel(status) || status || 'Sin estado'
 }
 
 function statusClass(status) {
-  const value = String(status || '').toLowerCase()
+  const normalizedStatus = normalizeOrderStatus(status)
+  const rawStatus = String(status || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
 
-  if (['pending', 'processing'].includes(value)) return `status-${value}`
-  if (['paid', 'confirmed', 'shipped'].includes(value)) return `status-${value}`
-  if (['delivered', 'completed'].includes(value)) return `status-${value}`
-  if (['cancelled', 'failed'].includes(value)) return `status-${value}`
+  if (normalizedStatus === 'pending') return 'status-pending'
+  if (['in_review', 'processing'].includes(normalizedStatus)) return 'status-processing'
+  if (['paid', 'confirmed', 'shipped'].includes(rawStatus)) return `status-${rawStatus}`
+  if (['delivered', 'completed'].includes(normalizedStatus)) return `status-${normalizedStatus}`
+  if (['cancelled', 'canceled', 'failed', 'refunded'].includes(rawStatus)) return 'status-cancelled'
 
   return 'status-processing'
 }
 
 function paymentStatusLabel(paymentStatus) {
-  const value = String(paymentStatus || '').toLowerCase()
+  const value = normalizePaymentStatus(paymentStatus)
 
   if (value === 'verified' || value === 'approved') return 'Pago verificado'
+  if (value === 'pending') return 'Pendiente de pago'
   if (value === 'pending_refund') return 'Reembolso en proceso'
   if (value === 'refunded') return 'Reembolsado'
   if (value === 'paid') return 'Pagado'
   if (value === 'failed' || value === 'rejected') return 'Pago rechazado'
-  if (value === 'pending') return 'Pendiente de pago'
+  if (value) return getPaymentStatusLabel(value)
   return 'Pendiente de pago'
 }
 
 function paymentBadgeClass(paymentStatus) {
-  const value = String(paymentStatus || '').toLowerCase()
+  const value = normalizePaymentStatus(paymentStatus)
 
   if (value === 'verified' || value === 'approved') return 'status-delivered'
   if (value === 'paid') return 'status-delivered'
+  if (['pending', 'pending_payment', 'in_review', 'en_revision'].includes(value)) return 'status-pending'
   if (value === 'pending_refund') return 'status-processing'
   if (value === 'refunded') return 'status-cancelled'
   if (value === 'failed' || value === 'rejected') return 'status-cancelled'

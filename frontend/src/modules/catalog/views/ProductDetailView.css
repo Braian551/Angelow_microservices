@@ -75,6 +75,153 @@
   gap: 4rem;
 }
 
+@keyframes productDetailShimmerWave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.product-detail-page .product-detail-shimmer {
+  display: grid;
+  gap: 2rem;
+}
+
+.product-detail-page .product-detail-shimmer__line,
+.product-detail-page .product-detail-shimmer__pill,
+.product-detail-page .product-detail-shimmer__image,
+.product-detail-page .product-detail-shimmer__thumb,
+.product-detail-page .product-detail-shimmer__star,
+.product-detail-page .product-detail-shimmer__option,
+.product-detail-page .product-detail-shimmer__button,
+.product-detail-page .product-detail-shimmer__quantity,
+.product-detail-page .product-image-shimmer {
+  background: linear-gradient(90deg, #e7eef5 0%, #f8fbfd 50%, #e7eef5 100%);
+  background-size: 200% 100%;
+  animation: productDetailShimmerWave 1.35s ease-in-out infinite;
+}
+
+.product-detail-page .product-detail-shimmer__pill,
+.product-detail-page .product-detail-shimmer__line,
+.product-detail-page .product-detail-shimmer__button,
+.product-detail-page .product-detail-shimmer__quantity,
+.product-detail-page .product-detail-shimmer__option {
+  display: block;
+  border-radius: 999px;
+}
+
+.product-detail-page .product-detail-shimmer__pill--back {
+  width: 14rem;
+  height: 4.4rem;
+}
+
+.product-detail-page .product-detail-shimmer__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+}
+
+.product-detail-page .product-detail-shimmer__thumbnails {
+  display: flex;
+  gap: 1rem;
+}
+
+.product-detail-page .product-detail-shimmer__thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  flex: none;
+}
+
+.product-detail-page .product-detail-shimmer__content,
+.product-detail-page .product-detail-shimmer__stack,
+.product-detail-page .product-detail-shimmer__variants {
+  display: grid;
+  gap: 1.4rem;
+}
+
+.product-detail-page .product-detail-shimmer__line {
+  height: 1.3rem;
+}
+
+.product-detail-page .product-detail-shimmer__line--title {
+  width: min(42rem, 76%);
+  height: 3.2rem;
+}
+
+.product-detail-page .product-detail-shimmer__line--inline,
+.product-detail-page .product-detail-shimmer__line--label,
+.product-detail-page .product-detail-shimmer__line--text {
+  width: min(20rem, 64%);
+}
+
+.product-detail-page .product-detail-shimmer__line--price {
+  width: 16rem;
+  height: 4.6rem;
+}
+
+.product-detail-page .product-detail-shimmer__line--section {
+  width: 16rem;
+  height: 2.6rem;
+}
+
+.product-detail-page .product-detail-shimmer__line--wide {
+  width: 100%;
+}
+
+.product-detail-page .product-detail-shimmer__pill--chip {
+  width: 18rem;
+  height: 4rem;
+}
+
+.product-detail-page .product-detail-shimmer__pill--discount {
+  width: 10rem;
+  height: 3.2rem;
+}
+
+.product-detail-page .product-detail-shimmer__rating,
+.product-detail-page .product-detail-shimmer__option-row,
+.product-detail-page .product-detail-shimmer__action-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.product-detail-page .product-detail-shimmer__star {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+}
+
+.product-detail-page .product-detail-shimmer__option {
+  width: 8rem;
+  height: 3.8rem;
+}
+
+.product-detail-page .product-detail-shimmer__option--circle {
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 50%;
+}
+
+.product-detail-page .product-detail-shimmer__quantity {
+  width: 14rem;
+  height: 5rem;
+}
+
+.product-detail-page .product-detail-shimmer__button {
+  width: 18rem;
+  height: 5rem;
+}
+
+.product-detail-page .product-detail-shimmer__button--secondary {
+  width: 15rem;
+}
+
 .product-detail-page .product-gallery {
   position: sticky;
   top: 2rem;
@@ -98,6 +245,18 @@
   height: 100%;
   object-fit: cover;
   cursor: zoom-in;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.product-detail-page .gallery-main img.is-loaded {
+  opacity: 1;
+}
+
+.product-detail-page .product-image-shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .product-detail-page .zoom-btn {
@@ -966,6 +1125,13 @@
     padding: 0 1.5rem 2rem;
   }
 
+  .product-detail-page .product-detail-shimmer__button,
+  .product-detail-page .product-detail-shimmer__button--secondary,
+  .product-detail-page .product-detail-shimmer__quantity,
+  .product-detail-page .product-detail-shimmer__line--price {
+    width: 100%;
+  }
+
   .product-detail-page .back-button-container {
     margin: 1.3rem 0 1.8rem !important;
   }
@@ -1094,29 +1260,51 @@
   background: #fff;
   border: 1px solid rgba(12, 52, 84, 0.08);
   border-radius: 16px;
-  padding: 2rem 2.2rem;
+  padding: 2rem 2.4rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.product-detail-page .review-card:hover {
+  box-shadow: 0 6px 24px rgba(12, 52, 84, 0.08);
 }
 
 .product-detail-page .review-meta {
   display: flex;
+  align-items: flex-start;
+  gap: 1.2rem;
+  margin-bottom: 0;
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid rgba(12, 52, 84, 0.07);
+}
+
+/* user-info llena el espacio disponible en el flex container */
+.product-detail-page .user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Fila superior: nombre + badge */
+.product-detail-page .user-info-top {
+  display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.2rem;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
 }
 
 .product-detail-page .user-avatar {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   overflow: hidden;
-  flex: 0 0 56px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  flex: 0 0 52px;
+  border: 2px solid rgba(12, 52, 84, 0.08);
 }
 
 .product-detail-page .user-avatar.small {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
 }
 
 .product-detail-page .user-avatar img {
@@ -1135,7 +1323,16 @@
   display: block;
   color: var(--text-light);
   font-size: 1.3rem;
-  margin-top: 0.3rem;
+}
+
+/* Estrellas de calificación dentro del meta-row (lado derecho) */
+.product-detail-page .review-meta .review-stars {
+  flex-shrink: 0;
+  color: #f6b400;
+  font-size: 1.6rem;
+  display: flex;
+  gap: 0.2rem;
+  margin-top: 0.2rem;
 }
 
 .product-detail-page .badge.verified,
@@ -1158,6 +1355,11 @@
   color: #fff;
 }
 
+/* Cuerpo de la opinión: título y comentario debajo del separador */
+.product-detail-page .review-body {
+  margin-top: 1.4rem;
+}
+
 .product-detail-page .review-head {
   display: flex;
   justify-content: space-between;
@@ -1178,7 +1380,7 @@
 }
 
 .product-detail-page .review-comment {
-  margin: 0.8rem 0 0;
+  margin: 0.6rem 0 1rem;
   font-size: 1.5rem;
   color: var(--text-color);
 }
@@ -1202,59 +1404,93 @@
   background: var(--primary-dark);
 }
 
+/* Lista de preguntas: tarjetas individuales con gap */
 .product-detail-page .questions-list {
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.8rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
 }
 
+/* Cada pregunta es su propia tarjeta */
 .product-detail-page .question-item {
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--border-color);
+  background: #fff;
+  border: 1px solid rgba(12, 52, 84, 0.08);
+  border-radius: 16px;
+  padding: 2rem 2.4rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.product-detail-page .question-item:hover {
+  box-shadow: 0 6px 24px rgba(12, 52, 84, 0.08);
 }
 
 .product-detail-page .question-item:last-child {
-  border-bottom: none;
+  border-bottom: 1px solid rgba(12, 52, 84, 0.08);
 }
 
+/* Meta de la pregunta: avatar izquierdo, info a la derecha */
 .product-detail-page .question-meta {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.2rem;
+  margin-bottom: 1rem;
 }
 
+/* El texto de la pregunta resaltado */
 .product-detail-page .question-text p {
-  margin: 1rem 0 0;
+  margin: 0 0 1.2rem;
   font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  line-height: 1.6;
 }
 
+/* Lista de respuestas: sin borde lateral, tarjetas con fondo azul claro */
 .product-detail-page .answers-list {
-  margin-top: 1.4rem;
-  padding-left: 1.2rem;
-  border-left: 2px solid rgba(0, 119, 182, 0.2);
+  margin-top: 0;
+  padding: 0;
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
 }
 
+/* Tarjeta de respuesta con acento de color */
 .product-detail-page .answer-item {
-  padding: 1rem 0;
-  border-bottom: 1px dashed var(--border-color);
+  background: rgba(11, 120, 180, 0.05);
+  border: 1px solid rgba(11, 120, 180, 0.13);
+  border-radius: 12px;
+  padding: 1.2rem 1.6rem;
 }
 
 .product-detail-page .answer-item:last-child {
-  border-bottom: none;
+  border-bottom: 1px solid rgba(11, 120, 180, 0.13);
 }
 
+/* Meta de la respuesta: avatar + info */
 .product-detail-page .answer-meta {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.8rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
-.product-detail-page .answer-item p {
+/* Información del usuario en la respuesta */
+.product-detail-page .answer-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-detail-page .answer-item p,
+.product-detail-page .answer-text {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: 1.45rem;
+  color: var(--text-color);
+  line-height: 1.6;
 }
 
 .product-detail-page .no-questions {

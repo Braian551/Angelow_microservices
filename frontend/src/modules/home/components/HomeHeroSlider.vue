@@ -21,11 +21,11 @@
           <img
             :src="resolveMediaUrl(slide.image, 'slider')"
             :alt="slide.title || 'Slide'"
-            :class="{ 'is-loaded': isSlideImageLoaded(index) }"
+            :class="{ 'is-loaded': previewMode || isSlideImageLoaded(index) }"
             @load="onSlideImageLoad(index)"
             @error="onImageError($event, slide.image, index)"
           />
-          <div v-if="!isSlideImageLoaded(index)" class="hero-slide-shimmer"></div>
+          <div v-if="!previewMode && !isSlideImageLoaded(index)" class="hero-slide-shimmer"></div>
         </div>
         <!-- Degradado funcional para legibilidad del texto sobre imagen -->
         <div class="hero-gradient-overlay"></div>
@@ -88,6 +88,10 @@ const props = defineProps({
     default: () => [],
   },
   loading: {
+    type: Boolean,
+    default: false,
+  },
+  previewMode: {
     type: Boolean,
     default: false,
   },

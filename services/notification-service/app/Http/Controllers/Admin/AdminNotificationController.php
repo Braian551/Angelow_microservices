@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminNotificationDismissal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -16,6 +17,66 @@ use Throwable;
 class AdminNotificationController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
+
+    public function notificationDismissals(Request $request): JsonResponse
+    {
+        $adminId = $this->resolveAdminId($request);
+
+        if ($adminId === null) {
+            return response()->json(['success' => false, 'message' => 'Administrador no identificado.'], 422);
+        }
+
+        $items = AdminNotificationDismissal::query()
+            ->where('admin_id', $adminId)
+            ->orderByDesc('dismissed_at')
+            ->get(['notification_key', 'dismissed_at'])
+            ->map(static fn (AdminNotificationDismissal $dismissal) => [
+                'notification_key' => (string) $dismissal->notification_key,
+                'dismissed_at' => optional($dismissal->dismissed_at)?->toISOString(),
+            ])
+            ->values();
+
+        return response()->json(['success' => true, 'data' => $items]);
+    }
+
+    public function storeNotificationDismissals(Request $request): JsonResponse
+    {
+        $adminId = $this->resolveAdminId($request);
+
+        if ($adminId === null) {
+            return response()->json(['success' => false, 'message' => 'Administrador no identificado.'], 422);
+        }
+
+        $data = $request->validate([
+            'notification_keys' => ['required', 'array', 'min:1', 'max:120'],
+            'notification_keys.*' => ['required', 'string', 'max:120'],
+        ]);
+
+        $dismissedAt = now();
+        $payload = collect($data['notification_keys'])
+            ->map(static fn ($key) => trim((string) $key))
+            ->filter(static fn ($key) => $key !== '')
+            ->unique()
+            ->values()
+            ->map(static fn (string $key) => [
+                'admin_id' => $adminId,
+                'notification_key' => $key,
+                'dismissed_at' => $dismissedAt,
+            ])
+            ->all();
+
+        if (empty($payload)) {
+            return response()->json(['success' => false, 'message' => 'No se recibieron lecturas válidas.'], 422);
+        }
+
+        AdminNotificationDismissal::query()->upsert(
+            $payload,
+            ['admin_id', 'notification_key'],
+            ['dismissed_at'],
+        );
+
+        return response()->json(['success' => true, 'message' => 'Lecturas de notificaciones guardadas.']);
+    }
 
     // ── Anuncios ────────────────────────────────────────────
 
@@ -236,11 +297,28 @@ class AdminNotificationController extends Controller
             $payload['button_link'] = $this->nullableTrim($buttonLink);
         }
 
-        if ($uploadedImage !== null) {
+        $resolvedType = $type ?? $this->normalizeAnnouncementType((string) ($current->type ?? 'top_bar'));
+
+        if ($resolvedType === 'top_bar') {
+            if ($uploadedImage !== null) {
+                $this->deleteStoredImage($uploadedImage);
+            }
+
+            $this->deleteStoredImage($current?->image ?? null);
+            $payload['subtitle'] = null;
+            $payload['button_text'] = null;
+            $payload['button_link'] = null;
+            $payload['image'] = null;
+        } elseif ($uploadedImage !== null) {
             $payload['image'] = $uploadedImage;
             $this->deleteStoredImage($current?->image ?? null);
         } elseif (array_key_exists('image', $data) && is_string($data['image'])) {
-            $payload['image'] = $this->nullableTrim($data['image']);
+            $normalizedImage = $this->nullableTrim($data['image']);
+            if ($normalizedImage === null && $current?->image) {
+                $this->deleteStoredImage($current->image);
+            }
+
+            $payload['image'] = $normalizedImage;
         }
 
         if (array_key_exists('background_color', $data)) {
@@ -377,5 +455,13 @@ class AdminNotificationController extends Controller
         $clean = trim((string) $value);
 
         return $clean === '' ? null : $clean;
+    }
+
+    private function resolveAdminId(Request $request): ?string
+    {
+        $admin = $request->input('_admin_user', []);
+        $adminId = trim((string) ($admin['id'] ?? ''));
+
+        return $adminId !== '' ? $adminId : null;
     }
 }

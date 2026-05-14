@@ -13,8 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
-
         // CORS headers for frontend
         $middleware->append(\App\Http\Middleware\CorsMiddleware::class);
     })
@@ -24,4 +22,3 @@ return Application::configure(basePath: dirname(__DIR__))
             return $request->is('api/*') || $request->expectsJson();
         });
     })->create();
-

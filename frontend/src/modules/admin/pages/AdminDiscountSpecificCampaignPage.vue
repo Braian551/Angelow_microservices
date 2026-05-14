@@ -52,102 +52,104 @@
           description="Crea al menos un código de descuento para usar esta campaña."
         />
 
-        <div v-else class="specific-campaign-top-grid">
-          <div class="specific-campaign-section">
-            <div class="form-group">
-              <label for="specific-campaign-code" class="specific-campaign-label">
+        <div v-else class="specific-campaign-config">
+
+          <!-- Paso 1: Código de descuento -->
+          <div class="specific-campaign-step">
+            <div class="specific-campaign-step__header">
+              <span class="specific-campaign-step__num">1</span>
+              <span class="specific-campaign-step__title">
                 <i class="fas fa-tag"></i>
-                Código de descuento *
+                Código de descuento
                 <AdminInfoTooltip text="Selecciona el código que se enviará a los clientes elegidos." />
-              </label>
-              <select
-                id="specific-campaign-code"
-                v-model="specificCampaignForm.discount_code_id"
-                class="form-control"
-                :class="{ 'is-invalid': specificCampaignErrors.discount_code_id }"
-                @change="validateSpecificCampaignField('discount_code_id')"
-              >
-                <option value="">Selecciona un código</option>
-                <option v-for="code in campaignCodeOptions" :key="`specific-${code.id}`" :value="String(code.id)">
-                  {{ code.code }} — {{ formatDiscountValue(code) }}
-                </option>
-              </select>
-              <p v-if="specificCampaignErrors.discount_code_id" class="form-error">{{ specificCampaignErrors.discount_code_id }}</p>
+              </span>
             </div>
+            <select
+              id="specific-campaign-code"
+              v-model="specificCampaignForm.discount_code_id"
+              class="form-control"
+              :class="{ 'is-invalid': specificCampaignErrors.discount_code_id }"
+              @change="validateSpecificCampaignField('discount_code_id')"
+            >
+              <option value="">Selecciona un código</option>
+              <option v-for="code in campaignCodeOptions" :key="`specific-${code.id}`" :value="String(code.id)">
+                {{ code.code }} — {{ formatDiscountValue(code) }}
+              </option>
+            </select>
+            <p v-if="specificCampaignErrors.discount_code_id" class="form-error">{{ specificCampaignErrors.discount_code_id }}</p>
 
             <transition name="campaign-preview-fade">
-              <div v-if="selectedSpecificCode" class="campaign-code-preview">
-                <div class="campaign-code-preview__icon" :class="selectedSpecificCode.type === 'percent' ? 'is-percent' : 'is-fixed'">
+              <div v-if="selectedSpecificCode" class="campaign-code-summary">
+                <span class="campaign-code-summary__pill" :class="selectedSpecificCode.type === 'percent' ? 'is-percent' : 'is-fixed'">
                   <i :class="selectedSpecificCode.type === 'percent' ? 'fas fa-percent' : 'fas fa-tag'"></i>
-                </div>
-                <div class="campaign-code-preview__body">
-                  <strong class="campaign-code-preview__code">{{ selectedSpecificCode.code }}</strong>
-                  <span class="campaign-code-preview__value">{{ formatDiscountValue(selectedSpecificCode) }} de descuento</span>
-                  <span class="campaign-code-preview__meta">
-                    <i class="fas fa-calendar-alt"></i>
-                    {{ selectedSpecificCode.expires_at ? `Expira el ${formatShortDate(selectedSpecificCode.expires_at)}` : 'Sin fecha de expiración' }}
-                  </span>
-                  <span class="campaign-code-preview__meta">
-                    <i class="fas fa-chart-bar"></i>
-                    {{ selectedSpecificCode.times_used || 0 }} uso{{ selectedSpecificCode.times_used !== 1 ? 's' : '' }}
-                    {{ selectedSpecificCode.max_uses ? `/ ${selectedSpecificCode.max_uses} máx.` : '(sin límite)' }}
-                  </span>
-                </div>
+                  {{ formatDiscountValue(selectedSpecificCode) }}
+                </span>
+                <span class="campaign-code-summary__meta">
+                  <i class="fas fa-calendar-alt"></i>
+                  {{ selectedSpecificCode.expires_at ? formatShortDate(selectedSpecificCode.expires_at) : 'Sin expiración' }}
+                </span>
+                <span class="campaign-code-summary__meta">
+                  <i class="fas fa-chart-bar"></i>
+                  {{ selectedSpecificCode.times_used || 0 }}{{ selectedSpecificCode.max_uses ? `/${selectedSpecificCode.max_uses}` : '' }}
+                  uso{{ (selectedSpecificCode.times_used || 0) !== 1 ? 's' : '' }}
+                  {{ !selectedSpecificCode.max_uses ? '(sin límite)' : '' }}
+                </span>
               </div>
             </transition>
           </div>
 
-          <div class="specific-campaign-section">
-            <p class="specific-campaign-label">
-              <i class="fas fa-share-square"></i>
-              Canales de envío
-              <AdminInfoTooltip text="Activa al menos un canal para enviar la campaña. Puedes usar ambos al mismo tiempo." />
-            </p>
-
-            <div
-              class="campaign-channel-card"
-              :class="{ 'is-active': specificCampaignForm.send_notification }"
-              @click="toggleSpecificChannel('notification')"
-            >
-              <div class="campaign-channel-card__icon campaign-channel-card__icon--notif">
-                <i class="fas fa-bell"></i>
+          <!-- Paso 2: Canales de envío -->
+          <div class="specific-campaign-step">
+            <div class="specific-campaign-step__header">
+              <span class="specific-campaign-step__num">2</span>
+              <span class="specific-campaign-step__title">
+                <i class="fas fa-share-square"></i>
+                Canales de envío
+                <AdminInfoTooltip text="Activa al menos un canal para enviar la campaña. Puedes usar ambos al mismo tiempo." />
+              </span>
+            </div>
+            <div class="campaign-channels-grid">
+              <div
+                class="campaign-channel-card"
+                :class="{ 'is-active': specificCampaignForm.send_notification }"
+                @click="toggleSpecificChannel('notification')"
+              >
+                <div class="campaign-channel-card__header">
+                  <div class="campaign-channel-card__icon campaign-channel-card__icon--notif">
+                    <i class="fas fa-bell"></i>
+                  </div>
+                  <input
+                    v-model="specificCampaignForm.send_notification"
+                    class="campaign-channel-card__toggle"
+                    type="checkbox"
+                    @change="validateSpecificCampaignField('channels')"
+                    @click.stop
+                  >
+                </div>
+                <strong class="campaign-channel-card__name">Notificación interna</strong>
+                <span class="campaign-channel-card__desc">Panel del cliente</span>
               </div>
-              <div class="campaign-channel-card__info">
-                <strong>Notificación interna</strong>
-                <span>Aparece en el panel del cliente de forma inmediata.</span>
-              </div>
-              <div class="campaign-channel-card__toggle">
-                <input
-                  v-model="specificCampaignForm.send_notification"
-                  type="checkbox"
-                  @change="validateSpecificCampaignField('channels')"
-                  @click.stop
-                >
+              <div
+                class="campaign-channel-card"
+                :class="{ 'is-active': specificCampaignForm.send_email }"
+                @click="toggleSpecificChannel('email')"
+              >
+                <div class="campaign-channel-card__header">
+                  <div class="campaign-channel-card__icon campaign-channel-card__icon--email">
+                    <i class="fas fa-envelope"></i>
+                  </div>
+                  <input
+                    v-model="specificCampaignForm.send_email"
+                    class="campaign-channel-card__toggle"
+                    type="checkbox"
+                    @change="validateSpecificCampaignField('channels')"
+                    @click.stop
+                  >
+                </div>
+                <strong class="campaign-channel-card__name">Correo electrónico</strong>
+                <span class="campaign-channel-card__desc">Código con detalle</span>
               </div>
             </div>
-
-            <div
-              class="campaign-channel-card"
-              :class="{ 'is-active': specificCampaignForm.send_email }"
-              @click="toggleSpecificChannel('email')"
-            >
-              <div class="campaign-channel-card__icon campaign-channel-card__icon--email">
-                <i class="fas fa-envelope"></i>
-              </div>
-              <div class="campaign-channel-card__info">
-                <strong>Correo electrónico</strong>
-                <span>Envía el código al correo del cliente con detalle de la promoción.</span>
-              </div>
-              <div class="campaign-channel-card__toggle">
-                <input
-                  v-model="specificCampaignForm.send_email"
-                  type="checkbox"
-                  @change="validateSpecificCampaignField('channels')"
-                  @click.stop
-                >
-              </div>
-            </div>
-
             <p v-if="specificCampaignErrors.channels" class="form-error">{{ specificCampaignErrors.channels }}</p>
           </div>
         </div>
@@ -162,42 +164,46 @@
           :initially-expanded="true"
           :hide-toggle="true"
           @search="() => {}"
-        >
-          <div class="specific-campaign-users-panel">
-            <div class="specific-campaign-users-header__title">
-              <span>Selección de destinatarios</span>
+        />
+
+        <!-- Barra de destinatarios: selección + acciones -->
+        <div class="campaign-recipients-toolbar">
+          <div class="campaign-recipients-toolbar__info">
+            <span class="campaign-recipients-toolbar__label">
+              <i class="fas fa-users"></i>
+              Destinatarios
               <AdminInfoTooltip text="Marca los clientes que recibirán el descuento. Puedes seleccionar todos los visibles según el filtro actual." />
-              <span
-                class="specific-campaign-badge"
-                :class="{ 'is-filled': specificCampaignForm.user_ids.length > 0 }"
-              >
-                {{ specificCampaignForm.user_ids.length }}
-                {{ specificCampaignForm.user_ids.length === 1 ? 'seleccionado' : 'seleccionados' }}
-              </span>
-            </div>
-            <div class="specific-campaign-users-header__actions">
-              <button
-                type="button"
-                class="campaign-action-chip"
-                title="Seleccionar todos los visibles"
-                @click="selectAllFilteredCustomers"
-              >
-                <i class="fas fa-check-double"></i>
-                <span>Todos</span>
-              </button>
-              <button
-                type="button"
-                class="campaign-action-chip campaign-action-chip--clear"
-                title="Limpiar selección"
-                :disabled="specificCampaignForm.user_ids.length === 0"
-                @click="clearSpecificCustomerSelection"
-              >
-                <i class="fas fa-ban"></i>
-                <span>Limpiar</span>
-              </button>
-            </div>
+            </span>
+            <span
+              class="specific-campaign-badge"
+              :class="{ 'is-filled': specificCampaignForm.user_ids.length > 0 }"
+            >
+              {{ specificCampaignForm.user_ids.length }}
+              {{ specificCampaignForm.user_ids.length === 1 ? 'seleccionado' : 'seleccionados' }}
+            </span>
           </div>
-        </AdminFilterCard>
+          <div class="campaign-recipients-toolbar__actions">
+            <button
+              type="button"
+              class="campaign-action-chip"
+              title="Seleccionar todos los visibles"
+              @click="selectAllFilteredCustomers"
+            >
+              <i class="fas fa-check-double"></i>
+              <span>Todos</span>
+            </button>
+            <button
+              type="button"
+              class="campaign-action-chip campaign-action-chip--clear"
+              title="Limpiar selección"
+              :disabled="specificCampaignForm.user_ids.length === 0"
+              @click="clearSpecificCustomerSelection"
+            >
+              <i class="fas fa-ban"></i>
+              <span>Limpiar</span>
+            </button>
+          </div>
+        </div>
 
         <AdminResultsBar :text="customerResultsText" />
 
@@ -489,7 +495,7 @@ function extractErrorMessage(error, fallback) {
   gap: 1.8rem;
 }
 
-/* ── Grid de dos columnas en escritorio grande ── */
+/* ── Grid principal: configuración | clientes ── */
 .specific-campaign-page-grid {
   display: grid;
   gap: 1.8rem;
@@ -513,105 +519,106 @@ function extractErrorMessage(error, fallback) {
   gap: 0.7rem;
 }
 
-/* ── Grid interno: selector de código + canales ── */
-.specific-campaign-top-grid {
-  display: grid;
-  gap: 1.4rem;
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.specific-campaign-section {
+/* ── Contenedor de configuración: pasos verticales ── */
+.specific-campaign-config {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.8rem;
 }
 
-/* ── Label de sección (uppercase, estilo admin) ── */
-.specific-campaign-label {
+/* ── Cada paso de configuración ── */
+.specific-campaign-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+/* ── Cabecera de paso: número + título ── */
+.specific-campaign-step__header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.specific-campaign-step__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--admin-primary, #0077b6);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.specific-campaign-step__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--admin-text-heading, #24364b);
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+/* ── Resumen compacto del código seleccionado ── */
+.campaign-code-summary {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: var(--admin-text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 0.4rem;
-}
-
-/* ── Vista previa del código seleccionado ── */
-.campaign-code-preview {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.2rem;
-  padding: 1.4rem 1.5rem;
-  border-radius: var(--admin-radius-lg, 12px);
-  border: 1px solid rgba(0, 119, 182, 0.22);
-  background: linear-gradient(135deg, rgba(0, 119, 182, 0.06) 0%, rgba(0, 180, 216, 0.04) 100%);
-  box-shadow: 0 2px 8px rgba(0, 119, 182, 0.06);
-}
-
-.campaign-code-preview__icon {
-  width: 4rem;
-  height: 4rem;
-  flex-shrink: 0;
+  gap: 0.65rem;
+  padding: 0.8rem 1rem;
   border-radius: var(--admin-radius-md, 10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.6rem;
-  background: rgba(0, 119, 182, 0.12);
-  color: var(--admin-primary, #0077b6);
+  background: rgba(0, 119, 182, 0.05);
   border: 1px solid rgba(0, 119, 182, 0.15);
 }
 
-.campaign-code-preview__icon.is-fixed {
-  background: rgba(34, 197, 94, 0.12);
-  color: #16a34a;
-  border-color: rgba(34, 197, 94, 0.2);
-}
-
-.campaign-code-preview__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  min-width: 0;
-}
-
-.campaign-code-preview__code {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--admin-text-heading, #24364b);
-  word-break: break-all;
-  letter-spacing: 0.02em;
-}
-
-.campaign-code-preview__value {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-code-preview__meta {
-  display: flex;
+.campaign-code-summary__pill {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: var(--admin-primary, #0077b6);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.campaign-code-summary__pill.is-fixed {
+  background: #16a34a;
+}
+
+.campaign-code-summary__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 1.2rem;
   color: var(--admin-text-light, #777);
 }
 
-.campaign-code-preview__meta i {
-  font-size: 1.1rem;
+.campaign-code-summary__meta i {
+  font-size: 1.05rem;
   color: var(--admin-text-soft);
 }
 
-/* ── Tarjetas de canal de envío ── */
+/* ── Grid de canales: 2 columnas compactas ── */
+.campaign-channels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+/* ── Tarjeta de canal: diseño vertical compacto ── */
 .campaign-channel-card {
   display: flex;
-  align-items: center;
-  gap: 1.1rem;
-  padding: 1.25rem 1.4rem;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.1rem 1.2rem;
   border-radius: var(--admin-radius-lg, 12px);
   border: 1.5px solid var(--admin-border-light, #d9e8f4);
   background: var(--admin-bg, #fff);
@@ -632,15 +639,22 @@ function extractErrorMessage(error, fallback) {
   box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1), 0 2px 8px rgba(0, 119, 182, 0.08);
 }
 
+/* ── Fila superior de la tarjeta: icono + toggle ── */
+.campaign-channel-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .campaign-channel-card__icon {
-  width: 3.4rem;
-  height: 3.4rem;
+  width: 3rem;
+  height: 3rem;
   flex-shrink: 0;
   border-radius: var(--admin-radius-md, 10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   background: rgba(0, 119, 182, 0.1);
   color: var(--admin-primary, #0077b6);
   border: 1px solid rgba(0, 119, 182, 0.14);
@@ -652,94 +666,86 @@ function extractErrorMessage(error, fallback) {
   border-color: rgba(34, 197, 94, 0.18);
 }
 
-.campaign-channel-card__info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.campaign-channel-card__info strong {
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--admin-text, #333);
-}
-
-.campaign-channel-card__info span {
-  font-size: 1.2rem;
-  color: var(--admin-text-light, #777);
-  line-height: 1.4;
-}
-
-/* ── Toggle switch (reemplaza checkbox nativo) ── */
+/* ── Toggle switch (checkbox personalizado) ── */
 .campaign-channel-card__toggle {
-  flex-shrink: 0;
-}
-
-.campaign-channel-card__toggle input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 4rem;
-  height: 2.2rem;
+  width: 3.6rem;
+  height: 2rem;
   border-radius: 999px;
   background: #d1d5db;
   position: relative;
   cursor: pointer;
   transition: background 0.22s;
-  vertical-align: middle;
   flex-shrink: 0;
 }
 
-.campaign-channel-card__toggle input[type="checkbox"]::after {
+.campaign-channel-card__toggle::after {
   content: '';
   position: absolute;
-  left: 0.25rem;
-  top: 0.25rem;
-  width: 1.7rem;
-  height: 1.7rem;
+  left: 0.22rem;
+  top: 0.22rem;
+  width: 1.56rem;
+  height: 1.56rem;
   border-radius: 50%;
   background: #fff;
   transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
 }
 
-.campaign-channel-card__toggle input[type="checkbox"]:checked {
+.campaign-channel-card__toggle:checked {
   background: var(--admin-primary, #0077b6);
 }
 
-.campaign-channel-card__toggle input[type="checkbox"]:checked::after {
-  transform: translateX(1.8rem);
+.campaign-channel-card__toggle:checked::after {
+  transform: translateX(1.6rem);
 }
 
-/* ── Panel de usuarios: cabecera ── */
-.specific-campaign-users-panel {
+.campaign-channel-card__name {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--admin-text, #333);
+  line-height: 1.2;
+}
+
+.campaign-channel-card__desc {
+  font-size: 1.15rem;
+  color: var(--admin-text-light, #777);
+  line-height: 1.3;
+}
+
+/* ── Barra de destinatarios: entre búsqueda y lista ── */
+.campaign-recipients-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.9rem;
+  gap: 0.8rem;
   flex-wrap: wrap;
-  padding: 0.65rem 0.7rem;
-  border-radius: 10px;
-  border: 1px solid var(--admin-border-light, #d9e8f4);
-  background: #fbfdff;
+  padding: 0.8rem 1.4rem;
+  border-bottom: 1px solid var(--admin-border-light, #d9e8f4);
+  background: rgba(0, 119, 182, 0.025);
 }
 
-.specific-campaign-users-header__title {
+.campaign-recipients-toolbar__info {
   display: flex;
   align-items: center;
+  gap: 0.6rem;
   flex-wrap: wrap;
-  gap: 0.55rem;
-  font-size: 1.4rem;
+}
+
+.campaign-recipients-toolbar__label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--admin-text-heading, #24364b);
 }
 
-.specific-campaign-users-header__actions {
+.campaign-recipients-toolbar__actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 /* ── Badge de seleccionados ── */
@@ -872,13 +878,13 @@ function extractErrorMessage(error, fallback) {
   accent-color: var(--admin-primary, #0077b6);
 }
 
-/* ── Avatar de usuario ── */
+/* ── Avatar de usuario (color sólido suave, sin degradado) ── */
 .campaign-user-avatar {
   width: 3.2rem;
   height: 3.2rem;
   flex-shrink: 0;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(0, 119, 182, 0.18) 0%, rgba(0, 180, 216, 0.12) 100%);
+  background: rgba(0, 119, 182, 0.14);
   color: var(--admin-primary, #0077b6);
   font-size: 1.15rem;
   font-weight: 800;
@@ -943,7 +949,7 @@ function extractErrorMessage(error, fallback) {
   background: var(--admin-primary, #0077b6);
 }
 
-/* ── Transición del preview de código ── */
+/* ── Transición del resumen del código ── */
 .campaign-preview-fade-enter-active,
 .campaign-preview-fade-leave-active {
   transition: opacity 0.24s ease, transform 0.24s ease;
@@ -955,30 +961,29 @@ function extractErrorMessage(error, fallback) {
   transform: translateY(-8px);
 }
 
-/* ── Responsive: grid interno del selector + canales ── */
-@media (min-width: 940px) {
-  .specific-campaign-top-grid {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    align-items: start;
+/* ── Responsive: canales en 1 columna en móvil pequeño ── */
+@media (max-width: 480px) {
+  .campaign-channels-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-recipients-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .campaign-recipients-toolbar__actions {
+    width: 100%;
+  }
+
+  .campaign-recipients-toolbar__actions .campaign-action-chip {
+    flex: 1;
+    justify-content: center;
   }
 }
 
 /* ── Responsive: tablet ── */
 @media (max-width: 860px) {
-  .specific-campaign-users-panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .specific-campaign-users-header__actions {
-    width: 100%;
-  }
-
-  .specific-campaign-users-header__actions .campaign-action-chip {
-    flex: 1;
-    justify-content: center;
-  }
-
   .campaign-user-item {
     grid-template-columns: auto auto minmax(0, 1fr);
   }

@@ -213,9 +213,68 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
       NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      FRONTEND_URL: http://localhost:5173
+      INVENTORY_ALERT_EMAILS: angelow2025sen@gmail.com
+      INVENTORY_ALERT_SEND_INITIAL_EMAIL: "true"
+      INVENTORY_ALERT_REMINDER_AFTER_DAYS: 3
+      INVENTORY_ALERT_REMINDER_EVERY_DAYS: 3
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Inventario
     depends_on:
       - catalog-db
       - redis
+    networks:
+      - angelow_network
+
+  catalog-scheduler:
+    build:
+      context: ./services/catalog-service
+      dockerfile: Dockerfile
+    container_name: angelow_catalog_scheduler
+    restart: unless-stopped
+    command: ["sh", "-lc", "rm -f .env && touch .env && php artisan config:clear >/dev/null 2>&1 || true; php artisan schedule:work"]
+    environment:
+      APP_KEY: base64:l96roLa+w/UkM9WFpsterxKZrp5JLZXkfJ08GFx8/yE=
+      DB_CONNECTION: pgsql
+      DB_HOST: catalog-db
+      DB_PORT: 5432
+      DB_DATABASE: angelow_catalog
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+      LEGACY_DB_HOST: host.docker.internal
+      LEGACY_DB_PORT: 3306
+      LEGACY_DB_DATABASE: angelow
+      LEGACY_DB_USERNAME: root
+      LEGACY_DB_PASSWORD: ""
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: redis
+      AUTH_SERVICE_URL: http://auth-service:8000/api
+      AUTH_INTERNAL_TOKEN: angelow-internal-token
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      FRONTEND_URL: http://localhost:5173
+      INVENTORY_ALERT_EMAILS: angelow2025sen@gmail.com
+      INVENTORY_ALERT_SEND_INITIAL_EMAIL: "true"
+      INVENTORY_ALERT_REMINDER_AFTER_DAYS: 3
+      INVENTORY_ALERT_REMINDER_EVERY_DAYS: 3
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: "djaf tdju nyhr scgd"
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow Inventario
+    depends_on:
+      - catalog-db
+      - redis
+      - catalog-service
     networks:
       - angelow_network
 

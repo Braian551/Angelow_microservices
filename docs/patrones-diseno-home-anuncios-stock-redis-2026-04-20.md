@@ -52,6 +52,14 @@ Fecha: 2026-04-20
   - syncCartState() para refresco de datos sin reactivar estado de fallo global.
   - Mensajes de error del backend mostrados de forma contextual con snackbar y alerta inline.
 
+## Patrón 6: Single Source of Truth para confirmar reservas en checkout/pago
+- Referencia conceptual: una reserva valida no debe reevaluarse contra una fuente secundaria mas desactualizada.
+- Problema que resuelve: evitar cancelaciones falsas al confirmar pagos cuando Redis ya habia reservado la ultima unidad para esa orden, pero la base de datos quedaba desfasada respecto al stock operativo.
+- Aplicación:
+  - services/catalog-service/app/Http/Controllers/InternalCatalogController.php
+  - commitInventory() ahora usa `strict_reservation` para reconstruir el stock confirmable como `stock disponible en Redis + reservado en Redis` antes de persistir el descuento en base de datos.
+  - resolveReservationAwareCommitStock() mantiene a Redis como fuente operativa durante la confirmacion de una reserva valida.
+
 ## Ajustes de consistencia adicionales
 - services/catalog-service/app/Repositories/QueryBuilderSiteRepository.php
   - Se agregó desempate por id DESC en consultas de anuncios para orden determinista.
@@ -79,3 +87,4 @@ Fecha: 2026-04-20
 - Desde detalle y carrito, la variante reservada temporalmente en Redis se visualiza con disponibilidad 0 y se bloquea agregar más unidades.
 - El error de stock deja de aparecer tardíamente como sorpresa en pago y se informa antes, en el punto de interacción correcto.
 - El carrito ya no desaparece al fallar un cambio de cantidad.
+- Una orden que ya reservo la ultima unidad en Redis puede confirmar el pago sin ser cancelada falsamente por una comparacion tardia solo contra stock en BD.

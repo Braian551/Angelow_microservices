@@ -468,6 +468,21 @@ function buildOrderPaymentDescription(status) {
     : 'Pago rechazado desde administración de pagos.'
 }
 
+function extractApiErrorMessage(error, fallback) {
+  const apiMessage = String(error?.response?.data?.message || '').trim()
+  return apiMessage || fallback
+}
+
+function shouldRejectPaymentAfterOrderSyncFailure(error) {
+  const httpStatus = Number(error?.response?.status || 0)
+  const apiCode = String(error?.response?.data?.code || '').trim().toLowerCase()
+  return httpStatus === 409 && (Boolean(error?.response?.data?.order_cancelled) || apiCode === 'insufficient_stock')
+}
+
+function resolveRollbackStatusAfterOrderSyncFailure(error, previousStatus) {
+  return shouldRejectPaymentAfterOrderSyncFailure(error) ? 'rejected' : normalizePaymentStatus(previousStatus)
+}
+
 function clearFilters() {
   search.value = ''
   statusFilter.value = ''
@@ -707,11 +722,11 @@ async function submitAccountConfig() {
 
 async function updatePayment(payment, status) {
   syncingPaymentId.value = payment.id
+  const previousStatus = normalizePaymentStatus(payment.status)
 
   try {
     await paymentHttp.patch(`/admin/payments/${payment.id}`, { status })
 
-    let orderSyncFailed = false
     if (payment.order_id > 0) {
       try {
         await orderHttp.patch(`/orders/${payment.order_id}/payment-status`, {
@@ -719,22 +734,53 @@ async function updatePayment(payment, status) {
           payment_status: mapTransactionStatusToOrderStatus(status),
           description: buildOrderPaymentDescription(status),
         })
-      } catch {
-        orderSyncFailed = true
+      } catch (error) {
+        const syncMessage = extractApiErrorMessage(error, 'No se pudo actualizar la orden.')
+        const rollbackStatus = resolveRollbackStatusAfterOrderSyncFailure(error, previousStatus)
+        let paymentRecovered = rollbackStatus === status
+
+        if (!paymentRecovered) {
+          try {
+            await paymentHttp.patch(`/admin/payments/${payment.id}`, { status: rollbackStatus })
+            paymentRecovered = true
+          } catch {
+            paymentRecovered = false
+          }
+        }
+
+        if (shouldRejectPaymentAfterOrderSyncFailure(error)) {
+          showSnackbar({
+            type: paymentRecovered ? 'warning' : 'error',
+            message: paymentRecovered
+              ? `${syncMessage} El pago quedó rechazado para mantener consistencia con la orden.`
+              : `${syncMessage} Además, no se pudo corregir el estado del pago automáticamente.`,
+          })
+        } else {
+          showSnackbar({
+            type: paymentRecovered ? 'warning' : 'error',
+            message: paymentRecovered
+              ? `${syncMessage} El pago volvió a su estado anterior.`
+              : `${syncMessage} Además, no se pudo restaurar el estado anterior del pago.`,
+          })
+        }
+
+        await loadPayments()
+        return
       }
     }
 
-    if (orderSyncFailed) {
-      showSnackbar({ type: 'warning', message: `Pago ${status === 'approved' ? 'verificado' : 'rechazado'}, pero no se pudo actualizar el pedido.` })
-    } else if (payment.order_id > 0) {
+    if (payment.order_id > 0) {
       showSnackbar({ type: 'success', message: status === 'approved' ? 'Pago verificado y pedido actualizado.' : 'Pago rechazado y pedido actualizado.' })
     } else {
       showSnackbar({ type: 'success', message: status === 'approved' ? 'Pago verificado.' : 'Pago rechazado.' })
     }
 
     await loadPayments()
-  } catch {
-    showSnackbar({ type: 'error', message: 'No se pudo actualizar el pago.' })
+  } catch (error) {
+    showSnackbar({
+      type: 'error',
+      message: extractApiErrorMessage(error, 'No se pudo actualizar el pago.'),
+    })
   } finally {
     syncingPaymentId.value = null
   }
