@@ -150,7 +150,11 @@
               <div class="confirmation-info-block">
                 <span>Tiempo estimado</span>
                 <strong>{{ result.shipping?.method_eta || 'Te lo confirmaremos por correo' }}</strong>
-                <p>{{ result.shipping?.instructions || 'Sin instrucciones adicionales.' }}</p>
+                <p v-if="result.shipping?.instructions">{{ result.shipping.instructions }}</p>
+                <p v-if="result.shipping?.notes && result.shipping.notes !== result.shipping.instructions" class="confirmation-info-note">
+                  Nota del pedido: {{ result.shipping.notes }}
+                </p>
+                <p v-if="!result.shipping?.instructions && !result.shipping?.notes">Sin instrucciones adicionales.</p>
               </div>
             </div>
           </section>
@@ -320,6 +324,10 @@ function parseStoredJson(rawValue) {
 .confirmation-page-content {
   display: grid;
   gap: 2.4rem;
+}
+
+.confirmation-info-note {
+  color: #5c6773;
 }
 
 .confirmation-success-card,

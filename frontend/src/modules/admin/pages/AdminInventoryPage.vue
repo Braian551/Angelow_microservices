@@ -60,14 +60,14 @@
                 <div class="inventory-summary">
                   <span>{{ product.colorCount }} color(es)</span>
                   <span>{{ product.sizeCount }} talla(s)</span>
-                  <span>{{ product.lowVariantCount }} variante(s) críticas</span>
+                  <span>{{ inventorySummaryAlert(product) }}</span>
                 </div>
               </td>
               <td>
-                <strong :class="stockTextClass(product.totalStock)">{{ product.totalStock }}</strong>
+                <strong :class="productStockTextClass(product)">{{ product.totalStock }}</strong>
               </td>
               <td>
-                <span class="status-badge" :class="statusClass(product.status)">{{ statusLabel(product.status) }}</span>
+                <span class="status-badge" :class="statusClass(product.status)">{{ productStatusLabel(product) }}</span>
               </td>
               <td>
                 <div class="admin-entity-actions">
@@ -129,8 +129,8 @@
                 <td>{{ variant.color_name || 'Sin color' }}</td>
                 <td>{{ variant.size_name || variant.size_label || 'Sin talla' }}</td>
                 <td>{{ variant.sku || '-' }}</td>
-                <td><strong :class="stockTextClass(variant.quantity)">{{ variant.quantity }}</strong></td>
-                <td><span class="status-badge" :class="statusClass(stockStatus(variant.quantity))">{{ statusLabel(stockStatus(variant.quantity)) }}</span></td>
+                <td><strong :class="stockTextClass(variant.quantity, variant)">{{ variant.quantity }}</strong></td>
+                <td><span class="status-badge" :class="statusClass(stockStatus(variant.quantity, variant))">{{ statusLabel(stockStatus(variant.quantity, variant)) }}</span></td>
                 <td>
                   <div class="admin-entity-actions">
                     <button class="action-btn edit" type="button" title="Ajustar" @click="openAdjustModal(variant)">
@@ -286,10 +286,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { catalogHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import {
+  buildInventoryVariantLabel as formatInventoryVariantLabel,
+  normalizeInventoryStatus as resolveInventoryStatus,
+  resolveInventoryThreshold,
+} from '../utils/inventoryPresentation'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
@@ -303,6 +309,8 @@ import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
+const route = useRoute()
+const router = useRouter()
 const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
@@ -318,6 +326,7 @@ const selectedProductSummary = ref(null)
 const selectedProductDetail = ref(null)
 const selectedProductHistory = ref([])
 const selectedVariant = ref(null)
+const handledRouteTarget = ref('')
 
 const adjustForm = reactive({
   action: 'add',
@@ -356,17 +365,24 @@ const groupedProducts = computed(() => {
   })
 
   return Array.from(grouped.values()).map((product) => {
-    const variantCount = product.variants.length
-    const totalStock = product.variants.reduce((sum, variant) => sum + Number(variant.stock || 0), 0)
-    const lowVariantCount = product.variants.filter((variant) => Number(variant.stock || 0) > 0 && Number(variant.stock || 0) <= 5).length
-    const outVariantCount = product.variants.filter((variant) => Number(variant.stock || 0) <= 0).length
-    const skuCount = product.variants.filter((variant) => variant.sku).length
-    const colorCount = new Set(product.variants.map((variant) => variant.color_name || '')).size
-    const sizeCount = new Set(product.variants.map((variant) => variant.size_label || '')).size
-    const status = totalStock <= 0 ? 'out' : lowVariantCount > 0 ? 'low' : 'active'
+    const variants = product.variants.map((variant) => ({
+      ...variant,
+      inventory_status: resolveInventoryStatus(variant.stock, variant),
+    }))
+    const variantCount = variants.length
+    const totalStock = variants.reduce((sum, variant) => sum + Number(variant.stock || 0), 0)
+    const lowVariants = variants.filter((variant) => variant.inventory_status === 'low')
+    const outVariants = variants.filter((variant) => variant.inventory_status === 'out')
+    const lowVariantCount = lowVariants.length
+    const outVariantCount = outVariants.length
+    const skuCount = variants.filter((variant) => variant.sku).length
+    const colorCount = new Set(variants.map((variant) => variant.color_name || '')).size
+    const sizeCount = new Set(variants.map((variant) => variant.size_label || '')).size
+    const status = outVariantCount > 0 ? 'out' : lowVariantCount > 0 ? 'low' : 'active'
 
     return {
       ...product,
+      variants,
       variantCount,
       totalStock,
       lowVariantCount,
@@ -375,6 +391,9 @@ const groupedProducts = computed(() => {
       colorCount,
       sizeCount,
       status,
+      lowStockThreshold: resolveInventoryThreshold(variants[0]),
+      lowVariantLabels: lowVariants.map((variant) => formatInventoryVariantLabel(variant)),
+      outVariantLabels: outVariants.map((variant) => formatInventoryVariantLabel(variant)),
     }
   })
 })
@@ -387,8 +406,8 @@ const filteredProducts = computed(() => {
       .some((value) => String(value || '').toLowerCase().includes(term)))
 
     const matchesTab = activeTab.value === 'all'
-      || (activeTab.value === 'low' && product.status === 'low')
-      || (activeTab.value === 'out' && product.status === 'out')
+      || (activeTab.value === 'low' && product.lowVariantCount > 0)
+      || (activeTab.value === 'out' && product.outVariantCount > 0)
 
     return matchesSearch && matchesTab
   })
@@ -401,15 +420,15 @@ const pagination = useAdminPagination(filteredProducts, {
 
 const inventoryStats = computed(() => {
   const totalProducts = groupedProducts.value.length
-  const totalUnits = groupedProducts.value.reduce((sum, product) => sum + product.totalStock, 0)
-  const lowStockProducts = groupedProducts.value.filter((product) => product.status === 'low').length
-  const outOfStockProducts = groupedProducts.value.filter((product) => product.status === 'out').length
+  const totalUnits = inventoryRows.value.reduce((sum, variant) => sum + Number(variant.stock || 0), 0)
+  const lowStockVariants = inventoryRows.value.filter((variant) => resolveInventoryStatus(variant.stock, variant) === 'low').length
+  const outOfStockVariants = inventoryRows.value.filter((variant) => resolveInventoryStatus(variant.stock, variant) === 'out').length
 
   return [
     { key: 'products', label: 'Productos monitoreados', value: String(totalProducts), icon: 'fas fa-box', color: 'primary' },
     { key: 'units', label: 'Unidades disponibles', value: String(totalUnits), icon: 'fas fa-cubes', color: 'success' },
-    { key: 'low', label: 'Productos con alerta', value: String(lowStockProducts), icon: 'fas fa-triangle-exclamation', color: 'warning' },
-    { key: 'out', label: 'Productos sin stock', value: String(outOfStockProducts), icon: 'fas fa-circle-xmark', color: 'danger' },
+    { key: 'low', label: 'Variantes con alerta', value: String(lowStockVariants), icon: 'fas fa-triangle-exclamation', color: 'warning' },
+    { key: 'out', label: 'Variantes sin stock', value: String(outOfStockVariants), icon: 'fas fa-circle-xmark', color: 'danger' },
   ]
 })
 
@@ -421,11 +440,8 @@ const transferTargets = computed(() => {
   return rows.filter((row) => Number(row.id) !== Number(selectedVariant.value?.id || 0))
 })
 
-function stockStatus(stock) {
-  const value = Number(stock || 0)
-  if (value <= 0) return 'out'
-  if (value <= 5) return 'low'
-  return 'active'
+function stockStatus(stock, source = null) {
+  return resolveInventoryStatus(stock, source)
 }
 
 function statusClass(status) {
@@ -440,8 +456,50 @@ function statusLabel(status) {
   return 'Sin stock'
 }
 
-function stockTextClass(stock) {
-  return `inventory-stock inventory-stock--${stockStatus(stock)}`
+function productStatusLabel(product) {
+  if (!product) return 'Sin stock'
+  if (product.status === 'out' && Number(product.totalStock || 0) > 0) return 'Variantes agotadas'
+  return statusLabel(product.status)
+}
+
+function inventorySummaryAlert(product) {
+  if (!product) return 'Sin alertas'
+  const outPreview = (product.outVariantLabels || []).slice(0, 2)
+  const lowPreview = (product.lowVariantLabels || []).slice(0, 2)
+
+  if (outPreview.length > 0 && lowPreview.length > 0) {
+    return `Sin stock: ${outPreview.join(', ')}. Bajo stock: ${lowPreview.join(', ')}.`
+  }
+
+  if (outPreview.length > 0) {
+    return `Sin stock: ${outPreview.join(', ')}${product.outVariantCount > outPreview.length ? '...' : ''}`
+  }
+
+  if (lowPreview.length > 0) {
+    return `Bajo stock: ${lowPreview.join(', ')}${product.lowVariantCount > lowPreview.length ? '...' : ''}`
+  }
+
+  return 'Sin alertas'
+}
+
+function stockTextClass(stock, source = null) {
+  return `inventory-stock inventory-stock--${stockStatus(stock, source)}`
+}
+
+function productStockTextClass(product) {
+  if (!product) {
+    return stockTextClass(0)
+  }
+
+  if (product.outVariantCount > 0) {
+    return 'inventory-stock inventory-stock--out'
+  }
+
+  if (product.lowVariantCount > 0) {
+    return 'inventory-stock inventory-stock--low'
+  }
+
+  return 'inventory-stock inventory-stock--active'
 }
 
 function normalizeInventoryRow(item) {
@@ -454,6 +512,8 @@ function normalizeInventoryRow(item) {
     color_name: item.color_name || 'Sin color',
     size_label: item.size_label || item.size_name || 'Sin talla',
     stock: Number(item.stock || item.quantity || 0),
+    low_stock_threshold: resolveInventoryThreshold(item),
+    inventory_status: resolveInventoryStatus(item.stock || item.quantity || 0, item),
     sku: item.sku || '',
     rawImage: item.image || item.primary_image || item.product_image || item.imagen || null,
     image: resolveMediaUrl(item.image || item.primary_image || item.product_image || item.imagen || null, 'product'),
@@ -461,10 +521,7 @@ function normalizeInventoryRow(item) {
 }
 
 function buildVariantLabel(variant) {
-  const color = variant.color_name || 'Sin color'
-  const size = variant.size_name || variant.size_label || 'Sin talla'
-  const sku = variant.sku ? ` | SKU ${variant.sku}` : ''
-  return `${color} / ${size}${sku}`
+  return formatInventoryVariantLabel(variant)
 }
 
 function resolveHistoryVariant(entry) {
@@ -547,6 +604,13 @@ function normalizeProductDetail(productId, payload) {
   variants.forEach((variant) => {
     const rows = Array.isArray(variant.size_variants) ? variant.size_variants : []
     rows.forEach((row) => {
+      const quantity = Number(row.quantity || row.stock || 0)
+      const lowStockThreshold = resolveInventoryThreshold(
+        row.low_stock_threshold
+        ?? row.lowStockThreshold
+        ?? selectedProductSummary.value?.lowStockThreshold,
+      )
+
       variantRows.push({
         ...row,
         id: Number(row.id),
@@ -555,7 +619,9 @@ function normalizeProductDetail(productId, payload) {
         color_name: row.color_name || variant.color_name || 'Sin color',
         size_name: row.size_name || row.size_label || 'Sin talla',
         size_label: row.size_name || row.size_label || 'Sin talla',
-        quantity: Number(row.quantity || row.stock || 0),
+        quantity,
+        low_stock_threshold: lowStockThreshold,
+        inventory_status: resolveInventoryStatus(quantity, { low_stock_threshold: lowStockThreshold }),
         sku: row.sku || '',
       })
     })
@@ -568,9 +634,69 @@ function normalizeProductDetail(productId, payload) {
     },
     variantRows,
     totalStock: variantRows.reduce((sum, row) => sum + row.quantity, 0),
-    lowStockCount: variantRows.filter((row) => row.quantity > 0 && row.quantity <= 5).length,
-    outOfStockCount: variantRows.filter((row) => row.quantity <= 0).length,
+    lowStockCount: variantRows.filter((row) => resolveInventoryStatus(row.quantity, row) === 'low').length,
+    outOfStockCount: variantRows.filter((row) => resolveInventoryStatus(row.quantity, row) === 'out').length,
   }
+}
+
+function sanitizeRouteNumber(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+async function clearInventoryTargetQuery() {
+  const currentQuery = { ...route.query }
+  delete currentQuery.productId
+  delete currentQuery.variantId
+  delete currentQuery.action
+
+  await router.replace({
+    path: route.path,
+    query: currentQuery,
+  })
+}
+
+async function maybeHandleInventoryTargetFromRoute() {
+  const productId = sanitizeRouteNumber(route.query.productId)
+  const variantId = sanitizeRouteNumber(route.query.variantId)
+  const action = String(route.query.action || '').trim().toLowerCase()
+
+  if (!productId || !variantId) {
+    handledRouteTarget.value = ''
+    return
+  }
+
+  const targetToken = `${productId}:${variantId}:${action || 'detail'}`
+  if (handledRouteTarget.value === targetToken) {
+    return
+  }
+
+  const product = groupedProducts.value.find((item) => {
+    if (Number(item.id) === productId) {
+      return true
+    }
+
+    return item.variants.some((variant) => Number(variant.id) === variantId)
+  })
+
+  if (!product) {
+    return
+  }
+
+  handledRouteTarget.value = targetToken
+  showDetailModal.value = true
+  await loadProductDetail(product)
+
+  const targetVariant = selectedProductDetail.value?.variantRows?.find((variant) => Number(variant.id) === variantId) || null
+  if (targetVariant) {
+    if (action === 'transfer') {
+      openTransferModal(targetVariant)
+    } else {
+      openAdjustModal(targetVariant)
+    }
+  }
+
+  await clearInventoryTargetQuery()
 }
 
 function resetAdjustForm() {
@@ -656,9 +782,12 @@ async function openDetail(product) {
 
 function closeDetailModal() {
   showDetailModal.value = false
+  showAdjustModal.value = false
+  showTransferModal.value = false
   selectedProductSummary.value = null
   selectedProductDetail.value = null
   selectedProductHistory.value = []
+  selectedVariant.value = null
 }
 
 function openAdjustModal(variant) {
@@ -745,7 +874,22 @@ async function submitTransfer() {
   }
 }
 
-onMounted(loadInventory)
+watch(
+  () => route.fullPath,
+  async () => {
+    if (!route.query.productId || !route.query.variantId) {
+      handledRouteTarget.value = ''
+      return
+    }
+
+    await maybeHandleInventoryTargetFromRoute()
+  },
+)
+
+onMounted(async () => {
+  await loadInventory()
+  await maybeHandleInventoryTargetFromRoute()
+})
 </script>
 
 <style scoped>

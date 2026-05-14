@@ -1,177 +1,172 @@
 <template>
-  <section class="dashboard-header notifications-header-panel">
-    <div class="notifications-header-panel__copy">
-      <h1>
-        <i class="fas fa-bell"></i>
-        Mis notificaciones
-      </h1>
-      <p>Mantente al día con tus pedidos, novedades y movimientos importantes de tu cuenta.</p>
-    </div>
+  <AccountShimmer v-if="loading" variant="notifications" />
 
-    <button
-      v-if="unreadCount > 0 && !loading"
-      type="button"
-      class="btn-outline-small notifications-header-panel__action"
-      :disabled="loadingAction"
-      @click="markAllAsRead"
-    >
-      <i class="fas fa-check-double"></i>
-      Marcar todas como leídas
-    </button>
-  </section>
-
-  <section class="account-grid-2 notifications-summary-grid">
-    <article class="summary-card notification-summary-card">
-      <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--total">
-        <i class="fas fa-envelope"></i>
-      </div>
-      <div class="summary-content">
-        <h3>Total</h3>
-        <p>{{ notifications.length }} notificación{{ notifications.length === 1 ? '' : 'es' }}</p>
-      </div>
-    </article>
-
-    <article class="summary-card notification-summary-card">
-      <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--unread">
-        <i class="fas fa-envelope-open-text"></i>
-      </div>
-      <div class="summary-content">
-        <h3>Sin leer</h3>
-        <p>{{ unreadCount }} pendiente{{ unreadCount === 1 ? '' : 's' }}</p>
-      </div>
-    </article>
-
-    <article class="summary-card notification-summary-card">
-      <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--read">
-        <i class="fas fa-check-double"></i>
-      </div>
-      <div class="summary-content">
-        <h3>Leídas</h3>
-        <p>{{ readCount }} revisada{{ readCount === 1 ? '' : 's' }}</p>
-      </div>
-    </article>
-  </section>
-
-  <section class="account-card notifications-board">
-    <header class="section-header notifications-board__header">
-      <div class="notifications-board__heading">
-        <h2>Bandeja de notificaciones</h2>
-        <p class="notifications-board__meta">
-          {{ filteredNotifications.length }} resultado{{ filteredNotifications.length === 1 ? '' : 's' }} visibles
-        </p>
+  <template v-else>
+    <section class="dashboard-header notifications-header-panel">
+      <div class="notifications-header-panel__copy">
+        <h1>
+          <i class="fas fa-bell"></i>
+          Mis notificaciones
+        </h1>
+        <p>Mantente al día con tus pedidos, novedades y movimientos importantes de tu cuenta.</p>
       </div>
 
-      <div class="notif-type-select-wrap">
-        <i class="fas fa-filter notif-type-select-icon"></i>
-        <select v-model="typeFilter" class="notif-type-select">
-          <option value="all">Todos los tipos</option>
-          <option value="order">Órdenes</option>
-          <option value="product">Productos</option>
-          <option value="promotion">Promociones</option>
-          <option value="system">Sistema</option>
-          <option value="account">Cuenta</option>
-        </select>
-      </div>
-    </header>
-
-    <div class="notifications-toolbar">
       <button
-        v-for="opt in statusOptions"
-        :key="opt.value"
+        v-if="unreadCount > 0"
         type="button"
-        class="notifications-status-pill"
-        :class="{ 'is-active': statusFilter === opt.value }"
-        @click="statusFilter = opt.value"
+        class="btn-outline-small notifications-header-panel__action"
+        :disabled="loadingAction"
+        @click="markAllAsRead"
       >
-        {{ opt.label }}
-        <span v-if="opt.value === 'unread' && unreadCount > 0" class="notifications-status-pill__badge">{{ unreadCount }}</span>
+        <i class="fas fa-check-double"></i>
+        Marcar todas como leídas
       </button>
-    </div>
+    </section>
 
-    <div v-if="loading" class="notifications-loading">
-      <div v-for="n in 4" :key="n" class="notifications-skeleton">
-        <div class="notifications-skeleton__icon"></div>
-        <div class="notifications-skeleton__body">
-          <div class="notifications-skeleton__line notifications-skeleton__line--title"></div>
-          <div class="notifications-skeleton__line notifications-skeleton__line--text"></div>
+    <section class="account-grid-2 notifications-summary-grid">
+      <article class="summary-card notification-summary-card">
+        <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--total">
+          <i class="fas fa-envelope"></i>
         </div>
+        <div class="summary-content">
+          <h3>Total</h3>
+          <p>{{ notifications.length }} notificación{{ notifications.length === 1 ? '' : 'es' }}</p>
+        </div>
+      </article>
+
+      <article class="summary-card notification-summary-card">
+        <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--unread">
+          <i class="fas fa-envelope-open-text"></i>
+        </div>
+        <div class="summary-content">
+          <h3>Sin leer</h3>
+          <p>{{ unreadCount }} pendiente{{ unreadCount === 1 ? '' : 's' }}</p>
+        </div>
+      </article>
+
+      <article class="summary-card notification-summary-card">
+        <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--read">
+          <i class="fas fa-check-double"></i>
+        </div>
+        <div class="summary-content">
+          <h3>Leídas</h3>
+          <p>{{ readCount }} revisada{{ readCount === 1 ? '' : 's' }}</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="account-card notifications-board">
+      <header class="section-header notifications-board__header">
+        <div class="notifications-board__heading">
+          <h2>Bandeja de notificaciones</h2>
+          <p class="notifications-board__meta">
+            {{ filteredNotifications.length }} resultado{{ filteredNotifications.length === 1 ? '' : 's' }} visibles
+          </p>
+        </div>
+
+        <div class="notif-type-select-wrap">
+          <i class="fas fa-filter notif-type-select-icon"></i>
+          <select v-model="typeFilter" class="notif-type-select">
+            <option value="all">Todos los tipos</option>
+            <option value="order">Órdenes</option>
+            <option value="product">Productos</option>
+            <option value="promotion">Promociones</option>
+            <option value="system">Sistema</option>
+            <option value="account">Cuenta</option>
+          </select>
+        </div>
+      </header>
+
+      <div class="notifications-toolbar">
+        <button
+          v-for="opt in statusOptions"
+          :key="opt.value"
+          type="button"
+          class="notifications-status-pill"
+          :class="{ 'is-active': statusFilter === opt.value }"
+          @click="statusFilter = opt.value"
+        >
+          {{ opt.label }}
+          <span v-if="opt.value === 'unread' && unreadCount > 0" class="notifications-status-pill__badge">{{ unreadCount }}</span>
+        </button>
       </div>
-    </div>
 
-    <div v-else-if="errorMessage" class="empty-state notifications-empty-state">
-      <i class="fas fa-exclamation-circle"></i>
-      <p>{{ errorMessage }}</p>
-    </div>
+      <div v-if="errorMessage" class="empty-state notifications-empty-state">
+        <i class="fas fa-exclamation-circle"></i>
+        <p>{{ errorMessage }}</p>
+      </div>
 
-    <div v-else-if="filteredNotifications.length === 0" class="empty-state notifications-empty-state">
-      <i class="fas fa-bell-slash"></i>
-      <p>No tienes notificaciones para este filtro.</p>
-      <span>Cuando haya novedades relevantes las verás aquí.</span>
-    </div>
+      <div v-else-if="filteredNotifications.length === 0" class="empty-state notifications-empty-state">
+        <i class="fas fa-bell-slash"></i>
+        <p>No tienes notificaciones para este filtro.</p>
+        <span>Cuando haya novedades relevantes las verás aquí.</span>
+      </div>
 
-    <transition-group v-else name="notifications-list" tag="div" class="notifications-list">
-      <article
-        v-for="notification in filteredNotifications"
-        :key="notification.id"
-        class="notifications-item"
-        :class="{ 'is-unread': !notification.is_read }"
-        @click="handleOpenNotification(notification)"
-      >
-        <div class="notifications-item__leading">
-          <span v-if="!notification.is_read" class="notifications-item__unread-dot" title="No leída"></span>
-          <div class="notifications-item__icon" :class="`notifications-item__icon--${notificationType(notification)}`">
-            <i :class="notificationIcon(notification)"></i>
+      <transition-group v-else name="notifications-list" tag="div" class="notifications-list">
+        <article
+          v-for="notification in filteredNotifications"
+          :key="notification.id"
+          class="notifications-item"
+          :class="{ 'is-unread': !notification.is_read }"
+          @click="handleOpenNotification(notification)"
+        >
+          <div class="notifications-item__leading">
+            <span v-if="!notification.is_read" class="notifications-item__unread-dot" title="No leída"></span>
+            <div class="notifications-item__icon" :class="`notifications-item__icon--${notificationType(notification)}`">
+              <i :class="notificationIcon(notification)"></i>
+            </div>
           </div>
-        </div>
 
-        <div class="notifications-item__body">
-          <div class="notifications-item__top">
-            <div class="notifications-item__headline">
-              <h3>{{ notification.title }}</h3>
-              <span :class="`notifications-type-badge notifications-type-badge--${notificationType(notification)}`">
-                {{ notificationTypeLabel(notification) }}
+          <div class="notifications-item__body">
+            <div class="notifications-item__top">
+              <div class="notifications-item__headline">
+                <h3>{{ notification.title }}</h3>
+                <span :class="`notifications-type-badge notifications-type-badge--${notificationType(notification)}`">
+                  {{ notificationTypeLabel(notification) }}
+                </span>
+              </div>
+
+              <span class="notifications-item__time">
+                <i class="far fa-clock"></i>
+                {{ formatTimeAgo(notification.created_at) }}
               </span>
             </div>
 
-            <span class="notifications-item__time">
-              <i class="far fa-clock"></i>
-              {{ formatTimeAgo(notification.created_at) }}
-            </span>
+            <p class="notifications-item__message">{{ notification.message }}</p>
           </div>
 
-          <p class="notifications-item__message">{{ notification.message }}</p>
-        </div>
+          <div class="notifications-item__actions" @click.stop>
+            <button
+              v-if="!notification.is_read"
+              type="button"
+              class="btn-outline-small notifications-item__btn notifications-item__btn--read"
+              :disabled="loadingAction"
+              @click="markAsRead(notification.id)"
+            >
+              <i class="fas fa-check"></i>
+              <span>Marcar leída</span>
+            </button>
 
-        <div class="notifications-item__actions" @click.stop>
-          <button
-            v-if="!notification.is_read"
-            type="button"
-            class="btn-outline-small notifications-item__btn notifications-item__btn--read"
-            :disabled="loadingAction"
-            @click="markAsRead(notification.id)"
-          >
-            <i class="fas fa-check"></i>
-            <span>Marcar leída</span>
-          </button>
-
-          <button
-            type="button"
-            class="btn-outline-small notifications-item__btn notifications-item__btn--delete"
-            :disabled="loadingAction"
-            @click="deleteOne(notification.id)"
-          >
-            <i class="fas fa-trash-alt"></i>
-            <span>Eliminar</span>
-          </button>
-        </div>
-      </article>
-    </transition-group>
-  </section>
+            <button
+              type="button"
+              class="btn-outline-small notifications-item__btn notifications-item__btn--delete"
+              :disabled="loadingAction"
+              @click="deleteOne(notification.id)"
+            >
+              <i class="fas fa-trash-alt"></i>
+              <span>Eliminar</span>
+            </button>
+          </div>
+        </article>
+      </transition-group>
+    </section>
+  </template>
 </template>
 
 <script setup>
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import {
   deleteNotification,
   getNotifications,

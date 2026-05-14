@@ -1,130 +1,135 @@
 <template>
-  <section class="dashboard-header">
-    <h1>Bienvenido a tu cuenta</h1>
-    <p>Aquí puedes gestionar tus pedidos, direcciones y preferencias.</p>
-  </section>
+  <AccountShimmer v-if="loading" variant="dashboard" />
 
-  <section class="dashboard-summary">
-    <article class="summary-card">
-      <div class="summary-icon">
-        <i class="fas fa-shopping-bag" />
-      </div>
-      <div class="summary-content">
-        <h3>Pedidos</h3>
-        <p>{{ ordersCountLabel }}</p>
-        <RouterLink :to="{ name: 'account-orders' }">Ver historial</RouterLink>
-      </div>
-    </article>
+  <template v-else>
+    <section class="dashboard-header">
+      <h1>Bienvenido a tu cuenta</h1>
+      <p>Aquí puedes gestionar tus pedidos, direcciones y preferencias.</p>
+    </section>
 
-    <article class="summary-card">
-      <div class="summary-icon">
-        <i class="fas fa-map-marker-alt" />
-      </div>
-      <div class="summary-content">
-        <h3>Direcciones</h3>
-        <p>{{ addressesCountLabel }}</p>
-        <RouterLink :to="{ name: 'account-addresses' }">Gestionar direcciones</RouterLink>
-      </div>
-    </article>
-
-    <article class="summary-card">
-      <div class="summary-icon">
-        <i class="fas fa-heart" />
-      </div>
-      <div class="summary-content">
-        <h3>Favoritos</h3>
-        <p>{{ favoritesCountLabel }}</p>
-        <RouterLink :to="{ name: 'account-wishlist' }">Ver favoritos</RouterLink>
-      </div>
-    </article>
-  </section>
-
-  <section class="account-card">
-    <header class="section-header">
-      <h2>Pedidos recientes</h2>
-      <RouterLink :to="{ name: 'account-orders' }" class="view-all">Ver todos</RouterLink>
-    </header>
-
-    <p v-if="loading" class="loading-box">Cargando pedidos...</p>
-    <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
-
-    <div v-else-if="recentOrders.length === 0" class="empty-state">
-      <i class="fas fa-box-open" />
-      <p>Aún no has realizado ningún pedido.</p>
-      <RouterLink :to="{ name: 'store' }" class="btn-primary-small">Ir a la tienda</RouterLink>
-    </div>
-
-    <div v-else class="orders-list">
-      <article v-for="order in recentOrders" :key="order.id" class="order-card">
-        <div class="order-header">
-          <div class="order-title">
-            <h3>Pedido #{{ order.order_number }}</h3>
-            <span class="order-date">{{ formatDate(order.created_at) }}</span>
-          </div>
-          <span class="status-badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span>
+    <section class="dashboard-summary">
+      <article class="summary-card">
+        <div class="summary-icon">
+          <i class="fas fa-shopping-bag" />
         </div>
-
-        <div class="order-details">
-          <div class="order-info">
-            <i class="fas fa-box" />
-            <span>{{ order.items_count || 0 }} producto(s)</span>
-          </div>
-          <div class="order-total">{{ formatPrice(order.total) }}</div>
-        </div>
-
-        <div class="order-actions">
-          <RouterLink :to="{ name: 'account-orders', query: { order: order.id } }" class="btn-view-order">
-            Ver detalles
-          </RouterLink>
+        <div class="summary-content">
+          <h3>Pedidos</h3>
+          <p>{{ ordersCountLabel }}</p>
+          <RouterLink :to="{ name: 'account-orders' }">Ver historial</RouterLink>
         </div>
       </article>
-    </div>
-  </section>
 
-  <section v-if="favoriteProducts.length > 0" class="account-card">
-    <header class="section-header">
-      <h2>Tus favoritos</h2>
-      <RouterLink :to="{ name: 'account-wishlist' }" class="view-all">Ver favoritos</RouterLink>
-    </header>
+      <article class="summary-card">
+        <div class="summary-icon">
+          <i class="fas fa-map-marker-alt" />
+        </div>
+        <div class="summary-content">
+          <h3>Direcciones</h3>
+          <p>{{ addressesCountLabel }}</p>
+          <RouterLink :to="{ name: 'account-addresses' }">Gestionar direcciones</RouterLink>
+        </div>
+      </article>
 
-    <div class="products-grid">
-      <ProductCard
-        v-for="product in favoriteProducts"
-        :key="product.id"
-        :product="product"
-        @add-cart="openProduct"
-        @wishlist-change="onWishlistChange"
-      />
-    </div>
-  </section>
+      <article class="summary-card">
+        <div class="summary-icon">
+          <i class="fas fa-heart" />
+        </div>
+        <div class="summary-content">
+          <h3>Favoritos</h3>
+          <p>{{ favoritesCountLabel }}</p>
+          <RouterLink :to="{ name: 'account-wishlist' }">Ver favoritos</RouterLink>
+        </div>
+      </article>
+    </section>
 
-  <section v-if="recommendedShowcase.length > 0" class="account-card">
-    <header class="section-header">
-      <h2>Recomendaciones para ti</h2>
-      <RouterLink :to="{ name: 'store' }" class="view-all">Ver tienda</RouterLink>
-    </header>
+    <section class="account-card">
+      <header class="section-header">
+        <h2>Pedidos recientes</h2>
+        <RouterLink :to="{ name: 'account-orders' }" class="view-all">Ver todos</RouterLink>
+      </header>
 
-    <div class="products-grid">
-      <ProductCard
-        v-for="product in recommendedShowcase"
-        :key="product.id"
-        :product="product"
-        @add-cart="openProduct"
-        @wishlist-change="onWishlistChange"
-      />
-    </div>
-  </section>
+      <p v-if="errorMessage" class="error-box">{{ errorMessage }}</p>
+
+      <div v-else-if="recentOrders.length === 0" class="empty-state">
+        <i class="fas fa-box-open" />
+        <p>Aún no has realizado ningún pedido.</p>
+        <RouterLink :to="{ name: 'store' }" class="btn-primary-small">Ir a la tienda</RouterLink>
+      </div>
+
+      <div v-else class="orders-list">
+        <article v-for="order in recentOrders" :key="order.id" class="order-card">
+          <div class="order-header">
+            <div class="order-title">
+              <h3>Pedido #{{ order.order_number }}</h3>
+              <span class="order-date">{{ formatDate(order.created_at) }}</span>
+            </div>
+            <span class="status-badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span>
+          </div>
+
+          <div class="order-details">
+            <div class="order-info">
+              <i class="fas fa-box" />
+              <span>{{ order.items_count || 0 }} producto(s)</span>
+            </div>
+            <div class="order-total">{{ formatPrice(order.total) }}</div>
+          </div>
+
+          <div class="order-actions">
+            <RouterLink :to="{ name: 'account-orders', query: { order: order.id } }" class="btn-view-order">
+              Ver detalles
+            </RouterLink>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section v-if="favoriteProducts.length > 0" class="account-card">
+      <header class="section-header">
+        <h2>Tus favoritos</h2>
+        <RouterLink :to="{ name: 'account-wishlist' }" class="view-all">Ver favoritos</RouterLink>
+      </header>
+
+      <div class="products-grid">
+        <ProductCard
+          v-for="product in favoriteProducts"
+          :key="product.id"
+          :product="product"
+          @add-cart="openProduct"
+          @wishlist-change="onWishlistChange"
+        />
+      </div>
+    </section>
+
+    <section v-if="recommendedShowcase.length > 0" class="account-card">
+      <header class="section-header">
+        <h2>Recomendaciones para ti</h2>
+        <RouterLink :to="{ name: 'store' }" class="view-all">Ver tienda</RouterLink>
+      </header>
+
+      <div class="products-grid">
+        <ProductCard
+          v-for="product in recommendedShowcase"
+          :key="product.id"
+          :product="product"
+          @add-cart="openProduct"
+          @wishlist-change="onWishlistChange"
+        />
+      </div>
+    </section>
+  </template>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import ProductCard from '../../catalog/components/ProductCard.vue'
+import AccountShimmer from '../components/AccountShimmer.vue'
 import { getProducts } from '../../../services/catalogApi'
 import { getOrders } from '../../../services/orderApi'
 import { getUserAddresses } from '../../../services/shippingApi'
 import { getWishlist } from '../../../services/wishlistApi'
 import { useSession } from '../../../composables/useSession'
+import { getOrderStatusLabel, normalizeOrderStatus } from '../../../utils/orderPresentation'
 
 const router = useRouter()
 const { user, isLoggedIn } = useSession()
@@ -275,28 +280,18 @@ function formatDate(value) {
 }
 
 function statusLabel(status) {
-  const value = String(status || '').toLowerCase()
-
-  if (value === 'pending') return 'Pendiente'
-  if (value === 'processing') return 'Procesando'
-  if (value === 'paid') return 'Pagado'
-  if (value === 'confirmed') return 'Confirmado'
-  if (value === 'shipped') return 'Enviado'
-  if (value === 'delivered') return 'Entregado'
-  if (value === 'completed') return 'Completado'
-  if (value === 'cancelled') return 'Cancelado'
-  if (value === 'failed') return 'Fallido'
-
-  return status || 'Sin estado'
+  return getOrderStatusLabel(status) || status || 'Sin estado'
 }
 
 function statusClass(status) {
-  const value = String(status || '').toLowerCase()
+  const normalizedStatus = normalizeOrderStatus(status)
+  const rawStatus = String(status || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
 
-  if (['pending', 'processing'].includes(value)) return `status-${value}`
-  if (['paid', 'confirmed', 'shipped'].includes(value)) return `status-${value}`
-  if (['delivered', 'completed'].includes(value)) return `status-${value}`
-  if (['cancelled', 'failed'].includes(value)) return `status-${value}`
+  if (normalizedStatus === 'pending') return 'status-pending'
+  if (['in_review', 'processing'].includes(normalizedStatus)) return 'status-processing'
+  if (['paid', 'confirmed', 'shipped'].includes(rawStatus)) return `status-${rawStatus}`
+  if (['delivered', 'completed'].includes(normalizedStatus)) return `status-${normalizedStatus}`
+  if (['cancelled', 'canceled', 'failed', 'refunded'].includes(rawStatus)) return 'status-cancelled'
 
   return 'status-processing'
 }

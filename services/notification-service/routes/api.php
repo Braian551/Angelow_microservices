@@ -22,6 +22,8 @@ Route::get('/announcements/home', [AdminNotificationController::class, 'homeAnno
 
 // ── Admin ───────────────────────────────────────────────────
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
+    Route::get('/notification-dismissals', [AdminNotificationController::class, 'notificationDismissals']);
+    Route::patch('/notification-dismissals', [AdminNotificationController::class, 'storeNotificationDismissals']);
     Route::get('/announcements', [AdminNotificationController::class, 'announcements']);
     Route::post('/announcements', [AdminNotificationController::class, 'storeAnnouncement']);
     Route::put('/announcements/{id}', [AdminNotificationController::class, 'updateAnnouncement']);

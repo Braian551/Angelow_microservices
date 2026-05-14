@@ -163,7 +163,7 @@
           <div class="announcement-preview-card">
             <div class="announcement-preview-card__visual" :style="previewCardStyle(selectedAnnouncement)">
               <img
-                v-if="selectedAnnouncement.image"
+                v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.image"
                 :src="resolveMediaUrl(selectedAnnouncement.image, 'banner')"
                 :alt="selectedAnnouncement.title"
                 @error="handleMediaError($event, selectedAnnouncement.image, 'banner')"
@@ -175,8 +175,8 @@
                 </span>
                 <h3>{{ selectedAnnouncement.title }}</h3>
                 <p>{{ selectedAnnouncement.message || 'Sin mensaje configurado.' }}</p>
-                <p v-if="selectedAnnouncement.subtitle" class="announcement-preview-card__subtitle">{{ selectedAnnouncement.subtitle }}</p>
-                <a v-if="selectedAnnouncement.button_text" class="announcement-preview-card__button" href="#" @click.prevent>
+                <p v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.subtitle" class="announcement-preview-card__subtitle">{{ selectedAnnouncement.subtitle }}</p>
+                <a v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.button_text" class="announcement-preview-card__button" href="#" @click.prevent>
                   {{ selectedAnnouncement.button_text }}
                 </a>
               </div>
@@ -190,15 +190,15 @@
                 <div class="admin-detail-summary__row"><span>Prioridad</span><strong>{{ priorityLabel(selectedAnnouncement.priority) }}</strong></div>
                 <div class="admin-detail-summary__row"><span>Inicio</span><strong>{{ selectedAnnouncement.start_date ? formatDateTime(selectedAnnouncement.start_date) : 'Inmediato' }}</strong></div>
                 <div class="admin-detail-summary__row"><span>Fin</span><strong>{{ selectedAnnouncement.end_date ? formatDateTime(selectedAnnouncement.end_date) : 'Sin cierre' }}</strong></div>
-                <div class="admin-detail-summary__row"><span>Botón</span><strong>{{ selectedAnnouncement.button_text || 'No configurado' }}</strong></div>
-                <div class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Enlace</span><strong>{{ selectedAnnouncement.button_link || 'Sin enlace' }}</strong></div>
+                <div v-if="selectedAnnouncement.type === 'promo_banner'" class="admin-detail-summary__row"><span>Botón</span><strong>{{ selectedAnnouncement.button_text || 'No configurado' }}</strong></div>
+                <div v-if="selectedAnnouncement.type === 'promo_banner'" class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Enlace</span><strong>{{ selectedAnnouncement.button_link || 'Sin enlace' }}</strong></div>
               </div>
             </AdminCard>
 
             <AdminCard title="Mensaje completo" icon="fas fa-align-left" style="margin-top: 1.2rem;">
               <div class="detail-copy-block">
                 <p>{{ selectedAnnouncement.message || 'Sin mensaje.' }}</p>
-                <p v-if="selectedAnnouncement.subtitle"><strong>Subtítulo:</strong> {{ selectedAnnouncement.subtitle }}</p>
+                <p v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.subtitle"><strong>Subtítulo:</strong> {{ selectedAnnouncement.subtitle }}</p>
               </div>
             </AdminCard>
           </div>
@@ -221,7 +221,7 @@
               Tipo *
               <AdminInfoTooltip text="«Barra superior» aparece en la franja de la parte alta de la tienda. «Banner promocional» se muestra como bloque destacado." />
             </label>
-            <select id="announcement-type-editor" v-model="form.type" class="form-control" @change="validateField('type')">
+            <select id="announcement-type-editor" v-model="form.type" class="form-control" @change="handleAnnouncementTypeChange()">
               <option value="top_bar">Barra superior</option>
               <option value="promo_banner">Banner promocional</option>
             </select>
@@ -246,7 +246,7 @@
             <p v-if="formErrors.message" class="form-error">{{ formErrors.message }}</p>
           </div>
 
-          <div class="form-group">
+          <div v-if="isPromoBannerType" class="form-group">
             <label for="announcement-subtitle">
               Subtítulo
               <AdminInfoTooltip text="Texto secundario opcional que complementa el mensaje principal." />
@@ -254,7 +254,7 @@
             <input id="announcement-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
           </div>
 
-          <div class="form-row">
+          <div v-if="isPromoBannerType" class="form-row">
             <div class="form-group" style="flex: 1;">
               <label for="announcement-button-text">
                 Texto del botón
@@ -268,20 +268,28 @@
                 <AdminInfoTooltip text="Página de la tienda a la que lleva el botón al hacer clic. Elige «Otro enlace personalizado» si necesitas una URL específica." />
               </label>
               <select id="announcement-link" v-model="selectedLinkOption" class="form-control" @change="onLinkOptionChange(selectedLinkOption)">
-                <option v-for="page in STORE_PAGES" :key="page.value" :value="page.value">{{ page.label }}</option>
+                <optgroup v-for="group in linkOptionGroups" :key="group.label" :label="group.label">
+                  <option v-for="page in group.options" :key="page.value" :value="page.value">{{ page.label }}</option>
+                </optgroup>
               </select>
+              <small class="announcement-link-help">Elige un destino frecuente, una colección puntual o define un enlace manual para una campaña específica.</small>
               <input
-                v-if="selectedLinkOption === '__custom__'"
+                v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE"
                 v-model.trim="form.button_link"
-                type="url"
+                type="text"
                 class="form-control mt-1"
                 :class="{ 'is-invalid': formErrors.button_link }"
-                placeholder="https://... o /ruta/interna"
+                placeholder="Ej. /producto/vestido-verano, /tienda?collection=12 o https://..."
                 @input="validateField('button_link')"
               >
+              <small v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE" class="announcement-link-help announcement-link-help--muted">También puedes apuntar a un producto concreto por slug o a una página externa.</small>
               <p v-if="formErrors.button_link" class="form-error">{{ formErrors.button_link }}</p>
             </div>
           </div>
+
+          <p v-else class="announcement-form-tip">
+            La barra superior solo usa título, mensaje, icono, colores, prioridad y fechas. Los campos de banner se ocultan automáticamente para evitar ruido en el formulario.
+          </p>
         </div>
 
         <div>
@@ -371,7 +379,7 @@
             </div>
           </div>
 
-          <div class="form-group">
+          <div v-if="isPromoBannerType" class="form-group">
             <label>
               Imagen
               <AdminInfoTooltip text="Imagen opcional para el anuncio tipo banner. JPG, PNG o WEBP. Máximo 3 MB." />
@@ -442,6 +450,7 @@ import PromoBanner from '../../home/components/PromoBanner.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { resolveMediaUrl, handleMediaError } from '../../../utils/media'
+import { buildStoreLinkGroups, CUSTOM_STORE_LINK_VALUE, detectStoreLinkOption, loadStoreLinkCatalogs } from '../utils/storeLinkOptions'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
@@ -469,18 +478,8 @@ const selectedImageFile = ref(null)
 const imagePreviewUrl = ref('')
 const availableColors = ref([])
 const selectedLinkOption = ref('')
-
-// Páginas de la tienda con nombres amigables para el selector de destino
-const STORE_PAGES = [
-  { label: '— Sin destino (botón decorativo) —', value: '' },
-  { label: 'Inicio', value: '/' },
-  { label: 'Tienda — Todos los productos', value: '/tienda' },
-  { label: 'Ofertas y descuentos', value: '/tienda?tipo=oferta' },
-  { label: 'Colecciones', value: '/colecciones' },
-  { label: 'Mi carrito', value: '/carrito' },
-  { label: 'Mi cuenta', value: '/perfil' },
-  { label: 'Otro enlace personalizado...', value: '__custom__' },
-]
+const linkCategories = ref([])
+const linkCollections = ref([])
 
 // Colores de texto sugeridos para garantizar contraste
 const TEXT_COLOR_OPTIONS = [
@@ -557,6 +556,14 @@ const announcementStats = computed(() => [
 ])
 
 const formPreview = computed(() => ({ ...form, image: imagePreviewUrl.value || form.image }))
+const isTopBarType = computed(() => form.type === 'top_bar')
+const isPromoBannerType = computed(() => form.type === 'promo_banner')
+
+const linkOptionGroups = computed(() => buildStoreLinkGroups({
+  categories: linkCategories.value,
+  collections: linkCollections.value,
+  includeEmptyOption: true,
+}))
 
 // Color actualmente seleccionado en el selector de fondo
 const selectedColorInfo = computed(() => availableColors.value.find((c) => c.hex_code === form.background_color) || null)
@@ -626,22 +633,32 @@ async function loadColors() {
 
 // Detecta si el link guardado coincide con una opción predefinida o es personalizado
 function detectLinkOption(link) {
-  const clean = String(link || '').trim()
-  if (!clean) {
-    selectedLinkOption.value = ''
-    return
-  }
-  const preset = STORE_PAGES.find((p) => p.value !== '__custom__' && p.value === clean)
-  selectedLinkOption.value = preset ? preset.value : '__custom__'
+  selectedLinkOption.value = detectStoreLinkOption(link, linkOptionGroups.value, '')
 }
 
 // Maneja el cambio de opción en el selector de destino
 function onLinkOptionChange(val) {
   selectedLinkOption.value = val
-  if (val !== '__custom__') {
+  if (val !== CUSTOM_STORE_LINK_VALUE) {
     form.button_link = val
-    if (val) validateField('button_link')
+    validateField('button_link')
   }
+}
+
+function handleAnnouncementTypeChange() {
+  validateField('type')
+  if (isTopBarType.value) {
+    formErrors.button_link = ''
+    return
+  }
+
+  detectLinkOption(form.button_link)
+}
+
+async function loadLinkOptions() {
+  const { categories, collections } = await loadStoreLinkCatalogs()
+  linkCategories.value = categories
+  linkCollections.value = collections
 }
 
 function openCreateModal() {
@@ -719,6 +736,10 @@ function validateField(field) {
       formErrors.priority = Number.isFinite(Number(form.priority)) && Number(form.priority) >= 0 && Number(form.priority) <= 100 ? '' : 'La prioridad debe estar entre 0 y 100.'
       break
     case 'button_link':
+      if (isTopBarType.value) {
+        formErrors.button_link = ''
+        break
+      }
       formErrors.button_link = isValidLink(form.button_link) ? '' : 'Usa una ruta interna o una URL válida.'
       break
     case 'start_date':
@@ -768,9 +789,10 @@ async function saveAnnouncement() {
   payload.append('type', form.type)
   payload.append('title', form.title.trim())
   payload.append('message', form.message.trim())
-  payload.append('subtitle', form.subtitle.trim())
-  payload.append('button_text', form.button_text.trim())
-  payload.append('button_link', form.button_link.trim())
+  payload.append('subtitle', isPromoBannerType.value ? form.subtitle.trim() : '')
+  payload.append('button_text', isPromoBannerType.value ? form.button_text.trim() : '')
+  payload.append('button_link', isPromoBannerType.value ? form.button_link.trim() : '')
+  payload.append('image', isPromoBannerType.value ? form.image.trim() : '')
   payload.append('icon', form.icon)
   payload.append('priority', String(Number(form.priority || 0)))
   payload.append('background_color', form.background_color.trim())
@@ -778,7 +800,7 @@ async function saveAnnouncement() {
   payload.append('is_active', form.is_active ? '1' : '0')
   if (form.start_date) payload.append('start_date', form.start_date)
   if (form.end_date) payload.append('end_date', form.end_date)
-  if (selectedImageFile.value) payload.append('image_file', selectedImageFile.value)
+  if (isPromoBannerType.value && selectedImageFile.value) payload.append('image_file', selectedImageFile.value)
 
   try {
     if (editingAnnouncementId.value) {
@@ -940,6 +962,7 @@ function downloadCsv(filename, content) {
 onMounted(() => {
   loadAnnouncements()
   loadColors()
+  loadLinkOptions()
 })
 
 onBeforeUnmount(() => {
@@ -1092,6 +1115,18 @@ onBeforeUnmount(() => {
 /* Espaciado para input personalizado de URL */
 .mt-1 {
   margin-top: 0.6rem;
+}
+
+.announcement-link-help {
+  display: block;
+  margin-top: 0.6rem;
+  font-size: 1.2rem;
+  color: var(--admin-text-soft);
+  line-height: 1.5;
+}
+
+.announcement-link-help--muted {
+  margin-top: 0.5rem;
 }
 
 .editor-preview-image {

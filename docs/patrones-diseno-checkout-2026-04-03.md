@@ -38,3 +38,28 @@
 - Ubicación: `frontend/src/modules/checkout/utils/checkoutHelpers.js`
 - Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
 - Problema resuelto: algunos ítems llegaban al paso de pago sin `size_variant_id`, provocando rechazo de validación en creación de orden y un error visible para el usuario.
+
+## State
+
+- Aplicación: resolución centralizada de estados de disponibilidad (`available`, `low-stock`, `quantity-exceeded`, `sold-out`) para controlar selección, bloqueo de cantidad y feedback inline desde el carrito hasta el checkout.
+- Ubicación: `frontend/src/modules/cart/utils/cartSelection.js`
+- Ubicación: `frontend/src/modules/cart/pages/CartPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
+- Problema resuelto: evitar que productos agotados o con cantidad inválida sigan incluidos en el pago, y mantener el mismo criterio para subtotal, resumen y compra parcial en todo el flujo.
+
+## Extensión 2026-05-10: sincronización de notas e indicaciones de entrega
+
+### Observer
+
+- Aplicación: observar el cambio de dirección seleccionada para autocompletar las notas del pedido con `delivery_instructions` sin sobrescribir una nota manual del cliente.
+- Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
+- Problema resuelto: las notas del pedido y las indicaciones de la dirección representaban el mismo dato operativo y terminaban duplicándose durante el checkout.
+
+### Adapter
+
+- Aplicación: normalización de las instrucciones de envío para separar lo heredado de la dirección y la nota adicional del pedido antes de persistir y mostrar el resumen.
+- Ubicación: `frontend/src/modules/checkout/pages/ShippingPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
+- Ubicación: `frontend/src/modules/checkout/pages/ConfirmationPage.vue`
+- Problema resuelto: evitar guardar dos veces la misma instrucción y, al mismo tiempo, conservar visibles las notas realmente distintas en pago y confirmación.

@@ -9,22 +9,27 @@
 
       <div class="shipping-page-divider" />
 
-      <p v-if="loading" class="loading-box shipping-page-status">Cargando datos de envío...</p>
+      <CheckoutShimmer v-if="loading" />
       <p v-else-if="errorMessage" class="error-box shipping-page-status">{{ errorMessage }}</p>
 
       <section v-else-if="cartItems.length === 0" class="shipping-empty-state">
         <div class="shipping-empty-icon">
           <i class="fas fa-shopping-bag" />
         </div>
-        <h2>Tu carrito está vacío</h2>
-        <p>Agrega productos para continuar con el proceso de compra.</p>
-        <RouterLink :to="{ name: 'store' }" class="shipping-filled-action">
+        <h2>No hay productos disponibles para continuar</h2>
+        <p>Vuelve al carrito para seleccionar productos con stock o ajustar las cantidades antes de pagar.</p>
+        <RouterLink :to="{ name: 'cart' }" class="shipping-filled-action">
           <i class="fas fa-arrow-left" />
-          <span>Ir a la tienda</span>
+          <span>Volver al carrito</span>
         </RouterLink>
       </section>
 
       <form v-else class="shipping-page-form" @submit.prevent="continueToPayment">
+        <!-- Banner de validación reutilizable -->
+        <CheckoutValidationAlert
+          :visible="formValidationError"
+          :errors="shippingValidationErrors"
+        />
         <div class="shipping-page-layout">
           <div class="shipping-page-sections">
             <section class="shipping-section-card">
@@ -202,6 +207,9 @@
                   placeholder="Ejemplo: llamar antes de llegar, entregar a portería, horario recomendado..."
                 />
               </label>
+              <p class="shipping-notes-help">
+                Si la dirección seleccionada ya tiene indicaciones de entrega, las cargamos aquí automáticamente para que no tengas que escribirlas dos veces.
+              </p>
             </section>
           </div>
 
@@ -349,10 +357,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import CheckoutFlowHeader from '../components/CheckoutFlowHeader.vue'
+import CheckoutValidationAlert from '../components/CheckoutValidationAlert.vue'
+import CheckoutShimmer from '../components/CheckoutShimmer.vue'
 import { useAppShell } from '../../../composables/useAppShell'
+import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useSession } from '../../../composables/useSession'
 import { getCart } from '../../../services/cartApi'
 import { validateBulkDiscount, validateDiscountCode } from '../../../services/discountApi'
@@ -370,6 +381,7 @@ import {
   normalizeCheckoutCartItem,
   normalizeCheckoutMethod,
 } from '../utils/checkoutHelpers'
+import { buildCartSelectionSummary, synchronizeCartSelectionMap } from '../../cart/utils/cartSelection'
 
 const EMPTY_CART = {
   items: [],
@@ -380,10 +392,12 @@ const EMPTY_CART = {
 const router = useRouter()
 const { sessionId, user } = useSession()
 const { setCartCount } = useAppShell()
+const { showSnackbar } = useSnackbarSystem()
 
 const loading = ref(true)
 const errorMessage = ref('')
 const orderNotes = ref('')
+const lastAutoFilledOrderNotes = ref('')
 const discountCode = ref('')
 const discountAmount = ref(0)
 const discountSource = ref('none')
@@ -393,6 +407,7 @@ const discountFeedbackType = ref('success')
 const applyingDiscount = ref(false)
 
 const cart = ref({ ...EMPTY_CART })
+const selectionMap = ref({})
 const addresses = ref([])
 const methods = ref([])
 const rules = ref([])
@@ -402,18 +417,33 @@ const selectionErrors = ref({
   address: '',
   shipping: '',
 })
+const formValidationError = ref(false)
 
-const cartItems = computed(() => {
-  const rawItems = Array.isArray(cart.value?.items) ? cart.value.items : []
-  return rawItems.map(normalizeCheckoutCartItem)
+const cartSelectionState = computed(() => buildCartSelectionSummary(
+  Array.isArray(cart.value?.items) ? cart.value.items : [],
+  selectionMap.value,
+))
+const cartItems = computed(() => cartSelectionState.value.selectedItems.map(normalizeCheckoutCartItem))
+
+// Errores de validación formateados para CheckoutValidationAlert
+const shippingValidationErrors = computed(() => {
+  const errors = []
+  if (selectionErrors.value.address) {
+    errors.push({ icon: 'fas fa-map-marker-alt', text: selectionErrors.value.address })
+  }
+  if (selectionErrors.value.shipping) {
+    errors.push({ icon: 'fas fa-truck', text: selectionErrors.value.shipping })
+  }
+  return errors
 })
-
-const subtotal = computed(() => Number(cart.value?.subtotal || 0))
-const itemCount = computed(() => cartItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0))
+const subtotal = computed(() => cartSelectionState.value.selectedSubtotal)
+const itemCount = computed(() => cartSelectionState.value.selectedUnits)
 
 const selectedAddress = computed(() => {
   return addresses.value.find((address) => address.id === selectedAddressId.value) || null
 })
+
+const selectedAddressInstructions = computed(() => String(selectedAddress.value?.delivery_instructions || '').trim())
 
 const selectedShippingMethod = computed(() => {
   return methods.value.find((method) => method.id === selectedShippingMethodId.value) || null
@@ -446,6 +476,10 @@ const discountSummaryLabel = computed(() => {
 })
 const orderTotal = computed(() => Math.max(0, subtotal.value + shippingCost.value - discountAmount.value))
 
+watch(selectedAddressInstructions, (nextValue, previousValue) => {
+  syncOrderNotesWithSelectedAddress(nextValue, previousValue)
+})
+
 onMounted(loadPage)
 
 async function loadPage() {
@@ -466,6 +500,8 @@ async function loadPage() {
       ? { ...EMPTY_CART, ...cartRes.data }
       : { ...EMPTY_CART }
 
+    selectionMap.value = synchronizeCartSelectionMap(Array.isArray(cart.value?.items) ? cart.value.items : [])
+
     addresses.value = Array.isArray(addressesRes?.data)
       ? addressesRes.data.map(normalizeCheckoutAddress)
       : []
@@ -474,43 +510,47 @@ async function loadPage() {
       ? rulesRes.data.map(normalizeShippingRule)
       : []
 
-    const methodsRes = await getShippingMethods({
-      subtotal: Number(cart.value?.subtotal || 0),
-      city: preferredShippingCity(),
-    })
-
-    let nextMethods = Array.isArray(methodsRes?.data)
-      ? methodsRes.data.map(normalizeCheckoutMethod)
-      : []
-
-    if (nextMethods.length === 0) {
-      const estimateRes = await estimateShipping({
-        subtotal: Number(cart.value?.subtotal || 0),
-        city: 'Medellín',
+    if (subtotal.value > 0) {
+      const methodsRes = await getShippingMethods({
+        subtotal: subtotal.value,
+        city: preferredShippingCity(),
       })
 
-      const rangeRuleAdditionalCost = Number(
-        estimateRes?.range_rule_additional_cost
-        ?? estimateRes?.shipping_cost
-        ?? 0,
-      )
+      let nextMethods = Array.isArray(methodsRes?.data)
+        ? methodsRes.data.map(normalizeCheckoutMethod)
+        : []
 
-      nextMethods = [
-        normalizeCheckoutMethod({
-          id: -1,
-          name: 'Envío estándar',
-          description: 'Costo estimado según el total actual de tu pedido.',
-          delivery_time: 'Coordinaremos el despacho contigo',
-          base_cost: 0,
-          method_cost: 0,
-          range_rule_additional_cost: rangeRuleAdditionalCost,
-          range_rule_label: String(estimateRes?.range_rule_label || '').trim(),
-          applied_cost: rangeRuleAdditionalCost,
-        }),
-      ]
+      if (nextMethods.length === 0) {
+        const estimateRes = await estimateShipping({
+          subtotal: subtotal.value,
+          city: 'Medellín',
+        })
+
+        const rangeRuleAdditionalCost = Number(
+          estimateRes?.range_rule_additional_cost
+          ?? estimateRes?.shipping_cost
+          ?? 0,
+        )
+
+        nextMethods = [
+          normalizeCheckoutMethod({
+            id: -1,
+            name: 'Envío estándar',
+            description: 'Costo estimado según el total actual de tu pedido.',
+            delivery_time: 'Coordinaremos el despacho contigo',
+            base_cost: 0,
+            method_cost: 0,
+            range_rule_additional_cost: rangeRuleAdditionalCost,
+            range_rule_label: String(estimateRes?.range_rule_label || '').trim(),
+            applied_cost: rangeRuleAdditionalCost,
+          }),
+        ]
+      }
+
+      methods.value = nextMethods
+    } else {
+      methods.value = []
     }
-
-    methods.value = nextMethods
 
     setCartCount(cart.value.item_count || 0)
     restoreSavedState()
@@ -537,6 +577,7 @@ function restoreSavedState() {
     ? saved.bulk_discount
     : null
   orderNotes.value = String(saved?.notes || '').trim()
+  lastAutoFilledOrderNotes.value = ''
 
   const savedAddressId = Number(saved?.selected_address_id || saved?.selected_address?.id || 0)
   const savedMethodId = Number(saved?.selected_shipping_method_id || saved?.selected_shipping_method?.id || 0)
@@ -566,14 +607,45 @@ function preferredShippingCity() {
   return city || undefined
 }
 
+function syncOrderNotesWithSelectedAddress(nextValue = selectedAddressInstructions.value, previousValue = '') {
+  const normalizedNext = String(nextValue || '').trim()
+  const normalizedPrevious = String(previousValue || '').trim()
+  const currentNotes = String(orderNotes.value || '').trim()
+
+  const shouldAutofill = currentNotes === ''
+    || currentNotes === lastAutoFilledOrderNotes.value
+    || (normalizedPrevious !== '' && currentNotes === normalizedPrevious)
+
+  if (shouldAutofill) {
+    orderNotes.value = normalizedNext
+    lastAutoFilledOrderNotes.value = normalizedNext
+    return
+  }
+
+  if (currentNotes === normalizedNext) {
+    lastAutoFilledOrderNotes.value = normalizedNext
+  }
+}
+
+function normalizedOrderNotesValue() {
+  const notes = String(orderNotes.value || '').trim()
+  if (!notes) {
+    return ''
+  }
+
+  return notes === selectedAddressInstructions.value ? '' : notes
+}
+
 function selectAddress(addressId) {
   selectedAddressId.value = addressId
   selectionErrors.value.address = ''
+  if (!selectionErrors.value.shipping) formValidationError.value = false
 }
 
 function selectShippingMethod(methodId) {
   selectedShippingMethodId.value = methodId
   selectionErrors.value.shipping = ''
+  if (!selectionErrors.value.address) formValidationError.value = false
 }
 
 function normalizeShippingRule(rule = {}) {
@@ -845,12 +917,28 @@ async function continueToPayment() {
   }
 
   if (cartItems.value.length === 0) {
-    errorMessage.value = 'Tu carrito está vacío. Regresa al carrito para continuar.'
+    errorMessage.value = 'No hay productos seleccionados disponibles. Regresa al carrito para continuar.'
     return
   }
 
   if (hasError) {
-    errorMessage.value = 'Revisa los campos obligatorios antes de continuar.'
+    formValidationError.value = true
+    // Scroll al banner de errores para que el usuario lo vea
+    await nextTick()
+    const banner = document.querySelector('.checkout-validation-alert')
+    if (banner) {
+      banner.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    // Snackbar reforzando qué falta
+    const missingItems = [
+      selectionErrors.value.address ? 'dirección de envío' : null,
+      selectionErrors.value.shipping ? 'método de envío' : null,
+    ].filter(Boolean)
+    showSnackbar({
+      type: 'warning',
+      title: 'Faltan campos obligatorios',
+      message: `Selecciona: ${missingItems.join(' y ')}.`,
+    })
     return
   }
 
@@ -883,7 +971,7 @@ async function continueToPayment() {
       range_rule_label: shippingBreakdown.range_rule_label,
       shipping_cost: shippingCost.value,
     },
-    notes: orderNotes.value.trim(),
+    notes: normalizedOrderNotesValue(),
     discount_code: discountCode.value.trim(),
     discount_amount: discountAmount.value,
     discount_source: discountSource.value,
@@ -1260,6 +1348,13 @@ function parseStoredJson(rawValue) {
   box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.12);
 }
 
+.shipping-notes-help {
+  margin: 0.9rem 0 0;
+  color: #667085;
+  font-size: 1.28rem;
+  line-height: 1.5;
+}
+
 .shipping-summary-column {
   position: sticky;
   top: 12rem;
@@ -1588,10 +1683,25 @@ function parseStoredJson(rawValue) {
 }
 
 .shipping-field-error {
-  margin: 1.2rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 1rem 0 0;
+  padding: 0.7rem 1.2rem;
+  border-radius: 0.8rem;
+  background: #fff0f0;
+  border: 1px solid rgba(198, 40, 40, 0.2);
   color: #c62828;
   font-size: 1.25rem;
   font-weight: 600;
+  animation: shippingFieldErrorIn 0.2s ease;
+}
+
+/* Los estilos del banner de validación se gestionan en CheckoutValidationAlert.vue */
+
+@keyframes shippingFieldErrorIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes shippingPageFadeIn {

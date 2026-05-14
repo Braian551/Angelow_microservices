@@ -15,8 +15,15 @@
             <i class="fas fa-arrow-left" />
           </button>
 
-          <div class="user-avatar">
-            <img :src="avatarUrl" alt="Foto de perfil" @error="onAvatarError" />
+          <div class="user-avatar" :class="{ 'is-loading': showAvatarShimmer }">
+            <span v-if="showAvatarShimmer" class="user-avatar__shimmer" aria-hidden="true"></span>
+            <img
+              :src="avatarUrl"
+              alt="Foto de perfil"
+              :class="{ 'is-ready': !showAvatarShimmer }"
+              @load="onAvatarLoad"
+              @error="onAvatarError"
+            />
           </div>
 
           <div class="user-info">
@@ -83,7 +90,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSession } from '../../../composables/useSession'
@@ -107,6 +114,7 @@ const { user, isLoggedIn, clearSession } = useSession()
 const { showAlert } = useAlertSystem()
 
 const currentPath = computed(() => route.fullPath || '/mi-cuenta/resumen')
+const avatarLoaded = ref(false)
 
 const displayName = computed(() => String(user.value?.name || 'Usuario'))
 const displayEmail = computed(() => String(user.value?.email || 'Sin correo'))
@@ -114,6 +122,7 @@ const unreadBadge = computed(() => (props.unreadNotifications > 99 ? '99+' : Str
 
 const avatarPath = computed(() => user.value?.image || user.value?.avatar || user.value?.profile_image || '')
 const avatarUrl = computed(() => resolveMediaUrl(avatarPath.value, 'avatar'))
+const showAvatarShimmer = computed(() => Boolean(avatarUrl.value) && !avatarLoaded.value)
 
 const memberSinceLabel = computed(() => {
   const raw = user.value?.created_at
@@ -126,8 +135,17 @@ const memberSinceLabel = computed(() => {
 })
 
 function onAvatarError(event) {
+  avatarLoaded.value = true
   handleMediaError(event, avatarPath.value, 'avatar')
 }
+
+function onAvatarLoad() {
+  avatarLoaded.value = true
+}
+
+watch(avatarUrl, () => {
+  avatarLoaded.value = false
+}, { immediate: true })
 
 function goBackOrHome() {
   if (window.history.length > 1) {

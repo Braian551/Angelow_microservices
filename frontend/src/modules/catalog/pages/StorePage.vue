@@ -7,10 +7,15 @@
           <button type="button" class="btn-clear" @click="clearFilters">Limpiar</button>
         </div>
 
-        <div class="filter-group">
-          <button type="button" class="filter-title" @click="toggleFilter('category')">
-            <span>Categorías</span>
-            <i class="fas fa-chevron-right" :class="{ 'is-open': openFilters.category }"></i>
+        <!-- Filtro: Categorías -->
+        <div class="filter-group" :class="{ 'has-filter': filters.category !== '' }">
+          <button type="button" class="filter-title" :class="{ 'is-open': openFilters.category }" @click="toggleFilter('category')">
+            <span class="filter-title-left">
+              <span class="filter-icon-wrap"><i class="fas fa-tags"></i></span>
+              <span>Categorías</span>
+              <span v-if="filters.category !== ''" class="filter-active-dot" aria-label="Filtro activo"></span>
+            </span>
+            <i class="fas fa-chevron-right filter-chevron" :class="{ 'is-open': openFilters.category }"></i>
           </button>
           <div class="filter-options store-filter-options" :class="{ 'is-open': openFilters.category }">
             <label class="filter-option">
@@ -24,10 +29,15 @@
           </div>
         </div>
 
-        <div class="filter-group">
-          <button type="button" class="filter-title" @click="toggleFilter('gender')">
-            <span>Género</span>
-            <i class="fas fa-chevron-right" :class="{ 'is-open': openFilters.gender }"></i>
+        <!-- Filtro: Género -->
+        <div class="filter-group" :class="{ 'has-filter': filters.gender !== '' }">
+          <button type="button" class="filter-title" :class="{ 'is-open': openFilters.gender }" @click="toggleFilter('gender')">
+            <span class="filter-title-left">
+              <span class="filter-icon-wrap"><i class="fas fa-child"></i></span>
+              <span>Género</span>
+              <span v-if="filters.gender !== ''" class="filter-active-dot" aria-label="Filtro activo"></span>
+            </span>
+            <i class="fas fa-chevron-right filter-chevron" :class="{ 'is-open': openFilters.gender }"></i>
           </button>
           <div class="filter-options store-filter-options" :class="{ 'is-open': openFilters.gender }">
             <label class="filter-option">
@@ -53,10 +63,15 @@
           </div>
         </div>
 
-        <div class="filter-group">
-          <button type="button" class="filter-title" @click="toggleFilter('price')">
-            <span>Rango de precios</span>
-            <i class="fas fa-chevron-right" :class="{ 'is-open': openFilters.price }"></i>
+        <!-- Filtro: Rango de precios -->
+        <div class="filter-group" :class="{ 'has-filter': priceRange.min > PRICE_RANGE_MIN || priceRange.max < PRICE_RANGE_MAX }">
+          <button type="button" class="filter-title" :class="{ 'is-open': openFilters.price }" @click="toggleFilter('price')">
+            <span class="filter-title-left">
+              <span class="filter-icon-wrap"><i class="fas fa-dollar-sign"></i></span>
+              <span>Rango de precios</span>
+              <span v-if="priceRange.min > PRICE_RANGE_MIN || priceRange.max < PRICE_RANGE_MAX" class="filter-active-dot" aria-label="Filtro activo"></span>
+            </span>
+            <i class="fas fa-chevron-right filter-chevron" :class="{ 'is-open': openFilters.price }"></i>
           </button>
           <div class="filter-options store-filter-options price-filter" :class="{ 'is-open': openFilters.price }">
             <div class="price-range-slider">
@@ -88,10 +103,15 @@
           </div>
         </div>
 
-        <div class="filter-group">
-          <button type="button" class="filter-title" @click="toggleFilter('offers')">
-            <span>Ofertas</span>
-            <i class="fas fa-chevron-right" :class="{ 'is-open': openFilters.offers }"></i>
+        <!-- Filtro: Ofertas -->
+        <div class="filter-group" :class="{ 'has-filter': filters.offers === '1' }">
+          <button type="button" class="filter-title" :class="{ 'is-open': openFilters.offers }" @click="toggleFilter('offers')">
+            <span class="filter-title-left">
+              <span class="filter-icon-wrap"><i class="fas fa-tag"></i></span>
+              <span>Ofertas</span>
+              <span v-if="filters.offers === '1'" class="filter-active-dot" aria-label="Filtro activo"></span>
+            </span>
+            <i class="fas fa-chevron-right filter-chevron" :class="{ 'is-open': openFilters.offers }"></i>
           </button>
           <div class="filter-options store-filter-options" :class="{ 'is-open': openFilters.offers }">
             <label class="filter-option">
@@ -101,10 +121,15 @@
           </div>
         </div>
 
-        <div class="filter-group" v-if="collections.length > 0">
-          <button type="button" class="filter-title" @click="toggleFilter('collection')">
-            <span>Colecciones</span>
-            <i class="fas fa-chevron-right" :class="{ 'is-open': openFilters.collection }"></i>
+        <!-- Filtro: Colecciones -->
+        <div v-if="collections.length > 0" class="filter-group" :class="{ 'has-filter': filters.collection !== '' }">
+          <button type="button" class="filter-title" :class="{ 'is-open': openFilters.collection }" @click="toggleFilter('collection')">
+            <span class="filter-title-left">
+              <span class="filter-icon-wrap"><i class="fas fa-layer-group"></i></span>
+              <span>Colecciones</span>
+              <span v-if="filters.collection !== ''" class="filter-active-dot" aria-label="Filtro activo"></span>
+            </span>
+            <i class="fas fa-chevron-right filter-chevron" :class="{ 'is-open': openFilters.collection }"></i>
           </button>
           <div class="filter-options store-filter-options" :class="{ 'is-open': openFilters.collection }">
             <label class="filter-option">

@@ -8,11 +8,17 @@ En el panel de administración existían dos inconsistencias operativas:
 ## Patrón 1: Adapter (traducción de estados de dominio a UI)
 - Objetivo: desacoplar los valores técnicos de base de datos del texto visible al usuario.
 - Implementación:
+  - `frontend/src/utils/orderPresentation.js`
   - `frontend/src/modules/admin/utils/orderPresentation.js`
+  - `frontend/src/modules/admin/pages/AdminDashboardPage.vue`
+  - `frontend/src/modules/account/pages/DashboardPage.vue`
+  - `frontend/src/modules/account/pages/OrdersPage.vue`
+  - `frontend/src/modules/account/pages/OrderDetailPage.vue`
 - Qué resuelve:
   - Traduce estados nuevos (`created`, `pending_payment`, `in_review`, `en_revision`) a etiquetas de negocio en español.
   - Evita que tokens con guion bajo se muestren en crudo (fallback humanizado).
   - Alinea clases visuales de badges con estados reales para mantener coherencia visual.
+  - Centraliza la traducción en una utilidad compartida para que cuenta y admin no diverjan en labels, badges ni fallbacks.
 
 ## Patrón 2: Observer + Event Aggregation (polling con consolidación de eventos)
 - Objetivo: centralizar el cálculo de notificaciones operativas desde eventos de órdenes sin depender solo de cambios detectados después de la inicialización.
@@ -23,6 +29,7 @@ En el panel de administración existían dos inconsistencias operativas:
   - Agrega eventos de revisión de pagos (`payments`) además de eventos de órdenes (`orders`).
   - Deduplica por `id` y preserva estado de lectura (`read_at`) para mantener coherencia entre campana y badges del aside.
   - Evita marcar como leído en el primer render, y solo marca por cambio real de ruta.
+  - Aísla fallos parciales del polling para que una consulta secundaria no vacíe también las notificaciones de órdenes y pagos.
 
 ## Patrón 3: Single Source of Truth para estados en filtros/acciones
 - Objetivo: que filtros y formularios usen el mismo vocabulario de estados que devuelve backend.
@@ -37,3 +44,4 @@ En el panel de administración existían dos inconsistencias operativas:
 - Estado `in_review` y estados relacionados visibles en español y con badge correcto.
 - Notificaciones iniciales coherentes al entrar al admin, con badges de Órdenes/Pagos conectados a la campana.
 - Conteos de pendientes alineados con el flujo real de revisión operativa.
+- Dashboard admin y módulo de cuenta reutilizan la misma capa de presentación para estados, evitando regresiones entre vistas.

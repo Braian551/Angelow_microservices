@@ -39,6 +39,16 @@ Se corrigió la carga de órdenes recientes y productos destacados en dashboard 
   - services/cart-service/app/Services/CartService.php
   - services/cart-service/app/Http/Controllers/CartController.php
 
+## 5) Memento
+- Patrón: Memento (Refactoring Guru)
+- Problema que resuelve: conservar el estado de lectura del panel admin aunque las notificaciones visibles se reconstruyan desde pedidos e inventario cada vez que se recarga la SPA o vuelve a correr el polling.
+- Implementación: las claves sintéticas leídas se guardan por administrador en `notification-service` y el composable del dashboard las restaura antes de mezclar el nuevo lote de eventos.
+- Archivos:
+  - frontend/src/modules/admin/composables/useAdminNotifications.js
+  - services/notification-service/app/Http/Controllers/Admin/AdminNotificationController.php
+  - services/notification-service/app/Models/AdminNotificationDismissal.php
+  - services/notification-service/routes/api.php
+
 ## Resultado funcional validado
 - Guard de seguridad interno en carrito abandonado:
   - sin X-Internal-Token -> 403

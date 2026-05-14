@@ -17,9 +17,8 @@
     border-radius: 18px;
     padding: 2rem 1.6rem;
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    position: sticky;
-    top: 120px;
     height: fit-content;
+    align-self: start;
 }
 
 .filter-header {
@@ -53,7 +52,10 @@
     color: #095b88;
 }
 
+/* Cada sección de filtro apila verticalmente el título y las opciones */
 .filter-group {
+    display: flex;
+    flex-direction: column;
     border-bottom: 1px solid #eef2f7;
     padding: 1.1rem 0;
 }
@@ -89,8 +91,10 @@
     color: #0b78b4;
 }
 
+/* Opciones del acordeón: se despliegan debajo del título, ancho completo */
 .products-filters-sidebar .store-filter-options {
     display: none;
+    width: 100%;
     padding-top: 1.2rem;
     animation: storeFilterReveal 0.2s ease;
 }
@@ -179,6 +183,98 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* ===== MEJORAS VISUALES DEL PANEL DE FILTROS ===== */
+
+/* Fila del título con ícono izquierdo, texto y punto activo */
+.filter-title-left {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Contenedor de ícono de tipo de filtro */
+.filter-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.8rem;
+    height: 2.8rem;
+    border-radius: 8px;
+    background: #f0f6fc;
+    color: #9ca3af;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+}
+
+/* El ícono de tipo nunca debe rotar al abrir el acordeón */
+.filter-icon-wrap i {
+    transform: none !important;
+    transition: none !important;
+}
+
+/* Ícono activo cuando el filtro tiene valor o está abierto */
+.has-filter .filter-icon-wrap,
+.filter-title.is-open .filter-icon-wrap {
+    background: #e6f1fb;
+    color: #0b78b4;
+}
+
+/* Punto indicador de filtro seleccionado */
+.filter-active-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: #0b78b4;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-left: 0.2rem;
+}
+
+/* Título resaltado cuando hay filtro activo */
+.has-filter .filter-title {
+    color: #0b78b4;
+}
+
+/* Flecha del acordeón con clase dedicada */
+.filter-chevron {
+    font-size: 1.1rem;
+    color: #9ca3af;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.filter-chevron.is-open {
+    transform: rotate(90deg);
+    color: #0b78b4;
+}
+
+/* Hover sobre el botón de título */
+.filter-title:hover .filter-icon-wrap {
+    background: #e6f1fb;
+    color: #0b78b4;
+}
+
+/* Opción seleccionada (browsers con soporte :has) */
+.filter-option:has(input:checked) {
+    background: rgba(11, 120, 180, 0.09);
+    border-radius: 8px;
+    padding-left: 0.7rem;
+    padding-right: 0.8rem;
+    color: #0b78b4;
+    font-weight: 600;
+}
+
+/* Hover sobre opción de filtro */
+.filter-option:hover {
+    background: rgba(11, 120, 180, 0.05);
+    border-radius: 8px;
+    padding-left: 0.7rem;
+    padding-right: 0.8rem;
 }
 
 /* ===== CONTENIDO PRINCIPAL ===== */
@@ -369,20 +465,11 @@
         grid-template-columns: 250px 1fr;
         gap: 1.8rem;
     }
-
-    .products-filters-sidebar {
-        top: 96px;
-    }
 }
 
 @media (max-width: 900px) {
     .store-layout {
         grid-template-columns: 1fr;
-    }
-
-    .products-filters-sidebar {
-        position: static;
-        top: auto;
     }
 
     .store-products-grid {
@@ -407,8 +494,15 @@
         font-size: 1.4rem;
     }
 
-    .filter-title i {
+    .filter-title i,
+    .filter-chevron {
         font-size: 1.0rem;
+    }
+
+    .filter-icon-wrap {
+        width: 2.4rem;
+        height: 2.4rem;
+        font-size: 1.1rem;
     }
 
     .filter-option {

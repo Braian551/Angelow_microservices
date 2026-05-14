@@ -96,6 +96,8 @@ class InternalCatalogController extends Controller
             'strict_reservation' => ['nullable', 'boolean'],
         ]);
 
+        $strictReservation = (bool) ($data['strict_reservation'] ?? false);
+
         $grouped = [];
         foreach ($data['items'] as $item) {
             $variantId = (int) ($item['size_variant_id'] ?? 0);
@@ -148,15 +150,19 @@ class InternalCatalogController extends Controller
                 }
 
                 $currentStock = (int) ($variant->{$stockColumn} ?? 0);
-                if ($currentStock < $requiredQty) {
+                $effectiveStock = $strictReservation
+                    ? $this->resolveReservationAwareCommitStock($variantId, $currentStock)
+                    : $currentStock;
+
+                if ($effectiveStock < $requiredQty) {
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'message' => "Stock insuficiente para la variante {$variantId}. Disponible: {$currentStock}, solicitado: {$requiredQty}.",
+                        'message' => "Stock insuficiente para la variante {$variantId}. Disponible: {$effectiveStock}, solicitado: {$requiredQty}.",
                     ], 409);
                 }
 
-                $newStock = $currentStock - $requiredQty;
+                $newStock = max(0, $effectiveStock - $requiredQty);
                 $updatePayload = [$stockColumn => $newStock];
                 if (Schema::hasColumn('product_size_variants', 'updated_at')) {
                     $updatePayload['updated_at'] = now();
@@ -170,10 +176,12 @@ class InternalCatalogController extends Controller
                     DB::table('stock_history')->insert([
                         'variant_id' => $variantId,
                         'user_id' => 'system-order-service',
-                        'previous_qty' => $currentStock,
+                        'previous_qty' => $effectiveStock,
                         'new_qty' => $newStock,
                         'operation' => 'order_commit',
-                        'notes' => 'Descuento por confirmación de pedido #' . (string) $data['order_id'],
+                        'notes' => $strictReservation
+                            ? 'Descuento por confirmacion de pedido reservado #' . (string) $data['order_id']
+                            : 'Descuento por confirmacion de pedido #' . (string) $data['order_id'],
                         'created_at' => now(),
                     ]);
                 }
@@ -188,6 +196,13 @@ class InternalCatalogController extends Controller
             }
 
             DB::commit();
+
+            foreach ($processed as $item) {
+                app('App\\Services\\InventoryAlertService')->syncVariantState(
+                    (int) ($item['size_variant_id'] ?? 0),
+                    (int) ($item['stock_after'] ?? 0),
+                );
+            }
 
             return response()->json([
                 'success' => true,
@@ -239,5 +254,25 @@ class InternalCatalogController extends Controller
         }
 
         return $safeFallback;
+    }
+
+    private function resolveReservationAwareCommitStock(int $sizeVariantId, int $fallbackQuantity): int
+    {
+        $safeFallback = max(0, $fallbackQuantity);
+
+        try {
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            if ($stockValue === null || !is_numeric((string) $stockValue)) {
+                return $safeFallback;
+            }
+
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            $availableStock = max(0, (int) $stockValue);
+            $reservedStock = is_numeric((string) $reservedValue) ? max(0, (int) $reservedValue) : 0;
+
+            return max(0, $availableStock + $reservedStock);
+        } catch (Throwable) {
+            return $safeFallback;
+        }
     }
 }

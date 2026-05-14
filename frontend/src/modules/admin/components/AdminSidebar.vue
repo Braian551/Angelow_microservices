@@ -30,7 +30,12 @@
             <li><RouterLink to="/admin/categorias" @click="handleNavigate">Categorías</RouterLink></li>
             <li><RouterLink to="/admin/colecciones" @click="handleNavigate">Colecciones</RouterLink></li>
             <li><RouterLink to="/admin/tallas" @click="handleNavigate">Tallas</RouterLink></li>
-            <li><RouterLink to="/admin/inventario" @click="handleNavigate">Inventario</RouterLink></li>
+            <li>
+              <RouterLink to="/admin/inventario" @click="handleNavigate">
+                Inventario
+                <span v-if="inventoryNotificationsCount > 0" class="badge nav-notification-badge">{{ inventoryNotificationsCount }}</span>
+              </RouterLink>
+            </li>
           </ul>
         </li>
 
@@ -201,6 +206,7 @@ const {
 const orderNotificationsCount = computed(() => unreadByModule.value.orders || 0)
 const paymentNotificationsCount = computed(() => unreadByModule.value.payments || 0)
 const invoiceNotificationsCount = computed(() => unreadByModule.value.invoices || 0)
+const inventoryNotificationsCount = computed(() => unreadByModule.value.inventory || 0)
 const DEFAULT_PRIMARY_COLOR = '#0077b6'
 const DEFAULT_SECONDARY_COLOR = '#111111'
 

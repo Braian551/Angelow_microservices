@@ -489,12 +489,7 @@
             <AdminInfoTooltip text="Nuevo estado de la orden. Te ayuda a registrar en qué etapa va el pedido." />
           </label>
           <select id="status-value" v-model="statusForm.status" class="form-control" :class="{ 'is-invalid': statusErrors.status }" @change="validateStatusField('status')">
-            <option value="pending">Pendiente</option>
-            <option value="processing">En proceso</option>
-            <option value="shipped">Enviado</option>
-            <option value="delivered">Entregado</option>
-            <option value="cancelled">Cancelado</option>
-            <option value="refunded">Reembolsado</option>
+            <option v-for="option in ADMIN_EDITABLE_ORDER_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
           <p v-if="statusErrors.status" class="form-error">{{ statusErrors.status }}</p>
         </div>
@@ -561,12 +556,14 @@ import {
   normalizeCheckoutAddress,
 } from '../../checkout/utils/checkoutHelpers'
 import {
+  ADMIN_EDITABLE_ORDER_STATUSES,
   getHistoryFieldLabel,
   getOrderStatusBadgeClass,
   getOrderStatusLabel,
   getPaymentMethodLabel,
   getPaymentStatusBadgeClass,
   getPaymentStatusLabel,
+  normalizeAdminOrderStatus,
   translateHistoryValue,
 } from '../utils/orderPresentation'
 import AdminCard from '../components/AdminCard.vue'
@@ -874,7 +871,7 @@ function normalizeOrder(rawOrder = {}) {
     order_source: rawOrder.order_source || orderSource.value,
     order_number: rawOrder.order_number || `#${rawOrder.id || orderId.value}`,
     created_at: rawOrder.created_at || null,
-    status: rawOrder.status || rawOrder.order_status || 'pending',
+    status: normalizeAdminOrderStatus(rawOrder.status || rawOrder.order_status || 'pending'),
     payment_status: rawOrder.payment_status || 'pending',
     payment_method: rawOrder.payment_method || '',
     customer_name: rawOrder.user_name || rawOrder.customer_name || rawOrder.billing_name || 'Cliente no registrado',
@@ -997,7 +994,7 @@ function hydrateEditForm() {
 }
 
 function resetStatusForm() {
-  statusForm.status = order.value?.status || 'pending'
+  statusForm.status = normalizeAdminOrderStatus(order.value?.status || 'pending')
   statusForm.description = ''
   statusErrors.status = ''
   statusErrors.description = ''
