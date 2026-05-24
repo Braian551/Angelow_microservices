@@ -1,5 +1,13 @@
 # Notification Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Endpoints](#endpoints)
+- [Tablas de dominio](#tablas-de-dominio)
+- [Workers y websockets](#workers-y-websockets)
+<!-- indice:auto:end -->
+
 Microservicio Laravel para notificaciones, preferencias, colas y broadcasting de eventos.
 
 ## Endpoints

@@ -9,8 +9,50 @@
 
     <AdminStatsGrid :loading="loading" :count="4" :stats="questionStats" />
 
-    <!-- Filtros de preguntas -->
+    <section class="insights-grid">
+      <AdminCard title="Estado de preguntas" icon="fas fa-chart-pie">
+        <AdminChartPanel
+          :has-data="hasQuestionStatusChartData"
+          type="doughnut"
+          :labels="questionStatusChartLabels"
+          :datasets="questionStatusChartDatasets"
+          :options="questionStatusChartOptions"
+          empty-icon="fas fa-chart-pie"
+          empty-title="Sin preguntas registradas"
+          empty-description="No hay preguntas suficientes para dibujar el estado de atención."
+          :height="220"
+          :max-width="360"
+          :centered="true"
+        />
+      </AdminCard>
+
+      <AdminCard title="Actividad reciente" icon="fas fa-clock-rotate-left">
+        <div v-if="recentQuestions.length === 0" class="detail-empty">Sin actividad reciente.</div>
+        <div v-else class="highlights-list">
+          <button
+            v-for="question in recentQuestions"
+            :key="question.id"
+            type="button"
+            class="highlight-item"
+            @click="openQuestionModal(question)"
+          >
+            <div class="highlight-item__info">
+              <strong class="highlight-item__name">{{ question.customer.name }}</strong>
+              <span class="highlight-item__product">{{ question.product_name }}</span>
+            </div>
+            <div class="highlight-meta">
+              <span class="status-badge" :class="question.answer_count > 0 ? 'approved' : 'pending'">
+                {{ question.answer_count > 0 ? 'Respondida' : 'Pendiente' }}
+              </span>
+              <small>{{ formatDate(question.created_at) }}</small>
+            </div>
+          </button>
+        </div>
+      </AdminCard>
+    </section>
+
     <AdminFilterCard
+      class="admin-insights-search-panel"
       icon="fas fa-filter"
       title="Bandeja de preguntas"
       placeholder="Buscar por pregunta o producto..."
@@ -44,58 +86,6 @@
         </div>
       </template>
     </AdminFilterCard>
-
-    <section class="insights-grid">
-      <AdminCard title="Estado de preguntas" icon="fas fa-chart-pie">
-        <div class="status-distribution" v-if="questions.length">
-          <div class="status-dist-row status-dist-row--success">
-            <div class="status-dist-label">
-              <span>Respondidas</span>
-              <strong>{{ answeredCount }}</strong>
-            </div>
-            <div class="status-dist-track">
-              <div class="status-dist-fill status-dist-fill--success" :style="{ width: `${questions.length ? Math.round(answeredCount / questions.length * 100) : 0}%` }"></div>
-            </div>
-            <small>{{ questions.length ? Math.round(answeredCount / questions.length * 100) : 0 }}%</small>
-          </div>
-          <div class="status-dist-row status-dist-row--warning">
-            <div class="status-dist-label">
-              <span>Pendientes</span>
-              <strong>{{ pendingCount }}</strong>
-            </div>
-            <div class="status-dist-track">
-              <div class="status-dist-fill status-dist-fill--warning" :style="{ width: `${questions.length ? Math.round(pendingCount / questions.length * 100) : 0}%` }"></div>
-            </div>
-            <small>{{ questions.length ? Math.round(pendingCount / questions.length * 100) : 0 }}%</small>
-          </div>
-        </div>
-        <div v-else class="detail-empty">Sin preguntas registradas.</div>
-      </AdminCard>
-
-      <AdminCard title="Actividad reciente" icon="fas fa-clock-rotate-left">
-        <div v-if="recentQuestions.length === 0" class="detail-empty">Sin actividad reciente.</div>
-        <div v-else class="highlights-list">
-          <button
-            v-for="question in recentQuestions"
-            :key="question.id"
-            type="button"
-            class="highlight-item"
-            @click="openQuestionModal(question)"
-          >
-            <div class="highlight-item__info">
-              <strong class="highlight-item__name">{{ question.customer.name }}</strong>
-              <span class="highlight-item__product">{{ question.product_name }}</span>
-            </div>
-            <div class="highlight-meta">
-              <span class="status-badge" :class="question.answer_count > 0 ? 'approved' : 'pending'">
-                {{ question.answer_count > 0 ? 'Respondida' : 'Pendiente' }}
-              </span>
-              <small>{{ formatDate(question.created_at) }}</small>
-            </div>
-          </button>
-        </div>
-      </AdminCard>
-    </section>
 
     <!-- Barra de resultados -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} preguntas`">
@@ -257,6 +247,7 @@ import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
+import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
@@ -292,6 +283,59 @@ const selectedQuestion = computed(() => questions.value.find((question) => quest
 const answeredCount = computed(() => questions.value.filter((question) => question.answer_count > 0).length)
 const pendingCount = computed(() => questions.value.length - answeredCount.value)
 const recentQuestions = computed(() => questions.value.slice(0, 6))
+
+// Controla si el doughnut de estado debe renderizarse o mostrar el estado vacío compartido.
+const hasQuestionStatusChartData = computed(() => questions.value.length > 0)
+
+// Resume el estado operativo para reutilizar el mismo orden en etiquetas, tooltip y leyenda del doughnut.
+const questionStatusChartLabels = computed(() => ['Respondidas', 'Pendientes'])
+
+// Construye el dataset del doughnut a partir de los conteos ya calculados por la vista.
+const questionStatusChartDatasets = computed(() => ([
+  {
+    label: 'Preguntas',
+    data: [answeredCount.value, pendingCount.value],
+    backgroundColor: ['#2fb35f', '#f4b23d'],
+    borderColor: ['#ffffff', '#ffffff'],
+    borderWidth: 2,
+    hoverOffset: 6,
+  },
+]))
+
+// Reutiliza los conteos calculados para que el tooltip del doughnut muestre cantidad y porcentaje real.
+const questionStatusChartOptions = computed(() => ({
+  cutout: '68%',
+  radius: '88%',
+  layout: {
+    padding: {
+      top: 10,
+      right: 8,
+      left: 8,
+      bottom: 0,
+    },
+  },
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        color: '#42526b',
+        boxWidth: 12,
+        boxHeight: 12,
+        usePointStyle: true,
+        padding: 14,
+      },
+    },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          const total = questions.value.length || 1
+          const percentage = Math.round((Number(context.raw || 0) / total) * 100)
+          return `${context.label}: ${context.raw} (${percentage}%)`
+        },
+      },
+    },
+  },
+}))
 
 const questionStats = computed(() => [
   { key: 'total', label: 'Total', value: String(questions.value.length), icon: 'fas fa-comments', color: 'primary' },
@@ -519,90 +563,6 @@ onMounted(loadQuestions)
   margin-bottom: 1.5rem;
 }
 
-/* --- Pills de estado --- */
-.status-split {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.status-pill {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.1rem;
-  border-radius: var(--admin-radius-md);
-}
-
-.status-pill--answered {
-  background: var(--admin-success-bg, #edf8f0);
-  color: var(--admin-success-dark, #1f7a34);
-}
-
-.status-pill--pending {
-  background: var(--admin-warning-bg, #fff7e8);
-  color: var(--admin-warning-dark, #946200);
-}
-
-/* --- Status distribution bars (igual a rating-distribution en reseñas) --- */
-.status-distribution {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.status-dist-row {
-  display: grid;
-  grid-template-columns: 11rem minmax(0, 1fr) 4rem;
-  gap: 1rem;
-  align-items: center;
-}
-
-.status-dist-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.status-dist-label span {
-  font-size: 1.28rem;
-  color: var(--admin-text);
-}
-
-.status-dist-label strong {
-  font-size: 1.28rem;
-  font-weight: 700;
-  color: var(--admin-text-heading);
-}
-
-.status-dist-track {
-  width: 100%;
-  height: 0.85rem;
-  border-radius: var(--admin-radius-pill);
-  background: var(--admin-bg-dark);
-  overflow: hidden;
-}
-
-.status-dist-fill {
-  height: 100%;
-  border-radius: inherit;
-  transition: width 0.4s ease;
-}
-
-.status-dist-fill--success {
-  background: var(--admin-success, #2ecc71);
-}
-
-.status-dist-fill--warning {
-  background: var(--admin-warning, #f59e0b);
-}
-
-.status-dist-row small {
-  color: var(--admin-text-light);
-  font-size: 1.18rem;
-  text-align: right;
-}
-
 /* --- Highlights recientes --- */
 .highlights-list {
   display: flex;
@@ -657,13 +617,6 @@ onMounted(loadQuestions)
 .question-detail-text,
 .timeline-item small {
   color: var(--admin-text-light);
-}
-
-/* --- Fila de filtros --- */
-.filters-row--questions {
-  display: grid;
-  grid-template-columns: minmax(220px, 320px);
-  gap: 1rem;
 }
 
 /* --- Celda de cliente con avatar --- */
@@ -732,8 +685,7 @@ onMounted(loadQuestions)
 /* --- Responsive --- */
 @media (max-width: 980px) {
   .insights-grid,
-  .question-detail-grid,
-  .filters-row--questions {
+  .question-detail-grid {
     grid-template-columns: 1fr;
   }
 

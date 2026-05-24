@@ -1,5 +1,11 @@
 # Flujo de payment-service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Patrones usados](#patrones-usados)
+<!-- indice:auto:end -->
+
 ```mermaid
 flowchart TD
   A[Checkout] --> B[payment-service]

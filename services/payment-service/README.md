@@ -1,5 +1,12 @@
 # Payment Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Endpoints](#endpoints)
+- [Tablas de dominio](#tablas-de-dominio)
+<!-- indice:auto:end -->
+
 Microservicio Laravel para pagos, bancos y verificación de comprobantes.
 
 ## Endpoints

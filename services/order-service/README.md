@@ -1,5 +1,14 @@
 # Order Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Responsabilidad](#responsabilidad)
+- [Endpoints](#endpoints)
+- [Inventario y reservas (Redis + PostgreSQL)](#inventario-y-reservas-redis-postgresql)
+- [Procesos de cola](#procesos-de-cola)
+<!-- indice:auto:end -->
+
 Microservicio Laravel encargado de la gestion de ordenes, estados de pago, historial y reservas de inventario en tiempo real.
 
 ## Responsabilidad

@@ -3149,6 +3149,10 @@
   backdrop-filter: blur(18px);
 }
 
+.admin-insights-search-panel {
+  margin-bottom: 1.5rem;
+}
+
 .admin-filters--animated {
   animation: adminFilterCardIn 260ms ease both;
 }

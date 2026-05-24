@@ -1,5 +1,13 @@
 # Catalog Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Endpoints publicos](#endpoints-publicos)
+- [Endpoints internos](#endpoints-internos)
+- [Tablas de dominio](#tablas-de-dominio)
+<!-- indice:auto:end -->
+
 Microservicio Laravel para catalogo, contenido comercial y descubrimiento.
 
 ## Endpoints publicos

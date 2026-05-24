@@ -1,6 +1,22 @@
 # Frontend Angelow
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Documentación relacionada](#documentación-relacionada)
+- [Variables de entorno](#variables-de-entorno)
+- [APIs consumidas](#apis-consumidas)
+- [Arquitectura](#arquitectura)
+- [Ejecución local](#ejecución-local)
+<!-- indice:auto:end -->
+
 Microservicio frontend en Vue 3 + Vite conectado al ecosistema de microservicios.
+
+## Documentación relacionada
+
+- `frontend/docs/README.md`
+- `docs/operaciones/manual-tecnico.md`
+- `docs/README.md`
 
 ## Variables de entorno
 
@@ -22,12 +38,12 @@ Configurar con base en `frontend/.env.example`.
 
 - Enfoque modular por dominio en `src/modules/*`.
 - Componentes reutilizables por dominio en `src/modules/*/components`.
-- Composable de sesion en `src/composables/useSession.js`.
+- Composable de sesión en `src/composables/useSession.js`.
 - Capa HTTP en `src/services/http.js` y `src/services/*Api.js`.
 
-Documentacion de flujo y patrones: `frontend/docs/README.md`.
+Documentación de flujo y patrones: `frontend/docs/README.md`.
 
-## Ejecucion local
+## Ejecución local
 
 ```bash
 npm install

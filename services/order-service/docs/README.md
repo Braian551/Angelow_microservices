@@ -1,5 +1,11 @@
 # Flujo de order-service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Diseño](#diseño)
+<!-- indice:auto:end -->
+
 ```mermaid
 flowchart TD
   A[Cliente o frontend] --> B[API orders]

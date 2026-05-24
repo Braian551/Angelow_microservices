@@ -1,5 +1,11 @@
 # Flujo de audit-service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Patrones usados](#patrones-usados)
+<!-- indice:auto:end -->
+
 ```mermaid
 flowchart TD
   A[Servicios de dominio] --> B[Registrar evento]

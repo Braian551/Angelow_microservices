@@ -1,10 +1,28 @@
-# Arquitectura General
+# Documentación Angelow
+
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Objetivo](#objetivo)
+- [Puntos de entrada](#puntos-de-entrada)
+- [Resumen de arquitectura](#resumen-de-arquitectura)
+- [Índice por categoría](#índice-por-categoría)
+- [Criterio de ubicación](#criterio-de-ubicación)
+<!-- indice:auto:end -->
 
 ## Objetivo
 
-Separar el monolito Angelow en microservicios de dominio, cada uno con su base PostgreSQL, comunicacion por API y soporte asincrono con Redis + workers.
+Centralizar la documentación compartida del repositorio y dejarla organizada por tipo, dominio y responsabilidad para evitar archivos sueltos fuera de contexto.
 
-## Flujo de alto nivel
+## Puntos de entrada
+
+- `operaciones/manual-tecnico.md`: manual técnico central del repositorio.
+- `microservicios/README.md`: navegación hacia documentación específica por servicio.
+- `testing/README.md`: ubicación de guías y evidencias de validación transversal.
+
+## Resumen de arquitectura
+
+Angelow separa el monolito en microservicios de dominio con PostgreSQL por servicio, Redis para colas/eventos y un frontend SPA que consume APIs por contexto funcional.
 
 ```mermaid
 flowchart LR
@@ -23,18 +41,41 @@ flowchart LR
   ORD --> REDIS
 ```
 
-## Patrones aplicados
+## Índice por categoría
 
-- `Database per service`
-- `Service Layer`
-- `Repository Pattern` (servicios existentes)
-- `Event + Job` para notificaciones y colas
-- `Health Check` estandar en `GET /api/health`
+- `arquitectura/`: diagramas y mapas estructurales del sistema.
+  - `arquitectura/arquitectura-web-plantuml.md`
+  - `arquitectura/mapas-navegacion-sistema-plantuml.md`
+  - `arquitectura/modelos-relacionales-bases-datos-plantuml.md`
+- `datos/`: importación, trazabilidad y migración de datos.
+  - `datos/importacion-datos.md`
+  - `datos/migracion-tablas.md`
+- `operaciones/`: despliegue, operación y mantenimiento de infraestructura compartida.
+  - `operaciones/manual-tecnico.md`
+  - `operaciones/DESPLIEGUE_SERVIDOR_NGINX.md`
+- `referencias/`: catálogos de dependencias y referencias compartidas del repositorio.
+  - `referencias/librerias-y-composer-uso.md`
+- `investigacion/`: cronogramas, informes y material de apoyo académico o de seguimiento.
+  - `investigacion/contenido-poster-innovacion-desarrollo-tecnologico-angelow.md`
+  - `investigacion/contenido-poster-investigacion-en-curso-angelow.md`
+  - `investigacion/cronograma-semillero-giaiteq-soft-angelow-2026.md`
+  - `investigacion/informe-desarrollo-y-estado-actual.md`
+- `patrones/`: documentación de patrones de diseño organizada por módulo o contexto.
+  - `patrones/README.md`
+  - `patrones/admin/`
+  - `patrones/checkout/`
+  - `patrones/dashboard/`
+  - `patrones/home/`
+  - `patrones/tienda/`
+- `microservicios/`: índice de acceso a la documentación específica de cada servicio.
+  - `microservicios/README.md`
+- `testing/`: carpeta reservada para guías, evidencias y bitácoras de pruebas compartidas.
+  - `testing/README.md`
 
-## Infraestructura
+## Criterio de ubicación
 
-- Docker Compose para todos los servicios
-- Redis para cache y cola
-- Workers dedicados: `order-worker` y `notification-worker`
-- Carpeta compartida `uploads/` montada en microservicios y frontend
-- Importacion de datos automatizada desde `basededatos.sql` con `scripts/importar-datos-microservicios.ps1`
+- La documentación específica de un microservicio debe vivir preferentemente en `services/<servicio>/docs/`.
+- La documentación específica del frontend debe vivir preferentemente en `frontend/docs/`.
+- En `docs/` solo deben quedar documentos compartidos por múltiples dominios o índices de navegación del repositorio.
+- Si un documento cambia de responsabilidad, se debe mover a la carpeta correcta y actualizar sus referencias en la misma intervención.
+- Los nombres de archivo Markdown de documentación deben mantenerse en ASCII seguro para evitar problemas de rutas en GitHub.

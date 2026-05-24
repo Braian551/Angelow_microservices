@@ -9,8 +9,47 @@
 
     <AdminStatsGrid :loading="loading" :count="5" :stats="reviewStats" />
 
+    <section class="insights-grid">
+      <AdminCard title="Distribución de rating" icon="fas fa-chart-column">
+        <AdminChartPanel
+          :has-data="hasRatingChartData"
+          type="bar"
+          :labels="ratingChartLabels"
+          :datasets="ratingChartDatasets"
+          :options="ratingChartOptions"
+          empty-icon="fas fa-chart-column"
+          empty-title="Sin datos para graficar"
+          empty-description="No hay reseñas suficientes para dibujar la distribución de rating."
+          :height="220"
+        />
+      </AdminCard>
+
+      <AdminCard title="Últimas reseñas" icon="fas fa-comments">
+        <div v-if="highlightReviews.length === 0" class="detail-empty">Sin actividad reciente.</div>
+        <div v-else class="highlights-list">
+          <button
+            v-for="review in highlightReviews"
+            :key="review.id"
+            type="button"
+            class="highlight-item"
+            @click="openReviewModal(review)"
+          >
+            <div class="highlight-item__info">
+              <strong class="highlight-item__name">{{ review.customer.name }}</strong>
+              <span class="highlight-item__product">{{ review.product_name }}</span>
+            </div>
+            <div class="highlight-meta">
+              <span class="stars-inline" v-html="renderStars(review.rating)"></span>
+              <small>{{ formatDate(review.created_at) }}</small>
+            </div>
+          </button>
+        </div>
+      </AdminCard>
+    </section>
+
     <AdminFilterCard
       v-model="filters.search"
+      class="admin-insights-search-panel"
       icon="fas fa-filter"
       title="Bandeja de moderación"
       placeholder="Buscar por título, comentario o producto..."
@@ -63,46 +102,6 @@
         </div>
       </template>
     </AdminFilterCard>
-
-    <section class="insights-grid">
-      <AdminCard title="Distribución de rating" icon="fas fa-chart-pie">
-        <div class="rating-distribution" v-if="ratingDistribution.length">
-          <div v-for="bucket in ratingDistribution" :key="bucket.rating" class="rating-row">
-            <div class="rating-label">
-              <span>{{ bucket.rating }} estrellas</span>
-              <strong>{{ bucket.count }}</strong>
-            </div>
-            <div class="rating-bar-track">
-              <div class="rating-bar-fill" :style="{ width: `${bucket.share}%` }"></div>
-            </div>
-            <small>{{ bucket.share.toFixed(0) }}%</small>
-          </div>
-        </div>
-        <div v-else class="detail-empty">Sin datos para graficar.</div>
-      </AdminCard>
-
-      <AdminCard title="Últimas reseñas" icon="fas fa-comments">
-        <div v-if="highlightReviews.length === 0" class="detail-empty">Sin actividad reciente.</div>
-        <div v-else class="highlights-list">
-          <button
-            v-for="review in highlightReviews"
-            :key="review.id"
-            type="button"
-            class="highlight-item"
-            @click="openReviewModal(review)"
-          >
-            <div class="highlight-item__info">
-              <strong class="highlight-item__name">{{ review.customer.name }}</strong>
-              <span class="highlight-item__product">{{ review.product_name }}</span>
-            </div>
-            <div class="highlight-meta">
-              <span class="stars-inline" v-html="renderStars(review.rating)"></span>
-              <small>{{ formatDate(review.created_at) }}</small>
-            </div>
-          </button>
-        </div>
-      </AdminCard>
-    </section>
 
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} reseñas`">
       <template #actions>
@@ -262,6 +261,7 @@ import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
+import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -313,6 +313,79 @@ const ratingDistribution = computed(() => {
     }
   })
 })
+
+// Determina si el gráfico horizontal debe renderizarse o mostrar el estado vacío compartido.
+const hasRatingChartData = computed(() => ratingDistribution.value.some((bucket) => bucket.count > 0))
+
+// Mantiene una escala vertical estable para que la gráfica siga siendo legible incluso con pocas reseñas.
+const ratingChartMaxValue = computed(() => Math.max(2, ...ratingDistribution.value.map((bucket) => bucket.count + 1)))
+
+// Construye etiquetas humanas para reutilizar Chart.js sin duplicar formato dentro del template.
+const ratingChartLabels = computed(() => ratingDistribution.value.map((bucket) => `${bucket.rating} estrella${bucket.rating === 1 ? '' : 's'}`))
+
+// Arma el dataset del gráfico de rating con una sola fuente de verdad basada en la distribución calculada.
+const ratingChartDatasets = computed(() => ([
+  {
+    label: 'Reseñas',
+    data: ratingDistribution.value.map((bucket) => bucket.count),
+    backgroundColor: ['#0f88c2', '#2d9fd5', '#58b7e4', '#86ccee', '#b3e1f7'],
+    borderRadius: 999,
+    borderSkipped: false,
+    maxBarThickness: 22,
+  },
+]))
+
+// Reutiliza la lectura de porcentajes de la distribución para enriquecer el tooltip del gráfico.
+const ratingChartOptions = computed(() => ({
+  layout: {
+    padding: {
+      top: 8,
+      right: 10,
+      left: 6,
+      bottom: 0,
+    },
+  },
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      callbacks: {
+        label: (context) => {
+          const bucket = ratingDistribution.value[context.dataIndex]
+          return `${context.raw} reseñas (${bucket.share.toFixed(0)}%)`
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: {
+        color: '#23314d',
+        font: {
+          size: 12,
+          weight: '600',
+        },
+      },
+      grid: {
+        display: false,
+        drawBorder: false,
+      },
+    },
+    y: {
+      beginAtZero: true,
+      suggestedMax: ratingChartMaxValue.value,
+      ticks: {
+        precision: 0,
+        color: '#6b7280',
+      },
+      grid: {
+        color: 'rgba(148, 184, 216, 0.18)',
+        drawBorder: false,
+      },
+    },
+  },
+}))
 
 const highlightReviews = computed(() => reviews.value.slice(0, 6))
 
@@ -591,32 +664,10 @@ onMounted(loadReviews)
   margin-bottom: 1.5rem;
 }
 
-.rating-distribution,
 .modal-actions-stack {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
-}
-
-.rating-row {
-  display: grid;
-  grid-template-columns: 10rem minmax(0, 1fr) 4rem;
-  gap: 1rem;
-  align-items: center;
-}
-
-.rating-bar-track {
-  width: 100%;
-  height: 0.85rem;
-  border-radius: var(--admin-radius-pill);
-  background: var(--admin-bg-dark);
-  overflow: hidden;
-}
-
-.rating-bar-fill {
-  height: 100%;
-  background: var(--admin-primary);
-  border-radius: inherit;
 }
 
 .highlights-list {
@@ -769,10 +820,6 @@ onMounted(loadReviews)
   .highlight-item {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .rating-row {
-    grid-template-columns: 1fr;
   }
 }
 </style>

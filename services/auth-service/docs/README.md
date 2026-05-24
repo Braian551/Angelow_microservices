@@ -1,5 +1,11 @@
 # Flujo de auth-service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Patrones de diseño](#patrones-de-diseño)
+<!-- indice:auto:end -->
+
 ```mermaid
 flowchart TD
   A[Frontend] --> B[POST /api/auth/register]

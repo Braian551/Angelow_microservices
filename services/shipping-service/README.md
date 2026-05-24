@@ -1,5 +1,12 @@
 # Shipping Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Endpoints](#endpoints)
+- [Tablas de dominio](#tablas-de-dominio)
+<!-- indice:auto:end -->
+
 Microservicio Laravel para métodos de envío, reglas de costo y direcciones de usuario.
 
 ## Endpoints

@@ -1,5 +1,12 @@
 # Discount Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Endpoints](#endpoints)
+- [Tablas de dominio](#tablas-de-dominio)
+<!-- indice:auto:end -->
+
 Microservicio Laravel para reglas de descuento, códigos promocionales y seguimiento de uso.
 
 ## Endpoints
