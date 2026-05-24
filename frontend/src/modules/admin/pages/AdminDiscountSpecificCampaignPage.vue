@@ -33,7 +33,7 @@
     </AdminPageHeader>
 
     <div class="specific-campaign-page-grid">
-      <AdminCard title="Configuración de campaña" icon="fas fa-paper-plane">
+      <AdminCard class="specific-campaign-config-card" title="Configuración de campaña" icon="fas fa-paper-plane">
         <div v-if="loadingCodes" class="specific-campaign-loading">
           <div class="specific-campaign-loading__item">
             <AdminShimmer type="line" width="36%" height="0.95rem" />
@@ -109,114 +109,79 @@
               </span>
             </div>
             <div class="campaign-channels-grid">
-              <div
-                class="campaign-channel-card"
+              <AdminToggleSwitch
+                id="specific-campaign-send-notification"
+                v-model="specificCampaignForm.send_notification"
+                class="campaign-channel-toggle"
                 :class="{ 'is-active': specificCampaignForm.send_notification }"
-                @click="toggleSpecificChannel('notification')"
-              >
-                <div class="campaign-channel-card__header">
-                  <div class="campaign-channel-card__icon campaign-channel-card__icon--notif">
-                    <i class="fas fa-bell"></i>
-                  </div>
-                  <input
-                    v-model="specificCampaignForm.send_notification"
-                    class="campaign-channel-card__toggle"
-                    type="checkbox"
-                    @change="validateSpecificCampaignField('channels')"
-                    @click.stop
-                  >
-                </div>
-                <strong class="campaign-channel-card__name">Notificación interna</strong>
-                <span class="campaign-channel-card__desc">Panel del cliente</span>
-              </div>
-              <div
-                class="campaign-channel-card"
+                title="Notificación interna"
+                description="Panel del cliente"
+                @change="validateSpecificCampaignField('channels')"
+              />
+              <AdminToggleSwitch
+                id="specific-campaign-send-email"
+                v-model="specificCampaignForm.send_email"
+                class="campaign-channel-toggle"
                 :class="{ 'is-active': specificCampaignForm.send_email }"
-                @click="toggleSpecificChannel('email')"
-              >
-                <div class="campaign-channel-card__header">
-                  <div class="campaign-channel-card__icon campaign-channel-card__icon--email">
-                    <i class="fas fa-envelope"></i>
-                  </div>
-                  <input
-                    v-model="specificCampaignForm.send_email"
-                    class="campaign-channel-card__toggle"
-                    type="checkbox"
-                    @change="validateSpecificCampaignField('channels')"
-                    @click.stop
-                  >
-                </div>
-                <strong class="campaign-channel-card__name">Correo electrónico</strong>
-                <span class="campaign-channel-card__desc">Código con detalle</span>
-              </div>
+                title="Correo electrónico"
+                description="Código con detalle"
+                @change="validateSpecificCampaignField('channels')"
+              />
             </div>
             <p v-if="specificCampaignErrors.channels" class="form-error">{{ specificCampaignErrors.channels }}</p>
           </div>
         </div>
       </AdminCard>
 
-      <AdminCard title="Clientes disponibles" icon="fas fa-users" :flush="true">
-        <AdminFilterCard
-          v-model="specificCampaignSearch"
-          icon="fas fa-search"
-          title="Buscar destinatarios"
-          placeholder="Buscar por nombre o correo..."
-          :initially-expanded="true"
-          :hide-toggle="true"
-          @search="() => {}"
-        />
+      <div class="specific-campaign-customers-panel">
+        <AdminCard class="specific-campaign-customers-card" title="Clientes disponibles" icon="fas fa-users" :flush="true">
+          <AdminFilterCard
+            v-model="specificCampaignSearch"
+            icon="fas fa-search"
+            title="Buscar destinatarios"
+            placeholder="Buscar por nombre o correo..."
+            :initially-expanded="true"
+            :hide-toggle="true"
+            @search="() => {}"
+          />
 
-        <!-- Barra de destinatarios: selección + acciones -->
-        <div class="campaign-recipients-toolbar">
-          <div class="campaign-recipients-toolbar__info">
-            <span class="campaign-recipients-toolbar__label">
-              <i class="fas fa-users"></i>
-              Destinatarios
-              <AdminInfoTooltip text="Marca los clientes que recibirán el descuento. Puedes seleccionar todos los visibles según el filtro actual." />
-            </span>
-            <span
-              class="specific-campaign-badge"
-              :class="{ 'is-filled': specificCampaignForm.user_ids.length > 0 }"
-            >
-              {{ specificCampaignForm.user_ids.length }}
-              {{ specificCampaignForm.user_ids.length === 1 ? 'seleccionado' : 'seleccionados' }}
-            </span>
-          </div>
-          <div class="campaign-recipients-toolbar__actions">
-            <button
-              type="button"
-              class="campaign-action-chip"
-              title="Seleccionar todos los visibles"
-              @click="selectAllFilteredCustomers"
-            >
-              <i class="fas fa-check-double"></i>
-              <span>Todos</span>
-            </button>
-            <button
-              type="button"
-              class="campaign-action-chip campaign-action-chip--clear"
-              title="Limpiar selección"
-              :disabled="specificCampaignForm.user_ids.length === 0"
-              @click="clearSpecificCustomerSelection"
-            >
-              <i class="fas fa-ban"></i>
-              <span>Limpiar</span>
-            </button>
-          </div>
-        </div>
-
-        <AdminResultsBar :text="customerResultsText" />
-
-        <div class="campaign-users-list campaign-users-list--page">
-          <div v-if="campaignCustomersLoading" class="campaign-users-list__state campaign-users-list__state--loading">
-            <div v-for="n in 6" :key="`campaign-shimmer-${n}`" class="campaign-user-shimmer">
-              <AdminShimmer type="circle" width="2.35rem" height="2.35rem" />
-              <div class="campaign-user-shimmer__body">
-                <AdminShimmer type="line" width="52%" height="0.86rem" />
-                <AdminShimmer type="line" width="68%" height="0.78rem" />
+          <AdminResultsBar :text="customerResultsText">
+            <template #actions>
+              <div class="campaign-results-actions">
+                <span
+                  class="specific-campaign-badge"
+                  :class="{ 'is-filled': specificCampaignForm.user_ids.length > 0 }"
+                >
+                  {{ specificCampaignForm.user_ids.length }}
+                  {{ specificCampaignForm.user_ids.length === 1 ? 'seleccionado' : 'seleccionados' }}
+                </span>
+                <button
+                  type="button"
+                  class="results-action-btn results-action-btn--neutral"
+                  :disabled="filteredCampaignCustomers.length === 0"
+                  @click="selectAllFilteredCustomers"
+                >
+                  <span class="results-action-btn__icon"><i class="fas fa-check-double"></i></span>
+                  Todos los visibles
+                </button>
+                <button
+                  type="button"
+                  class="results-action-btn results-action-btn--neutral campaign-results-btn--clear"
+                  :disabled="specificCampaignForm.user_ids.length === 0"
+                  @click="clearSpecificCustomerSelection"
+                >
+                  <span class="results-action-btn__icon"><i class="fas fa-ban"></i></span>
+                  Limpiar
+                </button>
               </div>
-            </div>
-          </div>
+            </template>
+          </AdminResultsBar>
+
+          <AdminTableShimmer
+            v-if="campaignCustomersLoading"
+            :rows="6"
+            :columns="customerTableShimmerColumns"
+          />
 
           <AdminEmptyState
             v-else-if="filteredCampaignCustomers.length === 0"
@@ -225,31 +190,70 @@
             description="No hay clientes para mostrar con el filtro actual."
           />
 
-          <label
-            v-for="customer in filteredCampaignCustomers"
-            v-else
-            :key="customer.id"
-            class="campaign-user-item"
-            :class="{ 'is-selected': specificCampaignForm.user_ids.includes(String(customer.id)) }"
-          >
-            <input
-              v-model="specificCampaignForm.user_ids"
-              type="checkbox"
-              :value="String(customer.id)"
-              @change="validateSpecificCampaignField('user_ids')"
-            >
-            <div class="campaign-user-avatar">{{ userInitials(customer) }}</div>
-            <div class="campaign-user-item__meta">
-              <strong>{{ customer.name || 'Cliente' }}</strong>
-              <span>{{ customer.email || 'Sin correo registrado' }}</span>
-            </div>
-            <span class="campaign-user-item__status" :class="{ 'is-selected': specificCampaignForm.user_ids.includes(String(customer.id)) }">
-              {{ specificCampaignForm.user_ids.includes(String(customer.id)) ? 'Seleccionado' : 'Disponible' }}
-            </span>
-          </label>
-        </div>
-        <p v-if="specificCampaignErrors.user_ids" class="form-error">{{ specificCampaignErrors.user_ids }}</p>
-      </AdminCard>
+          <div v-else class="table-responsive">
+            <table class="dashboard-table campaign-customers-table">
+              <thead>
+                <tr>
+                  <th class="selection-cell">
+                    <input
+                      type="checkbox"
+                      :checked="allFilteredCustomersSelected"
+                      @change="toggleFilteredCustomersSelection($event.target.checked)"
+                    >
+                  </th>
+                  <th>Cliente</th>
+                  <th>Contacto</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="customer in campaignCustomersPagination.paginatedItems"
+                  :key="customer.id"
+                  :class="{ 'campaign-customer-row--selected': isCustomerSelected(customer) }"
+                >
+                  <td class="selection-cell">
+                    <input
+                      v-model="specificCampaignForm.user_ids"
+                      type="checkbox"
+                      :value="String(customer.id)"
+                      @change="validateSpecificCampaignField('user_ids')"
+                    >
+                  </td>
+                  <td>
+                    <div class="campaign-customer-cell">
+                      <div class="campaign-user-avatar" :class="{ 'is-selected': isCustomerSelected(customer) }">{{ userInitials(customer) }}</div>
+                      <div class="admin-entity-name">
+                        <strong>{{ customer.name || 'Cliente' }}</strong>
+                        <span>ID {{ customer.id }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="admin-entity-name">
+                      <strong>{{ customer.email || 'Sin correo registrado' }}</strong>
+                      <span>{{ isCustomerSelected(customer) ? 'Listo para recibir la campaña' : 'Disponible para selección' }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="campaign-selection-badge" :class="{ 'is-selected': isCustomerSelected(customer) }">
+                      {{ isCustomerSelected(customer) ? 'Seleccionado' : 'Disponible' }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="specificCampaignErrors.user_ids" class="form-error specific-campaign-error">{{ specificCampaignErrors.user_ids }}</p>
+        </AdminCard>
+
+        <AdminPagination
+          v-model:page="campaignCustomersPagination.currentPage"
+          v-model:page-size="campaignCustomersPagination.pageSize"
+          :total-items="campaignCustomersPagination.totalItems"
+          :page-size-options="campaignCustomersPagination.pageSizeOptions"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -259,13 +263,17 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { discountHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
+import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminShimmer from '../components/AdminShimmer.vue'
+import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const router = useRouter()
 const { showSnackbar } = useSnackbarSystem()
@@ -276,6 +284,13 @@ const campaignCustomersLoading = ref(false)
 const codes = ref([])
 const campaignCustomers = ref([])
 const specificCampaignSearch = ref('')
+
+const customerTableShimmerColumns = [
+  { type: 'rect', width: '1.4rem', height: '1.4rem' },
+  'line',
+  'line',
+  'pill',
+]
 
 const specificCampaignForm = reactive({
   discount_code_id: '',
@@ -304,6 +319,7 @@ const selectedSpecificCode = computed(() =>
   codes.value.find((code) => String(code.id) === String(specificCampaignForm.discount_code_id)) || null,
 )
 
+// Filtra localmente los destinatarios para reutilizar la búsqueda compartida sin duplicar consultas al servicio.
 const filteredCampaignCustomers = computed(() => {
   const term = specificCampaignSearch.value.trim().toLowerCase()
 
@@ -312,10 +328,28 @@ const filteredCampaignCustomers = computed(() => {
   return campaignCustomers.value.filter((customer) => [customer.name, customer.email].join(' ').toLowerCase().includes(term))
 })
 
+// Pagina la tabla de clientes sobre el resultado filtrado usando la paginación global del admin.
+const campaignCustomersPagination = useAdminPagination(filteredCampaignCustomers, {
+  initialPageSize: 10,
+  pageSizeOptions: [10, 20, 50],
+})
+
+// Detecta si la selección maestra ya cubre todos los clientes visibles del filtro actual.
+const allFilteredCustomersSelected = computed(() =>
+  filteredCampaignCustomers.value.length > 0
+  && filteredCampaignCustomers.value.every((customer) => specificCampaignForm.user_ids.includes(String(customer.id))),
+)
+
+// Resume el estado visible de la tabla y la selección actual dentro de la barra reutilizable de resultados.
 const customerResultsText = computed(() => {
-  const visible = filteredCampaignCustomers.value.length
+  const visible = campaignCustomersPagination.visibleCount
+  const filteredTotal = filteredCampaignCustomers.value.length
   const total = campaignCustomers.value.length
   const selected = specificCampaignForm.user_ids.length
+
+  if (specificCampaignSearch.value.trim()) {
+    return `Mostrando ${visible} de ${filteredTotal} cliente${filteredTotal === 1 ? '' : 's'} filtrado${filteredTotal === 1 ? '' : 's'} · ${selected} seleccionado${selected === 1 ? '' : 's'}`
+  }
 
   return `Mostrando ${visible} de ${total} cliente${total === 1 ? '' : 's'} · ${selected} seleccionado${selected === 1 ? '' : 's'}`
 })
@@ -396,25 +430,34 @@ function validateSpecificCampaignForm() {
   return !specificCampaignErrors.discount_code_id && !specificCampaignErrors.channels && !specificCampaignErrors.user_ids
 }
 
-function toggleSpecificChannel(channel) {
-  if (channel === 'notification') {
-    specificCampaignForm.send_notification = !specificCampaignForm.send_notification
-  } else if (channel === 'email') {
-    specificCampaignForm.send_email = !specificCampaignForm.send_email
-  }
-
-  validateSpecificCampaignField('channels')
+// Evita repetir la validación de selección en cada celda y badge de la tabla.
+function isCustomerSelected(customer) {
+  return specificCampaignForm.user_ids.includes(String(customer.id))
 }
 
+// Sincroniza la casilla maestra con los clientes visibles, agregando o quitando solo el subconjunto filtrado.
+function toggleFilteredCustomersSelection(shouldSelect) {
+  const visibleIds = filteredCampaignCustomers.value.map((customer) => String(customer.id))
+
+  if (shouldSelect) {
+    specificCampaignForm.user_ids = Array.from(new Set([...specificCampaignForm.user_ids, ...visibleIds]))
+  } else {
+    const visibleIdSet = new Set(visibleIds)
+    specificCampaignForm.user_ids = specificCampaignForm.user_ids.filter((userId) => !visibleIdSet.has(String(userId)))
+  }
+
+  validateSpecificCampaignField('user_ids')
+}
+
+// Limpia toda la selección actual sin modificar el filtro de búsqueda aplicado por el admin.
 function clearSpecificCustomerSelection() {
   specificCampaignForm.user_ids = []
   validateSpecificCampaignField('user_ids')
 }
 
+// Reutiliza la selección masiva sobre el subconjunto filtrado para evitar marcar clientes fuera de contexto.
 function selectAllFilteredCustomers() {
-  const visibleIds = filteredCampaignCustomers.value.map((customer) => String(customer.id))
-  specificCampaignForm.user_ids = Array.from(new Set([...specificCampaignForm.user_ids, ...visibleIds]))
-  validateSpecificCampaignField('user_ids')
+  toggleFilteredCustomersSelection(true)
 }
 
 function campaignSummaryMessage(summary) {
@@ -495,17 +538,24 @@ function extractErrorMessage(error, fallback) {
   gap: 1.8rem;
 }
 
-/* ── Grid principal: configuración | clientes ── */
+/* ── Grid principal: configuración arriba | clientes abajo ── */
 .specific-campaign-page-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 1.8rem;
 }
 
-@media (min-width: 1200px) {
-  .specific-campaign-page-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    align-items: start;
-  }
+.specific-campaign-config-card,
+.specific-campaign-customers-card,
+.specific-campaign-customers-panel {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.specific-campaign-customers-panel {
+  display: grid;
+  gap: 1.4rem;
 }
 
 /* ── Shimmer de carga ── */
@@ -521,8 +571,8 @@ function extractErrorMessage(error, fallback) {
 
 /* ── Contenedor de configuración: pasos verticales ── */
 .specific-campaign-config {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.8rem;
 }
 
@@ -531,6 +581,7 @@ function extractErrorMessage(error, fallback) {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  min-width: 0;
 }
 
 /* ── Cabecera de paso: número + título ── */
@@ -610,142 +661,35 @@ function extractErrorMessage(error, fallback) {
 .campaign-channels-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
-/* ── Tarjeta de canal: diseño vertical compacto ── */
-.campaign-channel-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding: 1.1rem 1.2rem;
+.campaign-channel-toggle {
   border-radius: var(--admin-radius-lg, 12px);
-  border: 1.5px solid var(--admin-border-light, #d9e8f4);
-  background: var(--admin-bg, #fff);
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-  user-select: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.campaign-channel-card:hover {
-  border-color: rgba(0, 119, 182, 0.35);
-  background: rgba(0, 119, 182, 0.03);
-  box-shadow: 0 2px 10px rgba(0, 119, 182, 0.07);
+.campaign-channel-toggle.is-active {
+  border-color: rgba(0, 119, 182, 0.3);
+  background: rgba(0, 119, 182, 0.05);
+  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.08);
 }
 
-.campaign-channel-card.is-active {
-  border-color: var(--admin-primary, #0077b6);
-  background: rgba(0, 119, 182, 0.06);
-  box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1), 0 2px 8px rgba(0, 119, 182, 0.08);
+.campaign-channel-toggle :deep(.admin-toggle-switch__copy strong) {
+  font-size: 1.45rem;
 }
 
-/* ── Fila superior de la tarjeta: icono + toggle ── */
-.campaign-channel-card__header {
+.campaign-channel-toggle :deep(.admin-toggle-switch__copy p) {
+  font-size: 1.16rem;
+}
+
+/* ── Acciones compactas dentro de la barra de resultados compartida ── */
+.campaign-results-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.campaign-channel-card__icon {
-  width: 3rem;
-  height: 3rem;
-  flex-shrink: 0;
-  border-radius: var(--admin-radius-md, 10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  background: rgba(0, 119, 182, 0.1);
-  color: var(--admin-primary, #0077b6);
-  border: 1px solid rgba(0, 119, 182, 0.14);
-}
-
-.campaign-channel-card__icon--email {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-  border-color: rgba(34, 197, 94, 0.18);
-}
-
-/* ── Toggle switch (checkbox personalizado) ── */
-.campaign-channel-card__toggle {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 3.6rem;
-  height: 2rem;
-  border-radius: 999px;
-  background: #d1d5db;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.22s;
-  flex-shrink: 0;
-}
-
-.campaign-channel-card__toggle::after {
-  content: '';
-  position: absolute;
-  left: 0.22rem;
-  top: 0.22rem;
-  width: 1.56rem;
-  height: 1.56rem;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
-}
-
-.campaign-channel-card__toggle:checked {
-  background: var(--admin-primary, #0077b6);
-}
-
-.campaign-channel-card__toggle:checked::after {
-  transform: translateX(1.6rem);
-}
-
-.campaign-channel-card__name {
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--admin-text, #333);
-  line-height: 1.2;
-}
-
-.campaign-channel-card__desc {
-  font-size: 1.15rem;
-  color: var(--admin-text-light, #777);
-  line-height: 1.3;
-}
-
-/* ── Barra de destinatarios: entre búsqueda y lista ── */
-.campaign-recipients-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
+  justify-content: flex-end;
+  gap: 0.7rem;
   flex-wrap: wrap;
-  padding: 0.8rem 1.4rem;
-  border-bottom: 1px solid var(--admin-border-light, #d9e8f4);
-  background: rgba(0, 119, 182, 0.025);
-}
-
-.campaign-recipients-toolbar__info {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.campaign-recipients-toolbar__label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--admin-text-heading, #24364b);
-}
-
-.campaign-recipients-toolbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 /* ── Badge de seleccionados ── */
@@ -768,114 +712,37 @@ function extractErrorMessage(error, fallback) {
   border-color: transparent;
 }
 
-/* ── Chips de acción (Todos / Limpiar) ── */
-.campaign-action-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 1.1rem;
-  border-radius: 999px;
-  font-size: 1.25rem;
-  font-weight: 700;
-  background: rgba(0, 119, 182, 0.07);
-  color: var(--admin-primary, #0077b6);
-  border: 1.5px solid rgba(0, 119, 182, 0.2);
+.campaign-results-btn--clear {
+  color: #c0392b;
+  border-color: rgba(192, 57, 43, 0.18);
+}
+
+.campaign-results-btn--clear .results-action-btn__icon {
+  background: rgba(192, 57, 43, 0.1);
+  color: #c0392b;
+}
+
+/* ── Tabla de destinatarios reutilizando la infraestructura del admin ── */
+.campaign-customers-table .selection-cell {
+  width: 4.2rem;
+  text-align: center;
+}
+
+.campaign-customers-table .selection-cell input[type="checkbox"] {
+  width: 1.5rem;
+  height: 1.5rem;
   cursor: pointer;
-  transition: background 0.18s, border-color 0.18s, color 0.18s;
-  white-space: nowrap;
-  line-height: 1;
+  accent-color: var(--admin-primary, #0077b6);
 }
 
-.campaign-action-chip:hover {
-  background: rgba(0, 119, 182, 0.14);
-  border-color: rgba(0, 119, 182, 0.4);
+.campaign-customer-row--selected {
+  background: rgba(0, 119, 182, 0.05);
 }
 
-.campaign-action-chip--clear {
-  background: rgba(220, 38, 38, 0.06);
-  color: #dc2626;
-  border-color: rgba(220, 38, 38, 0.2);
-}
-
-.campaign-action-chip--clear:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.12);
-  border-color: rgba(220, 38, 38, 0.38);
-}
-
-.campaign-action-chip:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-
-/* ── Lista de usuarios ── */
-.campaign-users-list {
-  max-height: min(58vh, 580px);
-  overflow-y: auto;
-  border: 1px solid var(--admin-border-light, #d9e8f4);
-  border-radius: var(--admin-radius-lg, 12px);
-  padding: 0.6rem;
-  background: var(--admin-bg-soft, #f8fbfe);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 119, 182, 0.2) transparent;
-}
-
-.campaign-users-list--page {
-  min-height: 280px;
-}
-
-.campaign-users-list__state {
-  display: grid;
-  gap: 0.7rem;
-}
-
-.campaign-users-list__state--loading {
-  padding: 0.5rem 0.3rem;
-}
-
-/* ── Shimmer de carga en lista de usuarios ── */
-.campaign-user-shimmer {
+.campaign-customer-cell {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.7rem 0.6rem;
-}
-
-.campaign-user-shimmer__body {
-  flex: 1;
-  display: grid;
-  gap: 0.5rem;
-}
-
-/* ── Ítem de usuario en la lista ── */
-.campaign-user-item {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.1rem;
-  border-radius: var(--admin-radius-md, 10px);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background 0.16s, border-color 0.16s, box-shadow 0.16s;
-}
-
-.campaign-user-item:hover {
-  background: rgba(0, 119, 182, 0.04);
-  border-color: rgba(0, 119, 182, 0.18);
-}
-
-.campaign-user-item.is-selected {
-  background: rgba(0, 119, 182, 0.07);
-  border-color: rgba(0, 119, 182, 0.3);
-  box-shadow: 0 1px 4px rgba(0, 119, 182, 0.07);
-}
-
-.campaign-user-item input[type="checkbox"] {
-  width: 1.5rem;
-  height: 1.5rem;
-  flex-shrink: 0;
-  cursor: pointer;
-  accent-color: var(--admin-primary, #0077b6);
 }
 
 /* ── Avatar de usuario (color sólido suave, sin degradado) ── */
@@ -896,39 +763,13 @@ function extractErrorMessage(error, fallback) {
   letter-spacing: 0.02em;
 }
 
-.campaign-user-item.is-selected .campaign-user-avatar {
+.campaign-user-avatar.is-selected {
   background: var(--admin-primary, #0077b6);
   color: #fff;
   border-color: transparent;
 }
 
-/* ── Metadatos del usuario ── */
-.campaign-user-item__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.campaign-user-item__meta strong {
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--admin-text, #333);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.campaign-user-item__meta span {
-  color: var(--admin-text-light, #777);
-  font-size: 1.2rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── Badge de estado del ítem ── */
-.campaign-user-item__status {
+.campaign-selection-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -943,10 +784,14 @@ function extractErrorMessage(error, fallback) {
   white-space: nowrap;
 }
 
-.campaign-user-item__status.is-selected {
+.campaign-selection-badge.is-selected {
   color: #fff;
   border-color: var(--admin-primary, #0077b6);
   background: var(--admin-primary, #0077b6);
+}
+
+.specific-campaign-error {
+  margin: 1rem 1.6rem 1.4rem;
 }
 
 /* ── Transición del resumen del código ── */
@@ -966,73 +811,34 @@ function extractErrorMessage(error, fallback) {
   .campaign-channels-grid {
     grid-template-columns: 1fr;
   }
-
-  .campaign-recipients-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .campaign-recipients-toolbar__actions {
-    width: 100%;
-  }
-
-  .campaign-recipients-toolbar__actions .campaign-action-chip {
-    flex: 1;
-    justify-content: center;
-  }
 }
 
 /* ── Responsive: tablet ── */
-@media (max-width: 860px) {
-  .campaign-user-item {
-    grid-template-columns: auto auto minmax(0, 1fr);
+@media (max-width: 900px) {
+  .specific-campaign-config {
+    grid-template-columns: 1fr;
   }
 
-  .campaign-user-item__status {
-    grid-column: 1 / -1;
-    width: fit-content;
-    margin-left: calc(1.5rem + 3.2rem + 1rem);
+  .campaign-channels-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-results-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
 /* ── Responsive: móvil ── */
 @media (max-width: 640px) {
-  .campaign-user-item {
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.75rem;
-    padding: 0.85rem 0.9rem;
-  }
-
   .campaign-user-avatar {
     width: 2.8rem;
     height: 2.8rem;
     font-size: 1.05rem;
   }
 
-  .campaign-user-item input[type="checkbox"] {
-    grid-row: span 2;
-  }
-
-  .campaign-user-item__meta strong {
-    font-size: 1.3rem;
-  }
-
-  .campaign-user-item__meta span {
-    font-size: 1.15rem;
-  }
-
-  .campaign-user-item__status {
-    margin-left: 0;
-    font-size: 1.1rem;
-  }
-
-  .campaign-code-preview {
-    gap: 1rem;
-    padding: 1.2rem;
-  }
-
-  .campaign-channel-card {
-    padding: 1rem 1.1rem;
+  .campaign-customer-cell {
+    align-items: flex-start;
   }
 }
 </style>

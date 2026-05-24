@@ -22,6 +22,8 @@
   - [10) Guard Clause](#10-guard-clause)
 - [Extensión 2026-05-10: clientes de campaña desde el servicio dueño del dominio](#extensión-2026-05-10-clientes-de-campaña-desde-el-servicio-dueño-del-dominio)
   - [11) Adapter](#11-adapter)
+- [Mejora UX 2026-05-24: tabla reutilizable y secciones menos apretadas en campaña específica](#mejora-ux-2026-05-24-tabla-reutilizable-y-secciones-menos-apretadas-en-campaña-específica)
+  - [12) Reuse Component / Composition](#12-reuse-component-composition)
 <!-- indice:auto:end -->
 
 ## Contexto
@@ -173,3 +175,17 @@ Se corrigió la desincronización de anuncios en home (arriba/abajo) y se implem
 - Evidencia técnica:
   - `AdminDiscountController` ahora consulta primero `auth-service` con el mismo token de admin ya validado por middleware y adapta la respuesta a un contrato uniforme de campaña.
   - Si `auth-service` no está disponible, el controlador conserva el fallback legacy/local para no romper el flujo durante la migración.
+
+## Mejora UX 2026-05-24: tabla reutilizable y secciones menos apretadas en campaña específica
+
+### 12) Reuse Component / Composition
+- Patrón: Reuse Component / Composition (Refactoring Guru)
+- Problema que resuelve:
+  La vista `AdminDiscountSpecificCampaignPage.vue` concentraba demasiados bloques compactos y ad hoc en la columna de destinatarios: una barra adicional de selección, una lista custom con tarjetas por cliente y toggles propios para canales. Eso comprimía el layout y rompía consistencia con el resto del admin.
+- Aplicado en:
+  - frontend/src/modules/admin/pages/AdminDiscountSpecificCampaignPage.vue
+- Evidencia técnica:
+  - Los canales de envío ahora reutilizan `frontend/src/modules/admin/components/AdminToggleSwitch.vue` en lugar de un toggle local custom.
+  - Los destinatarios ahora se renderizan en `dashboard-table` con `table-responsive`, `AdminResultsBar`, `AdminTableShimmer`, `AdminPagination` y `useAdminPagination`.
+  - Se eliminó la barra duplicada de destinatarios y la lista custom desplazable, dejando una jerarquía más clara entre búsqueda, resumen y tabla.
+  - El layout de escritorio dejó de dividir configuración y clientes en dos columnas apretadas; `frontend/src/modules/admin/pages/AdminDiscountSpecificCampaignPage.vue` ahora muestra la configuración arriba a todo el ancho y reparte sus dos pasos en una grilla interna, dejando la tabla de clientes debajo también a todo el ancho.
