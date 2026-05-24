@@ -1350,7 +1350,7 @@
   background: var(--admin-glass-bg-strong);
   box-shadow: var(--admin-glass-shadow);
   backdrop-filter: blur(18px);
-  scrollbar-gutter: stable both-edges;
+  /* Evita gutters reservados para que la tabla flush ocupe todo el ancho visible. */
 }
 
 .table-responsive::-webkit-scrollbar {
@@ -3147,6 +3147,10 @@
   background: var(--admin-glass-bg-strong);
   box-shadow: var(--admin-glass-shadow);
   backdrop-filter: blur(18px);
+}
+
+.admin-insights-search-panel {
+  margin-bottom: 1.5rem;
 }
 
 .admin-filters--animated {

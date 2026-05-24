@@ -1,12 +1,9 @@
 <template>
   <div class="admin-dashboard-page">
     <!-- Cabecera: usa el componente global AdminPageHeader -->
-    <AdminPageHeader
-      icon="fas fa-chart-line"
-      :title="dashboardWelcome"
+    <AdminPageHeader icon="fas fa-chart-line" :title="dashboardWelcome"
       :subtitle="`${dashboardStoreName} · Ventas, órdenes, clientes e inventario en tiempo real.`"
-      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Resumen' }]"
-    >
+      :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Resumen' }]">
       <template #actions>
         <RouterLink to="/admin/ordenes" class="btn btn-secondary btn-sm-icon">
           <i class="fas fa-receipt"></i> <span class="btn-label">Órdenes</span>
@@ -31,7 +28,8 @@
           <h3 class="dashboard-metric__value">{{ metric.value }}</h3>
           <div class="dashboard-metric__foot">
             <span class="dashboard-metric__helper">{{ metric.helper }}</span>
-            <span v-if="metric.change" class="dashboard-metric__change" :class="metric.changeClass">{{ metric.change }}</span>
+            <span v-if="metric.change" class="dashboard-metric__change" :class="metric.changeClass">{{ metric.change
+              }}</span>
           </div>
         </div>
       </div>
@@ -46,18 +44,15 @@
             <p class="dashboard-chart-subtitle">Ingresos y órdenes del período seleccionado.</p>
           </div>
           <div class="dashboard-chart-controls">
-            <button
-              v-for="r in [7, 14, 30]"
-              :key="r"
-              class="dashboard-range-btn"
-              :class="{ active: chartRange === r }"
-              type="button"
-              @click="chartRange = r"
-            >{{ r }}D</button>
+            <button v-for="r in [7, 14, 30]" :key="r" class="dashboard-range-btn"
+              :class="{ active: salesChartRange === r }" type="button" @click="salesChartRange = r">{{ r }}D</button>
           </div>
         </div>
         <div class="dashboard-chart-body">
-          <canvas ref="salesChartRef"></canvas>
+          <canvas v-if="hasSalesChartData" ref="salesChartRef"></canvas>
+          <AdminEmptyState v-else icon="fas fa-chart-column" title="Aún no hay datos"
+            description="Todavía no hay ingresos ni órdenes registradas en este período."
+            class="dashboard-chart-empty-state" />
         </div>
       </AdminCard>
 
@@ -65,11 +60,17 @@
         <div class="dashboard-chart-header">
           <div>
             <h3 class="dashboard-chart-title"><i class="fas fa-tags"></i> Estado de órdenes</h3>
-            <p class="dashboard-chart-subtitle">Distribución actual por estado.</p>
+            <p class="dashboard-chart-subtitle">Distribución del período seleccionado.</p>
+          </div>
+          <div class="dashboard-chart-controls">
+            <button v-for="r in [7, 14, 30]" :key="`status-${r}`" class="dashboard-range-btn"
+              :class="{ active: statusChartRange === r }" type="button" @click="statusChartRange = r">{{ r }}D</button>
           </div>
         </div>
         <div class="dashboard-chart-body doughnut">
-          <canvas ref="statusChartRef"></canvas>
+          <canvas v-if="hasStatusChartData" ref="statusChartRef"></canvas>
+          <AdminEmptyState v-else icon="fas fa-circle-notch" title="Aún no hay datos"
+            description="Todavía no hay estados de órdenes para este período." class="dashboard-chart-empty-state" />
         </div>
         <div v-if="orderStatuses.length" class="dashboard-status-list">
           <div v-for="s in orderStatuses" :key="s.label" class="dashboard-status-row">
@@ -82,7 +83,8 @@
               <span>{{ statusPercentage(s.count) }}</span>
             </div>
             <div class="dashboard-status-bar">
-              <div class="dashboard-status-bar__fill" :style="{ width: statusPercentage(s.count), backgroundColor: s.color }"></div>
+              <div class="dashboard-status-bar__fill"
+                :style="{ width: statusPercentage(s.count), backgroundColor: s.color }"></div>
             </div>
           </div>
         </div>
@@ -101,12 +103,8 @@
         </div>
       </template>
 
-      <AdminEmptyState
-        v-if="!loading && recentOrders.length === 0"
-        icon="fas fa-inbox"
-        title="Sin órdenes recientes"
-        description="Las nuevas órdenes aparecen aquí en tiempo real."
-      />
+      <AdminEmptyState v-if="!loading && recentOrders.length === 0" icon="fas fa-inbox" title="Sin órdenes recientes"
+        description="Las nuevas órdenes aparecen aquí en tiempo real." />
       <div v-else class="table-responsive">
         <table class="dashboard-table">
           <thead>
@@ -121,15 +119,22 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="6"><AdminTableShimmer :rows="5" :columns="['line','line','line','line','pill','pill']" /></td>
+              <td colspan="6">
+                <AdminTableShimmer :rows="5" :columns="['line', 'line', 'line', 'line', 'pill', 'pill']" />
+              </td>
             </tr>
-            <tr v-for="order in recentOrders" v-else :key="order.id">
+            <tr v-for="order in recentOrders" v-else :key="order.id"
+              class="dashboard-recent-order-row dashboard-recent-order-row--interactive" role="link" tabindex="0"
+              @click="openRecentOrder(order)" @keydown.enter.prevent="openRecentOrder(order)"
+              @keydown.space.prevent="openRecentOrder(order)">
               <td><strong>#{{ order.id }}</strong></td>
               <td>{{ order.customer }}</td>
               <td class="hide-xs">{{ order.date }}</td>
               <td>$ {{ order.total }}</td>
               <td><span class="status-badge" :class="order.status">{{ order.statusLabel }}</span></td>
-              <td class="hide-sm"><span class="status-badge" :class="order.paymentStatus">{{ order.paymentLabel }}</span></td>
+              <td class="hide-sm"><span class="status-badge" :class="order.paymentStatus">{{ order.paymentLabel
+                  }}</span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -165,26 +170,18 @@
           </div>
         </div>
 
-        <AdminEmptyState
-          v-if="!loading && inventoryAlerts.length === 0"
-          icon="fas fa-check-circle"
-          title="Sin productos en riesgo"
-          description="No hay variantes agotadas ni con stock crítico."
-        />
+        <AdminEmptyState v-if="!loading && inventoryAlerts.length === 0" icon="fas fa-check-circle"
+          title="Sin productos en riesgo" description="No hay variantes agotadas ni con stock crítico." />
         <div v-else class="dashboard-low-stock">
-          <button
-            v-for="item in inventoryAlerts"
-            :key="item.id"
-            type="button"
-            class="dashboard-low-stock__item dashboard-low-stock__item--interactive"
-            @click="openInventoryAlert(item)"
-          >
+          <button v-for="item in inventoryAlerts" :key="item.id" type="button"
+            class="dashboard-low-stock__item dashboard-low-stock__item--interactive" @click="openInventoryAlert(item)">
             <AdminTableImage :src="item.image" :alt="item.name" type="product" size="sm" />
             <div class="dashboard-low-stock__info">
               <strong>{{ item.name }}</strong>
               <span>{{ item.variantLabel }}</span>
             </div>
-            <span class="status-badge" :class="item.status === 'out' ? 'cancelled' : 'pending'">{{ item.alertLabel }}</span>
+            <span class="status-badge" :class="item.status === 'out' ? 'cancelled' : 'pending'">{{ item.alertLabel
+              }}</span>
           </button>
         </div>
       </AdminCard>
@@ -201,21 +198,18 @@
           </div>
         </template>
 
-        <AdminEmptyState
-          v-if="!loading && topProducts.length === 0"
-          icon="fas fa-chart-bar"
-          title="Sin datos de ventas"
-          description="Los productos con más ventas aparecerán aquí."
-        />
+        <AdminEmptyState v-if="!loading && topProducts.length === 0" icon="fas fa-chart-bar" title="Sin datos de ventas"
+          description="Los productos con más ventas aparecerán aquí." />
         <div v-else class="dashboard-top-products">
-          <div v-for="(product, index) in topProducts" :key="product.id" class="dashboard-top-product">
+          <button v-for="(product, index) in topProducts" :key="product.id" type="button"
+            class="dashboard-top-product dashboard-top-product--interactive" @click="openTopProduct(product)">
             <span class="dashboard-top-product__rank">{{ index + 1 }}</span>
             <div class="dashboard-top-product__info">
               <strong>{{ product.name }}</strong>
               <span>{{ product.units }} vendidos</span>
             </div>
             <span class="dashboard-top-product__revenue">$ {{ product.revenue }}</span>
-          </div>
+          </button>
         </div>
       </AdminCard>
 
@@ -230,21 +224,18 @@
           </div>
         </template>
 
-        <AdminEmptyState
-          v-if="!loading && activities.length === 0"
-          icon="fas fa-history"
-          title="Sin actividad reciente"
-          description="Los eventos del sistema aparecerán aquí."
-        />
+        <AdminEmptyState v-if="!loading && activities.length === 0" icon="fas fa-history" title="Sin actividad reciente"
+          description="Los eventos del sistema aparecerán aquí." />
         <div v-else class="dashboard-activity">
-          <div v-for="a in activities" :key="a.id" class="dashboard-activity__item">
+          <button v-for="a in activities" :key="a.id" type="button"
+            class="dashboard-activity__item dashboard-activity__item--interactive" @click="openDashboardActivity(a)">
             <div class="dashboard-activity__icon" :class="a.type"><i :class="a.icon"></i></div>
             <div class="dashboard-activity__content">
               <p>{{ a.title }}</p>
               <span v-if="a.description">{{ a.description }}</span>
               <span class="dashboard-activity__time">{{ a.time }}</span>
             </div>
-          </div>
+          </button>
         </div>
       </AdminCard>
     </div>
@@ -252,7 +243,8 @@
 </template>
 
 <script setup>
-import {  ArcElement,
+import {
+  ArcElement,
   BarController,
   BarElement,
   CategoryScale,
@@ -318,7 +310,8 @@ const salesSeries = ref([])
 let salesChartInstance = null
 let statusChartInstance = null
 
-const chartRange = ref(7)
+const salesChartRange = ref(7)
+const statusChartRange = ref(7)
 const loading = ref(true)
 
 // Formato compatible con AdminStatsGrid: { key, label, value, icon, color, meta?, pills? }
@@ -326,11 +319,13 @@ const stats = ref([
   { key: 'orders', icon: 'fas fa-receipt', color: 'primary', label: 'Órdenes hoy', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
   { key: 'revenue', icon: 'fas fa-dollar-sign', color: 'success', label: 'Ingresos hoy', value: '$ 0', meta: { change: '0%', changeClass: '', helper: 'vs. ayer' } },
   { key: 'customers', icon: 'fas fa-user-plus', color: 'warning', label: 'Nuevos clientes', value: '0', meta: { change: '0%', changeClass: '', helper: 'vs. últimos 7 días' } },
-  { key: 'inventory', icon: 'fas fa-boxes-stacked', color: 'info', label: 'Variantes activas', value: '0', pills: [
-    { label: 'Activas', value: '0', class: 'pill-success' },
-    { label: 'Bajo stock', value: '0', class: 'pill-warning' },
-    { label: 'Sin stock', value: '0', class: 'pill-danger' },
-  ] },
+  {
+    key: 'inventory', icon: 'fas fa-boxes-stacked', color: 'info', label: 'Variantes activas', value: '0', pills: [
+      { label: 'Activas', value: '0', class: 'pill-success' },
+      { label: 'Bajo stock', value: '0', class: 'pill-warning' },
+      { label: 'Sin stock', value: '0', class: 'pill-danger' },
+    ]
+  },
 ])
 
 const metrics = ref([
@@ -347,6 +342,27 @@ const activities = ref([])
 const inventoryTotal = ref(0)
 const inventoryLow = ref(0)
 const inventoryZero = ref(0)
+
+const hasSalesChartData = computed(() => {
+  // El gráfico mixto solo se pinta cuando existe al menos una serie con valores operativos.
+  return salesSeries.value.some((item) => Number(item.revenue || 0) > 0 || Number(item.orders || 0) > 0)
+})
+
+const hasStatusChartData = computed(() => {
+  // El doughnut solo se pinta cuando al menos un estado aporta conteo positivo.
+  return orderStatuses.value.some((item) => Number(item.count || 0) > 0)
+})
+
+const ORDER_STATUS_CHART_COLORS = Object.freeze({
+  pending: '#f59e0b',
+  in_review: '#d97706',
+  processing: '#0077b6',
+  shipped: '#17a2b8',
+  delivered: '#4bb543',
+  completed: '#2f855a',
+  cancelled: '#ff3333',
+  expired: '#64748b',
+})
 
 function parseDate(value) {
   if (!value) return null
@@ -429,6 +445,119 @@ function openInventoryAlert(item) {
   router.push(targetRoute)
 }
 
+function normalizeDashboardOrderSource(value) {
+  // Reutiliza el mismo criterio legacy/microservice que ya usan órdenes y facturas.
+  return String(value || '').trim().toLowerCase() === 'legacy' ? 'legacy' : 'microservice'
+}
+
+function buildDashboardOrderDetailRoute(order) {
+  // Reutiliza el patrón de navegación de AdminOrdersPage/AdminInvoicesPage para abrir el detalle correcto.
+  const orderId = Number(order?.id || 0)
+
+  // Si no existe un id confiable, se cae al listado general para evitar una ruta inválida.
+  if (!orderId) {
+    return '/admin/ordenes'
+  }
+
+  const orderSource = normalizeDashboardOrderSource(order?.order_source)
+
+  return {
+    name: 'admin-order-detail',
+    params: { id: orderId },
+    query: orderSource === 'legacy' ? { vista: 'archivo' } : {},
+  }
+}
+
+function buildDashboardCustomerRoute(customer) {
+  // Reutiliza el aterrizaje por query que ya entiende AdminCustomersPage.
+  const customerId = String(customer?.id || '').trim()
+  const searchSeed = customer?.email || customer?.name || customer?.phone || customerId
+
+  // Sin identificador no es posible enfocar el modal; en ese caso se abre el listado general.
+  if (!customerId) {
+    return '/admin/clientes'
+  }
+
+  return {
+    path: '/admin/clientes',
+    query: {
+      search: searchSeed,
+      customer: customerId,
+    },
+  }
+}
+
+function buildDashboardProductRoute(product) {
+  // Los destacados deben abrir el registro puntual del producto cuando exista el id.
+  const productId = Number(product?.id || product?.product_id || 0)
+
+  // Si no llega un id usable, se redirige al catálogo del admin para no romper el click.
+  if (!productId) {
+    return '/admin/productos'
+  }
+
+  return {
+    name: 'admin-product-edit',
+    params: { id: productId },
+  }
+}
+
+function openTopProduct(product) {
+  // Reutiliza la ruta calculada al hidratar la lista para mantener el click sincronizado con el fallback.
+  const targetRoute = product?.route || buildDashboardProductRoute(product)
+  router.push(targetRoute)
+}
+
+function openDashboardActivity(activity) {
+  // Cada actividad trae su destino resuelto desde buildActivities.
+  const targetRoute = activity?.route
+
+  // Si un evento no expone ruta navegable, no se intenta empujar navegación vacía.
+  if (!targetRoute) {
+    return
+  }
+
+  router.push(targetRoute)
+}
+
+function openRecentOrder(order) {
+  // Reutiliza el mismo resolvedor de detalle que ya usa la actividad reciente del dashboard.
+  const targetRoute = order?.route || buildDashboardOrderDetailRoute(order)
+
+  // Si por cualquier motivo la orden no trae destino, se evita una navegación inválida.
+  if (!targetRoute) {
+    return
+  }
+
+  router.push(targetRoute)
+}
+
+function buildOrderStatusChartEntry(status, count) {
+  // Reutiliza la capa global de traducción para convertir estados técnicos como expired a español.
+  const normalizedStatus = normalizeOrderStatus(status || 'pending')
+
+  return {
+    label: getOrderStatusLabel(normalizedStatus),
+    count: Number(count || 0),
+    color: ORDER_STATUS_CHART_COLORS[normalizedStatus] || '#777',
+  }
+}
+
+function mapTopProductEntry(product) {
+  // Esta normalización se comparte entre el reporte de ventas, el reporte de catálogo y el fallback local.
+  const productId = Number(product?.product_id || product?.id || 0)
+  const unitsSold = Number(product?.total_quantity || product?.units_sold || product?.times_sold || product?.sold_count || 0)
+  const revenueValue = Number(product?.total_revenue || product?.revenue || (Number(product?.price || 0) * unitsSold) || 0)
+
+  return {
+    id: productId || String(product?.name || product?.product_name || 'producto'),
+    name: product?.name || product?.product_name || 'Sin nombre',
+    units: unitsSold,
+    revenue: revenueValue.toLocaleString('es-CO'),
+    route: buildDashboardProductRoute({ ...product, id: productId || product?.id, product_id: productId || product?.product_id }),
+  }
+}
+
 function statusPercentage(count) {
   const total = orderStatuses.value.reduce((sum, status) => sum + Number(status.count || 0), 0)
   if (total <= 0) return '0%'
@@ -490,6 +619,7 @@ function timeAgo(value) {
 function buildActivities({ orders = [], customers = [], inventoryAlerts = [] }) {
   const items = []
 
+  // Las órdenes recientes navegan al detalle puntual de la orden desde el dashboard.
   orders.slice(0, 3).forEach((order) => {
     items.push({
       id: `order-${order.id}`,
@@ -498,9 +628,11 @@ function buildActivities({ orders = [], customers = [], inventoryAlerts = [] }) 
       title: `Nueva orden #${order.id}`,
       description: `${order.user_name || order.customer_name || 'Cliente'} · $ ${Number(order.total || 0).toLocaleString('es-CO')}`,
       sortAt: parseDate(order.created_at),
+      route: buildDashboardOrderDetailRoute(order),
     })
   })
 
+  // Los nuevos clientes reutilizan el foco por query para abrir el perfil correcto dentro de Clientes.
   customers.slice(0, 2).forEach((customer) => {
     items.push({
       id: `customer-${customer.id}`,
@@ -509,9 +641,11 @@ function buildActivities({ orders = [], customers = [], inventoryAlerts = [] }) 
       title: 'Nuevo cliente registrado',
       description: `${customer.name || 'Cliente'} · ${customer.email || 'Sin correo'}`,
       sortAt: parseDate(customer.created_at),
+      route: buildDashboardCustomerRoute(customer),
     })
   })
 
+  // Los avisos de inventario reutilizan la misma ruta que ya usa la tarjeta de Inventario en riesgo.
   inventoryAlerts.slice(0, 3).forEach((product) => {
     items.push({
       id: `inventory-${product.id}`,
@@ -524,6 +658,7 @@ function buildActivities({ orders = [], customers = [], inventoryAlerts = [] }) 
         ? `${product.variantLabel} agotada.`
         : `${product.variantLabel} · Quedan ${Number(product.stock || 0)} unidades.`,
       sortAt: parseDate(product.updated_at || product.created_at),
+      route: product.route || buildInventoryTargetRoute(product),
     })
   })
 
@@ -537,22 +672,39 @@ function buildActivities({ orders = [], customers = [], inventoryAlerts = [] }) 
 }
 
 function destroyCharts() {
-  if (salesChartInstance) {
-    salesChartInstance.destroy()
-    salesChartInstance = null
-  }
-  if (statusChartInstance) {
-    statusChartInstance.destroy()
-    statusChartInstance = null
-  }
+  // Se destruyen ambas instancias para evitar gráficos duplicados al cambiar período o estado vacío.
+  destroySalesChart()
+  destroyStatusChart()
 }
 
-function renderCharts() {
-  if (!salesChartRef.value || !statusChartRef.value) {
+function destroySalesChart() {
+  // La instancia del gráfico de ventas se recicla cada vez que cambian los datos del reporte.
+  if (!salesChartInstance) {
     return
   }
 
-  destroyCharts()
+  salesChartInstance.destroy()
+  salesChartInstance = null
+}
+
+function destroyStatusChart() {
+  // La instancia del doughnut se recicla cuando cambia el rango o entra/sale del estado vacío.
+  if (!statusChartInstance) {
+    return
+  }
+
+  statusChartInstance.destroy()
+  statusChartInstance = null
+}
+
+function renderSalesChart() {
+  // Si no hay datos o el canvas no está montado, se limpia el gráfico y se deja ver el empty state.
+  if (!salesChartRef.value || !hasSalesChartData.value) {
+    destroySalesChart()
+    return
+  }
+
+  destroySalesChart()
 
   const labels = salesSeries.value.map((item) => {
     const source = item.date || item.period || ''
@@ -616,6 +768,16 @@ function renderCharts() {
       },
     },
   })
+}
+
+function renderStatusChart() {
+  // Si no hay estados agregados para el período actual, se limpia el doughnut y se muestra el estado vacío.
+  if (!statusChartRef.value || !hasStatusChartData.value) {
+    destroyStatusChart()
+    return
+  }
+
+  destroyStatusChart()
 
   statusChartInstance = new Chart(statusChartRef.value, {
     type: 'doughnut',
@@ -639,9 +801,15 @@ function renderCharts() {
   })
 }
 
+function renderCharts() {
+  // Cada gráfico se dibuja de forma independiente para soportar vacíos parciales sin bloquear al otro.
+  renderSalesChart()
+  renderStatusChart()
+}
+
 async function loadSalesStats() {
   const today = new Date()
-  const rangeFrom = formatIsoDate(daysAgo(chartRange.value - 1))
+  const rangeFrom = formatIsoDate(daysAgo(salesChartRange.value - 1))
   const currentMonthFrom = formatIsoDate(new Date(today.getFullYear(), today.getMonth(), 1))
   const previousMonthFrom = formatIsoDate(new Date(today.getFullYear(), today.getMonth() - 1, 1))
   const previousMonthTo = formatIsoDate(new Date(today.getFullYear(), today.getMonth(), 0))
@@ -667,30 +835,6 @@ async function loadSalesStats() {
 
   salesSeries.value = Array.isArray(rangedReport.rows) ? rangedReport.rows : []
 
-  // Reutiliza el agregado por estado del endpoint admin para doughnut y lista.
-  const statusColors = {
-    pending: '#f59e0b',
-    in_review: '#d97706',
-    processing: '#0077b6',
-    shipped: '#17a2b8',
-    delivered: '#4bb543',
-    cancelled: '#ff3333',
-    refunded: '#64748b',
-  }
-
-  // Solo sobreescribir orderStatuses si la respuesta del reporte tiene datos
-  const reportStatuses = Array.isArray(rangedReport.by_status) ? rangedReport.by_status : []
-  if (reportStatuses.length > 0) {
-    orderStatuses.value = reportStatuses.map((entry) => {
-      const key = normalizeOrderStatus(entry.status || 'pending')
-      return {
-        label: getOrderStatusLabel(key),
-        count: Number(entry.count || 0),
-        color: statusColors[key] || '#64748b',
-      }
-    })
-  }
-
   const monthRevenue = Number(currentMonthReport.totalRevenue || currentMonthReport.total_revenue || 0)
   const previousRevenue = Number(previousMonthReport.totalRevenue || previousMonthReport.total_revenue || 0)
   const monthDelta = previousRevenue > 0
@@ -700,10 +844,16 @@ async function loadSalesStats() {
   const avgTicket = Number(currentMonthReport.avgOrderValue || currentMonthReport.avg_order_value || 0)
   metrics.value[0].value = `$ ${avgTicket.toLocaleString('es-CO')}`
 
-  // Órdenes pendientes: desde reporte o desde órdenes recientes como fallback
-  const pendingFromReport = orderStatuses.value
-    .filter((status) => ['Pendiente', 'En revisión', 'En proceso'].includes(status.label))
-    .reduce((acc, status) => acc + Number(status.count || 0), 0)
+  // Las pendientes del bloque métrico se calculan desde el mismo reporte de ventas para no depender del doughnut.
+  const pendingFromReport = (Array.isArray(rangedReport.by_status) ? rangedReport.by_status : [])
+    .map((entry) => ({
+      status: normalizeOrderStatus(entry.status || 'pending'),
+      count: Number(entry.count || 0),
+    }))
+    .filter((entry) => ['pending', 'in_review', 'processing'].includes(entry.status))
+    .reduce((acc, entry) => acc + entry.count, 0)
+
+  // Si el reporte del período sí trae pendientes, se prioriza sobre el fallback del dashboard general.
   if (pendingFromReport > 0) {
     metrics.value[1].value = String(pendingFromReport)
   }
@@ -714,6 +864,28 @@ async function loadSalesStats() {
 
   await nextTick()
   renderCharts()
+}
+
+async function loadStatusChartStats() {
+  const today = new Date()
+  const rangeFrom = formatIsoDate(daysAgo(statusChartRange.value - 1))
+
+  try {
+    const response = await orderHttp.get('/admin/reports/sales', { params: { from: rangeFrom, to: formatIsoDate(today) } })
+    const rangedReport = response.data?.data || response.data || {}
+    const reportStatuses = Array.isArray(rangedReport.by_status) ? rangedReport.by_status : []
+
+    // Si el reporte respondió, el doughnut debe reflejar exactamente su propio rango, incluso vacío.
+    orderStatuses.value = reportStatuses
+      .map((entry) => buildOrderStatusChartEntry(entry.status, entry.count))
+      .filter((entry) => entry.count > 0)
+
+    await nextTick()
+    renderCharts()
+  } catch (error) {
+    // Si falla solo el doughnut, se conserva el estado actual del dashboard sin bloquear el resto.
+    console.warn('Error obteniendo estados para el gráfico circular:', error.message)
+  }
 }
 
 async function loadDashboard() {
@@ -729,17 +901,19 @@ async function loadDashboard() {
     orders = Array.isArray(ordersPayload)
       ? ordersPayload
       : (Array.isArray(ordersPayload.rows)
-          ? ordersPayload.rows
-          : (Array.isArray(ordersPayload.data) ? ordersPayload.data : []))
+        ? ordersPayload.rows
+        : (Array.isArray(ordersPayload.data) ? ordersPayload.data : []))
     recentOrders.value = orders.slice(0, 8).map(o => ({
       id: o.id,
       customer: o.user_name || o.customer_name || 'Cliente',
       date: o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO') : '-',
       total: Number(o.total || 0).toLocaleString('es-CO'),
+      order_source: o.order_source,
       status: normalizeOrderStatus(o.order_status || o.status),
       statusLabel: getOrderStatusLabel(o.order_status || o.status),
       paymentStatus: getPaymentStatusBadgeClass(o.payment_status),
       paymentLabel: getPaymentStatusLabel(o.payment_status),
+      route: buildDashboardOrderDetailRoute(o),
     }))
 
     // Filtrar órdenes de hoy para las stat cards
@@ -779,12 +953,7 @@ async function loadDashboard() {
       const s = normalizeOrderStatus(o.order_status || o.status)
       statusCounts[s] = (statusCounts[s] || 0) + 1
     })
-    const colors = { pending: '#f59e0b', in_review: '#d97706', processing: '#0077b6', shipped: '#17a2b8', delivered: '#4bb543', completed: '#2f855a', cancelled: '#ff3333' }
-    orderStatuses.value = Object.entries(statusCounts).map(([key, count]) => ({
-      label: getOrderStatusLabel(key),
-      count,
-      color: colors[key] || '#777',
-    }))
+    orderStatuses.value = Object.entries(statusCounts).map(([key, count]) => buildOrderStatusChartEntry(key, count))
   } catch (err) {
     console.warn('Error cargando dashboard:', err)
   }
@@ -904,12 +1073,7 @@ async function loadDashboard() {
         .filter((row) => Number(row.total_quantity || row.units_sold || row.times_sold || 0) > 0)
         .sort((a, b) => Number(b.total_revenue || b.revenue || 0) - Number(a.total_revenue || a.revenue || 0))
         .slice(0, 5)
-        .map((row) => ({
-          id: row.product_id || row.id,
-          name: row.name || 'Sin nombre',
-          units: Number(row.total_quantity || row.units_sold || row.times_sold || 0),
-          revenue: Number(row.total_revenue || row.revenue || 0).toLocaleString('es-CO'),
-        }))
+        .map((row) => mapTopProductEntry(row))
     } catch {
       try {
         const reportRes = await catalogHttp.get('/admin/reports/products')
@@ -920,23 +1084,13 @@ async function loadDashboard() {
           .filter((row) => Number(row.units_sold || row.total_quantity || 0) > 0)
           .sort((a, b) => Number(b.total_revenue || b.revenue || 0) - Number(a.total_revenue || a.revenue || 0))
           .slice(0, 5)
-          .map((row) => ({
-            id: row.id,
-            name: row.name || 'Sin nombre',
-            units: Number(row.units_sold || row.total_quantity || 0),
-            revenue: Number(row.total_revenue || row.revenue || 0).toLocaleString('es-CO'),
-          }))
+          .map((row) => mapTopProductEntry(row))
       } catch {
         topProducts.value = products
           .filter((p) => p.sold_count > 0)
           .sort((a, b) => b.sold_count - a.sold_count)
           .slice(0, 5)
-          .map((p) => ({
-            id: p.id,
-            name: p.name,
-            units: p.sold_count,
-            revenue: Number(p.revenue || (p.price * p.sold_count) || 0).toLocaleString('es-CO'),
-          }))
+          .map((p) => mapTopProductEntry(p))
       }
     }
   } catch (err) {
@@ -949,14 +1103,23 @@ async function loadDashboard() {
     inventoryAlerts: inventoryAlerts.value,
   })
 
-  // Cargar reportes de ventas (resiliente, no bloquea dashboard si falla)
-  await loadSalesStats().catch((err) => console.warn('Error cargando reportes de ventas:', err))
+  // Cada gráfico actualiza su propio rango sin afectar al otro.
+  await Promise.allSettled([
+    loadSalesStats().catch((err) => console.warn('Error cargando gráfico de ventas:', err)),
+    loadStatusChartStats().catch((err) => console.warn('Error cargando gráfico circular:', err)),
+  ])
 
   loading.value = false
 }
 
-watch(chartRange, () => {
-  loadSalesStats().catch((err) => console.warn('Error actualizando rango de gráfico:', err))
+watch(salesChartRange, () => {
+  // Este watcher solo refresca el gráfico mixto de ventas e ingresos.
+  loadSalesStats().catch((err) => console.warn('Error actualizando rango del gráfico de ventas:', err))
+})
+
+watch(statusChartRange, () => {
+  // Este watcher solo refresca el doughnut de estados para mantener rangos independientes.
+  loadStatusChartStats().catch((err) => console.warn('Error actualizando rango del gráfico circular:', err))
 })
 
 onBeforeUnmount(() => {

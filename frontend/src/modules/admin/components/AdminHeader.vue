@@ -131,6 +131,8 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAppShell } from '../../../composables/useAppShell'
+import { authHttp, orderHttp } from '../../../services/http'
+import { getAdminInvoices } from '../../../services/invoiceApi'
 import { useAdminNotifications } from '../composables/useAdminNotifications'
 
 defineEmits(['toggle-sidebar'])
@@ -161,6 +163,19 @@ const {
 } = useAdminNotifications()
 
 let searchTimeout = null
+let searchRequestId = 0
+
+const SEARCH_MIN_LENGTH = 2
+const SEARCH_DEBOUNCE_MS = 220
+const SEARCH_RESULTS_LIMIT = 12
+const SEARCH_RESULTS_PER_SOURCE = 4
+
+const searchTypePriority = {
+  order: 0,
+  invoice: 1,
+  customer: 2,
+  module: 3,
+}
 
 const quickActions = [
   { id: 'new-product', icon: 'fa-plus-circle', label: 'Nuevo producto', description: 'Agregar producto al catálogo', path: '/admin/productos/nuevo' },
@@ -199,59 +214,304 @@ function normalizeSearchText(value) {
     .trim()
 }
 
-function runSearch(query) {
-  const normalizedQuery = normalizeSearchText(query)
-  if (normalizedQuery.length < 2) return []
+function normalizeOrderSource(value) {
+  return String(value || '').trim().toLowerCase() === 'legacy' ? 'legacy' : 'microservice'
+}
 
-  return searchableModules
-    .filter((module) => {
-      const haystack = [module.title, module.subtitle, module.url, ...(module.keywords || [])]
-        .map((entry) => normalizeSearchText(entry))
-        .join(' ')
-      return haystack.includes(normalizedQuery)
+function buildOrderDetailRoute(order) {
+  const isLegacy = normalizeOrderSource(order?.order_source) === 'legacy'
+
+  return {
+    name: 'admin-order-detail',
+    params: { id: Number(order?.id || 0) },
+    query: isLegacy ? { vista: 'archivo' } : {},
+  }
+}
+
+function calculateSearchScore(query, candidates = []) {
+  let bestScore = Number.POSITIVE_INFINITY
+
+  candidates
+    .map((candidate) => normalizeSearchText(candidate))
+    .filter(Boolean)
+    .forEach((candidate) => {
+      const matchPosition = candidate.indexOf(query)
+
+      if (matchPosition === -1) {
+        return
+      }
+
+      if (candidate === query) {
+        bestScore = Math.min(bestScore, 0)
+        return
+      }
+
+      if (candidate.startsWith(query)) {
+        bestScore = Math.min(bestScore, 1 + (candidate.length / 1000))
+        return
+      }
+
+      bestScore = Math.min(bestScore, 2 + (matchPosition / 1000))
     })
-    .map((module) => ({ ...module, id: module.url }))
+
+  return bestScore
+}
+
+function sortSearchResults(results) {
+  return [...results].sort((left, right) => {
+    if (left.score !== right.score) {
+      return left.score - right.score
+    }
+
+    const typeGap = (searchTypePriority[left.type] ?? 99) - (searchTypePriority[right.type] ?? 99)
+    if (typeGap !== 0) {
+      return typeGap
+    }
+
+    return left.title.localeCompare(right.title, 'es', { sensitivity: 'base' })
+  })
+}
+
+function buildModuleResults(query) {
+  return searchableModules
+    .map((module) => {
+      const score = calculateSearchScore(query, [module.title, module.subtitle, module.url, ...(module.keywords || [])])
+
+      if (!Number.isFinite(score)) {
+        return null
+      }
+
+      return {
+        ...module,
+        id: `module:${module.url}`,
+        type: 'module',
+        score,
+      }
+    })
+    .filter(Boolean)
+}
+
+function extractOrderRows(response) {
+  const payload = response?.data?.data || {}
+  return Array.isArray(payload) ? payload : (payload.rows || [])
+}
+
+function extractInvoiceRows(response) {
+  const payload = response?.data || {}
+  return Array.isArray(payload.rows) ? payload.rows : []
+}
+
+function extractCustomerRows(response) {
+  const payload = response?.data?.data || response?.data || []
+  return Array.isArray(payload) ? payload : (payload.data || [])
+}
+
+function mapOrderResult(order, query) {
+  const id = Number(order?.id || 0)
+  if (!id) {
+    return null
+  }
+
+  const orderNumber = order.order_number || `#${id}`
+  const customerName = order.customer_name || order.user_name || order.billing_name || (order.user_id ? `Cliente ${order.user_id}` : 'Cliente')
+  const customerEmail = order.customer_email || order.user_email || order.billing_email || ''
+  const score = calculateSearchScore(query, [orderNumber, id, customerName, customerEmail])
+
+  if (!Number.isFinite(score)) {
+    return null
+  }
+
+  return {
+    id: `order:${normalizeOrderSource(order.order_source)}:${id}`,
+    title: orderNumber,
+    subtitle: ['Pedido', customerName, customerEmail || `ID ${id}`].filter(Boolean).join(' · '),
+    url: buildOrderDetailRoute(order),
+    icon: 'fas fa-shopping-bag',
+    type: 'order',
+    score,
+  }
+}
+
+function mapInvoiceResult(invoice, query) {
+  const id = Number(invoice?.id || 0)
+  if (!id) {
+    return null
+  }
+
+  const orderSource = normalizeOrderSource(invoice.order_source)
+  const orderNumber = invoice.order_number || `#${id}`
+  const invoiceNumber = invoice.invoice_number || `FAC-${orderNumber}`
+  const customerName = invoice.customer_name || invoice.user_name || invoice.billing_name || 'Cliente'
+  const customerEmail = invoice.customer_email || invoice.user_email || invoice.billing_email || ''
+  const score = calculateSearchScore(query, [invoiceNumber, orderNumber, id, customerName, customerEmail])
+
+  if (!Number.isFinite(score)) {
+    return null
+  }
+
+  return {
+    id: `invoice:${orderSource}:${id}`,
+    title: invoiceNumber,
+    subtitle: ['Factura', `Pedido ${orderNumber}`, customerName, customerEmail].filter(Boolean).join(' · '),
+    url: {
+      path: '/admin/facturas',
+      query: {
+        search: invoiceNumber,
+        invoice: String(id),
+        source: orderSource,
+      },
+    },
+    icon: 'fas fa-file-invoice-dollar',
+    type: 'invoice',
+    score,
+  }
+}
+
+function mapCustomerResult(customer, query) {
+  const id = String(customer?.id || '').trim()
+  if (!id) {
+    return null
+  }
+
+  const customerName = customer.name || 'Cliente'
+  const customerEmail = customer.email || ''
+  const customerPhone = customer.phone || ''
+  const score = calculateSearchScore(query, [id, customerName, customerEmail, customerPhone])
+
+  if (!Number.isFinite(score)) {
+    return null
+  }
+
+  const searchSeed = customerEmail || customerName || customerPhone || id
+
+  return {
+    id: `customer:${id}`,
+    title: customerName,
+    subtitle: ['Cliente', customerEmail || customerPhone || `ID ${id}`].filter(Boolean).join(' · '),
+    url: {
+      path: '/admin/clientes',
+      query: {
+        search: searchSeed,
+        customer: id,
+      },
+    },
+    icon: 'fas fa-users',
+    type: 'customer',
+    score,
+  }
+}
+
+async function runSearch(query) {
+  const normalizedQuery = normalizeSearchText(query)
+  if (normalizedQuery.length < SEARCH_MIN_LENGTH) {
+    return []
+  }
+
+  const staticResults = buildModuleResults(normalizedQuery)
+
+  // El buscador mezcla módulos fijos con entidades reales del admin.
+  const [ordersResponse, invoicesResponse, customersResponse] = await Promise.allSettled([
+    orderHttp.get('/admin/orders', { params: { search: query, limit: SEARCH_RESULTS_PER_SOURCE } }),
+    getAdminInvoices({ search: query, limit: SEARCH_RESULTS_PER_SOURCE }),
+    authHttp.get('/admin/customers', { params: { search: query, limit: SEARCH_RESULTS_PER_SOURCE } }),
+  ])
+
+  const liveResults = []
+
+  if (ordersResponse.status === 'fulfilled') {
+    liveResults.push(
+      ...extractOrderRows(ordersResponse.value)
+        .map((order) => mapOrderResult(order, normalizedQuery))
+        .filter(Boolean)
+        .slice(0, SEARCH_RESULTS_PER_SOURCE),
+    )
+  }
+
+  if (invoicesResponse.status === 'fulfilled') {
+    liveResults.push(
+      ...extractInvoiceRows(invoicesResponse.value)
+        .map((invoice) => mapInvoiceResult(invoice, normalizedQuery))
+        .filter(Boolean)
+        .slice(0, SEARCH_RESULTS_PER_SOURCE),
+    )
+  }
+
+  if (customersResponse.status === 'fulfilled') {
+    liveResults.push(
+      ...extractCustomerRows(customersResponse.value)
+        .map((customer) => mapCustomerResult(customer, normalizedQuery))
+        .filter(Boolean)
+        .slice(0, SEARCH_RESULTS_PER_SOURCE),
+    )
+  }
+
+  return sortSearchResults([...liveResults, ...staticResults]).slice(0, SEARCH_RESULTS_LIMIT)
 }
 
 function handleSearch() {
   clearTimeout(searchTimeout)
-  if (searchQuery.value.length < 2) {
+  if (normalizeSearchText(searchQuery.value).length < SEARCH_MIN_LENGTH) {
     showResults.value = searchQuery.value.length > 0
     searchResults.value = []
+    searching.value = false
     return
   }
+
   showResults.value = true
   searching.value = true
+
+  const requestId = ++searchRequestId
   searchTimeout = setTimeout(() => {
-    searchResults.value = runSearch(searchQuery.value)
-    searching.value = false
-  }, 220)
+    runSearch(searchQuery.value)
+      .then((results) => {
+        if (requestId !== searchRequestId) {
+          return
+        }
+
+        searchResults.value = results
+      })
+      .finally(() => {
+        if (requestId === searchRequestId) {
+          searching.value = false
+        }
+      })
+  }, SEARCH_DEBOUNCE_MS)
 }
 
-function submitSearch() {
-  if (searchQuery.value.length < 2) {
+async function submitSearch() {
+  if (normalizeSearchText(searchQuery.value).length < SEARCH_MIN_LENGTH) {
     showResults.value = searchQuery.value.length > 0
     searchResults.value = []
     return
   }
 
   clearTimeout(searchTimeout)
+
+  const requestId = ++searchRequestId
   showResults.value = true
+  searching.value = true
+  searchResults.value = await runSearch(searchQuery.value)
+
+  if (requestId !== searchRequestId) {
+    return
+  }
+
   searching.value = false
-  searchResults.value = runSearch(searchQuery.value)
 
   const firstResult = searchResults.value[0]
   if (!firstResult) return
 
-  const currentPath = router.currentRoute.value?.path || ''
-  if (currentPath !== firstResult.url) {
-    router.push(firstResult.url)
+  const currentPath = router.currentRoute.value?.fullPath || router.currentRoute.value?.path || ''
+  const resolvedTarget = router.resolve(firstResult.url)
+  if (currentPath !== resolvedTarget.fullPath) {
+    await router.push(firstResult.url)
   }
   closeSearch()
 }
 
 function closeSearch() {
   clearTimeout(searchTimeout)
+  searchRequestId += 1
   showResults.value = false
   searchQuery.value = ''
   searchResults.value = []

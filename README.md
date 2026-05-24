@@ -1,12 +1,33 @@
 # Angelow Microservices
 
-Migracion del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, Redis, workers y frontend separado.
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Guías clave](#guías-clave)
+- [Servicios y puertos](#servicios-y-puertos)
+- [PostgreSQL en pgAdmin (evitar confusión)](#postgresql-en-pgadmin-evitar-confusión)
+- [Levantar todo con Docker](#levantar-todo-con-docker)
+- [Ejecutar migraciones](#ejecutar-migraciones)
+- [Importar datos desde `basededatos.sql`](#importar-datos-desde-basededatossql)
+- [Ejecutar pruebas](#ejecutar-pruebas)
+- [Documentación](#documentación)
+<!-- indice:auto:end -->
+
+Migración del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, Redis, workers y frontend separado.
+
+## Guías clave
+
+- [Manual técnico](docs/operaciones/manual-tecnico.md)
+- [Índice general de documentación](docs/README.md)
+- [Documentación por microservicio](docs/microservicios/README.md)
+- [Guía de testing compartido](docs/testing/README.md)
+- [Guía del frontend](frontend/README.md)
 
 ## Servicios y puertos
 
 | Servicio | Puerto API | Base de datos |
 |---|---:|---|
-| `auth-servi![1776289969924](image/README/1776289969924.png)ce` | 8001 | `angelow_auth` |
+| `auth-service` | 8001 | `angelow_auth` |
 | `catalog-service` | 8002 | `angelow_catalog` |
 | `cart-service` | 8003 | `angelow_cart` |
 | `order-service` | 8004 | `angelow_orders` |
@@ -17,12 +38,12 @@ Migracion del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, R
 | `audit-service` | 8009 | `angelow_audit` |
 | `frontend` | 5173 | n/a |
 
-## PostgreSQL en pgAdmin (evitar confusion)
+## PostgreSQL en pgAdmin (evitar confusión)
 
 Cada microservicio usa su propia base PostgreSQL en un puerto distinto.
-Si en pgAdmin te conectas solo a `localhost:5432`, veras la instancia local general, no las bases de microservicios.
+Si en pgAdmin te conectas solo a `localhost:5432`, verás la instancia local general, no las bases de microservicios.
 
-| Base de datos | Host | Puerto | Usuario | Contrasena |
+| Base de datos | Host | Puerto | Usuario | Contraseña |
 |---|---|---:|---|---|
 | `angelow_auth` | `localhost` | 5433 | `postgres` | `root` |
 | `angelow_catalog` | `localhost` | 5434 | `postgres` | `root` |
@@ -34,7 +55,7 @@ Si en pgAdmin te conectas solo a `localhost:5432`, veras la instancia local gene
 | `angelow_notifications` | `localhost` | 5440 | `postgres` | `root` |
 | `angelow_audit` | `localhost` | 5441 | `postgres` | `root` |
 
-Validacion rapida en pgAdmin (sobre cada base):
+Validación rápida en pgAdmin (sobre cada base):
 
 ```sql
 SELECT count(*) AS total_tablas
@@ -83,8 +104,11 @@ docker compose exec -T notification-service php artisan test
 docker compose exec -T audit-service php artisan test
 ```
 
-## Documentacion
+## Documentación
 
-- [Arquitectura general](docs/README.md)
-- [Mapa de tablas por microservicio](docs/migracion-tablas.md)
-- [Importacion de datos](docs/importacion-datos.md)
+- [Manual técnico](docs/operaciones/manual-tecnico.md)
+- [Índice general de documentación](docs/README.md)
+- [Mapa de tablas por microservicio](docs/datos/migracion-tablas.md)
+- [Importación de datos](docs/datos/importacion-datos.md)
+- [Registro de patrones](docs/patrones/README.md)
+- [Registro de librerías y dependencias](docs/referencias/librerias-y-composer-uso.md)

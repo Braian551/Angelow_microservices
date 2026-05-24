@@ -1,5 +1,11 @@
 # Flujo de cart-service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Patrones de diseno](#patrones-de-diseno)
+<!-- indice:auto:end -->
+
 ```mermaid
 flowchart TD
   FE["Frontend"] --> API["cart-service API"]

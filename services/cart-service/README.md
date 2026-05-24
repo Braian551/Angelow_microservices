@@ -1,5 +1,14 @@
 # Cart Service
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Responsabilidad](#responsabilidad)
+- [Endpoints](#endpoints)
+- [Endpoints internos consumidos](#endpoints-internos-consumidos)
+- [Tablas de dominio](#tablas-de-dominio)
+<!-- indice:auto:end -->
+
 Microservicio Laravel para gestion del carrito de compras.
 
 ## Responsabilidad

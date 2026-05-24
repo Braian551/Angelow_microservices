@@ -233,7 +233,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { authHttp, orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -251,6 +252,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const route = useRoute()
 
 const loading = ref(true)
 const showDetailModal = ref(false)
@@ -352,6 +354,14 @@ const hubStatsFormatted = computed(() => {
 function normalizeIdentity(value) {
   const normalized = String(value || '').trim()
   return normalized || null
+}
+
+function readRouteQueryValue(key) {
+  return typeof route.query?.[key] === 'string' ? route.query[key].trim() : ''
+}
+
+function syncFiltersFromRoute() {
+  filters.search = readRouteQueryValue('search')
 }
 
 function normalizeEmail(value) {
@@ -633,9 +643,36 @@ function exportCustomers() {
   showSnackbar({ type: 'success', message: 'Clientes exportados correctamente' })
 }
 
-onMounted(() => {
-  loadCustomers(true)
-})
+async function applyRouteState() {
+  // Permite llegar desde el buscador con el perfil correcto ya enfocado.
+  syncFiltersFromRoute()
+
+  const focusedCustomerId = readRouteQueryValue('customer')
+  await loadCustomers(Boolean(focusedCustomerId) || !orderRowsLoaded.value)
+
+  if (!focusedCustomerId) {
+    if (showDetailModal.value) {
+      closeCustomerModal()
+    }
+    return
+  }
+
+  const targetCustomer = enrichedCustomers.value.find((customer) => customer.id === focusedCustomerId)
+  if (!targetCustomer) {
+    return
+  }
+
+  if (showDetailModal.value && selectedCustomerId.value === targetCustomer.id) {
+    return
+  }
+
+  selectedCustomerId.value = targetCustomer.id
+  showDetailModal.value = true
+}
+
+watch(() => route.fullPath, async () => {
+  await applyRouteState()
+}, { immediate: true })
 </script>
 
 <style scoped>

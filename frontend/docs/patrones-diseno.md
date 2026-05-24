@@ -1,5 +1,15 @@
 # Registro de Patrones de Diseno (Refactoring Guru)
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Cambio: Direcciones + selector de ubicacion + snackbar global](#cambio-direcciones-selector-de-ubicacion-snackbar-global)
+  - [1) Facade](#1-facade)
+  - [2) Mediator](#2-mediator)
+  - [3) Singleton (estado compartido de UI)](#3-singleton-estado-compartido-de-ui)
+- [Checklist para futuros cambios](#checklist-para-futuros-cambios)
+<!-- indice:auto:end -->
+
 ## Cambio: Direcciones + selector de ubicacion + snackbar global
 Fecha: 2026-04-02
 

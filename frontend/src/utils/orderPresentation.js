@@ -10,6 +10,7 @@ const ORDER_STATUS_LABELS = Object.freeze({
   completed: 'Completado',
   cancelled: 'Cancelado',
   canceled: 'Cancelado',
+  expired: 'Vencido',
   refunded: 'Reembolsado',
 })
 
@@ -22,6 +23,7 @@ const PAYMENT_STATUS_LABELS = Object.freeze({
   paid: 'Pagado',
   verified: 'Verificado',
   approved: 'Aprobado',
+  expired: 'Vencido',
   failed: 'Fallido',
   refunded: 'Reembolsado',
   rejected: 'Rechazado',
@@ -68,6 +70,7 @@ const GENERIC_REPLACEMENTS = [
   [/\bcompleted\b/gi, 'Completado'],
   [/\bcancelled\b/gi, 'Cancelado'],
   [/\bcanceled\b/gi, 'Cancelado'],
+  [/\bexpired\b/gi, 'Vencido'],
   [/\brefunded\b/gi, 'Reembolsado'],
   [/\bpaid\b/gi, 'Pagado'],
   [/\bverified\b/gi, 'Verificado'],
@@ -208,6 +211,8 @@ export function getOrderStatusBadgeClass(status) {
   if (normalized === 'completed') return 'active'
   if (['processing', 'in_review', 'en_revision'].includes(normalized)) return 'processing'
   if (normalized === 'shipped') return 'shipped'
+  // Los estados vencidos se presentan como cierre/estado no activo en la UI del admin.
+  if (normalized === 'expired') return 'cancelled'
   if (['cancelled', 'canceled', 'refunded'].includes(normalized)) return 'cancelled'
   return 'pending'
 }

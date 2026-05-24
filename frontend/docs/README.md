@@ -1,5 +1,21 @@
 # Flujo de frontend
 
+<!-- indice:auto:start -->
+## Índice rápido
+
+- [Documentos relacionados](#documentos-relacionados)
+- [Patrones aplicados](#patrones-aplicados)
+- [Registro obligatorio de patrones](#registro-obligatorio-de-patrones)
+<!-- indice:auto:end -->
+
+Guía de navegación funcional y de patrones específicos del frontend SPA.
+
+## Documentos relacionados
+
+- `../README.md`
+- `../../docs/operaciones/manual-tecnico.md`
+- `../../docs/patrones/README.md`
+
 ```mermaid
 flowchart LR
   HOME["HomePage"] --> STORE["StorePage"]
@@ -15,10 +31,10 @@ flowchart LR
 
 - `Modular by feature`: cada dominio vive en `src/modules/<dominio>`.
 - `Service layer`: consumo API centralizado en `src/services/*Api.js`.
-- `Composables`: sesion compartida en `src/composables/useSession.js`.
+- `Composables`: sesión compartida en `src/composables/useSession.js`.
 - `Presentational components`: componentes reutilizables en `modules/*/components`.
 
 ## Registro obligatorio de patrones
 
-- Cada cambio nuevo debe documentar patron(es) del catalogo Refactoring Guru usados o justificar por que no aplica.
-- El registro vigente se mantiene en `docs/patrones-diseno.md`.
+- Cada cambio nuevo debe documentar patrón(es) del catálogo Refactoring Guru usados o justificar por qué no aplica.
+- El registro vigente se mantiene en `docs/patrones/README.md`.
