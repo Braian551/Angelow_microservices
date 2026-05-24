@@ -21,4 +21,4 @@ flowchart LR
 ## Registro obligatorio de patrones
 
 - Cada cambio nuevo debe documentar patron(es) del catalogo Refactoring Guru usados o justificar por que no aplica.
-- El registro vigente se mantiene en `docs/patrones-diseno.md`.
+- El registro vigente se mantiene en `docs/patrones-diseño.md`.

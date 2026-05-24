@@ -99,7 +99,7 @@ Este archivo centraliza las dependencias agregadas/usadas para tareas funcionale
   - `frontend/src/modules/admin/components/AdminHeader.vue`
   - `frontend/src/modules/admin/pages/AdminAdministratorsPage.vue`
   - `frontend/src/modules/catalog/views/ProductDetailView.css`
-  - `docs/patrones-diseno-admin-buscador-avatar-producto-2026-04-20.md`
+  - `docs/patrones-diseño-admin-buscador-avatar-producto-2026-04-20.md`
 - Contexto funcional:
   - Se corrigió búsqueda tolerante a acentos/sinónimos en header admin.
   - Se corrigió visualización de Último acceso.

@@ -86,5 +86,5 @@ docker compose exec -T audit-service php artisan test
 ## Documentacion
 
 - [Arquitectura general](docs/README.md)
-- [Mapa de tablas por microservicio](docs/migracion-tablas.md)
-- [Importacion de datos](docs/importacion-datos.md)
+- [Mapa de tablas por microservicio](docs/migración-tablas.md)
+- [Importacion de datos](docs/importación-datos.md)

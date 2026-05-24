@@ -9,6 +9,8 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 ## Reglas obligatorias
 1. El frontend de microservicios debe verse y comportarse igual que Angelow legacy en las pantallas migradas, incluyendo animaciones y transiciones.
 2. Todo texto nuevo debe guardarse en UTF-8 real (sin mojibake) y con ortografía correcta en español, incluyendo tildes, `ñ`, signos y acentos en labels, placeholders, botones, breadcrumbs, modales, snackbars, tablas y exportables visibles.
+2b. Toda documentación (`docs/**/*.md`, `README*.md` y archivos equivalentes) y todo comentario nuevo o intervenido en frontend/backend debe escribirse en español con UTF-8 real, usando la grafía correcta (`diseño`, `reseñas`, `configuración`, etc.).
+2c. En archivos de documentación se permite y se prioriza usar nombres de archivo con ortografía española correcta y caracteres UTF-8 reales; en código funcional, identificadores, imports y rutas técnicas deben mantenerse estables salvo que la tarea exija cambiarlos.
 3. La arquitectura es de microservicios: cada dominio consulta su servicio y su tabla propia, con fallback legacy durante migración cuando aplique.
 4. En UI, labels, subtítulos, placeholders, alertas, tooltips, textos auxiliares y copy operativo NO se debe exponer el contexto interno de implementación; evitar menciones explícitas a legacy, microservicios o Angelow salvo que la tarea lo pida de forma expresa.
 5. En frontend se deben priorizar los estilos globales y componentes compartidos del dashboard para grids, tarjetas, formularios, filtros, tablas y modales; dejar estilos locales solo para variaciones realmente específicas de la vista.
@@ -23,6 +25,7 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 13b. Cada vez que se edite un archivo, si el archivo intervenido contiene comentarios o documentación interna en inglés, se deben traducir al español en esa misma intervención, manteniendo precisión técnica y contexto para facilitar mantenimiento del equipo.
 13c. Cada vez que se cree o edite un archivo, comentar en español al menos cada función nueva o intervenida, cada bloque condicional y cada proceso no trivial para explicar qué hace y por qué existe.
 13d. Cuando una función, helper o flujo reutilice lógica existente, el comentario debe indicar explícitamente qué se está reutilizando y desde qué archivo, vista o módulo proviene esa referencia funcional.
+13e. Si en el archivo, componente o flujo intervenido se detecta sospecha razonable de código duplicado, innecesario o que aumente deuda técnica local, se debe corregir en la misma tarea cuando el ajuste sea acotado y seguro; si no es viable resolverlo sin ampliar alcance, se debe documentar explícitamente el hallazgo, el impacto y la siguiente acción recomendada.
 14. Los elementos repetibles (feedback visual, formularios, tarjetas, modales, tablas, estados vacíos, loaders) deben implementarse como componentes reutilizables, escalables y mantenibles.
 14b. En ningún caso se deben reimplementar ad hoc en una vista componentes ya existentes en el sistema (`AdminStatsGrid`, `AdminCard`, `AdminPageHeader`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminShimmer`, `AdminTableShimmer`, `AdminTableImage`). Toda vista nueva o mejorada debe consumir estos componentes directamente. Si un componente existente no cubre el caso de uso, se debe ampliar o parametrizar ese componente, nunca duplicarlo.
 14c. Todo componente reutilizable del módulo admin debe ser responsivo por diseño: no se considera terminada la intervención sobre un componente si solo funciona en desktop. Cualquier componente compartido que no sea responsivo en móvil y tablet debe corregirse en la misma tarea donde se detecte el problema, incluso si no era el objetivo principal.
@@ -102,6 +105,7 @@ Una tarea NO se considera terminada si falta alguno de estos pasos:
 6. Verificación funcional en la ruta impactada (SPA + diseño/paridad Angelow), incluyendo revisión responsive de la sección intervenida en desktop, tablet y móvil.
 7. Verificación de codificación UTF-8 en archivos modificados (sin BOM en PHP/JS/Vue/CSS y sin textos corruptos) y revisión visual/funcional de ortografía en todo texto visible tocado del admin.
 8. Evidencia de pruebas de endpoints ejecutadas y limpieza de artefactos temporales de test/debug.
+9. Revisión explícita de duplicación, código innecesario o deuda técnica local en los archivos tocados, con corrección inmediata o documentación del remanente antes de cerrar.
 
 ## Git y ramas (humanizado, git flow)
 - Crear ramas de trabajo con intención funcional clara.
@@ -113,8 +117,10 @@ Una tarea NO se considera terminada si falta alguno de estos pasos:
 - Código limpio, nombres claros, sin duplicación innecesaria.
 - Comentarios cortos en español cuando una parte no sea obvia.
 - Si en un archivo intervenido existen comentarios, notas técnicas o documentación local en inglés, traducirlos al español antes de cerrar la tarea.
+- En documentación y comentarios, usar siempre UTF-8 real con ortografía española completa; no dejar transliteraciones ASCII cuando se trate de texto documental.
 - Preferencia operativa: al modificar archivos, agregar comentarios breves en español en lógica no trivial para facilitar mantenimiento y soporte.
 - Al crear o editar archivos, no dejar funciones, condicionales ni procesos nuevos sin explicación; el comentario debe dejar clara la intención técnica y, si hay reutilización, mencionar de dónde viene.
+- En cada intervención, revisar duplicación local, ramas muertas, estilos redundantes y acoplamientos innecesarios; resolverlos cuando la corrección sea segura y documentar cualquier deuda técnica remanente.
 - Validaciones de formulario y mensajes consistentes con Angelow.
 - En todo texto visible del admin, revisar ortografía española completa antes de cerrar: tildes, `ñ`, signos, nombres de estados, placeholders, títulos, breadcrumbs, botones, modales, tablas, empty states, snackbars y encabezados de exportación.
 - En IU, cuando una vista tenga carga asíncrona o refresco perceptible, usar shimmer reutilizable y no saltos bruscos de contenido; preferir placeholders consistentes del sistema antes que vacíos repentinos.
