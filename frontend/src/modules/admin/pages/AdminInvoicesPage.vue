@@ -238,8 +238,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, reactive, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { orderHttp } from '../../../services/http'
 import { downloadAdminInvoice, getAdminInvoices, resendAdminInvoice } from '../../../services/invoiceApi'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
@@ -264,6 +264,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const route = useRoute()
 
 const loading = ref(true)
 const detailLoading = ref(false)
@@ -314,6 +315,19 @@ const activeFilterCount = computed(() => {
 
 function normalizeSource(source) {
   return String(source || '').toLowerCase() === 'legacy' ? 'legacy' : 'microservice'
+}
+
+function readRouteQueryValue(key) {
+  return typeof route.query?.[key] === 'string' ? route.query[key].trim() : ''
+}
+
+function syncFiltersFromRoute() {
+  filters.search = readRouteQueryValue('search')
+  filters.source = readRouteQueryValue('source')
+  filters.status = readRouteQueryValue('status')
+  filters.payment_status = readRouteQueryValue('payment_status')
+  filters.from_date = readRouteQueryValue('from_date')
+  filters.to_date = readRouteQueryValue('to_date')
 }
 
 function normalizeInvoice(rawInvoice) {
@@ -545,9 +559,50 @@ function closeDetailModal() {
   detailLoading.value = false
 }
 
-onMounted(() => {
-  loadInvoices()
-})
+async function applyRouteState() {
+  // La pantalla puede abrirse desde el buscador global con filtros y foco listos.
+  syncFiltersFromRoute()
+  await loadInvoices()
+
+  const focusedInvoiceId = Number(readRouteQueryValue('invoice') || 0)
+  if (!focusedInvoiceId) {
+    if (showDetailModal.value) {
+      closeDetailModal()
+    }
+    return
+  }
+
+  const focusedSource = readRouteQueryValue('source')
+  const targetInvoice = invoices.value.find((invoice) => {
+    if (invoice.id !== focusedInvoiceId) {
+      return false
+    }
+
+    if (!focusedSource) {
+      return true
+    }
+
+    return normalizeSource(invoice.order_source) === normalizeSource(focusedSource)
+  })
+
+  if (!targetInvoice) {
+    return
+  }
+
+  if (
+    showDetailModal.value
+    && selectedInvoice.value?.id === targetInvoice.id
+    && normalizeSource(selectedInvoice.value?.order_source) === normalizeSource(targetInvoice.order_source)
+  ) {
+    return
+  }
+
+  await openDetailModal(targetInvoice)
+}
+
+watch(() => route.fullPath, async () => {
+  await applyRouteState()
+}, { immediate: true })
 </script>
 
 <style scoped>

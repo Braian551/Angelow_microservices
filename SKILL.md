@@ -18,6 +18,8 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 9. La UX de estados (éxito/error/info/warning) debe mantener paridad con legacy usando componentes reutilizables tipo snackbar/toast/alerta; no se permiten mensajes dispersos o implementaciones ad hoc por vista.
 10. En vistas migradas de dashboard (ejemplo: direcciones), la lógica y el flujo funcional deben replicar legacy antes de introducir mejoras nuevas.
 11. Todo cambio frontend/backend debe seguir código limpio: sin código espagueti, con separación de responsabilidades, funciones/métodos pequeños y nombres claros.
+11b. Cada vez que se cree o edite un archivo, comentar en español al menos cada función nueva o intervenida, cada bloque condicional y cada proceso no trivial para explicar qué hace y por qué existe.
+11c. Cuando una función, helper o flujo reutilice lógica existente, el comentario debe indicar explícitamente qué se está reutilizando y desde qué archivo, vista o módulo proviene esa referencia funcional.
 12. Los elementos repetibles (feedback visual, formularios, tarjetas, modales, tablas, estados vacíos, loaders) deben implementarse como componentes reutilizables, escalables y mantenibles.
 13. Cada cambio del agente debe dejar documentación actualizada del patrón aplicado (o justificar por qué no aplica), tomando como referencia el catálogo de patrones de diseño: https://refactoring.guru/es/design-patterns/catalog.
 14. Todo formulario (sin excepción) debe implementar validación en tiempo real por campo (on input/on change), mostrando errores claros y consistentes antes del submit.
@@ -83,6 +85,7 @@ Una tarea NO se considera terminada si falta alguno de estos pasos:
 - Código limpio, nombres claros, sin duplicación innecesaria.
 - Comentarios cortos en español cuando una parte no sea obvia.
 - Preferencia operativa: al modificar archivos, agregar comentarios breves en español en lógica no trivial para facilitar mantenimiento y soporte.
+- Al crear o editar archivos, no dejar funciones, condicionales ni procesos nuevos sin explicación; el comentario debe dejar clara la intención técnica y, si hay reutilización, mencionar de dónde viene.
 - Validaciones de formulario y mensajes consistentes con Angelow.
 - Validación en tiempo real obligatoria en todos los formularios con feedback inmediato por campo y sin esperar al submit.
 - Mantener paridad visual con legacy antes de cerrar una tarea, incluyendo animaciones/microinteracciones cuando existan en la vista original.
