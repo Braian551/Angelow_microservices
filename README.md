@@ -22,6 +22,7 @@ Migración del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, 
 - [Documentación por microservicio](docs/microservicios/README.md)
 - [Guía de testing compartido](docs/testing/README.md)
 - [Guía del frontend](frontend/README.md)
+- [Guía de exportaciones admin reutilizables](frontend/docs/exportaciones-admin-reutilizables.md)
 
 ## Servicios y puertos
 
@@ -112,3 +113,4 @@ docker compose exec -T audit-service php artisan test
 - [Importación de datos](docs/datos/importacion-datos.md)
 - [Registro de patrones](docs/patrones/README.md)
 - [Registro de librerías y dependencias](docs/referencias/librerias-y-composer-uso.md)
+- [Guía de exportaciones admin reutilizables](frontend/docs/exportaciones-admin-reutilizables.md)

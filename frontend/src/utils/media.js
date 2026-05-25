@@ -13,10 +13,11 @@ function catalogUploadsBase() {
   return catalogApiUrl.replace(/\/api\/?$/i, '').replace(/\/+$/, '') + '/uploads'
 }
 
+// Se prioriza la ruta local del frontend para evitar CORS, pero se conservan hosts remotos como respaldo.
 const uploadsBaseCandidates = unique([
+  '/uploads',
   configuredUploadsBase,
   catalogUploadsBase(),
-  '/uploads',
 ])
 
 const FALLBACKS = {
@@ -49,6 +50,34 @@ function joinUrl(base, relativePath) {
 
 function buildUploadsCandidates(relativePath) {
   return uploadsBaseCandidates.map((base) => joinUrl(base, relativePath))
+}
+
+// Cuando llega una URL absoluta de otro origen pero apunta a /uploads, se prioriza la ruta publica local.
+function buildAbsoluteUploadsCandidates(normalized, fallbackUrl = '') {
+  try {
+    const parsed = new URL(normalized)
+
+    if (!parsed.pathname.startsWith('/uploads/')) {
+      return fallbackUrl
+        ? unique([normalized, fallbackUrl])
+        : unique([normalized])
+    }
+
+    const relative = parsed.pathname.replace(/^\/uploads\/?/, '')
+    const localCandidate = joinUrl('/uploads', relative)
+    const absoluteCandidate = `${parsed.origin}${parsed.pathname}${parsed.search}`
+
+    return unique([
+      localCandidate,
+      ...buildUploadsCandidates(relative),
+      absoluteCandidate,
+      fallbackUrl,
+    ])
+  } catch {
+    return fallbackUrl
+      ? unique([normalized, fallbackUrl])
+      : unique([normalized])
+  }
 }
 
 function unique(items) {
@@ -137,7 +166,7 @@ export function getMediaCandidates(path, fallbackType = 'product') {
   }
 
   if (/^https?:\/\//i.test(normalized)) {
-    return unique([normalized, fallbackUrl])
+    return buildAbsoluteUploadsCandidates(normalized, fallbackUrl)
   }
 
   if (normalized.startsWith('/uploads/')) {
@@ -177,7 +206,7 @@ export function getUploadCandidates(path) {
   }
 
   if (/^https?:\/\//i.test(normalized)) {
-    return unique([normalized])
+    return buildAbsoluteUploadsCandidates(normalized)
   }
 
   if (normalized.startsWith('/uploads/')) {

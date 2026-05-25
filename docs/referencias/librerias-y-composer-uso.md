@@ -3,6 +3,7 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-05-24 - Exportaciones admin reutilizables en PDF y Excel](#2026-05-24---exportaciones-admin-reutilizables-en-pdf-y-excel)
 - [2026-04-03 - Chart.js 4.4.0](#2026-04-03---chartjs-440)
 - [2026-04-15 - Exportación de productos CSV + PDF](#2026-04-15---exportación-de-productos-csv-pdf)
 - [2026-04-17 - Campañas de descuentos con PDF adjunto](#2026-04-17---campañas-de-descuentos-con-pdf-adjunto)
@@ -12,6 +13,78 @@
 <!-- indice:auto:end -->
 
 Este archivo centraliza las dependencias agregadas/usadas para tareas funcionales y donde quedaron aplicadas.
+
+## 2026-05-24 - Exportaciones admin reutilizables en PDF y Excel
+
+- Tipo: librería frontend (npm)
+- Paquete/version: `exceljs@4.4.0`
+- Motivo: generar archivos Excel reales con estilos, anchos, tipos numéricos y formato monetario compartido para las exportaciones administrativas.
+- Comando usado: `npm install exceljs jspdf jspdf-autotable`
+- Archivos donde se aplica:
+  - `frontend/package.json`
+  - `frontend/package-lock.json`
+  - `frontend/src/modules/admin/composables/useAdminDataExport.js`
+  - `frontend/src/modules/admin/components/AdminExportActions.vue`
+  - `frontend/src/modules/admin/pages/AdminProductsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminInventoryPage.vue`
+  - `frontend/src/modules/admin/pages/AdminOrdersPage.vue`
+  - `frontend/src/modules/admin/pages/AdminCustomersPage.vue`
+  - `frontend/src/modules/admin/pages/AdminReviewsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`
+  - `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`
+  - `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Contexto funcional:
+  - Se reemplazaron exportaciones CSV ad hoc por un libro Excel unificado con tipado y estilo compartidos.
+  - El mismo workbook compartido ahora usa un encabezado más compacto, con bloque institucional blanco y logo anclado en una sola columna y centrado dentro de su celda para reducir espacio sobrante.
+
+- Tipo: librería frontend (npm)
+- Paquete/version: `jspdf@4.2.1`
+- Motivo: generar PDF desde el frontend con branding vigente, logo actual del sitio y soporte de plantillas compartidas para el módulo admin.
+- Comando usado: `npm install exceljs jspdf jspdf-autotable`
+- Archivos donde se aplica:
+  - `frontend/package.json`
+  - `frontend/package-lock.json`
+  - `frontend/src/modules/admin/composables/useAdminDataExport.js`
+  - `frontend/src/modules/admin/components/AdminExportActions.vue`
+  - `frontend/src/modules/admin/pages/AdminProductsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminInventoryPage.vue`
+  - `frontend/src/modules/admin/pages/AdminCustomersPage.vue`
+  - `frontend/src/modules/admin/pages/AdminReviewsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Contexto funcional:
+  - El PDF comparte cabecera, pie, metadatos y branding para todas las vistas administrativas migradas.
+  - La cabecera PDF se refinó para separar bloque institucional, contacto y título del reporte sin duplicar plantillas por vista.
+  - El bloque superior del PDF ahora sale sobre superficie blanca, sin línea azul horizontal encima del logo, y con altura suficiente para que contacto y fecha de generación no se sobrepongan.
+
+- Tipo: librería frontend (npm)
+- Paquete/version: `jspdf-autotable@5.0.8`
+- Motivo: renderizar tablas PDF reutilizables con soporte de columnas declarativas e imágenes por fila cuando la vista lo requiere.
+- Comando usado: `npm install exceljs jspdf jspdf-autotable`
+- Archivos donde se aplica:
+  - `frontend/package.json`
+  - `frontend/package-lock.json`
+  - `frontend/src/modules/admin/composables/useAdminDataExport.js`
+  - `frontend/src/modules/admin/pages/AdminProductsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminInventoryPage.vue`
+  - `frontend/src/modules/admin/pages/AdminOrdersPage.vue`
+  - `frontend/src/modules/admin/pages/AdminCustomersPage.vue`
+  - `frontend/src/modules/admin/pages/AdminReviewsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`
+  - `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`
+  - `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`
+  - `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Contexto funcional:
+  - La tabla PDF ahora sale de un único contrato declarativo que comparte columnas, layout y soporte visual entre productos, inventario, órdenes, clientes, reseñas, preguntas, envíos, descuentos, anuncios e informes.
+  - Las imágenes del PDF respetan proporción y reutilizan la misma infraestructura del encabezado y de las celdas visuales.
 
 ## 2026-04-03 - Chart.js 4.4.0
 

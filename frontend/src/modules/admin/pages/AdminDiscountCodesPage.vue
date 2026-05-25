@@ -7,10 +7,14 @@
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Códigos de descuento' }]"
     >
       <template #actions>
-        <button class="btn btn-secondary" type="button" @click="exportCodes">
-          <i class="fas fa-file-export"></i>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="filteredCodes.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportCodes('excel')"
+          @pdf="exportCodes('pdf')"
+        />
         <button class="btn btn-secondary" type="button" @click="openMassCampaignModal">
           <i class="fas fa-bullhorn"></i>
           Envío masivo
@@ -572,9 +576,11 @@ import { useRouter } from 'vue-router'
 import { discountHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -587,6 +593,7 @@ import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 const router = useRouter()
 
 const loading = ref(true)
@@ -1110,10 +1117,33 @@ function confirmDeleteCode(code) {
   })
 }
 
-function exportCodes() {
-  const rows = filteredCodes.value.map((code) => [code.code, code.type_label, formatDiscountValue(code), code.times_used, code.max_uses || '∞', codeStatusLabel(code), code.start_date || '', code.expires_at || ''])
-  const csv = [['Código', 'Tipo', 'Valor', 'Usados', 'Máximo', 'Estado', 'Inicio', 'Expira'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv('codigos-descuento.csv', csv)
+// Define una sola estructura exportable para los códigos y evita otra salida local en CSV.
+function buildDiscountCodeExportColumns() {
+  return [
+    { header: 'Código', value: (code) => code.code },
+    { header: 'Tipo', value: (code) => code.type_label, width: 14 },
+    { header: 'Valor', value: (code) => formatDiscountValue(code), width: 14 },
+    { header: 'Usados', value: (code) => Number(code.times_used || 0), excelType: 'number', align: 'center', width: 12 },
+    { header: 'Máximo', value: (code) => code.max_uses || '∞', width: 12 },
+    { header: 'Estado', value: (code) => codeStatusLabel(code), width: 14 },
+    { header: 'Inicio', value: (code) => (code.start_date ? formatDateTime(code.start_date) : 'Inmediato'), width: 18 },
+    { header: 'Expira', value: (code) => (code.expires_at ? formatDateTime(code.expires_at) : 'Sin expiración'), width: 18 },
+  ]
+}
+
+// Exporta los códigos filtrados usando el branding y formato común del admin.
+function exportCodes(format) {
+  return exportData({
+    format,
+    fileBaseName: 'codigos-descuento-admin',
+    sheetName: 'Códigos de descuento',
+    title: 'Códigos de descuento',
+    subtitle: 'Resumen exportado desde la gestión administrativa de códigos de descuento.',
+    columns: buildDiscountCodeExportColumns(),
+    rows: filteredCodes.value,
+    landscape: true,
+    emptyMessage: 'No hay códigos de descuento para exportar.',
+  })
 }
 
 function codeStatusKey(code) {
@@ -1176,22 +1206,6 @@ function normalizeDateTimeInput(value) {
 
 function extractErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
 }
 
 onMounted(loadCodes)

@@ -7,10 +7,14 @@
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Definir envíos' }]"
     >
       <template #actions>
-        <button class="btn btn-secondary" type="button" @click="exportMethods">
-          <i class="fas fa-file-export"></i>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="filteredMethods.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportMethods('excel')"
+          @pdf="exportMethods('pdf')"
+        />
         <button class="btn btn-primary" type="button" @click="openCreateModal">
           <i class="fas fa-plus"></i>
           Nuevo método
@@ -317,9 +321,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { shippingHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -332,6 +338,7 @@ import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const methods = ref([])
@@ -577,17 +584,39 @@ function confirmDeleteMethod(method) {
   })
 }
 
-function exportMethods() {
-  const rows = filteredMethods.value.map((method) => [
-    method.name,
-    method.city || 'Cobertura general',
-    formatCurrency(method.base_cost),
-    method.free_shipping_minimum ? formatCurrency(method.free_shipping_minimum) : 'No aplica',
-    deliveryWindowLabel(method),
-    method.active ? 'Activo' : 'Inactivo',
-  ])
-  const csv = [['Método', 'Cobertura', 'Costo base', 'Gratis desde', 'Promesa', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv('metodos-envio.csv', csv)
+// Mantiene el mismo resumen operativo de métodos para Excel y PDF.
+function buildShippingMethodExportColumns() {
+  return [
+    { header: 'Método', value: (method) => method.name },
+    { header: 'Cobertura', value: (method) => method.city || 'Cobertura general', width: 18 },
+    { header: 'Descripción', value: (method) => method.description || 'Sin descripción operativa', width: 30 },
+    {
+      header: 'Costo base',
+      value: (method) => formatCurrency(method.base_cost),
+      excelValue: (method) => Number(method.base_cost || 0),
+      excelType: 'currency',
+      align: 'right',
+      width: 15,
+    },
+    { header: 'Gratis desde', value: (method) => (method.free_shipping_minimum ? formatCurrency(method.free_shipping_minimum) : 'No aplica'), width: 16 },
+    { header: 'Promesa', value: (method) => deliveryWindowLabel(method), width: 16 },
+    { header: 'Estado', value: (method) => (method.active ? 'Activo' : 'Inactivo'), width: 14 },
+  ]
+}
+
+// Exporta la bandeja filtrada sin volver a repetir armado manual de CSV en la vista.
+function exportMethods(format) {
+  return exportData({
+    format,
+    fileBaseName: 'metodos-envio-admin',
+    sheetName: 'Definir envíos',
+    title: 'Definir envíos',
+    subtitle: 'Resumen exportado desde la gestión de métodos de envío.',
+    columns: buildShippingMethodExportColumns(),
+    rows: filteredMethods.value,
+    landscape: true,
+    emptyMessage: 'No hay métodos de envío para exportar.',
+  })
 }
 
 function deliveryWindowLabel(method) {
@@ -605,22 +634,6 @@ function formatCurrency(value) {
 
 function extractErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
 }
 
 onMounted(loadMethods)

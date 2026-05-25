@@ -23,7 +23,18 @@
       <button type="button" class="admin-tab" :class="{ active: activeTab === 'out' }" @click="activeTab = 'out'">Sin stock</button>
     </div>
 
-    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} productos`" />
+    <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} productos`">
+      <template #actions>
+        <AdminExportActions
+          tone="results"
+          :disabled="filteredProducts.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportInventory('excel')"
+          @pdf="exportInventory('pdf')"
+        />
+      </template>
+    </AdminResultsBar>
 
     <AdminCard :flush="true">
       <AdminTableShimmer v-if="loading" :rows="6" :columns="['thumb', 'line', 'line', 'line', 'pill', 'btn']" />
@@ -296,9 +307,11 @@ import {
   normalizeInventoryStatus as resolveInventoryStatus,
   resolveInventoryThreshold,
 } from '../utils/inventoryPresentation'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -312,6 +325,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 const route = useRoute()
 const router = useRouter()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const detailLoading = ref(false)
@@ -480,6 +494,41 @@ function inventorySummaryAlert(product) {
   }
 
   return 'Sin alertas'
+}
+
+// Resume el estado visible del inventario para que ambas exportaciones usen el mismo contrato.
+function buildInventoryExportColumns() {
+  return [
+    {
+      header: 'Vista',
+      includeInExcel: false,
+      pdfImage: (product) => product.rawImage || product.image,
+      fallbackType: 'product',
+      pdfWidth: 18,
+      pdfImageSize: 12,
+    },
+    { header: 'Producto', value: (product) => product.name },
+    { header: 'Variantes', value: (product) => Number(product.variantCount || 0), excelType: 'number', align: 'center', width: 12 },
+    { header: 'SKU', value: (product) => Number(product.skuCount || 0), excelType: 'number', align: 'center', width: 12 },
+    { header: 'Resumen', value: (product) => inventorySummaryAlert(product), width: 32 },
+    { header: 'Stock total', value: (product) => Number(product.totalStock || 0), excelType: 'number', align: 'center', width: 12 },
+    { header: 'Estado', value: (product) => productStatusLabel(product), width: 16 },
+  ]
+}
+
+// Habilita exportación de inventario sin crear otra implementación aislada en la vista.
+function exportInventory(format) {
+  return exportData({
+    format,
+    fileBaseName: 'inventario-admin',
+    sheetName: 'Inventario',
+    title: 'Inventario',
+    subtitle: 'Resumen exportado desde el monitoreo administrativo de inventario.',
+    columns: buildInventoryExportColumns(),
+    rows: filteredProducts.value,
+    landscape: true,
+    emptyMessage: 'No hay productos de inventario para exportar.',
+  })
 }
 
 function stockTextClass(stock, source = null) {

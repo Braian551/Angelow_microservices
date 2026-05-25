@@ -728,6 +728,15 @@ function extractErrorMessage(error, fallback) {
   text-align: center;
 }
 
+/* ── La tabla de clientes hereda el card blanco y evita el glass gris del wrapper global ── */
+.specific-campaign-customers-card :deep(.table-responsive) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
 .campaign-customers-table .selection-cell input[type="checkbox"] {
   width: 1.5rem;
   height: 1.5rem;

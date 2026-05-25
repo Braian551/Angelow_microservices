@@ -75,10 +75,14 @@
             <i class="fas fa-check-double"></i>
             <span>{{ selectedOrdersCount }} seleccionada<span v-if="selectedOrdersCount !== 1">s</span></span>
           </div>
-          <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportOrders">
-            <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-            <span>Exportar CSV</span>
-          </button>
+          <AdminExportActions
+            tone="results"
+            :disabled="orders.length === 0"
+            :excel-loading="exportingFormat === 'excel'"
+            :pdf-loading="exportingFormat === 'pdf'"
+            @excel="exportOrders('excel')"
+            @pdf="exportOrders('pdf')"
+          />
           <button class="results-action-btn results-action-btn--primary" type="button" :disabled="selectedOrdersCount === 0" @click="openBulkActionsModal">
             <span class="results-action-btn__icon"><i class="fas fa-tasks"></i></span>
             <span>Acciones masivas</span>
@@ -409,6 +413,7 @@ import { RouterLink } from 'vue-router'
 import { orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import {
   ADMIN_EDITABLE_ORDER_STATUSES,
@@ -423,6 +428,7 @@ import {
 } from '../utils/orderPresentation'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -434,6 +440,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const detailLoading = ref(false)
@@ -994,35 +1001,39 @@ async function submitStatusChange() {
   })
 }
 
-function exportOrders() {
-  if (orders.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay órdenes para exportar' })
-    return
-  }
+// Describe la misma bandeja operativa para reutilizar branding y formato en ambos documentos.
+function buildOrderExportColumns() {
+  return [
+    { header: 'Orden', value: (order) => order.order_number || `#${order.id}` },
+    { header: 'Cliente', value: (order) => order.customer_name || 'Cliente' },
+    { header: 'Correo', value: (order) => order.customer_email || 'Sin correo' },
+    { header: 'Fecha', value: (order) => formatDate(order.created_at), width: 16 },
+    {
+      header: 'Total',
+      value: (order) => formatCurrency(order.total),
+      excelValue: (order) => Number(order.total || 0),
+      excelType: 'currency',
+      align: 'right',
+      width: 15,
+    },
+    { header: 'Estado', value: (order) => statusLabel(order.status), width: 15 },
+    { header: 'Pago', value: (order) => paymentLabel(order.payment_status), width: 15 },
+  ]
+}
 
-  const header = ['Orden', 'Cliente', 'Email', 'Fecha', 'Total', 'Estado', 'Pago']
-  const rows = [header.join(',')]
-
-  orders.value.forEach((order) => {
-    rows.push([
-      `"${order.order_number || `#${order.id}`}"`,
-      `"${(order.customer_name || '').replace(/"/g, '""')}"`,
-      `"${(order.customer_email || '').replace(/"/g, '""')}"`,
-      `"${formatDate(order.created_at)}"`,
-      order.total,
-      `"${statusLabel(order.status)}"`,
-      `"${paymentLabel(order.payment_status)}"`,
-    ].join(','))
+// Exporta la lista visible y deja la plantilla compartida como única fuente de estilo.
+function exportOrders(format) {
+  return exportData({
+    format,
+    fileBaseName: 'ordenes-admin',
+    sheetName: 'Órdenes',
+    title: 'Órdenes',
+    subtitle: 'Resumen exportado desde la gestión administrativa de órdenes.',
+    columns: buildOrderExportColumns(),
+    rows: orders.value,
+    landscape: true,
+    emptyMessage: 'No hay órdenes para exportar.',
   })
-
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'ordenes.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Exportación generada correctamente' })
 }
 
 onMounted(loadOrders)

@@ -19,6 +19,7 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 - `operaciones/manual-tecnico.md`: manual técnico central del repositorio.
 - `microservicios/README.md`: navegación hacia documentación específica por servicio.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
+- `../frontend/docs/exportaciones-admin-reutilizables.md`: arquitectura compartida para exportaciones administrativas PDF y Excel.
 
 ## Resumen de arquitectura
 

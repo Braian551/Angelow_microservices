@@ -57,10 +57,14 @@
     <!-- Barra de resultados -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} clientes`">
       <template #actions>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportCustomers">
-          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-          <span>Exportar CSV</span>
-        </button>
+        <AdminExportActions
+          tone="results"
+          :disabled="customers.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportCustomers('excel')"
+          @pdf="exportCustomers('pdf')"
+        />
       </template>
     </AdminResultsBar>
 
@@ -239,9 +243,11 @@ import { authHttp, orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
@@ -252,6 +258,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 const route = useRoute()
 
 const loading = ref(true)
@@ -613,34 +620,47 @@ function toggleCustomerBlock(customer) {
   })
 }
 
-function exportCustomers() {
-  if (customers.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay clientes para exportar' })
-    return
-  }
+// Usa el cliente enriquecido visible en pantalla como única fuente para Excel y PDF.
+function buildCustomerExportColumns() {
+  return [
+    {
+      header: 'Avatar',
+      includeInExcel: false,
+      pdfImage: (customer) => avatarUrl(customer),
+      fallbackType: 'avatar',
+      pdfWidth: 18,
+      pdfImageSize: 11,
+    },
+    { header: 'Cliente', value: (customer) => customer.name },
+    { header: 'Correo', value: (customer) => customer.email },
+    { header: 'Teléfono', value: (customer) => customer.phone || 'Sin teléfono' },
+    { header: 'Registro', value: (customer) => formatDate(customer.created_at), width: 16 },
+    { header: 'Pedidos', value: (customer) => Number(customer.orders_count || 0), excelType: 'number', align: 'center' },
+    {
+      header: 'Valor acumulado',
+      value: (customer) => formatCurrency(customer.total_spent),
+      excelValue: (customer) => Number(customer.total_spent || 0),
+      excelType: 'currency',
+      align: 'right',
+      width: 16,
+    },
+    { header: 'Estado', value: (customer) => (customer.is_blocked ? 'Bloqueado' : 'Activo'), width: 14 },
+  ]
+}
 
-  const rows = [['Cliente', 'Email', 'Teléfono', 'Registro', 'Pedidos', 'Valor acumulado', 'Estado']]
-  customers.value.forEach((customer) => {
-    rows.push([
-      `"${customer.name.replace(/"/g, '""')}"`,
-      `"${customer.email.replace(/"/g, '""')}"`,
-      `"${(customer.phone || '').replace(/"/g, '""')}"`,
-      `"${formatDate(customer.created_at)}"`,
-      customer.orders_count,
-      customer.total_spent,
-      `"${customer.is_blocked ? 'Bloqueado' : 'Activo'}"`,
-    ])
+// Exporta la segmentación actual sin volver a reconstruir CSV manual por vista.
+function exportCustomers(format) {
+  return exportData({
+    format,
+    fileBaseName: 'clientes-admin',
+    sheetName: 'Clientes',
+    title: 'Clientes',
+    subtitle: 'Resumen exportado desde la bandeja de clientes del panel administrativo.',
+    columns: buildCustomerExportColumns(),
+    rows: customers.value,
+    landscape: true,
+    emptyMessage: 'No hay clientes para exportar.',
   })
-
-  const csv = rows.map((row) => row.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'clientes.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Clientes exportados correctamente' })
 }
 
 async function applyRouteState() {

@@ -11,10 +11,14 @@
           <i class="fas fa-rotate-left"></i>
           Restablecer
         </button>
-        <button class="btn btn-secondary" type="button" @click="exportReport">
-          <i class="fas fa-file-export"></i>
-          Exportar CSV
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="loading || activeReportRows.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportReport('excel')"
+          @pdf="exportReport('pdf')"
+        />
         <button class="btn btn-primary" type="button" @click="printReport">
           <i class="fas fa-print"></i>
           Imprimir
@@ -481,8 +485,10 @@ import { authHttp, catalogHttp, orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -509,6 +515,7 @@ Chart.register(
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const tabs = [
   { id: 'sales', label: 'Ventas', icon: 'fas fa-chart-line', path: '/admin/informes/ventas', note: 'Se excluyen órdenes canceladas por defecto.' },
@@ -722,6 +729,12 @@ const resultsLabel = computed(() => {
   if (activeTab.value === 'sales') return `Mostrando ${salesPagination.visibleCount} de ${salesPagination.totalItems} períodos agrupados`
   if (activeTab.value === 'products') return `Mostrando ${productsPagination.visibleCount} de ${productsPagination.totalItems} productos del ranking`
   return `Mostrando ${customersPagination.visibleCount} de ${customersPagination.totalItems} clientes recurrentes`
+})
+
+const activeReportRows = computed(() => {
+  if (activeTab.value === 'sales') return groupedSalesRows.value
+  if (activeTab.value === 'products') return filteredProductsRows.value
+  return filteredCustomerRows.value
 })
 
 const detailTitle = computed(() => {
@@ -1132,41 +1145,81 @@ function closeDetailModal() {
   detailContext.value = null
 }
 
-function exportReport() {
-  let filename = ''
-  let headers = []
-  let rows = []
-
+// Define el payload exportable del informe activo para que todos los tabs usen la misma plantilla.
+function buildReportExportPayload() {
   if (activeTab.value === 'sales') {
-    filename = 'informe-ventas.csv'
-    headers = ['Periodo', 'Órdenes', 'Subtotal', 'Envío', 'Descuentos', 'Total', 'Ticket promedio']
-    rows = groupedSalesRows.value.map((row) => [formatPeriodLabel(row.period, filters.sales.groupBy), row.orders, row.subtotal, row.shipping, row.discount, row.revenue, row.avg_order_value])
-  } else if (activeTab.value === 'products') {
-    filename = 'productos-populares.csv'
-    headers = ['Producto', 'Categoría', 'Veces vendido', 'Cantidad total', 'Precio promedio', 'Ingresos']
-    rows = filteredProductsRows.value.map((row) => [row.name, row.category_name || 'Sin categoría', row.times_sold, row.total_quantity, row.avg_price, row.total_revenue])
-  } else {
-    filename = 'clientes-recurrentes.csv'
-    headers = ['Cliente', 'Email', 'Teléfono', 'Órdenes', 'Total gastado', 'Valor promedio', 'Primera compra', 'Última compra']
-    rows = filteredCustomerRows.value.map((row) => [row.name, row.email || '', row.phone || '', row.orders_count, row.total_spent, row.avg_order_value, row.first_order || '', row.last_order || ''])
+    return {
+      fileBaseName: 'informe-ventas',
+      sheetName: 'Informe ventas',
+      title: 'Informe de ventas',
+      subtitle: activeTabConfig.value.note,
+      columns: [
+        { header: 'Período', value: (row) => formatPeriodLabel(row.period, filters.sales.groupBy), width: 18 },
+        { header: 'Órdenes', value: (row) => Number(row.orders || 0), excelType: 'number', align: 'center', width: 12 },
+        { header: 'Subtotal', value: (row) => formatCurrency(row.subtotal), excelValue: (row) => Number(row.subtotal || 0), excelType: 'currency', align: 'right', width: 15 },
+        { header: 'Envío', value: (row) => formatCurrency(row.shipping), excelValue: (row) => Number(row.shipping || 0), excelType: 'currency', align: 'right', width: 15 },
+        { header: 'Descuentos', value: (row) => formatCurrency(row.discount), excelValue: (row) => Number(row.discount || 0), excelType: 'currency', align: 'right', width: 15 },
+        { header: 'Total', value: (row) => formatCurrency(row.revenue), excelValue: (row) => Number(row.revenue || 0), excelType: 'currency', align: 'right', width: 15 },
+        { header: 'Ticket promedio', value: (row) => formatCurrency(row.avg_order_value), excelValue: (row) => Number(row.avg_order_value || 0), excelType: 'currency', align: 'right', width: 18 },
+      ],
+      rows: groupedSalesRows.value,
+      landscape: true,
+    }
   }
 
-  if (rows.length === 0) {
-    showSnackbar({ type: 'warning', message: 'No hay datos para exportar.' })
-    return
+  if (activeTab.value === 'products') {
+    return {
+      fileBaseName: 'informe-productos-populares',
+      sheetName: 'Informe productos',
+      title: 'Informe de productos populares',
+      subtitle: activeTabConfig.value.note,
+      columns: [
+        { header: 'Vista', includeInExcel: false, pdfImage: (row) => row.image, fallbackType: 'product', pdfWidth: 18, pdfImageSize: 12 },
+        { header: 'Producto', value: (row) => row.name },
+        { header: 'Categoría', value: (row) => row.category_name || 'Sin categoría', width: 18 },
+        { header: 'Veces vendido', value: (row) => Number(row.times_sold || 0), excelType: 'number', align: 'center', width: 12 },
+        { header: 'Cantidad total', value: (row) => Number(row.total_quantity || 0), excelType: 'number', align: 'center', width: 12 },
+        { header: 'Precio promedio', value: (row) => formatCurrency(row.avg_price), excelValue: (row) => Number(row.avg_price || 0), excelType: 'currency', align: 'right', width: 16 },
+        { header: 'Ingresos', value: (row) => formatCurrency(row.total_revenue), excelValue: (row) => Number(row.total_revenue || 0), excelType: 'currency', align: 'right', width: 16 },
+      ],
+      rows: filteredProductsRows.value,
+      landscape: true,
+    }
   }
 
-  const csv = [headers.join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv(filename, csv)
-  showSnackbar({ type: 'success', message: 'CSV generado correctamente.' })
+  return {
+    fileBaseName: 'informe-clientes-recurrentes',
+    sheetName: 'Informe clientes',
+    title: 'Informe de clientes recurrentes',
+    subtitle: activeTabConfig.value.note,
+    columns: [
+      { header: 'Avatar', includeInExcel: false, pdfImage: (row) => row.image, fallbackType: 'avatar', pdfWidth: 18, pdfImageSize: 11 },
+      { header: 'Cliente', value: (row) => row.name },
+      { header: 'Correo', value: (row) => row.email || 'Sin correo', width: 20 },
+      { header: 'Teléfono', value: (row) => row.phone || 'Sin teléfono', width: 16 },
+      { header: 'Órdenes', value: (row) => Number(row.orders_count || 0), excelType: 'number', align: 'center', width: 12 },
+      { header: 'Total gastado', value: (row) => formatCurrency(row.total_spent), excelValue: (row) => Number(row.total_spent || 0), excelType: 'currency', align: 'right', width: 16 },
+      { header: 'Promedio', value: (row) => formatCurrency(row.avg_order_value), excelValue: (row) => Number(row.avg_order_value || 0), excelType: 'currency', align: 'right', width: 16 },
+      { header: 'Última compra', value: (row) => formatDateTime(row.last_order), width: 18 },
+    ],
+    rows: filteredCustomerRows.value,
+    landscape: true,
+  }
+}
+
+// Exporta el informe activo usando el servicio compartido y evita mantener un CSV distinto por tab.
+function exportReport(format) {
+  const payload = buildReportExportPayload()
+
+  return exportData({
+    format,
+    ...payload,
+    emptyMessage: 'No hay datos para exportar.',
+  })
 }
 
 function printReport() {
-  const hasData = activeTab.value === 'sales'
-    ? groupedSalesRows.value.length > 0
-    : activeTab.value === 'products'
-      ? filteredProductsRows.value.length > 0
-      : filteredCustomerRows.value.length > 0
+  const hasData = activeReportRows.value.length > 0
 
   if (!hasData) {
     showSnackbar({ type: 'warning', message: 'No hay datos para imprimir.' })
@@ -1220,22 +1273,6 @@ function formatDateTime(value) {
 
 function extractErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
 }
 
 initializeFilters()

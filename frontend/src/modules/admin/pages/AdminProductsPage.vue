@@ -90,14 +90,14 @@
           <span class="results-action-btn__icon"><i class="fas fa-plus"></i></span>
           <span>Nuevo Producto</span>
         </RouterLink>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportProductsCsv">
-          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-          <span>Exportar CSV</span>
-        </button>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportProductsPdf">
-          <span class="results-action-btn__icon"><i class="fas fa-file-pdf"></i></span>
-          <span>Exportar PDF</span>
-        </button>
+        <AdminExportActions
+          tone="results"
+          :disabled="filteredProducts.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportProducts('excel')"
+          @pdf="exportProducts('pdf')"
+        />
       </template>
     </AdminResultsBar>
 
@@ -305,9 +305,11 @@ import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { getFallbackMediaUrl, handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
@@ -317,6 +319,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const products = ref([])
 const categories = ref([])
@@ -449,6 +452,16 @@ function normalizeGender(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+}
+
+// Traduce el género a la misma etiqueta visible del panel para reutilizarla en Excel y PDF.
+function genderLabel(value) {
+  return {
+    nino: 'Niño',
+    nina: 'Niña',
+    bebe: 'Bebé',
+    unisex: 'Unisex',
+  }[normalizeGender(value)] || 'Sin género'
 }
 
 function formatCurrency(value) {
@@ -821,84 +834,55 @@ async function toggleProductStatus(product) {
   }
 }
 
-function buildExportParams() {
-  const params = {}
-
-  if (search.value) params.search = search.value
-  if (categoryFilter.value) params.category = categoryFilter.value
-  if (statusFilter.value) params.status = statusFilter.value
-
-  const ids = filteredProducts.value
-    .map((product) => Number(product.id))
-    .filter((id) => Number.isFinite(id) && id > 0)
-
-  if (ids.length > 0) {
-    params.ids = ids.join(',')
-  }
-
-  return params
+// Define un único contrato exportable para no mantener plantillas separadas por formato.
+function buildProductsExportColumns() {
+  return [
+    {
+      header: 'Vista',
+      includeInExcel: false,
+      pdfImage: (product) => product.rawImage || product.image,
+      fallbackType: 'product',
+      pdfWidth: 18,
+      pdfImageSize: 12,
+    },
+    { header: 'Producto', value: (product) => product.name },
+    { header: 'Categoría', value: (product) => product.category_name || 'Sin categoría' },
+    { header: 'Estado', value: (product) => (product.is_active ? 'Activo' : 'Inactivo') },
+    { header: 'Variantes', value: (product) => Number(product.variant_count || 0), excelType: 'number', align: 'center' },
+    { header: 'Stock total', value: (product) => Number(product.stock || 0), excelType: 'number', align: 'center' },
+    {
+      header: 'Precio desde',
+      value: (product) => formatCurrency(product.min_price || product.price || 0),
+      excelValue: (product) => Number(product.min_price || product.price || 0),
+      excelType: 'currency',
+      align: 'right',
+      width: 16,
+    },
+    {
+      header: 'Precio hasta',
+      value: (product) => formatCurrency(product.max_price || product.price || 0),
+      excelValue: (product) => Number(product.max_price || product.price || 0),
+      excelType: 'currency',
+      align: 'right',
+      width: 16,
+    },
+    { header: 'Género', value: (product) => genderLabel(product.gender), width: 14 },
+  ]
 }
 
-function extractFileName(contentDisposition, fallbackName) {
-  if (!contentDisposition) return fallbackName
-
-  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
-  if (utf8Match?.[1]) {
-    return decodeURIComponent(utf8Match[1])
-  }
-
-  const simpleMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
-  if (simpleMatch?.[1]) {
-    return simpleMatch[1]
-  }
-
-  return fallbackName
-}
-
-function triggerBlobDownload(blob, fileName) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-
-async function exportProductsByFormat(format) {
-  if (filteredProducts.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay productos para exportar' })
-    return
-  }
-
-  const isPdf = format === 'pdf'
-  const endpoint = isPdf ? '/admin/products/export/pdf' : '/admin/products/export/csv'
-  const fallbackName = isPdf ? 'productos.pdf' : 'productos.csv'
-
-  try {
-    const response = await catalogHttp.get(endpoint, {
-      params: buildExportParams(),
-      responseType: 'blob',
-      headers: {
-        Accept: isPdf ? 'application/pdf' : 'text/csv',
-      },
-    })
-
-    const fileName = extractFileName(response.headers?.['content-disposition'], fallbackName)
-    triggerBlobDownload(response.data, fileName)
-    showSnackbar({ type: 'success', message: `Exportación ${isPdf ? 'PDF' : 'CSV'} generada correctamente` })
-  } catch {
-    showSnackbar({ type: 'error', message: `No fue posible exportar productos en ${isPdf ? 'PDF' : 'CSV'}` })
-  }
-}
-
-function exportProductsCsv() {
-  return exportProductsByFormat('csv')
-}
-
-function exportProductsPdf() {
-  return exportProductsByFormat('pdf')
+// Reutiliza el exportador admin para que Excel y PDF compartan branding, logo y estructura.
+function exportProducts(format) {
+  return exportData({
+    format,
+    fileBaseName: 'productos-admin',
+    sheetName: 'Productos',
+    title: 'Catálogo de productos',
+    subtitle: 'Resumen exportado desde la gestión administrativa de productos.',
+    columns: buildProductsExportColumns(),
+    rows: filteredProducts.value,
+    landscape: true,
+    emptyMessage: 'No hay productos para exportar.',
+  })
 }
 
 onMounted(() => {

@@ -90,10 +90,14 @@
     <!-- Barra de resultados -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} preguntas`">
       <template #actions>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportQuestions">
-          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="results"
+          :disabled="questions.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportQuestions('excel')"
+          @pdf="exportQuestions('pdf')"
+        />
       </template>
     </AdminResultsBar>
 
@@ -245,10 +249,12 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -260,6 +266,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const showDetailModal = ref(false)
@@ -523,32 +530,39 @@ function deleteQuestion(question) {
   })
 }
 
-function exportQuestions() {
-  if (questions.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay preguntas para exportar' })
-    return
-  }
+// Usa la misma pregunta normalizada de la bandeja para que PDF y Excel no diverjan.
+function buildQuestionExportColumns() {
+  return [
+    {
+      header: 'Avatar',
+      includeInExcel: false,
+      pdfImage: (question) => avatarUrl(question.customer),
+      fallbackType: 'avatar',
+      pdfWidth: 18,
+      pdfImageSize: 11,
+    },
+    { header: 'Cliente', value: (question) => question.customer.name },
+    { header: 'Producto', value: (question) => question.product_name },
+    { header: 'Pregunta', value: (question) => question.question, width: 34 },
+    { header: 'Estado', value: (question) => (question.answer_count > 0 ? 'Respondida' : 'Pendiente'), width: 14 },
+    { header: 'Respuestas', value: (question) => Number(question.answer_count || 0), excelType: 'number', align: 'center', width: 12 },
+    { header: 'Fecha', value: (question) => formatDateTime(question.created_at), width: 18 },
+  ]
+}
 
-  const rows = [['Cliente', 'Producto', 'Pregunta', 'Estado', 'Fecha']]
-  questions.value.forEach((question) => {
-    rows.push([
-      `"${question.customer.name.replace(/"/g, '""')}"`,
-      `"${question.product_name.replace(/"/g, '""')}"`,
-      `"${question.question.replace(/"/g, '""')}"`,
-      `"${question.answer_count > 0 ? 'Respondida' : 'Pendiente'}"`,
-      `"${formatDateTime(question.created_at)}"`,
-    ])
+// Exporta la bandeja visible y deja el formato al componente/composable compartido.
+function exportQuestions(format) {
+  return exportData({
+    format,
+    fileBaseName: 'preguntas-admin',
+    sheetName: 'Preguntas',
+    title: 'Preguntas',
+    subtitle: 'Resumen exportado desde la bandeja administrativa de preguntas.',
+    columns: buildQuestionExportColumns(),
+    rows: questions.value,
+    landscape: true,
+    emptyMessage: 'No hay preguntas para exportar.',
   })
-
-  const csv = rows.map((row) => row.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'preguntas.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Preguntas exportadas correctamente' })
 }
 
 onMounted(loadQuestions)

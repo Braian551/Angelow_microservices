@@ -3,6 +3,7 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-05-24 - Exportaciones admin reutilizables en PDF y Excel](#2026-05-24---exportaciones-admin-reutilizables-en-pdf-y-excel)
 - [2026-04-24 - Migración de CSS legacy al flujo real frontend](#2026-04-24---migración-de-css-legacy-al-flujo-real-frontend)
 - [2026-04-18 - Persistencia robusta de direcciones ante caida de legacy](#2026-04-18---persistencia-robusta-de-direcciones-ante-caida-de-legacy)
 - [2026-04-17 - Reserva temporal de stock, confirmacion diferida y anti-duplicidad en ordenes](#2026-04-17---reserva-temporal-de-stock-confirmacion-diferida-y-anti-duplicidad-en-ordenes)
@@ -35,6 +36,16 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-05-24 - Exportaciones admin reutilizables en PDF y Excel
+
+- Patrón: Facade + Strategy + Reuse Component (Refactoring Guru)
+- Aplicación: se creó una infraestructura compartida para exportar PDF y Excel desde el módulo admin con branding unificado, imágenes en PDF cuando aplica y botones reutilizables para todas las vistas objetivo.
+- Ubicación: `frontend/src/modules/admin/components/AdminExportActions.vue`, `frontend/src/modules/admin/composables/useAdminDataExport.js`, `frontend/src/modules/admin/pages/AdminProductsPage.vue`, `frontend/src/modules/admin/pages/AdminInventoryPage.vue`, `frontend/src/modules/admin/pages/AdminOrdersPage.vue`, `frontend/src/modules/admin/pages/AdminCustomersPage.vue`, `frontend/src/modules/admin/pages/AdminReviewsPage.vue`, `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`, `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`, `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`, `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`, `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Problema resuelto: eliminar helpers CSV aislados por vista, habilitar Excel real con mejor formato, unificar la plantilla PDF/Excel y centralizar branding, logo y configuración.
+- Referencia detallada:
+	- `docs/patrones/admin/patrones-diseno-admin-exportaciones-reutilizables-2026-05-24.md`
+	- `frontend/docs/exportaciones-admin-reutilizables.md`
 
 ## 2026-04-24 - Migración de CSS legacy al flujo real frontend
 

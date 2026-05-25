@@ -94,6 +94,7 @@ docker compose exec frontend sh -c "npm run build"
 ```
 
 Después del reinicio, validar la ruta impactada en navegador y forzar recarga dura si el cambio no aparece de inmediato.
+Si la tarea toca exportaciones administrativas PDF o Excel, validar además una descarga PDF y una descarga Excel sobre alguna vista intervenida y revisar la guía `frontend/docs/exportaciones-admin-reutilizables.md`.
 
 ## Pruebas y validación técnica
 
@@ -133,6 +134,7 @@ Validaciones mínimas de cierre:
 - `docs/testing/README.md`: ubicación de guías y evidencias de validación transversal.
 - `frontend/README.md`: guía local del frontend.
 - `frontend/docs/README.md`: flujo y patrones específicos del frontend.
+- `frontend/docs/exportaciones-admin-reutilizables.md`: contrato técnico compartido para exportaciones admin.
 
 ## Incidencias frecuentes
 

@@ -7,10 +7,14 @@
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Anuncios' }]"
     >
       <template #actions>
-        <button class="btn btn-secondary" type="button" @click="exportAnnouncements">
-          <i class="fas fa-file-export"></i>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="filteredAnnouncements.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportAnnouncements('excel')"
+          @pdf="exportAnnouncements('pdf')"
+        />
         <button class="btn btn-primary" type="button" @click="openCreateModal">
           <i class="fas fa-plus"></i>
           Nuevo anuncio
@@ -451,9 +455,11 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { resolveMediaUrl, handleMediaError } from '../../../utils/media'
 import { buildStoreLinkGroups, CUSTOM_STORE_LINK_VALUE, detectStoreLinkOption, loadStoreLinkCatalogs } from '../utils/storeLinkOptions'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -466,6 +472,7 @@ import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const announcements = ref([])
@@ -844,10 +851,41 @@ function confirmDeleteAnnouncement(announcement) {
   })
 }
 
-function exportAnnouncements() {
-  const rows = filteredAnnouncements.value.map((announcement) => [announcement.id, announcement.title, typeLabel(announcement.type), priorityLabel(announcement.priority), announcementStatusLabel(announcement), announcement.start_date || '', announcement.end_date || '', announcement.button_link || ''])
-  const csv = [['ID', 'Título', 'Tipo', 'Prioridad', 'Estado', 'Inicio', 'Fin', 'Enlace'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv('anuncios-admin.csv', csv)
+// Describe los anuncios visibles para que Excel y PDF hereden la misma plantilla y branding.
+function buildAnnouncementExportColumns() {
+  return [
+    {
+      header: 'Vista',
+      includeInExcel: false,
+      pdfImage: (announcement) => announcement.image,
+      fallbackType: 'banner',
+      pdfWidth: 18,
+      pdfImageSize: 12,
+    },
+    { header: 'Título', value: (announcement) => announcement.title },
+    { header: 'Mensaje', value: (announcement) => announcement.message || announcement.content || 'Sin mensaje', width: 30 },
+    { header: 'Tipo', value: (announcement) => typeLabel(announcement.type), width: 16 },
+    { header: 'Prioridad', value: (announcement) => priorityLabel(announcement.priority), width: 14 },
+    { header: 'Estado', value: (announcement) => announcementStatusLabel(announcement), width: 14 },
+    { header: 'Inicio', value: (announcement) => (announcement.start_date ? formatDateTime(announcement.start_date) : 'Inmediato'), width: 18 },
+    { header: 'Fin', value: (announcement) => (announcement.end_date ? formatDateTime(announcement.end_date) : 'Sin fecha de cierre'), width: 18 },
+    { header: 'Enlace', value: (announcement) => announcement.button_link || 'Sin enlace', width: 22 },
+  ]
+}
+
+// Exporta la bandeja de anuncios filtrada usando el sistema compartido del admin.
+function exportAnnouncements(format) {
+  return exportData({
+    format,
+    fileBaseName: 'anuncios-admin',
+    sheetName: 'Anuncios',
+    title: 'Anuncios',
+    subtitle: 'Resumen exportado desde la gestión administrativa de anuncios.',
+    columns: buildAnnouncementExportColumns(),
+    rows: filteredAnnouncements.value,
+    landscape: true,
+    emptyMessage: 'No hay anuncios para exportar.',
+  })
 }
 
 function openImagePicker() {
@@ -941,22 +979,6 @@ function isValidLink(value) {
 
 function extractErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
 }
 
 onMounted(() => {

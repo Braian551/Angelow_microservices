@@ -7,10 +7,14 @@
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Recargos por rango' }]"
     >
       <template #actions>
-        <button class="btn btn-secondary" type="button" @click="exportRules">
-          <i class="fas fa-file-export"></i>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="filteredRules.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportRules('excel')"
+          @pdf="exportRules('pdf')"
+        />
         <button class="btn btn-primary" type="button" @click="openCreateModal">
           <i class="fas fa-plus"></i>
           Nueva regla
@@ -228,9 +232,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { shippingHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -243,6 +249,7 @@ import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const rules = ref([])
@@ -433,15 +440,28 @@ function confirmDeleteRule(rule) {
   })
 }
 
-function exportRules() {
-  const rows = filteredRules.value.map((rule) => [
-    rangeLabel(rule),
-    pricingNarrative(rule),
-    isFreeRule(rule) ? 'Sin recargo' : `+${formatCurrency(rule.shipping_cost)}`,
-    rule.active ? 'Activo' : 'Inactivo',
-  ])
-  const csv = [['Rango', 'Descripción', 'Cargo adicional', 'Estado'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv('reglas-envio-precio.csv', csv)
+// Reutiliza el mismo descriptor de reglas para PDF y Excel desde una sola fuente.
+function buildShippingRuleExportColumns() {
+  return [
+    { header: 'Rango', value: (rule) => rangeLabel(rule), width: 18 },
+    { header: 'Descripción', value: (rule) => pricingNarrative(rule), width: 34 },
+    { header: 'Cargo adicional', value: (rule) => (isFreeRule(rule) ? 'Sin recargo' : `+${formatCurrency(rule.shipping_cost)}`), width: 18 },
+    { header: 'Estado', value: (rule) => (rule.active ? 'Activo' : 'Inactivo'), width: 14 },
+  ]
+}
+
+// Exporta las reglas visibles usando la plantilla compartida del admin.
+function exportRules(format) {
+  return exportData({
+    format,
+    fileBaseName: 'recargos-por-rango-admin',
+    sheetName: 'Recargos por rango',
+    title: 'Recargos por rango',
+    subtitle: 'Resumen exportado desde la gestión de recargos por rango.',
+    columns: buildShippingRuleExportColumns(),
+    rows: filteredRules.value,
+    emptyMessage: 'No hay reglas de recargo para exportar.',
+  })
 }
 
 function isFreeRule(rule) {
@@ -476,22 +496,6 @@ function formatCurrency(value) {
 
 function extractErrorMessage(error, fallback) {
   return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
 }
 
 onMounted(loadRules)

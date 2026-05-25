@@ -105,10 +105,14 @@
 
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} reseñas`">
       <template #actions>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportReviews">
-          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="results"
+          :disabled="reviews.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportReviews('excel')"
+          @pdf="exportReviews('pdf')"
+        />
       </template>
     </AdminResultsBar>
 
@@ -259,10 +263,12 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
+import { useAdminDataExport } from '../composables/useAdminDataExport'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
@@ -273,6 +279,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
+const { exportData, exportingFormat } = useAdminDataExport()
 
 const loading = ref(true)
 const showDetailModal = ref(false)
@@ -598,34 +605,40 @@ function deleteReview(review) {
   })
 }
 
-function exportReviews() {
-  if (reviews.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay reseñas para exportar' })
-    return
-  }
+// Reutiliza el mismo dataset moderado para Excel y PDF, agregando avatar solo en el PDF.
+function buildReviewExportColumns() {
+  return [
+    {
+      header: 'Avatar',
+      includeInExcel: false,
+      pdfImage: (review) => avatarUrl(review.customer),
+      fallbackType: 'avatar',
+      pdfWidth: 18,
+      pdfImageSize: 11,
+    },
+    { header: 'Cliente', value: (review) => review.customer.name },
+    { header: 'Producto', value: (review) => review.product_name },
+    { header: 'Rating', value: (review) => Number(review.rating || 0), excelType: 'number', align: 'center', width: 12 },
+    { header: 'Estado', value: (review) => reviewStatusLabel(review.status), width: 14 },
+    { header: 'Verificada', value: (review) => (review.is_verified ? 'Sí' : 'No'), width: 13 },
+    { header: 'Fecha', value: (review) => formatDateTime(review.created_at), width: 18 },
+    { header: 'Comentario', value: (review) => review.comment || 'Sin comentario', width: 32 },
+  ]
+}
 
-  const rows = [['Cliente', 'Producto', 'Rating', 'Estado', 'Verificada', 'Fecha', 'Comentario']]
-  reviews.value.forEach((review) => {
-    rows.push([
-      `"${review.customer.name.replace(/"/g, '""')}"`,
-      `"${review.product_name.replace(/"/g, '""')}"`,
-      review.rating,
-      `"${reviewStatusLabel(review.status)}"`,
-      `"${review.is_verified ? 'Si' : 'No'}"`,
-      `"${formatDateTime(review.created_at)}"`,
-      `"${(review.comment || '').replace(/"/g, '""')}"`,
-    ])
+// Exporta la bandeja actual desde la plantilla común para evitar otro CSV manual local.
+function exportReviews(format) {
+  return exportData({
+    format,
+    fileBaseName: 'resenas-admin',
+    sheetName: 'Reseñas',
+    title: 'Reseñas',
+    subtitle: 'Resumen exportado desde la bandeja de moderación de reseñas.',
+    columns: buildReviewExportColumns(),
+    rows: reviews.value,
+    landscape: true,
+    emptyMessage: 'No hay reseñas para exportar.',
   })
-
-  const csv = rows.map((row) => row.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'resenas.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Reseñas exportadas correctamente' })
 }
 
 onMounted(loadReviews)
