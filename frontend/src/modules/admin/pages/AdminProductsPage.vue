@@ -155,26 +155,26 @@
     />
 
     <AdminModal :show="showQuickView" title="Detalles del Producto" max-width="1110px" @close="closeQuickView">
-      <div v-if="quickViewLoading" class="quick-view-loading">
-        <p>Cargando detalles del producto...</p>
-      </div>
-      <div v-else-if="quickProduct" class="quick-view-content">
-        <div class="quick-view-gallery">
-          <div class="gallery-filters">
-            <button
-              v-for="filter in colorFilters"
-              :key="filter.color"
-              type="button"
-              class="color-filter-btn"
-              :class="{ active: activeColorFilter === filter.color }"
-              :title="filter.color"
-              @click="setColorFilter(filter.color)"
-            >
-              <span v-if="filter.hex" class="color-circle" :style="{ backgroundColor: filter.hex }"></span>
-              <span class="color-text">{{ filter.label }}</span>
-            </button>
-          </div>
-
+      <div class="admin-products-page admin-products-page--modal">
+        <div v-if="quickViewLoading" class="quick-view-loading">
+          <p>Cargando detalles del producto...</p>
+        </div>
+        <div v-else-if="quickProduct" class="quick-view-content">
+          <div class="quick-view-gallery">
+            <div class="gallery-filters">
+              <button
+                v-for="filter in colorFilters"
+                :key="filter.color"
+                type="button"
+                class="color-filter-btn"
+                :class="{ active: activeColorFilter === filter.color }"
+                :title="filter.color"
+                @click="setColorFilter(filter.color)"
+              >
+                <span v-if="filter.hex" class="color-circle" :style="{ backgroundColor: filter.hex }"></span>
+                <span class="color-text">{{ filter.label }}</span>
+              </button>
+            </div>
           <div class="main-image">
             <img :src="mainQuickImage" :alt="quickProduct.name" @error="onZoomImageError($event, mainQuickImage)">
             <button type="button" class="image-zoom-btn" @click="openZoom(mainQuickImage, quickProduct.name)">
@@ -277,6 +277,8 @@
         </div>
       </div>
 
+      </div>
+
       <template #footer>
         <RouterLink
           v-if="quickProduct"
@@ -291,8 +293,10 @@
     </AdminModal>
 
     <AdminModal :show="showZoom" :title="zoomTitle || 'Imagen del producto'" max-width="980px" @close="closeZoom">
-      <div class="zoom-body">
-        <img :src="zoomImage" :alt="zoomTitle" @error="onZoomImageError($event, zoomImage)">
+      <div class="admin-products-page admin-products-page--modal">
+        <div class="zoom-body">
+          <img :src="zoomImage" :alt="zoomTitle" @error="onZoomImageError($event, zoomImage)">
+        </div>
       </div>
     </AdminModal>
   </div>
@@ -316,6 +320,7 @@ import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminProductCard from '../components/AdminProductCard.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
+import '../views/AdminProductsPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -891,420 +896,3 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-/* Estilos específicos de Productos — los comunes están en admin.css */
-
-/* Grid de productos (tarjetas) */
-.products-admin-grid,
-.products-skeleton {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
-  padding: 20px 0;
-}
-
-/* Skeleton de carga para tarjetas de producto */
-.product-skeleton-card {
-  border: 1px solid var(--admin-border-light);
-  border-radius: var(--admin-card-radius);
-  overflow: hidden;
-  background: var(--admin-bg);
-  padding: 16px;
-  box-shadow: var(--admin-shadow-card);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.skeleton {
-  background: linear-gradient(90deg, #edf2f7 25%, #f7fafc 50%, #edf2f7 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-
-.skeleton-thumb { height: 160px; }
-.skeleton-body { display: flex; flex-direction: column; gap: 10px; }
-.skeleton-line { height: 12px; }
-.skeleton-tags { display: flex; gap: 8px; }
-.skeleton-pill { height: 20px; width: 90px; border-radius: var(--admin-radius-pill); }
-.skeleton-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.skeleton-btn { height: 36px; border-radius: var(--admin-radius-md); }
-.w-80 { width: 80%; }
-.w-70 { width: 70%; }
-.w-60 { width: 60%; }
-.w-40 { width: 40%; }
-
-/* Paginación local (usa variables globales) */
-.pagination-container {
-  margin-top: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
-.pagination-item {
-  min-width: 40px;
-  height: 40px;
-  border: 1px solid var(--admin-border-light);
-  background: var(--admin-bg);
-  color: var(--admin-text-soft);
-  border-radius: var(--admin-radius-lg);
-  cursor: pointer;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.7rem;
-  transition: var(--admin-transition-fast);
-}
-
-.pagination-item:hover:not(:disabled):not(.active):not(.dots) {
-  border-color: var(--admin-primary);
-  color: var(--admin-primary);
-}
-
-.pagination-item.active {
-  background: var(--admin-primary);
-  color: #fff;
-  border-color: var(--admin-primary);
-  box-shadow: 0 12px 22px rgba(0, 119, 182, 0.18);
-}
-
-.pagination-item:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.pagination-item.dots {
-  border-style: dashed;
-  cursor: default;
-}
-
-/* Vista rápida de producto (modal) */
-.quick-view-loading {
-  min-height: 18rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--admin-text-soft);
-  font-size: 1.05rem;
-}
-
-.quick-view-content {
-  display: grid;
-  grid-template-columns: 350px minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.quick-view-gallery {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.gallery-filters,
-.color-options,
-.size-options,
-.product-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.color-filter-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--admin-border-soft);
-  background: var(--admin-bg);
-  padding: 8px 12px;
-  border-radius: var(--admin-radius-pill);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--admin-primary);
-  transition: var(--admin-transition-fast);
-}
-
-.color-filter-btn.active,
-.color-filter-btn:hover {
-  border-color: var(--admin-primary);
-  background: var(--admin-bg-highlight);
-}
-
-.main-image {
-  position: relative;
-  border-radius: var(--admin-radius-xl);
-  overflow: hidden;
-  border: 1px solid var(--admin-border-light);
-  background: var(--admin-bg-dark);
-  box-shadow: 0 4px 12px rgba(0, 119, 182, 0.15);
-}
-
-.main-image img {
-  width: 100%;
-  height: 350px;
-  object-fit: cover;
-  display: block;
-}
-
-.image-zoom-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  border: none;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.thumbnail-gallery-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 4px;
-}
-
-.gallery-arrow {
-  border: 1px solid var(--admin-border-soft);
-  background: rgba(255, 255, 255, 0.95);
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.thumbnail-gallery {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  flex: 1;
-  padding: 4px;
-}
-
-.thumbnail {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border: 2px solid transparent;
-  border-radius: var(--admin-radius-sm);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.thumbnail.active,
-.thumbnail:hover {
-  border-color: var(--admin-primary);
-}
-
-.quick-view-info {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.product-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--admin-border);
-}
-
-.product-header h2 {
-  margin: 0;
-  font-size: 2rem;
-  color: var(--admin-text-heading);
-  font-weight: 700;
-}
-
-.product-id {
-  font-size: 1rem;
-  color: var(--admin-text-light);
-  font-weight: 500;
-}
-
-.meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--admin-bg-dark);
-  border: 1px solid var(--admin-border-light);
-  padding: 8px 12px;
-  border-radius: var(--admin-radius-md);
-  font-size: 14px;
-  color: var(--admin-text-soft);
-}
-
-.product-description h4,
-.product-pricing h4,
-.variants-section h4 {
-  margin: 0 0 12px;
-  color: var(--admin-text-heading);
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.product-description p {
-  color: var(--admin-text-soft);
-  margin: 0;
-  line-height: 1.6;
-}
-
-.product-pricing p {
-  font-weight: 700;
-  color: var(--admin-primary);
-  font-size: 1.95rem;
-  margin: 0;
-}
-
-.variants-section {
-  margin-top: 0.5rem;
-  padding-top: 20px;
-  border-top: 1px solid var(--admin-border);
-}
-
-.variant-group {
-  margin-bottom: 1rem;
-}
-
-.variant-group label {
-  display: block;
-  font-weight: 700;
-  color: var(--admin-text-soft);
-  margin-bottom: 8px;
-  font-size: 14px;
-}
-
-.color-tag,
-.size-tag {
-  display: inline-block;
-  padding: 6px 12px;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-pill);
-  font-size: 13px;
-  color: var(--admin-text-soft);
-  background: var(--admin-bg-dark);
-}
-
-.variant-table {
-  margin-top: 0.75rem;
-  overflow-x: auto;
-}
-
-.variant-table table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: var(--admin-shadow-card);
-}
-
-.variant-table th {
-  background: var(--admin-bg-highlight);
-  color: var(--admin-primary);
-  font-weight: 700;
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--admin-border);
-}
-
-.variant-table td {
-  padding: 12px;
-  border-bottom: 1px solid var(--admin-border-muted);
-  color: var(--admin-text-heading);
-}
-
-.variant-status {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: var(--admin-radius-pill);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.variant-status.active {
-  background: rgba(75, 181, 67, 0.12);
-  color: var(--admin-success);
-}
-
-.variant-status.inactive {
-  background: rgba(255, 51, 51, 0.1);
-  color: var(--admin-error);
-}
-
-/* Modal de zoom de imagen */
-.zoom-body {
-  text-align: center;
-  min-height: 25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.zoom-body img {
-  width: 100%;
-  max-height: 76vh;
-  object-fit: contain;
-  border-radius: 0.9rem;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
-}
-
-/* Transición de tarjetas */
-.card-fade-enter-active,
-.card-fade-leave-active {
-  transition: all 0.24s ease;
-}
-
-.card-fade-enter-from,
-.card-fade-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@media (max-width: 900px) {
-  .quick-view-content {
-    grid-template-columns: 1fr;
-  }
-
-  .product-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .main-image img {
-    height: 420px;
-  }
-}
-
-@media (max-width: 600px) {
-  .products-admin-grid,
-  .products-skeleton {
-    grid-template-columns: 1fr;
-  }
-
-  .main-image img {
-    height: 280px;
-  }
-}
-</style>

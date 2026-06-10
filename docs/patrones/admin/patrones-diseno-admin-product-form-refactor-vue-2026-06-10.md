@@ -56,6 +56,7 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - La página mantiene `RouterLink`, encabezado, tarjeta principal y coordinación de componentes, pero no contiene la lógica extensa del formulario.
 - El CSS se movió a `frontend/src/modules/admin/views/AdminProductFormPage.css` y se importa desde la página para conservar la convención de estilos por vista.
 - Corrección de regresión: el CSS externo quedó encapsulado bajo `.admin-product-form-page`, y el modal de variantes incluye la misma raíz dentro del contenido teletransportado por `AdminModal`, para conservar el aislamiento que antes aportaba `<style scoped>`.
+- Etapa `AdminProductsPage.vue`: se movieron los estilos locales de productos a `frontend/src/modules/admin/views/AdminProductsPage.css`, encapsulados bajo `.admin-products-page`; los modales de vista rápida y zoom agregan wrapper interno con la misma raíz por el `Teleport` de `AdminModal`.
 - No se cambiaron endpoints, payloads, `FormData`, rutas públicas ni nombres de campos enviados al backend.
 - La separación se hizo solo para el formulario de producto como primera etapa segura; las demás vistas grandes quedan pendientes para una etapa posterior validada.
 
@@ -63,6 +64,7 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 
 - `npm run build` en `frontend`: exitoso.
 - `docker compose exec -T frontend npm run build`: exitoso después de la corrección de aislamiento CSS.
+- `npm run build` después de extraer CSS de `AdminProductsPage.vue`: exitoso.
 - Pendiente por bloqueo de herramienta local: validación visual con consola del navegador integrado; el kernel falló por `windows sandbox failed: spawn setup refresh`.
 
 ## Documentos relacionados
