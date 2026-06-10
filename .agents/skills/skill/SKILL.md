@@ -65,6 +65,34 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 - `notification-service`: notificaciones y preferencias.
 - `frontend` (Vue): orquesta UX consumiendo APIs por dominio.
 
+## Arquitectura frontend Vue obligatoria
+- En Vue se permite usar Single File Components con `<template>`, `<script setup>` y `<style scoped>`, pero si un componente supera una complejidad razonable, debe separarse progresivamente.
+- Una página dentro de `modules/**/pages` debe actuar principalmente como contenedor/orquestador, no como archivo gigante con toda la lógica, todos los estilos y todos los subcomponentes embebidos.
+- Si una página o componente tiene mucha lógica reactiva, watchers, validaciones, carga de datos, procesamiento de imágenes, generación de payloads o reglas de negocio, esa lógica debe extraerse a composables dentro del módulo correspondiente, por ejemplo:
+  - `frontend/src/modules/admin/composables/useAdminProductForm.js`
+  - `frontend/src/modules/catalog/composables/useProductDetail.js`
+  - `frontend/src/modules/account/composables/useAddresses.js`
+- Si una lógica es reutilizable entre módulos, debe ir en `frontend/src/composables`, `frontend/src/utils` o `frontend/src/services`, según corresponda.
+- Si una vista tiene más de un bloque visual importante, se debe dividir en componentes hijos dentro de `components` del mismo módulo.
+- Los estilos extensos no deben permanecer dentro de `<style scoped>` cuando superen una complejidad razonable. Deben moverse a archivos `.css` externos ubicados en `frontend/src/modules/<modulo>/views`, `frontend/src/modules/<modulo>/styles` o `frontend/src/components/<dominio>`, según la responsabilidad.
+- En los `.vue`, importar CSS externo con `import './NombreVista.css'` o usar la convención existente del módulo.
+- No duplicar estilos globales ni estilos de componentes compartidos. Antes de crear CSS nuevo, revisar si ya existe una clase, componente o patrón en `frontend/src/modules/admin/styles/admin.css`, `frontend/src/styles/main.css`, `frontend/src/styles/variables.css` o componentes compartidos existentes.
+- Los componentes reutilizables del admin deben seguir usando los componentes existentes como `AdminCard`, `AdminPageHeader`, `AdminModal`, `AdminShimmer`, `AdminStatsGrid`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminEmptyState`, `AdminTableImage`, `AdminTableShimmer`, `AdminToggleSwitch`, entre otros.
+- No se permite crear variantes ad hoc de componentes que ya existen. Si falta una capacidad, ampliar el componente compartido de forma compatible.
+- Toda separación debe preservar la paridad visual y funcional actual.
+- No cambiar nombres de rutas públicas ni navegación SPA.
+- No cambiar contratos de API ni payloads sin necesidad.
+- No cambiar estructura de datos enviada o recibida si no es parte directa de la tarea.
+- No hacer refactor masivo ciego. Se debe migrar por módulos o vistas, validando cada paso.
+- Después de mover archivos, actualizar todos los imports, rutas relativas y referencias.
+- Después de mover CSS, verificar que no se pierdan estilos por `scoped`, especificidad o cascada.
+- Si un estilo dependía de `scoped`, adaptar selectores de forma segura para evitar fugas visuales.
+- Cada refactor debe validar desktop, tablet y móvil.
+- Cada refactor debe ejecutar `npm run build` o el comando equivalente disponible del frontend.
+- Si hay ESLint o análisis configurado, ejecutarlo solo sobre archivos afectados cuando sea posible para evitar gasto innecesario.
+- Documentar el patrón aplicado en `docs/patrones/<modulo>/...` indicando archivos exactos movidos o creados.
+- Actualizar documentación solo donde aplique, sin crear documentación excesiva ni changelogs innecesarios.
+
 ## Datos y migración
 - Durante la migración, el frontend debe enviar `user_id` y `user_email` cuando sea posible para resolver identidad legacy/distribuida.
 - Si una entidad aún no está sincronizada en base distribuida, se permite fallback a legacy.

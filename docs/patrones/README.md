@@ -3,6 +3,7 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-10 - Formulario de producto como orquestador Vue](#2026-06-10---formulario-de-producto-como-orquestador-vue)
 - [2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito](#2026-06-10---validaciones-numéricas-reutilizables-para-productos-inventario-y-carrito)
 - [2026-06-08 - Factura descargable desde detalle de pedido y estados unificados](#2026-06-08---factura-descargable-desde-detalle-de-pedido-y-estados-unificados)
 - [2026-06-08 - Feedback de acciones mutables en header tablas y modales](#2026-06-08---feedback-de-acciones-mutables-en-header-tablas-y-modales)
@@ -39,6 +40,14 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-10 - Formulario de producto como orquestador Vue
+
+- Patrón: Component + Facade + Builder + Strategy (Refactoring Guru)
+- Aplicación: `AdminProductFormPage.vue` quedó como orquestador y se separaron tabs, modal, composable, utilidades de slug/SKU/payload y CSS externo.
+- Ubicación: `frontend/src/modules/admin/pages/AdminProductFormPage.vue`, `frontend/src/modules/admin/components/products/AdminProductGeneralTab.vue`, `frontend/src/modules/admin/components/products/AdminProductImagePanel.vue`, `frontend/src/modules/admin/components/products/AdminProductVariantsTab.vue`, `frontend/src/modules/admin/components/products/AdminProductVariantModal.vue`, `frontend/src/modules/admin/composables/useAdminProductForm.js`, `frontend/src/modules/admin/utils/productFormPayload.js`, `frontend/src/modules/admin/utils/productSlug.js`, `frontend/src/modules/admin/utils/productSku.js`, `frontend/src/modules/admin/views/AdminProductFormPage.css`
+- Problema resuelto: reducir el componente gigante del formulario de producto sin cambiar rutas, APIs, payloads, validaciones, imágenes, variantes, tallas, stock, SKU ni flujo SPA.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`
 
 ## 2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito
 
