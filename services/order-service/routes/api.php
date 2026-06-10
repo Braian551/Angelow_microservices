@@ -15,6 +15,7 @@ Route::prefix('orders')->group(function () {
     Route::post('/', [OrderController::class, 'store'])->middleware(PreventDuplicateOrderSubmission::class);
     Route::post('/{id}/send-confirmation', [OrderController::class, 'sendCheckoutConfirmation']);
     Route::patch('/{id}/cancel', [OrderController::class, 'cancel']);
+    Route::get('/{id}/invoice/download', [OrderController::class, 'downloadInvoice']);
     Route::get('/{id}', [OrderController::class, 'show']);
     Route::patch('/{id}', [OrderController::class, 'update']);
     Route::patch('/{id}/status', [OrderController::class, 'updateStatus']);

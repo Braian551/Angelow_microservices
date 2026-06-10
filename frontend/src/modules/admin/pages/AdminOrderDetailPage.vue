@@ -477,7 +477,10 @@
       </div>
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeEditModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" :disabled="saving" @click="submitEditOrder">Guardar cambios</button>
+        <button class="btn btn-primary" type="button" :class="{ 'is-loading': saving }" :disabled="saving" @click="submitEditOrder">
+          <i :class="saving ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
+          {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
       </template>
     </AdminModal>
 
@@ -503,8 +506,11 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="closeStatusModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" :disabled="saving" @click="submitStatusChange">Guardar estado</button>
+        <button class="btn btn-secondary" type="button" :disabled="saving" @click="closeStatusModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" :class="{ 'is-loading': saving }" :disabled="saving" @click="submitStatusChange">
+          <i :class="saving ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
+          {{ saving ? 'Guardando...' : 'Guardar estado' }}
+        </button>
       </template>
     </AdminModal>
 
@@ -534,8 +540,11 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="closePaymentStatusModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" :disabled="saving" @click="submitPaymentStatusChange">Guardar estado de pago</button>
+        <button class="btn btn-secondary" type="button" :disabled="saving" @click="closePaymentStatusModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" :class="{ 'is-loading': saving }" :disabled="saving" @click="submitPaymentStatusChange">
+          <i :class="saving ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
+          {{ saving ? 'Guardando...' : 'Guardar estado de pago' }}
+        </button>
       </template>
     </AdminModal>
 

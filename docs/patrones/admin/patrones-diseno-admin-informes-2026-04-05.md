@@ -13,6 +13,8 @@
 - [Extensión 2026-05-10: consolidación real de ventas distribuidas + legacy](#extensión-2026-05-10-consolidación-real-de-ventas-distribuidas-legacy)
   - [5. Adapter](#5-adapter)
   - [6. Aggregator](#6-aggregator)
+- [Extensión 2026-06-07: simplificación de acciones del encabezado](#extensión-2026-06-07-simplificación-de-acciones-del-encabezado)
+  - [7. Command](#7-command)
 <!-- indice:auto:end -->
 
 Fecha: 2026-04-05
@@ -79,3 +81,13 @@ Se migró la vista de informes de ventas, productos populares y clientes recurre
   - `reportProducts` ahora mezcla líneas de pedido del microservicio y legacy antes de agrupar por producto, evitando que el ranking dependa de un fallback de una sola fuente.
   - `reportCustomers` ahora arma la recurrencia sobre órdenes ya consolidadas e hidratadas, y usa un fallback adicional hacia auth-service con el bearer admin actual para completar nombre, correo y teléfono cuando el endpoint interno no resuelve todos los perfiles.
   - Si un `user_id` no existe ni en auth ni en legacy disponible, el sistema conserva el registro como cliente sin identidad resoluble en lugar de inventar datos.
+
+## Extensión 2026-06-07: simplificación de acciones del encabezado
+
+### 7. Command
+- Problema que resuelve: el encabezado compartido de informes mostraba una acción de impresión innecesaria para ventas, productos populares y clientes recurrentes, añadiendo ruido visual y una ruta de interacción poco útil frente a las exportaciones reales del módulo.
+- Aplicado en archivos:
+  - `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Implementación:
+  - se elimina `printReport` y su botón asociado del `AdminPageHeader`, dejando como acciones primarias `Restablecer` y las exportaciones reutilizables de Excel/PDF;
+  - la vista conserva el patrón Command porque las acciones visibles siguen encapsuladas en handlers claros (`resetFilters`, `exportReport`, `openDetailModal`) sin exponer lógica operativa en el template.

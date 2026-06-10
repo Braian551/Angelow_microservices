@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SiteSetting;
 use App\Models\Slider;
+use App\Services\StockRealtimePublisher;
 use App\Support\SiteSettingsCatalog;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -145,6 +146,27 @@ class AdminCatalogController extends Controller
     }
 
     /**
+     * Valida unidades físicas y precios COP como enteros positivos antes de castear.
+     */
+    private function isPositiveIntegerInput(mixed $value): bool
+    {
+        if (is_int($value)) {
+            return $value >= 1;
+        }
+
+        if (is_float($value)) {
+            return false;
+        }
+
+        return preg_match('/^[1-9]\d*$/', trim((string) $value)) === 1;
+    }
+
+    private function positiveIntegerValue(mixed $value): int
+    {
+        return (int) trim((string) $value);
+    }
+
+    /**
      * El admin debe ver la misma disponibilidad efectiva que usa tienda y checkout.
      */
     private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
@@ -172,19 +194,34 @@ class AdminCatalogController extends Controller
     /**
      * Mantiene Redis alineado cuando el admin ajusta stock directamente.
      */
-    private function syncRealtimeStockSnapshot(int $sizeVariantId, int $databaseStock): void
+    private function syncRealtimeStockSnapshot(int $sizeVariantId, int $databaseStock): array
     {
+        $snapshot = [
+            'size_variant_id' => $sizeVariantId,
+            'database_stock' => max(0, $databaseStock),
+            'available_stock' => max(0, $databaseStock),
+            'reserved_stock' => 0,
+        ];
+
         try {
             $reservedValue = Redis::get("reserved:{$sizeVariantId}");
             $reserved = $reservedValue !== null && is_numeric((string) $reservedValue)
                 ? max(0, (int) $reservedValue)
                 : 0;
 
-            Redis::set("stock:{$sizeVariantId}", (string) max(0, $databaseStock - $reserved));
+            $availableStock = max(0, $databaseStock - $reserved);
+            Redis::set("stock:{$sizeVariantId}", (string) $availableStock);
 
             if ($reservedValue === null) {
                 Redis::setnx("reserved:{$sizeVariantId}", '0');
             }
+
+            return [
+                'size_variant_id' => $sizeVariantId,
+                'database_stock' => max(0, $databaseStock),
+                'available_stock' => $availableStock,
+                'reserved_stock' => $reserved,
+            ];
         } catch (\Throwable $exception) {
             Log::warning('No se pudo sincronizar stock admin en Redis.', [
                 'variant_id' => $sizeVariantId,
@@ -192,6 +229,21 @@ class AdminCatalogController extends Controller
                 'error' => $exception->getMessage(),
             ]);
         }
+
+        return $snapshot;
+    }
+
+    private function publishRealtimeStockEvent(string $event, array $items, array $context = []): void
+    {
+        if (empty($items)) {
+            return;
+        }
+
+        app(StockRealtimePublisher::class)->publish($event, array_merge([
+            'source' => 'catalog-admin',
+            'history_updated' => false,
+            'items' => array_values($items),
+        ], $context));
     }
 
     /**
@@ -442,8 +494,8 @@ class AdminCatalogController extends Controller
         $baseData = $request->validate([
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['nullable', 'string'],
-            'precio' => ['required', 'numeric', 'min:0.01'],
-            'compare_price' => ['nullable', 'numeric', 'min:0'],
+            'precio' => ['required', 'regex:/^[1-9]\d*$/'],
+            'compare_price' => ['nullable', 'regex:/^[1-9]\d*$/'],
             'category_id' => ['required', 'integer'],
             'collection_id' => ['nullable', 'integer'],
             'slug' => ['nullable', 'string', 'max:255'],
@@ -455,14 +507,21 @@ class AdminCatalogController extends Controller
             'material' => ['nullable', 'string', 'max:100'],
             'care_instructions' => ['nullable', 'string'],
             'main_image_path' => ['nullable', 'string', 'max:255'],
+        ], [
+            'precio.required' => 'El precio base es obligatorio.',
+            'precio.regex' => 'El precio base debe ser un número entero en pesos colombianos, mayor o igual a 1.',
+            'compare_price.regex' => 'El precio comparativo debe ser un número entero en pesos colombianos, mayor o igual a 1.',
         ]);
 
         $variants = collect($this->arrayInput($request, 'variants'))
             ->map(function ($variant, $index) {
                 $sizes = collect($variant['sizes'] ?? [])->map(function ($size, $sizeIndex) use ($index) {
-                    $price = isset($size['price']) && $size['price'] !== '' ? (float) $size['price'] : null;
-                    $comparePrice = isset($size['compare_price']) && $size['compare_price'] !== ''
-                        ? (float) $size['compare_price']
+                    $price = isset($size['price']) && $this->isPositiveIntegerInput($size['price'])
+                        ? $this->positiveIntegerValue($size['price'])
+                        : null;
+                    $hasComparePrice = isset($size['compare_price']) && $size['compare_price'] !== '';
+                    $comparePrice = $hasComparePrice && $this->isPositiveIntegerInput($size['compare_price'])
+                        ? $this->positiveIntegerValue($size['compare_price'])
                         : null;
 
                     return [
@@ -471,7 +530,10 @@ class AdminCatalogController extends Controller
                         'size_id' => isset($size['size_id']) && $size['size_id'] !== '' ? (int) $size['size_id'] : null,
                         'price' => $price,
                         'compare_price' => $comparePrice,
-                        'quantity' => isset($size['quantity']) && $size['quantity'] !== '' ? (int) $size['quantity'] : 0,
+                        'compare_price_invalid' => $hasComparePrice && !$this->isPositiveIntegerInput($size['compare_price']),
+                        'quantity' => isset($size['quantity']) && $this->isPositiveIntegerInput($size['quantity'])
+                            ? $this->positiveIntegerValue($size['quantity'])
+                            : null,
                         'sku' => trim((string) ($size['sku'] ?? '')) ?: null,
                         'barcode' => trim((string) ($size['barcode'] ?? '')) ?: null,
                         'is_active' => $this->toBoolean($size['is_active'] ?? true, true),
@@ -556,7 +618,15 @@ class AdminCatalogController extends Controller
                 if ($size['price'] === null || $size['price'] <= 0) {
                     abort(response()->json([
                         'success' => false,
-                        'message' => 'Cada talla debe tener un precio mayor a cero.',
+                        'message' => 'Cada talla debe tener un precio entero en pesos colombianos, mayor o igual a 1.',
+                        'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
+                    ], 422));
+                }
+
+                if (!empty($size['compare_price_invalid'])) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'El precio comparativo por talla debe ser un número entero en pesos colombianos, mayor o igual a 1.',
                         'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
                     ], 422));
                 }
@@ -568,14 +638,22 @@ class AdminCatalogController extends Controller
                         'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
                     ], 422));
                 }
+
+                if ($size['quantity'] === null || $size['quantity'] < 1) {
+                    abort(response()->json([
+                        'success' => false,
+                        'message' => 'La cantidad debe ser un número entero mayor o igual a 1.',
+                        'meta' => ['variant_index' => $index, 'size_index' => $sizeIndex],
+                    ], 422));
+                }
             }
         }
 
         $baseComparePrice = isset($baseData['compare_price']) && $baseData['compare_price'] !== ''
-            ? (float) $baseData['compare_price']
+            ? $this->positiveIntegerValue($baseData['compare_price'])
             : null;
 
-        if ($baseComparePrice !== null && $baseComparePrice <= (float) $baseData['precio']) {
+        if ($baseComparePrice !== null && $baseComparePrice <= $this->positiveIntegerValue($baseData['precio'])) {
             abort(response()->json([
                 'success' => false,
                 'message' => 'El precio comparativo general debe ser mayor al precio base.',
@@ -584,7 +662,7 @@ class AdminCatalogController extends Controller
 
         return [
             ...$baseData,
-            'precio' => (float) $baseData['precio'],
+            'precio' => $this->positiveIntegerValue($baseData['precio']),
             'compare_price' => $baseComparePrice,
             'activo' => $this->toBoolean($baseData['activo'] ?? true, true),
             'is_featured' => $this->toBoolean($baseData['is_featured'] ?? false, false),
@@ -1988,8 +2066,12 @@ class AdminCatalogController extends Controller
 
         $data = $request->validate([
             'action' => ['required', 'in:add,subtract,set'],
-            'quantity' => ['required', 'integer', 'min:0'],
+            'quantity' => ['required', 'integer', 'min:1'],
             'reason' => ['nullable', 'string', 'max:255'],
+        ], [
+            'quantity.required' => 'La cantidad es obligatoria.',
+            'quantity.integer' => 'La cantidad debe ser un número entero mayor o igual a 1.',
+            'quantity.min' => 'La cantidad debe ser un número entero mayor o igual a 1.',
         ]);
 
         $variant = DB::table('product_size_variants')->where('id', $variantId)->first();
@@ -2012,7 +2094,7 @@ class AdminCatalogController extends Controller
         }
 
         DB::table('product_size_variants')->where('id', $variantId)->update($payload);
-        $this->syncRealtimeStockSnapshot($variantId, $newStock);
+        $snapshot = $this->syncRealtimeStockSnapshot($variantId, $newStock);
 
         if (Schema::hasTable('stock_history')) {
             DB::table('stock_history')->insert([
@@ -2028,6 +2110,13 @@ class AdminCatalogController extends Controller
 
         $effectiveStock = $this->resolveRealtimeAvailableStock($variantId, $newStock);
         app('App\\Services\\InventoryAlertService')->syncVariantState($variantId, $effectiveStock);
+        $this->publishRealtimeStockEvent('stock.inventory.adjusted', [[
+            ...$snapshot,
+            'available_stock' => $effectiveStock,
+            'operation' => $data['action'],
+        ]], [
+            'history_updated' => true,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -2048,6 +2137,10 @@ class AdminCatalogController extends Controller
             'target_variant_id' => ['required', 'integer', 'different:source_variant_id'],
             'quantity' => ['required', 'integer', 'min:1'],
             'reason' => ['nullable', 'string', 'max:255'],
+        ], [
+            'quantity.required' => 'La cantidad es obligatoria.',
+            'quantity.integer' => 'La cantidad debe ser un número entero mayor o igual a 1.',
+            'quantity.min' => 'La cantidad debe ser un número entero mayor o igual a 1.',
         ]);
 
         $stockChanges = [];
@@ -2081,15 +2174,17 @@ class AdminCatalogController extends Controller
             DB::table('product_size_variants')->where('id', $source->id)->update($sourcePayload);
             DB::table('product_size_variants')->where('id', $target->id)->update($targetPayload);
 
-            $this->syncRealtimeStockSnapshot((int) $source->id, $sourceNewQty);
-            $this->syncRealtimeStockSnapshot((int) $target->id, $targetNewQty);
+            $sourceSnapshot = $this->syncRealtimeStockSnapshot((int) $source->id, $sourceNewQty);
+            $targetSnapshot = $this->syncRealtimeStockSnapshot((int) $target->id, $targetNewQty);
 
             $stockChanges = [
                 [
+                    ...$sourceSnapshot,
                     'variant_id' => (int) $source->id,
                     'stock' => $this->resolveRealtimeAvailableStock((int) $source->id, $sourceNewQty),
                 ],
                 [
+                    ...$targetSnapshot,
                     'variant_id' => (int) $target->id,
                     'stock' => $this->resolveRealtimeAvailableStock((int) $target->id, $targetNewQty),
                 ],
@@ -2125,6 +2220,20 @@ class AdminCatalogController extends Controller
         foreach ($stockChanges as $change) {
             app('App\\Services\\InventoryAlertService')->syncVariantState((int) $change['variant_id'], (int) $change['stock']);
         }
+
+        $this->publishRealtimeStockEvent(
+            'stock.inventory.transferred',
+            array_map(static fn (array $change): array => [
+                'size_variant_id' => (int) ($change['variant_id'] ?? 0),
+                'database_stock' => (int) ($change['database_stock'] ?? 0),
+                'reserved_stock' => (int) ($change['reserved_stock'] ?? 0),
+                'available_stock' => (int) ($change['stock'] ?? 0),
+                'operation' => 'transfer',
+            ], $stockChanges),
+            [
+                'history_updated' => true,
+            ],
+        );
 
         return response()->json(['success' => true, 'message' => 'Stock transferido correctamente']);
     }

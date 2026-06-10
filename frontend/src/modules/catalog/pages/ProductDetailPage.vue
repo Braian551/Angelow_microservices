@@ -142,10 +142,12 @@
                 <button type="button" class="qty-btn" @click="changeQuantity(-1)">-</button>
                 <input
                   id="product-quantity"
-                  v-model.number="quantity"
-                  type="number"
-                  min="1"
+                  v-model="quantity"
+                  type="text"
+                  inputmode="numeric"
                   :max="quantityMax"
+                  :class="{ 'is-invalid': quantityError }"
+                  @input="validateQuantityInput"
                   @change="normalizeQuantity"
                 />
                 <button type="button" class="qty-btn" @click="changeQuantity(1)">+</button>
@@ -171,6 +173,7 @@
                 </button>
               </div>
 
+              <p v-if="quantityError" class="status-message status-message--error">{{ quantityError }}</p>
               <p v-if="infoMessage" class="status-message">{{ infoMessage }}</p>
             </div>
 
@@ -434,13 +437,15 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ProductDetailShimmer from '../components/ProductDetailShimmer.vue'
-import { getProductBySlug } from '../../../services/catalogApi'
+import { useStockRealtime } from '../../../composables/useStockRealtime'
+import { getProductBySlug, getProductVariantById } from '../../../services/catalogApi'
 import { addToCart } from '../../../services/cartApi'
 import { useAppShell } from '../../../composables/useAppShell'
 import { toggleWishlist } from '../../../services/wishlistApi'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useSession } from '../../../composables/useSession'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { numericValidationMessages, validatePositiveInteger } from '../../../utils/numericValidation'
 import { normalizeUtf8Text } from '../../../utils/text'
 import '../views/ProductDetailView.css'
 
@@ -461,16 +466,24 @@ const questions = ref([])
 const selectedColorId = ref(null)
 const selectedSizeVariantId = ref(null)
 const quantity = ref(1)
+const quantityError = ref('')
 const currentImageIndex = ref(0)
 const mainImageLoaded = ref(false)
 const wishlistBusy = ref(false)
+const cartSubmitting = ref(false)
 const isFavorite = ref(false)
 const activeTab = ref('description')
 const tabsSectionRef = ref(null)
 const zoomModalOpen = ref(false)
 const zoomImage = ref({ src: '', alt: '', rawPath: '' })
+const pendingRealtimeVariantIds = new Set()
+
+let realtimeVariantRefreshTimerId = null
 
 const colorOptions = computed(() => Object.values(variants.value || {}))
+const currentProductVariantIds = computed(() => colorOptions.value.flatMap((color) => Object.values(color?.sizes || {})
+  .map((size) => Number(size?.variant_id || 0))
+  .filter((variantId) => Number.isFinite(variantId) && variantId > 0)))
 
 const activeColor = computed(() => {
   if (!colorOptions.value.length) return null
@@ -765,7 +778,7 @@ const quantityMax = computed(() => {
   return Math.max(1, Math.floor(stockQuantity.value))
 })
 
-const isAddDisabled = computed(() => !activeSize.value || stockQuantity.value <= 0)
+const isAddDisabled = computed(() => !activeSize.value || stockQuantity.value <= 0 || Boolean(quantityError.value) || cartSubmitting.value)
 
 const stockClass = computed(() => {
   if (stockQuantity.value <= 0) return 'out-of-stock'
@@ -803,6 +816,7 @@ watch(activeColor, () => {
   selectedSizeVariantId.value = firstSize?.variant_id || null
   currentImageIndex.value = 0
   quantity.value = 1
+  quantityError.value = ''
 }, { immediate: true })
 
 watch(activeImages, () => {
@@ -932,36 +946,146 @@ function selectSize(variantId) {
   quantity.value = 1
 }
 
+function setVariantStockQuantity(variantId, nextQuantity) {
+  let updated = false
+  const normalizedQuantity = Math.max(0, Number(nextQuantity || 0))
+  const nextVariants = { ...variants.value }
+
+  Object.entries(nextVariants).forEach(([colorKey, colorValue]) => {
+    const sizes = Object.entries(colorValue?.sizes || {})
+    if (!sizes.length) return
+
+    let colorUpdated = false
+    const nextSizes = { ...(colorValue?.sizes || {}) }
+
+    sizes.forEach(([sizeKey, sizeValue]) => {
+      if (Number(sizeValue?.variant_id || 0) !== Number(variantId)) {
+        return
+      }
+
+      nextSizes[sizeKey] = {
+        ...sizeValue,
+        quantity: normalizedQuantity,
+      }
+      colorUpdated = true
+      updated = true
+    })
+
+    if (colorUpdated) {
+      nextVariants[colorKey] = {
+        ...colorValue,
+        sizes: nextSizes,
+      }
+    }
+  })
+
+  if (updated) {
+    variants.value = nextVariants
+  }
+
+  return updated
+}
+
+async function refreshRealtimeVariant(variantId) {
+  const response = await getProductVariantById(variantId)
+  const payload = response?.data || {}
+  const nextQuantity = Math.max(0, Number(payload.quantity || 0))
+  return setVariantStockQuantity(variantId, nextQuantity)
+}
+
+async function flushRealtimeVariantRefresh() {
+  const variantIds = Array.from(pendingRealtimeVariantIds)
+  pendingRealtimeVariantIds.clear()
+
+  if (!variantIds.length) {
+    return
+  }
+
+  const activeVariantId = Number(selectedSizeVariantId.value || 0)
+  const previousQuantity = validatePositiveInteger(quantity.value).value || 1
+  const touchedActiveVariant = variantIds.includes(activeVariantId)
+
+  await Promise.allSettled(variantIds.map((variantId) => refreshRealtimeVariant(variantId)))
+
+  if (!touchedActiveVariant) {
+    return
+  }
+
+  if (previousQuantity > quantityMax.value) {
+    quantity.value = quantityMax.value
+  }
+
+  if (stockQuantity.value <= 0) {
+    infoMessage.value = 'La talla seleccionada se agotó en tiempo real.'
+    return
+  }
+
+  if (previousQuantity > quantityMax.value) {
+    infoMessage.value = `La disponibilidad cambió en tiempo real. Ahora solo quedan ${stockQuantity.value} unidades.`
+  }
+}
+
+function scheduleRealtimeVariantRefresh(variantIds = []) {
+  variantIds.forEach((variantId) => {
+    const normalizedVariantId = Number(variantId || 0)
+    if (Number.isFinite(normalizedVariantId) && normalizedVariantId > 0) {
+      pendingRealtimeVariantIds.add(normalizedVariantId)
+    }
+  })
+
+  if (!pendingRealtimeVariantIds.size) {
+    return
+  }
+
+  if (realtimeVariantRefreshTimerId) {
+    window.clearTimeout(realtimeVariantRefreshTimerId)
+  }
+
+  realtimeVariantRefreshTimerId = window.setTimeout(() => {
+    realtimeVariantRefreshTimerId = null
+    flushRealtimeVariantRefresh()
+  }, 260)
+}
+
 function initialColorLetter(name) {
   const clean = String(normalizeUtf8Text(name || 'C')).trim()
   return clean ? clean.slice(0, 1).toUpperCase() : 'C'
 }
 
 function normalizeQuantity() {
-  const parsed = Number(quantity.value || 1)
+  const result = validatePositiveInteger(quantity.value)
 
-  if (Number.isNaN(parsed) || parsed < 1) {
-    quantity.value = 1
+  if (!result.valid) {
+    quantityError.value = numericValidationMessages.positiveInteger
     return
   }
 
-  if (parsed > quantityMax.value) {
+  if (result.value > quantityMax.value) {
     quantity.value = quantityMax.value
+    quantityError.value = ''
     showQuantityLimitMessage()
     return
   }
 
-  quantity.value = Math.min(parsed, quantityMax.value)
+  quantity.value = result.value
+  quantityError.value = ''
+}
+
+function validateQuantityInput() {
+  const result = validatePositiveInteger(quantity.value)
+  quantityError.value = result.valid ? '' : numericValidationMessages.positiveInteger
 }
 
 function changeQuantity(step) {
-  if (Number(step || 0) > 0 && Number(quantity.value || 1) >= quantityMax.value) {
+  const current = validatePositiveInteger(quantity.value).value || 1
+  if (Number(step || 0) > 0 && current >= quantityMax.value) {
     showQuantityLimitMessage()
     return
   }
 
-  const nextValue = Number(quantity.value || 1) + Number(step || 0)
+  const nextValue = current + Number(step || 0)
   quantity.value = Math.max(1, Math.min(nextValue, quantityMax.value))
+  quantityError.value = ''
 }
 
 function onMainImageLoad() {
@@ -1043,6 +1167,7 @@ async function loadData() {
     selectedColorId.value = null
     selectedSizeVariantId.value = null
     quantity.value = 1
+    quantityError.value = ''
     currentImageIndex.value = 0
     activeTab.value = 'description'
   } catch {
@@ -1053,6 +1178,7 @@ async function loadData() {
 }
 
 async function addItemToCart() {
+  if (cartSubmitting.value) return false
   infoMessage.value = ''
 
   if (!activeSize.value?.variant_id) {
@@ -1076,7 +1202,18 @@ async function addItemToCart() {
   }
 
   normalizeQuantity()
+  const quantityResult = validatePositiveInteger(quantity.value)
+  if (!quantityResult.valid) {
+    infoMessage.value = numericValidationMessages.positiveInteger
+    showSnackbar({
+      type: 'warning',
+      title: 'Cantidad inválida',
+      message: numericValidationMessages.positiveInteger,
+    })
+    return false
+  }
 
+  cartSubmitting.value = true
   try {
     await addToCart({
       product_id: Number(product.value.id),
@@ -1084,7 +1221,7 @@ async function addItemToCart() {
         ? Number(activeColor.value.color_variant_id)
         : null,
       size_variant_id: Number(activeSize.value.variant_id),
-      quantity: Number(quantity.value || 1),
+      quantity: quantityResult.value,
       user_id: user.value?.id || null,
       session_id: user.value?.id ? null : sessionId.value,
     })
@@ -1106,6 +1243,8 @@ async function addItemToCart() {
       message,
     })
     return false
+  } finally {
+    cartSubmitting.value = false
   }
 }
 
@@ -1166,6 +1305,15 @@ async function toggleFavorite() {
   }
 }
 
+useStockRealtime((message) => {
+  const relevantVariantIds = message.variantIds.filter((variantId) => currentProductVariantIds.value.includes(variantId))
+  if (!relevantVariantIds.length) {
+    return
+  }
+
+  scheduleRealtimeVariantRefresh(relevantVariantIds)
+})
+
 onMounted(() => {
   loadData()
   window.addEventListener('keydown', onGlobalKeydown)
@@ -1174,6 +1322,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   window.removeEventListener('keydown', onGlobalKeydown)
+  if (realtimeVariantRefreshTimerId) {
+    window.clearTimeout(realtimeVariantRefreshTimerId)
+  }
 })
 </script>
 

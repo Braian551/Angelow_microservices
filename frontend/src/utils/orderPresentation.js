@@ -2,15 +2,15 @@ const ORDER_STATUS_LABELS = Object.freeze({
   created: 'Creada',
   pending: 'Pendiente',
   pending_payment: 'Pendiente de pago',
-  in_review: 'En revisión',
-  en_revision: 'En revisión',
+  in_review: 'En proceso',
+  en_revision: 'En proceso',
   processing: 'En proceso',
   shipped: 'Enviado',
   delivered: 'Entregado',
   completed: 'Completado',
   cancelled: 'Cancelado',
   canceled: 'Cancelado',
-  expired: 'Vencido',
+  expired: 'Cancelado',
   refunded: 'Reembolsado',
 })
 
@@ -23,7 +23,7 @@ const PAYMENT_STATUS_LABELS = Object.freeze({
   paid: 'Pagado',
   verified: 'Verificado',
   approved: 'Aprobado',
-  expired: 'Vencido',
+  expired: 'Cancelado',
   failed: 'Fallido',
   refunded: 'Reembolsado',
   rejected: 'Rechazado',
@@ -60,8 +60,8 @@ const BULK_ACTION_LABELS = Object.freeze({
 const GENERIC_REPLACEMENTS = [
   [/\bcreated\b/gi, 'Creada'],
   [/\bpending_payment\b/gi, 'Pendiente de pago'],
-  [/\bin_review\b/gi, 'En revisión'],
-  [/\ben_revision\b/gi, 'En revisión'],
+  [/\bin_review\b/gi, 'En proceso'],
+  [/\ben_revision\b/gi, 'En proceso'],
   [/\bpending_refund\b/gi, 'Reembolso en proceso'],
   [/\bpending\b/gi, 'Pendiente'],
   [/\bprocessing\b/gi, 'En proceso'],
@@ -70,7 +70,7 @@ const GENERIC_REPLACEMENTS = [
   [/\bcompleted\b/gi, 'Completado'],
   [/\bcancelled\b/gi, 'Cancelado'],
   [/\bcanceled\b/gi, 'Cancelado'],
-  [/\bexpired\b/gi, 'Vencido'],
+  [/\bexpired\b/gi, 'Cancelado'],
   [/\brefunded\b/gi, 'Reembolsado'],
   [/\bpaid\b/gi, 'Pagado'],
   [/\bverified\b/gi, 'Verificado'],
@@ -97,11 +97,12 @@ export function normalizeOrderStatus(status) {
     return 'pending'
   }
 
-  if (normalized === 'en_revision') {
-    return 'in_review'
+  if (normalized === 'en_revision' || normalized === 'in_review') {
+    return 'processing'
   }
 
-  if (normalized === 'canceled' || normalized === 'refunded') {
+  // Los pedidos con datos antiguos `expired` se tratan como cancelados para conservar una sola ruta final de negocio.
+  if (['canceled', 'expired', 'refunded'].includes(normalized)) {
     return 'cancelled'
   }
 
@@ -116,7 +117,6 @@ export function normalizePaymentStatus(status) {
 
 export const ADMIN_ORDER_FILTER_STATUSES = Object.freeze([
   { value: 'pending', label: 'Pendiente' },
-  { value: 'in_review', label: 'En revisión' },
   { value: 'processing', label: 'En proceso' },
   { value: 'shipped', label: 'Enviado' },
   { value: 'delivered', label: 'Entregado' },
@@ -126,7 +126,6 @@ export const ADMIN_ORDER_FILTER_STATUSES = Object.freeze([
 
 export const ADMIN_EDITABLE_ORDER_STATUSES = Object.freeze([
   { value: 'pending', label: 'Pendiente' },
-  { value: 'in_review', label: 'En revisión' },
   { value: 'processing', label: 'En proceso' },
   { value: 'shipped', label: 'Enviado' },
   { value: 'delivered', label: 'Entregado' },
@@ -211,8 +210,6 @@ export function getOrderStatusBadgeClass(status) {
   if (normalized === 'completed') return 'active'
   if (['processing', 'in_review', 'en_revision'].includes(normalized)) return 'processing'
   if (normalized === 'shipped') return 'shipped'
-  // Los estados vencidos se presentan como cierre/estado no activo en la UI del admin.
-  if (normalized === 'expired') return 'cancelled'
   if (['cancelled', 'canceled', 'refunded'].includes(normalized)) return 'cancelled'
   return 'pending'
 }

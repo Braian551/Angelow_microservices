@@ -10,10 +10,12 @@
 - [Servicios y puertos operativos](#servicios-y-puertos-operativos)
 - [Migraciones e importación de datos](#migraciones-e-importación-de-datos)
 - [Flujo técnico de frontend](#flujo-técnico-de-frontend)
+- [Validaciones numéricas de formularios](#validaciones-numéricas-de-formularios)
 - [Pruebas y validación técnica](#pruebas-y-validación-técnica)
 - [Mantenimiento de documentación](#mantenimiento-de-documentación)
 - [Mapa documental recomendado](#mapa-documental-recomendado)
 - [Incidencias frecuentes](#incidencias-frecuentes)
+- [Operación de reservas de stock](#operación-de-reservas-de-stock)
 <!-- indice:auto:end -->
 
 Guía operativa central para instalar, levantar, validar y mantener el repositorio sin perder trazabilidad entre frontend, microservicios y documentación compartida.
@@ -96,6 +98,14 @@ docker compose exec frontend sh -c "npm run build"
 Después del reinicio, validar la ruta impactada en navegador y forzar recarga dura si el cambio no aparece de inmediato.
 Si la tarea toca exportaciones administrativas PDF o Excel, validar además una descarga PDF y una descarga Excel sobre alguna vista intervenida y revisar la guía `frontend/docs/exportaciones-admin-reutilizables.md`.
 
+## Validaciones numéricas de formularios
+
+Las cantidades físicas, stock, inventario y unidades de carrito deben validarse como enteros positivos mayores o iguales a `1` tanto en frontend como en backend. Los precios COP deben persistirse como enteros sin centavos; el punto se acepta únicamente como separador de miles visual, por ejemplo `$68.799`, y se normaliza a `68799` antes de guardar.
+
+El frontend centraliza estas reglas en `frontend/src/utils/numericValidation.js`. Las APIs de `catalog-service` y `cart-service` deben repetir la validación para rechazar decimales, ceros, negativos, letras y símbolos inválidos aunque la solicitud no venga desde la SPA.
+
+Documento relacionado: `docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`.
+
 ## Pruebas y validación técnica
 
 Pruebas backend por servicio:
@@ -131,6 +141,7 @@ Validaciones mínimas de cierre:
 - `README.md`: visión general del repositorio, puertos y comandos base.
 - `docs/README.md`: índice compartido por categorías.
 - `docs/microservicios/README.md`: acceso a documentación por servicio.
+- `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`: matriz funcional actualizada por módulo, subproceso, regla del negocio y requisito de información.
 - `docs/testing/README.md`: ubicación de guías y evidencias de validación transversal.
 - `frontend/README.md`: guía local del frontend.
 - `frontend/docs/README.md`: flujo y patrones específicos del frontend.
@@ -141,3 +152,17 @@ Validaciones mínimas de cierre:
 - Si un cambio visual no aparece, repetir el protocolo de caché del frontend antes de seguir depurando.
 - Si una vista del dashboard llega sin datos, validar primero la API del dominio dueño y luego la capa Vue.
 - Si se crea documentación nueva, ubicarla en la carpeta temática correcta y enlazarla desde el índice correspondiente.
+
+## Operación de reservas de stock
+
+Las reservas temporales de inventario de `order-service` usan `ORDER_STOCK_RESERVATION_TTL` como ventana máxima para completar pago y sostener unidades. Cuando el TTL vence, el proceso operativo debe liberar la reserva y cancelar la orden con motivo `reservation_ttl_expired`; no debe quedar un estado final `expired` o `vencido` en órdenes.
+
+Comandos de verificación operativa:
+
+```bash
+docker compose exec -T order-service php artisan reservations:reconcile --batch=200
+docker compose logs --tail=120 order-worker
+docker compose logs --tail=120 order-scheduler
+```
+
+El cierre automático publica websocket en el canal configurado por `ORDER_STOCK_WS_CHANNEL`, registra historial y crea notificación para el cliente indicando que puede crear un nuevo pedido si los productos siguen disponibles.

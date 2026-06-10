@@ -1,0 +1,14 @@
+{
+  "name": "angelow-realtime-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gateway websocket global para stock e inventario realtime.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "redis": "^4.7.0",
+    "ws": "^8.18.0"
+  }
+}

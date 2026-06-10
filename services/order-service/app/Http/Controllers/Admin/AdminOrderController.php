@@ -18,7 +18,7 @@ class AdminOrderController extends Controller
     private const LEGACY_CONNECTION = 'legacy_mysql';
     private const ADMIN_STATUS_FILTER_GROUPS = [
         'pending' => ['pending', 'created', 'pending_payment'],
-        'in_review' => ['in_review', 'en_revision'],
+        'processing' => ['processing', 'in_review', 'en_revision'],
         'cancelled' => ['cancelled', 'canceled', 'refunded'],
     ];
 

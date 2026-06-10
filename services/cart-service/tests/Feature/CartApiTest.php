@@ -67,6 +67,20 @@ class CartApiTest extends TestCase
             ->assertJsonPath('data.subtotal', 180000);
     }
 
+    public function test_add_rejects_decimal_quantity_with_spanish_message(): void
+    {
+        Http::fake();
+
+        $this->postJson('/api/cart/add', [
+            'session_id' => 'sess_test',
+            'product_id' => 100,
+            'size_variant_id' => 10,
+            'quantity' => 1.5,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('quantity')
+            ->assertJsonPath('errors.quantity.0', 'La cantidad debe ser un número entero mayor o igual a 1.');
+    }
+
     public function test_update_quantity_fails_if_new_quantity_exceeds_stock(): void
     {
         Http::fake([
@@ -112,5 +126,13 @@ class CartApiTest extends TestCase
         $this->putJson("/api/cart/{$itemId}", ['quantity' => 3])
             ->assertStatus(422)
             ->assertJsonPath('success', false);
+    }
+
+    public function test_update_rejects_decimal_quantity_with_spanish_message(): void
+    {
+        $this->putJson('/api/cart/1', ['quantity' => 0.5])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('quantity')
+            ->assertJsonPath('errors.quantity.0', 'La cantidad debe ser un número entero mayor o igual a 1.');
     }
 }

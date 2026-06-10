@@ -127,20 +127,22 @@
                     class="action-btn edit"
                     type="button"
                     title="Verificar pago"
-                    :disabled="syncingPaymentId === payment.id"
+                    :class="{ 'is-loading': isPaymentActionLoading(payment, 'approved') }"
+                    :disabled="syncingPaymentId !== null"
                     @click="updatePayment(payment, 'approved')"
                   >
-                    <i class="fas fa-check"></i>
+                    <i :class="isPaymentActionLoading(payment, 'approved') ? 'fas fa-spinner fa-spin' : 'fas fa-check'"></i>
                   </button>
                   <button
                     v-if="payment.status === 'pending'"
                     class="action-btn delete"
                     type="button"
                     title="Rechazar pago"
-                    :disabled="syncingPaymentId === payment.id"
+                    :class="{ 'is-loading': isPaymentActionLoading(payment, 'rejected') }"
+                    :disabled="syncingPaymentId !== null"
                     @click="updatePayment(payment, 'rejected')"
                   >
-                    <i class="fas fa-times"></i>
+                    <i :class="isPaymentActionLoading(payment, 'rejected') ? 'fas fa-spinner fa-spin' : 'fas fa-times'"></i>
                   </button>
                 </div>
               </td>
@@ -302,10 +304,11 @@
       </div>
 
       <template #footer>
-        <button type="button" class="btn btn-primary" :disabled="savingAccountConfig || loadingAccountConfig" @click="submitAccountConfig">
+        <button type="button" class="btn btn-primary" :class="{ 'is-loading': savingAccountConfig }" :disabled="savingAccountConfig || loadingAccountConfig" @click="submitAccountConfig">
+          <i :class="savingAccountConfig ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
           {{ savingAccountConfig ? 'Guardando...' : 'Guardar configuración' }}
         </button>
-        <button type="button" class="btn btn-secondary" @click="closeAccountModal">Cerrar</button>
+        <button type="button" class="btn btn-secondary" :disabled="savingAccountConfig" @click="closeAccountModal">Cerrar</button>
       </template>
     </AdminModal>
 
@@ -346,6 +349,7 @@ const paymentAccount = ref(null)
 const accountBanks = ref([])
 const loading = ref(true)
 const syncingPaymentId = ref(null)
+const syncingPaymentStatus = ref('')
 const loadingAccountConfig = ref(false)
 const savingAccountConfig = ref(false)
 const showAccountModal = ref(false)
@@ -495,6 +499,7 @@ async function openAccountModal() {
 }
 
 function closeAccountModal() {
+  if (savingAccountConfig.value) return
   showAccountModal.value = false
 }
 
@@ -687,6 +692,8 @@ async function loadAdminPaymentAccountConfig() {
 }
 
 async function submitAccountConfig() {
+  if (savingAccountConfig.value) return
+
   if (!validateAccountForm()) {
     showSnackbar({ type: 'warning', message: 'Revisa los campos de la cuenta antes de guardar.' })
     return
@@ -721,7 +728,10 @@ async function submitAccountConfig() {
 }
 
 async function updatePayment(payment, status) {
+  if (syncingPaymentId.value !== null) return
+
   syncingPaymentId.value = payment.id
+  syncingPaymentStatus.value = status
   const previousStatus = normalizePaymentStatus(payment.status)
 
   try {
@@ -783,7 +793,12 @@ async function updatePayment(payment, status) {
     })
   } finally {
     syncingPaymentId.value = null
+    syncingPaymentStatus.value = ''
   }
+}
+
+function isPaymentActionLoading(payment, status) {
+  return syncingPaymentId.value === payment.id && syncingPaymentStatus.value === status
 }
 
 onMounted(async () => {

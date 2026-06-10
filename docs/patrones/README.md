@@ -3,6 +3,9 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito](#2026-06-10---validaciones-numéricas-reutilizables-para-productos-inventario-y-carrito)
+- [2026-06-08 - Factura descargable desde detalle de pedido y estados unificados](#2026-06-08---factura-descargable-desde-detalle-de-pedido-y-estados-unificados)
+- [2026-06-08 - Feedback de acciones mutables en header tablas y modales](#2026-06-08---feedback-de-acciones-mutables-en-header-tablas-y-modales)
 - [2026-05-24 - Exportaciones admin reutilizables en PDF y Excel](#2026-05-24---exportaciones-admin-reutilizables-en-pdf-y-excel)
 - [2026-04-24 - Migración de CSS legacy al flujo real frontend](#2026-04-24---migración-de-css-legacy-al-flujo-real-frontend)
 - [2026-04-18 - Persistencia robusta de direcciones ante caida de legacy](#2026-04-18---persistencia-robusta-de-direcciones-ante-caida-de-legacy)
@@ -36,6 +39,28 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito
+
+- Patrón: Facade + Strategy (Refactoring Guru)
+- Aplicación: se centralizaron reglas de enteros positivos y precios COP sin centavos en frontend, y se reforzó la validación equivalente en `catalog-service` y `cart-service`.
+- Ubicación: `frontend/src/utils/numericValidation.js`, `frontend/src/modules/admin/pages/AdminProductFormPage.vue`, `frontend/src/modules/admin/pages/AdminInventoryPage.vue`, `frontend/src/modules/catalog/pages/ProductDetailPage.vue`, `frontend/src/modules/cart/pages/CartPage.vue`, `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`, `services/cart-service/app/Http/Controllers/CartController.php`
+- Problema resuelto: evitar que cantidades, stock, inventario, carrito o precios COP acepten decimales, cero, negativos, campos vacíos, letras o símbolos inválidos.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
+
+## 2026-06-08 - Factura descargable desde detalle de pedido y estados unificados
+
+- Patrón: Facade + Adapter (Refactoring Guru)
+- Aplicación: el detalle de pedido del cliente consume una fachada de descarga de factura que reutiliza la generación PDF existente y adapta estados antiguos `in_review/en_revision` al estado visible único `processing`.
+- Ubicación: `services/order-service/routes/api.php`, `services/order-service/app/Http/Controllers/OrderController.php`, `services/order-service/app/Http/Controllers/Admin/AdminOrderController.php`, `frontend/src/services/orderApi.js`, `frontend/src/modules/account/pages/OrderDetailPage.vue`, `frontend/src/utils/orderPresentation.js`, `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`
+- Problema resuelto: permitir descargar la factura desde el detalle de un pedido propio y evitar duplicidad funcional entre "En revisión" y "En proceso" en el estado de orden.
+
+## 2026-06-08 - Feedback de acciones mutables en header tablas y modales
+
+- Patrón: State (Refactoring Guru)
+- Aplicación: el shell público mantiene un estado compartido para el contador de notificaciones no leídas y las acciones que mutan datos en tablas, modales y alertas pasan a un estado visible de carga mientras la petición al servidor está pendiente.
+- Ubicación: `frontend/src/composables/useAppShell.js`, `frontend/src/components/layout/SiteHeader.vue`, `frontend/src/components/layout/Header.css`, `frontend/src/components/ui/UserAlertSystem.vue`, `frontend/src/components/ui/UserAlertSystem.css`, `frontend/src/modules/admin/pages/AdminPaymentsPage.vue`, `frontend/src/modules/admin/pages/AdminOrdersPage.vue`, `frontend/src/modules/admin/pages/AdminOrderDetailPage.vue`, `frontend/src/modules/admin/styles/admin.css`, `.agents/skills/skill/SKILL.md`
+- Problema resuelto: evitar dobles envíos, clics repetidos y percepción de bloqueo cuando una acción de tabla o un guardado de modal espera respuesta del backend.
 
 ## 2026-05-24 - Exportaciones admin reutilizables en PDF y Excel
 
@@ -83,6 +108,11 @@
 - Aplicacion: publicacion de eventos de reserva/confirmacion/liberacion sobre canales Redis pub/sub para consumo por websocket gateway y sincronizacion de UI en tiempo real.
 - Ubicacion: services/order-service/app/Services/StockReservationRealtimePublisher.php, services/order-service/app/Services/StockReservationService.php
 - Problema resuelto: propagar cambios de disponibilidad de inmediato y reducir ventanas de duplicidad por latencia de actualizacion.
+
+- Patrón: State (Refactoring Guru)
+- Aplicación: el vencimiento del TTL de reserva se trata como causa de transición y no como estado final; `ExpireStockReservationJob` libera stock, deja la orden en `cancelled`, registra historial, publica websocket con instrucciones y crea notificación para el cliente.
+- Ubicación: services/order-service/app/Jobs/ExpireStockReservationJob.php, services/order-service/app/Services/StockReservationService.php, frontend/src/utils/orderPresentation.js, docs/referencias/matriz-requerimientos-funcionales-actualizada.md
+- Problema resuelto: evitar que el estado paralelo `expired` rompa filtros, acciones administrativas, liberación de stock y comunicación al usuario.
 
 - Patron: Adapter
 - Aplicacion: endpoint interno de catalogo para commit atomico de inventario por variante, manteniendo contrato de ordenes existente y aislando la logica de descuento real de stock.

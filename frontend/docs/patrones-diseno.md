@@ -7,6 +7,9 @@
   - [1) Facade](#1-facade)
   - [2) Mediator](#2-mediator)
   - [3) Singleton (estado compartido de UI)](#3-singleton-estado-compartido-de-ui)
+- [Cambio: Validaciones numéricas reutilizables](#cambio-validaciones-numéricas-reutilizables)
+  - [1) Facade](#1-facade-1)
+  - [2) Strategy](#2-strategy)
 - [Checklist para futuros cambios](#checklist-para-futuros-cambios)
 <!-- indice:auto:end -->
 
@@ -43,6 +46,33 @@ Aplicacion:
 
 Problema resuelto:
 - Un unico estado global de feedback para toda la SPA, con comportamiento consistente.
+
+## Cambio: Validaciones numéricas reutilizables
+Fecha: 2026-06-10
+
+### 1) Facade
+Referencia: https://refactoring.guru/es/design-patterns/facade
+
+Aplicación:
+- `src/utils/numericValidation.js`
+- `src/modules/admin/pages/AdminProductFormPage.vue`
+- `src/modules/admin/pages/AdminInventoryPage.vue`
+- `src/modules/catalog/pages/ProductDetailPage.vue`
+- `src/modules/cart/pages/CartPage.vue`
+
+Problema resuelto:
+- Las vistas usan una interfaz única para validar cantidades, stock y precios COP sin duplicar reglas.
+- El precio visual con separador de miles se normaliza antes de enviar al backend.
+
+### 2) Strategy
+Referencia: https://refactoring.guru/es/design-patterns/strategy
+
+Aplicación:
+- `src/utils/numericValidation.js`
+
+Problema resuelto:
+- Cada regla numérica tiene una estrategia clara: enteros positivos para unidades físicas y enteros COP sin centavos para precios.
+- Se rechazan decimales como `1.5`, `0.6` o `10.99` antes del submit.
 
 ## Checklist para futuros cambios
 - Identificar el problema de diseno antes de codificar.

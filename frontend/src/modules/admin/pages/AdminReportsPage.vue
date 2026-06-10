@@ -19,10 +19,6 @@
           @excel="exportReport('excel')"
           @pdf="exportReport('pdf')"
         />
-        <button class="btn btn-primary" type="button" @click="printReport">
-          <i class="fas fa-print"></i>
-          Imprimir
-        </button>
       </template>
     </AdminPageHeader>
 
@@ -1216,17 +1212,6 @@ function exportReport(format) {
     ...payload,
     emptyMessage: 'No hay datos para exportar.',
   })
-}
-
-function printReport() {
-  const hasData = activeReportRows.value.length > 0
-
-  if (!hasData) {
-    showSnackbar({ type: 'warning', message: 'No hay datos para imprimir.' })
-    return
-  }
-
-  window.print()
 }
 
 function getBucketKey(date, period) {

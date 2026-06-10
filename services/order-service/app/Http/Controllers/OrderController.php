@@ -23,10 +23,10 @@ class OrderController extends Controller
     private const LEGACY_CONNECTION = 'legacy_mysql';
     private const DEFAULT_NOTIFICATION_TYPE_ID = 1;
     private const REVIEWABLE_ORDER_STATUSES = ['pending', 'pending_payment', 'created'];
-    private const REVIEW_STATUS = 'in_review';
+    private const REVIEW_STATUS = 'processing';
     private const ALLOWED_ORDER_STATUS_VALUES = ['created', 'pending', 'pending_payment', 'in_review', 'en_revision', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'canceled', 'refunded'];
     private const CONFIRM_RESERVATION_STATUS_VALUES = ['paid', 'confirmed', 'processing', 'completed', 'delivered'];
-    private const RELEASE_RESERVATION_STATUS_VALUES = ['cancelled', 'canceled', 'rejected', 'failed', 'expired'];
+    private const RELEASE_RESERVATION_STATUS_VALUES = ['cancelled', 'canceled', 'rejected', 'failed'];
     private const CONFIRM_RESERVATION_PAYMENT_VALUES = ['paid', 'approved', 'verified'];
     private const RELEASE_RESERVATION_PAYMENT_VALUES = ['rejected', 'failed', 'cancelled', 'canceled'];
     private array $authProfilesById = [];
@@ -97,6 +97,43 @@ class OrderController extends Controller
             'order' => $order,
             'items' => $items,
             'history' => $history,
+        ]);
+    }
+
+    public function downloadInvoice(Request $request, int $id)
+    {
+        // Reutiliza la generación de factura existente, pero valida primero que el pedido pertenezca al cliente.
+        $data = $request->validate([
+            'source' => ['nullable', 'string', 'max:20'],
+            'user_id' => ['nullable', 'string', 'max:40'],
+            'user_email' => ['nullable', 'string', 'email', 'max:255'],
+        ]);
+
+        $preferredConnection = $this->normalizeSourceConnection($data['source'] ?? $request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
+
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        $order = $this->hydrateOrderCustomerIdentity($order, $sourceConnection);
+        if (!$this->canCustomerManageOrder($order, $sourceConnection, $data['user_id'] ?? null, $data['user_email'] ?? null)) {
+            return response()->json(['message' => 'No tienes permiso para descargar esta factura.'], 403);
+        }
+
+        $result = $this->orderInvoiceService->buildInvoicePdfForDownload($id, $sourceConnection);
+        if (!($result['ok'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'] ?? 'No se pudo descargar la factura.',
+            ], (int) ($result['code'] ?? 422));
+        }
+
+        return response($result['content'], 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . ($result['filename'] ?? ('factura_' . $id . '.pdf')) . '"',
+            'Cache-Control' => 'private, max-age=0, must-revalidate',
+            'Pragma' => 'public',
         ]);
     }
 
@@ -330,7 +367,7 @@ class OrderController extends Controller
                     'field_changed' => 'status',
                     'old_value' => $oldStatus,
                     'new_value' => self::REVIEW_STATUS,
-                    'description' => 'Comprobante recibido. La orden quedo en revision de pago.',
+                    'description' => 'Comprobante recibido. La orden pasó a proceso mientras se verifica el pago.',
                     'created_at' => now(),
                 ]);
 
@@ -1858,16 +1895,16 @@ HTML;
 
         $statusMap = [
             'pending' => 'Pendiente',
-            'in_review' => 'En revision',
-            'en_revision' => 'En revision',
-            'processing' => 'En preparación',
-            'in_process' => 'En preparación',
+            'in_review' => 'En proceso',
+            'en_revision' => 'En proceso',
+            'processing' => 'En proceso',
+            'in_process' => 'En proceso',
             'confirmed' => 'Confirmado',
             'paid' => 'Pagado',
             'shipped' => 'Enviado',
             'delivered' => 'Entregado',
             'completed' => 'Completado',
-            'expired' => 'Expirado',
+            'expired' => 'Cancelado',
             'cancelled' => 'Cancelado',
             'canceled' => 'Cancelado',
             'returned' => 'Devuelto',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\StockRealtimePublisher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -204,6 +205,24 @@ class InternalCatalogController extends Controller
                 );
             }
 
+            app(StockRealtimePublisher::class)->publish('stock.inventory.committed', [
+                'source' => 'catalog-order-commit',
+                'history_updated' => true,
+                'order_id' => (int) $data['order_id'],
+                'strict_reservation' => $strictReservation,
+                'items' => array_map(function (array $item): array {
+                    $snapshot = $this->buildRealtimeStockSnapshot(
+                        (int) ($item['size_variant_id'] ?? 0),
+                        (int) ($item['stock_after'] ?? 0),
+                    );
+
+                    return [
+                        ...$snapshot,
+                        'committed_quantity' => (int) ($item['committed_quantity'] ?? 0),
+                    ];
+                }, $processed),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Inventario confirmado correctamente.',
@@ -273,6 +292,42 @@ class InternalCatalogController extends Controller
             return max(0, $availableStock + $reservedStock);
         } catch (Throwable) {
             return $safeFallback;
+        }
+    }
+
+    private function buildRealtimeStockSnapshot(int $sizeVariantId, int $databaseStock): array
+    {
+        $snapshot = [
+            'size_variant_id' => $sizeVariantId,
+            'database_stock' => max(0, $databaseStock),
+            'available_stock' => max(0, $databaseStock),
+            'reserved_stock' => 0,
+        ];
+
+        if ($sizeVariantId <= 0) {
+            return $snapshot;
+        }
+
+        try {
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+
+            $availableStock = $stockValue !== null && is_numeric((string) $stockValue)
+                ? max(0, (int) $stockValue)
+                : max(0, $databaseStock);
+
+            $reservedStock = $reservedValue !== null && is_numeric((string) $reservedValue)
+                ? max(0, (int) $reservedValue)
+                : 0;
+
+            return [
+                'size_variant_id' => $sizeVariantId,
+                'database_stock' => max(0, $databaseStock),
+                'available_stock' => $availableStock,
+                'reserved_stock' => $reservedStock,
+            ];
+        } catch (Throwable) {
+            return $snapshot;
         }
     }
 }

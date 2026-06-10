@@ -153,8 +153,15 @@
                   <button class="action-btn edit" type="button" title="Cambiar estado de pago" @click="openPaymentStatusModal(order)">
                     <i class="fas fa-credit-card"></i>
                   </button>
-                  <button class="action-btn delete" type="button" :disabled="order.status === 'cancelled'" :title="order.status === 'cancelled' ? 'Orden ya desactivada' : 'Desactivar orden'" @click="confirmDeactivateOrder(order)">
-                    <i class="fas fa-power-off"></i>
+                  <button
+                    class="action-btn delete"
+                    type="button"
+                    :class="{ 'is-loading': isOrderActionLoading(order, 'deactivate') }"
+                    :disabled="order.status === 'cancelled' || Boolean(savingOrderActionKey)"
+                    :title="order.status === 'cancelled' ? 'Orden ya desactivada' : 'Desactivar orden'"
+                    @click="confirmDeactivateOrder(order)"
+                  >
+                    <i :class="isOrderActionLoading(order, 'deactivate') ? 'fas fa-spinner fa-spin' : 'fas fa-power-off'"></i>
                   </button>
                   <RouterLink :to="buildOrderDetailRoute(order)" class="action-btn edit" title="Ir al detalle completo">
                     <i class="fas fa-arrow-right"></i>
@@ -285,8 +292,11 @@
       </div>
 
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="closeStatusModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" @click="submitStatusChange">Guardar cambio</button>
+        <button class="btn btn-secondary" type="button" :disabled="savingStatusChange" @click="closeStatusModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" :class="{ 'is-loading': savingStatusChange }" :disabled="savingStatusChange" @click="submitStatusChange">
+          <i :class="savingStatusChange ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
+          {{ savingStatusChange ? 'Guardando...' : 'Guardar cambio' }}
+        </button>
       </template>
     </AdminModal>
 
@@ -324,8 +334,11 @@
       </div>
 
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="closePaymentStatusModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" @click="submitPaymentStatusChange">Guardar cambio</button>
+        <button class="btn btn-secondary" type="button" :disabled="savingPaymentStatusChange" @click="closePaymentStatusModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" :class="{ 'is-loading': savingPaymentStatusChange }" :disabled="savingPaymentStatusChange" @click="submitPaymentStatusChange">
+          <i :class="savingPaymentStatusChange ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
+          {{ savingPaymentStatusChange ? 'Guardando...' : 'Guardar cambio' }}
+        </button>
       </template>
     </AdminModal>
 
@@ -400,8 +413,11 @@
       </div>
 
       <template #footer>
-        <button class="btn btn-secondary" type="button" @click="closeBulkModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" :disabled="bulkSaving" @click="submitBulkAction">Aplicar cambios</button>
+        <button class="btn btn-secondary" type="button" :disabled="bulkSaving" @click="closeBulkModal">Cancelar</button>
+        <button class="btn btn-primary" type="button" :class="{ 'is-loading': bulkSaving }" :disabled="bulkSaving" @click="submitBulkAction">
+          <i :class="bulkSaving ? 'fas fa-spinner fa-spin' : 'fas fa-save'"></i>
+          {{ bulkSaving ? 'Aplicando...' : 'Aplicar cambios' }}
+        </button>
       </template>
     </AdminModal>
   </div>
@@ -452,6 +468,9 @@ const showStatusModal = ref(false)
 const showPaymentStatusModal = ref(false)
 const showBulkModal = ref(false)
 const bulkSaving = ref(false)
+const savingStatusChange = ref(false)
+const savingPaymentStatusChange = ref(false)
+const savingOrderActionKey = ref('')
 const selectedOrder = ref(null)
 const detailOrder = ref(null)
 
@@ -710,6 +729,7 @@ function openStatusModal(order) {
 }
 
 function closeStatusModal() {
+  if (savingStatusChange.value) return
   showStatusModal.value = false
 }
 
@@ -732,10 +752,13 @@ function openPaymentStatusModal(order) {
 }
 
 function closePaymentStatusModal() {
+  if (savingPaymentStatusChange.value) return
   showPaymentStatusModal.value = false
 }
 
 async function submitPaymentStatusChange() {
+  if (savingPaymentStatusChange.value) return
+
   validatePaymentField('payment_status')
   if (paymentErrors.payment_status || !selectedOrder.value) return
 
@@ -750,6 +773,7 @@ async function submitPaymentStatusChange() {
         text: 'Guardar',
         style: 'primary',
         callback: async () => {
+          savingPaymentStatusChange.value = true
           try {
             await orderHttp.patch(`/orders/${targetOrder.id}/payment-status`, {
               source: normalizeOrderSource(targetOrder.order_source),
@@ -764,6 +788,8 @@ async function submitPaymentStatusChange() {
             await loadOrders()
           } catch {
             showSnackbar({ type: 'error', message: 'Error actualizando estado de pago' })
+          } finally {
+            savingPaymentStatusChange.value = false
           }
         },
       },
@@ -792,6 +818,11 @@ function confirmDeactivateOrder(order) {
 }
 
 async function deactivateOrder(order, description) {
+  const actionKey = buildOrderActionKey(order, 'deactivate')
+  if (savingOrderActionKey.value) return
+
+  savingOrderActionKey.value = actionKey
+
   try {
     await orderHttp.patch(`/orders/${order.id}/deactivate`, {
       source: normalizeOrderSource(order.order_source),
@@ -801,7 +832,17 @@ async function deactivateOrder(order, description) {
     await loadOrders()
   } catch {
     showSnackbar({ type: 'error', message: 'No se pudo desactivar la orden' })
+  } finally {
+    savingOrderActionKey.value = ''
   }
+}
+
+function buildOrderActionKey(order, action) {
+  return `${buildOrderSelectionKey(order)}:${action}`
+}
+
+function isOrderActionLoading(order, action) {
+  return savingOrderActionKey.value === buildOrderActionKey(order, action)
 }
 
 function isOrderSelected(order) {
@@ -850,6 +891,7 @@ function openBulkActionsModal() {
 }
 
 function closeBulkModal() {
+  if (bulkSaving.value) return
   showBulkModal.value = false
 }
 
@@ -883,6 +925,8 @@ function validateBulkField(field) {
 }
 
 async function submitBulkAction() {
+  if (bulkSaving.value) return
+
   validateBulkField('action')
   validateBulkField('status')
   validateBulkField('payment_status')
@@ -966,6 +1010,8 @@ async function submitBulkAction() {
 }
 
 async function submitStatusChange() {
+  if (savingStatusChange.value) return
+
   validateStatusField('status')
   if (statusErrors.status || !selectedOrder.value) return
 
@@ -980,6 +1026,7 @@ async function submitStatusChange() {
         text: 'Guardar',
         style: 'primary',
         callback: async () => {
+          savingStatusChange.value = true
           try {
             await orderHttp.patch(`/orders/${targetOrder.id}/status`, {
               source: normalizeOrderSource(targetOrder.order_source),
@@ -994,6 +1041,8 @@ async function submitStatusChange() {
             await loadOrders()
           } catch {
             showSnackbar({ type: 'error', message: 'Error actualizando estado de la orden' })
+          } finally {
+            savingStatusChange.value = false
           }
         },
       },

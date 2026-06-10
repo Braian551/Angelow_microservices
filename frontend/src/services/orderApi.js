@@ -10,6 +10,13 @@ export async function getOrderById(orderId) {
   return data
 }
 
+export async function downloadOrderInvoice(orderId, params = {}) {
+  return orderHttp.get(`/orders/${orderId}/invoice/download`, {
+    params,
+    responseType: 'blob',
+  })
+}
+
 export async function createOrder(payload) {
   const { data } = await orderHttp.post('/orders', payload)
   return data

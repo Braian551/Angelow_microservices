@@ -190,6 +190,31 @@ Este archivo centraliza las dependencias agregadas/usadas para tareas funcionale
   - Se mejoró UI de cambio de foto en modal de administradores.
   - Se refinó el botón Volver en detalle de producto.
 
+## 2026-06-07 - Gateway websocket global para stock reservado e inventario
+
+- Tipo: dependencias Node para microservicio auxiliar realtime
+- Paquete/version: `redis@^4.7.0`, `ws@^8.18.0`
+- Motivo: exponer por websocket global los eventos de reservas, confirmaciones, ajustes y transferencias de stock publicados en Redis para sincronizar carrito, producto y admin en tiempo real.
+- Comando usado: `npm install redis@^4.7.0 ws@^8.18.0`
+- Archivos donde se aplica:
+  - `services/realtime-gateway/package.json`
+  - `services/realtime-gateway/Dockerfile`
+  - `services/realtime-gateway/server.js`
+  - `docker-compose.yml`
+  - `services/catalog-service/app/Services/StockRealtimePublisher.php`
+  - `services/catalog-service/config/services.php`
+  - `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`
+  - `services/catalog-service/app/Http/Controllers/InternalCatalogController.php`
+  - `frontend/src/composables/useStockRealtime.js`
+  - `frontend/src/services/catalogApi.js`
+  - `frontend/src/modules/catalog/pages/ProductDetailPage.vue`
+  - `frontend/src/modules/cart/pages/CartPage.vue`
+  - `frontend/src/modules/admin/pages/AdminInventoryPage.vue`
+- Contexto funcional:
+  - `order-service` ya emitía eventos de reserva/liberación/confirmación hacia Redis; ahora `catalog-service` también publica ajustes, transferencias y commits del inventario al mismo canal base `ws:orders:stock`.
+  - `realtime-gateway` se suscribe a Redis y retransmite el stream a `ws://localhost:8090`, dejando un punto único de escucha para todo el frontend.
+  - El frontend usa `WebSocket` nativo y un composable compartido para refrescar stock en detalle de producto, carrito y admin inventario sin agregar una librería cliente extra.
+
 ## Plantilla para futuras entradas
 
 - Fecha:

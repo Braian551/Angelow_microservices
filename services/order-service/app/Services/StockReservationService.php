@@ -18,7 +18,6 @@ class StockReservationService
 {
     private const RESERVATION_STATUS_RESERVED = 'reserved';
     private const RESERVATION_STATUS_CONFIRMED = 'confirmed';
-    private const RESERVATION_STATUS_EXPIRED = 'expired';
     private const RESERVATION_STATUS_CANCELLED = 'cancelled';
 
     private const OUT_OF_STOCK_HTTP_STATUS = 409;
@@ -295,9 +294,8 @@ class StockReservationService
             );
         }
 
-        $status = in_array($targetStatus, [self::RESERVATION_STATUS_EXPIRED, self::RESERVATION_STATUS_CANCELLED], true)
-            ? $targetStatus
-            : self::RESERVATION_STATUS_CANCELLED;
+        // El vencimiento del TTL es una causa operativa; la reserva siempre cierra como cancelada para no crear estados finales paralelos.
+        $status = self::RESERVATION_STATUS_CANCELLED;
 
         $rows = DB::table('stock_reservations')
             ->where('order_id', $orderId)
@@ -393,8 +391,8 @@ class StockReservationService
     {
         return $this->releaseReservation(
             orderId: $orderId,
-            targetStatus: self::RESERVATION_STATUS_EXPIRED,
-            reason: 'ttl_expired',
+            targetStatus: self::RESERVATION_STATUS_CANCELLED,
+            reason: 'reservation_ttl_expired',
         );
     }
 
@@ -404,7 +402,7 @@ class StockReservationService
             return [
                 'ok' => true,
                 'scanned_orders' => 0,
-                'expired_orders' => 0,
+                'cancelled_orders' => 0,
                 'errors' => 0,
             ];
         }
@@ -421,13 +419,13 @@ class StockReservationService
             ->filter(static fn (int $value): bool => $value > 0)
             ->values();
 
-        $expired = 0;
+        $cancelled = 0;
         $errors = 0;
 
         foreach ($orderIds as $orderId) {
             $result = $this->expireReservation((int) $orderId);
             if (($result['ok'] ?? false) && (int) ($result['released'] ?? 0) > 0) {
-                $expired++;
+                $cancelled++;
                 continue;
             }
 
@@ -439,7 +437,7 @@ class StockReservationService
         return [
             'ok' => true,
             'scanned_orders' => $orderIds->count(),
-            'expired_orders' => $expired,
+            'cancelled_orders' => $cancelled,
             'errors' => $errors,
         ];
     }

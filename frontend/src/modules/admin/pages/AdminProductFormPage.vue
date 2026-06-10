@@ -131,7 +131,7 @@
                       Precio base *
                       <AdminInfoTooltip text="Precio de venta principal del producto en pesos. Las variantes pueden tener su propio precio." />
                     </label>
-                    <input id="product-price" v-model="form.price" type="number" step="0.01" min="0" class="form-control" :class="{ 'is-invalid': errors.price }" @input="validateField('price')">
+                    <input id="product-price" v-model="form.price" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': errors.price }" placeholder="$68.799" @input="handleCopInput('price')">
                     <p v-if="errors.price" class="form-error">{{ errors.price }}</p>
                   </div>
                   <div class="form-group">
@@ -139,7 +139,7 @@
                       Precio comparativo
                       <AdminInfoTooltip text="Precio original o tachado que muestra el descuento al cliente. Deja vacío si no aplica." />
                     </label>
-                    <input id="product-compare-price" v-model="form.compare_price" type="number" step="0.01" min="0" class="form-control" :class="{ 'is-invalid': errors.compare_price }" @input="validateField('compare_price')">
+                    <input id="product-compare-price" v-model="form.compare_price" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': errors.compare_price }" placeholder="$79.900" @input="handleCopInput('compare_price')">
                     <p v-if="errors.compare_price" class="form-error">{{ errors.compare_price }}</p>
                   </div>
                 </div>
@@ -368,7 +368,7 @@
           <button type="button" class="btn btn-secondary" @click="activeTab = activeTab === 'general' ? 'variants' : 'general'">
             <i class="fas fa-exchange-alt"></i> Cambiar vista
           </button>
-          <button type="submit" class="btn btn-primary" :disabled="saving">
+          <button type="submit" class="btn btn-primary" :disabled="saving || !canSaveProduct">
             <i class="fas fa-save"></i> {{ saving ? 'Guardando...' : (isEditing ? 'Actualizar producto' : 'Guardar producto') }}
           </button>
         </div>
@@ -424,21 +424,24 @@
                   Precio *
                   <AdminInfoTooltip text="Precio de venta de esta combinación color + talla. Valor en pesos." />
                 </label>
-                <input v-model="sizeRow.price" type="number" step="0.01" min="0" class="form-control">
+                <input v-model="sizeRow.price" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': sizeRow.errors?.price }" placeholder="$68.799" @input="handleSizeCopInput(sizeRow, 'price')">
+                <p v-if="sizeRow.errors?.price" class="form-error">{{ sizeRow.errors.price }}</p>
               </div>
               <div class="form-group">
                 <label>
                   Precio comparativo
                   <AdminInfoTooltip text="Precio original o tachado que muestra el descuento al cliente. Deja vacío si no hay precio anterior." />
                 </label>
-                <input v-model="sizeRow.compare_price" type="number" step="0.01" min="0" class="form-control">
+                <input v-model="sizeRow.compare_price" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': sizeRow.errors?.compare_price }" placeholder="$79.900" @input="handleSizeCopInput(sizeRow, 'compare_price')">
+                <p v-if="sizeRow.errors?.compare_price" class="form-error">{{ sizeRow.errors.compare_price }}</p>
               </div>
               <div class="form-group">
                 <label>
                   Stock
                   <AdminInfoTooltip text="Unidades disponibles en inventario para esta variante." />
                 </label>
-                <input v-model="sizeRow.quantity" type="number" step="1" min="0" class="form-control">
+                <input v-model="sizeRow.quantity" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': sizeRow.errors?.quantity }" @input="validateSizeRow(sizeRow)">
+                <p v-if="sizeRow.errors?.quantity" class="form-error">{{ sizeRow.errors.quantity }}</p>
               </div>
               <div class="form-group">
                 <label>
@@ -486,6 +489,13 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { catalogHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import {
+  formatCopPrice,
+  normalizeCopInput,
+  numericValidationMessages,
+  validateCopPrice,
+  validatePositiveInteger,
+} from '../../../utils/numericValidation'
 import AdminCard from '../components/AdminCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -576,6 +586,8 @@ const totalStock = computed(() => form.variants.reduce(
   (total, variant) => total + variant.sizes.reduce((variantTotal, size) => variantTotal + Number(size.quantity || 0), 0),
   0,
 ))
+
+const canSaveProduct = computed(() => hasValidProductState())
 
 function nextVariantKey() {
   variantSeed += 1
@@ -812,11 +824,16 @@ function createSizeRow(partial = {}) {
     size_id: partial.size_id ? Number(partial.size_id) : '',
     price: partial.price ?? form.price ?? '',
     compare_price: partial.compare_price ?? form.compare_price ?? '',
-    quantity: Number(partial.quantity ?? 0),
+    quantity: partial.quantity ?? '',
     sku: partial.sku || '',
     sku_manually_edited: partial.sku_manually_edited ?? shouldTreatExistingSkuAsManual(partial.sku),
     barcode: partial.barcode || '',
     is_active: normalizeBoolean(partial.is_active, true),
+    errors: {
+      price: '',
+      compare_price: '',
+      quantity: '',
+    },
   }
 }
 
@@ -967,8 +984,7 @@ function sizeName(sizeId) {
 }
 
 function currencyLabel(value) {
-  const amount = Number(value || 0)
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount)
+  return formatCopPrice(value)
 }
 
 function setDefaultVariant(key) {
@@ -1048,7 +1064,7 @@ function validateField(field) {
   }
 
   if (field === 'price') {
-    errors.price = Number(form.price || 0) > 0 ? '' : 'El precio base debe ser mayor a 0.'
+    errors.price = validateCopPrice(form.price).message
   }
 
   if (field === 'category_id') {
@@ -1056,12 +1072,100 @@ function validateField(field) {
   }
 
   if (field === 'compare_price') {
-    const compare = Number(form.compare_price || 0)
-    const price = Number(form.price || 0)
-    errors.compare_price = compare && compare <= price
+    const compareText = String(form.compare_price ?? '').trim()
+    if (!compareText) {
+      errors.compare_price = ''
+      return
+    }
+
+    const compare = validateCopPrice(compareText)
+    const price = validateCopPrice(form.price)
+    errors.compare_price = !compare.valid
+      ? numericValidationMessages.copPrice
+      : price.valid && compare.value <= price.value
       ? 'El precio comparativo debe ser mayor al precio base.'
       : ''
   }
+}
+
+function handleCopInput(field) {
+  form[field] = normalizeCopInput(form[field])
+  validateField(field)
+  if (field === 'price') {
+    validateField('compare_price')
+  }
+  validateAllSizeRows()
+}
+
+function handleSizeCopInput(sizeRow, field) {
+  sizeRow[field] = normalizeCopInput(sizeRow[field])
+  validateSizeRow(sizeRow)
+}
+
+function validateSizeRow(sizeRow) {
+  if (!sizeRow.errors) {
+    sizeRow.errors = { price: '', compare_price: '', quantity: '' }
+  }
+
+  const priceSource = String(sizeRow.price ?? '').trim() ? sizeRow.price : form.price
+  const price = validateCopPrice(priceSource)
+  sizeRow.errors.price = price.valid ? '' : numericValidationMessages.copPrice
+
+  const compareSource = String(sizeRow.compare_price ?? '').trim()
+  if (!compareSource) {
+    sizeRow.errors.compare_price = ''
+  } else {
+    const compare = validateCopPrice(compareSource)
+    sizeRow.errors.compare_price = !compare.valid
+      ? numericValidationMessages.copPrice
+      : price.valid && compare.value <= price.value
+        ? 'El precio comparativo debe ser mayor al precio de venta.'
+        : ''
+  }
+
+  const quantity = validatePositiveInteger(sizeRow.quantity)
+  sizeRow.errors.quantity = quantity.message
+
+  return !sizeRow.errors.price && !sizeRow.errors.compare_price && !sizeRow.errors.quantity
+}
+
+function validateAllSizeRows() {
+  form.variants.forEach((variant) => {
+    variant.sizes.forEach((sizeRow) => validateSizeRow(sizeRow))
+  })
+}
+
+function hasValidProductState() {
+  const nameValid = form.name.trim().length >= 2
+  const categoryValid = Boolean(form.category_id)
+  const price = validateCopPrice(form.price)
+  const compareText = String(form.compare_price ?? '').trim()
+  const compare = compareText ? validateCopPrice(compareText) : { valid: true, value: null }
+  const compareValid = compare.valid && (!compare.value || !price.valid || compare.value > price.value)
+
+  if (!nameValid || !categoryValid || !price.valid || !compareValid || !form.variants.length) {
+    return false
+  }
+
+  return form.variants.every((variant) => {
+    if (!variant.color_id || !variant.sizes.length) return false
+    const seenSizes = new Set()
+
+    return variant.sizes.every((sizeRow) => {
+      const sizeId = Number(sizeRow.size_id)
+      if (!sizeId || seenSizes.has(sizeId)) return false
+      seenSizes.add(sizeId)
+
+      const priceSource = String(sizeRow.price ?? '').trim() ? sizeRow.price : form.price
+      const rowPrice = validateCopPrice(priceSource)
+      const rowCompareText = String(sizeRow.compare_price ?? '').trim()
+      const rowCompare = rowCompareText ? validateCopPrice(rowCompareText) : { valid: true, value: null }
+      const rowCompareValid = rowCompare.valid && (!rowCompare.value || !rowPrice.valid || rowCompare.value > rowPrice.value)
+      const rowQuantity = validatePositiveInteger(sizeRow.quantity)
+
+      return rowPrice.valid && rowCompareValid && rowQuantity.valid
+    })
+  })
 }
 
 function syncSlugValue() {
@@ -1141,15 +1245,25 @@ function validateVariants() {
 
       seenSizes.add(sizeId)
 
-      const price = Number(size.price || form.price || 0)
-      const compare = Number(size.compare_price || 0)
-      if (price <= 0) {
+      const priceResult = validateCopPrice(String(size.price ?? '').trim() ? size.price : form.price)
+      const compareResult = String(size.compare_price ?? '').trim()
+        ? validateCopPrice(size.compare_price)
+        : { valid: true, value: null }
+      const quantityResult = validatePositiveInteger(size.quantity)
+      validateSizeRow(size)
+
+      if (!priceResult.valid) {
         errors.variants = 'Cada talla debe tener un precio mayor a cero.'
         return false
       }
 
-      if (compare && compare <= price) {
+      if (!compareResult.valid || (compareResult.value && compareResult.value <= priceResult.value)) {
         errors.variants = 'El precio comparativo por talla debe ser mayor al precio de venta.'
+        return false
+      }
+
+      if (!quantityResult.valid) {
+        errors.variants = numericValidationMessages.positiveInteger
         return false
       }
     }
@@ -1196,11 +1310,11 @@ function buildVariantPayload() {
       id: size.id,
       key: size.key,
       size_id: Number(size.size_id),
-      price: Number(size.price || form.price),
+      price: validateCopPrice(String(size.price ?? '').trim() ? size.price : form.price).value,
       compare_price: size.compare_price !== '' && size.compare_price !== null
-        ? Number(size.compare_price)
-        : (form.compare_price !== '' ? Number(form.compare_price) : null),
-      quantity: Number(size.quantity || 0),
+        ? validateCopPrice(size.compare_price).value
+        : (form.compare_price !== '' ? validateCopPrice(form.compare_price).value : null),
+      quantity: validatePositiveInteger(size.quantity).value,
       sku: size.sku?.trim() || null,
       barcode: size.barcode?.trim() || null,
       is_active: Boolean(size.is_active),
@@ -1217,8 +1331,8 @@ function buildPayload() {
     category_id: Number(form.category_id),
     collection_id: form.collection_id ? Number(form.collection_id) : null,
     collection: form.collection?.trim() || null,
-    precio: Number(form.price),
-    compare_price: form.compare_price !== '' ? Number(form.compare_price) : null,
+    precio: validateCopPrice(form.price).value,
+    compare_price: form.compare_price !== '' ? validateCopPrice(form.compare_price).value : null,
     material: form.material?.trim() || null,
     descripcion: form.description?.trim() || null,
     care_instructions: form.care_instructions?.trim() || null,

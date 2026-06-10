@@ -322,19 +322,22 @@
     color: #0077b6;
 }
 
-.cart-count {
+.cart-count,
+.header-count-badge {
     position: absolute;
     top: -0.5rem;
     right: -0.5rem;
-    width: 1.8rem;
+    min-width: 1.8rem;
     height: 1.8rem;
     border-radius: 50%;
     background-color: #0077b6;
     color: #ffffff;
     font-size: 1rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0 0.35rem;
 }
 
 /* ===== NAV ESCRITORIO ===== */
@@ -558,7 +561,8 @@
     color: #0077b6;
 }
 
-.mobile-drawer__cart-badge {
+.mobile-drawer__cart-badge,
+.mobile-drawer__count-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;

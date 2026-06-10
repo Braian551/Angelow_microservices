@@ -226,22 +226,50 @@
             </AdminCard>
 
             <AdminCard title="Acciones" icon="fas fa-bolt" style="margin-top: 1.2rem;">
-              <div class="modal-actions-stack">
-                <button class="btn btn-primary" type="button" @click="confirmReviewStatus(selectedReview, 'approved')">
+              <div class="modal-actions-grid">
+                <button
+                  class="modal-action-button modal-action-button--primary"
+                  type="button"
+                  @click="confirmReviewStatus(selectedReview, 'approved')"
+                >
                   <i class="fas fa-check"></i>
-                  Publicar
+                  <span class="modal-action-button__content">
+                    <strong>Publicar</strong>
+                    <small>Hace visible la reseña en el catálogo.</small>
+                  </span>
                 </button>
-                <button class="btn btn-secondary" type="button" @click="confirmReviewStatus(selectedReview, 'pending')">
+                <button
+                  class="modal-action-button modal-action-button--neutral"
+                  type="button"
+                  @click="confirmReviewStatus(selectedReview, 'pending')"
+                >
                   <i class="fas fa-rotate-left"></i>
-                  Enviar a revisión
+                  <span class="modal-action-button__content">
+                    <strong>Enviar a revisión</strong>
+                    <small>La devuelve a moderación antes de mostrarla.</small>
+                  </span>
                 </button>
-                <button class="btn btn-secondary" type="button" @click="toggleReviewVerified(selectedReview)">
+                <button
+                  class="modal-action-button modal-action-button--soft"
+                  type="button"
+                  @click="toggleReviewVerified(selectedReview)"
+                >
                   <i class="fas fa-circle-check"></i>
-                  {{ selectedReview.is_verified ? 'Quitar verificación' : 'Marcar verificada' }}
+                  <span class="modal-action-button__content">
+                    <strong>{{ selectedReview.is_verified ? 'Quitar verificación' : 'Marcar verificada' }}</strong>
+                    <small>Actualiza la compra verificada del cliente.</small>
+                  </span>
                 </button>
-                <button class="btn btn-danger" type="button" @click="deleteReview(selectedReview)">
+                <button
+                  class="modal-action-button modal-action-button--danger"
+                  type="button"
+                  @click="deleteReview(selectedReview)"
+                >
                   <i class="fas fa-trash"></i>
-                  Eliminar reseña
+                  <span class="modal-action-button__content">
+                    <strong>Eliminar reseña</strong>
+                    <small>Quita definitivamente este comentario del panel.</small>
+                  </span>
                 </button>
               </div>
             </AdminCard>
@@ -677,10 +705,90 @@ onMounted(loadReviews)
   margin-bottom: 1.5rem;
 }
 
-.modal-actions-stack {
+/* Distribuye las acciones del modal en una grilla estable para evitar una pila visual pesada. */
+.modal-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.modal-action-button {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.95rem;
+  width: 100%;
+  min-height: 8.8rem;
+  padding: 1.15rem 1.2rem;
+  border-radius: var(--admin-radius-xl);
+  border: 1px solid var(--admin-border-soft);
+  background: #f8fbfe;
+  color: var(--admin-text-heading);
+  text-align: left;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.modal-action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--admin-shadow-hover);
+}
+
+.modal-action-button i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-size: 1.15rem;
+}
+
+.modal-action-button__content {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.3rem;
+}
+
+.modal-action-button__content strong {
+  font-size: 1.28rem;
+  line-height: 1.3;
+}
+
+.modal-action-button__content small {
+  color: var(--admin-text-light);
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.modal-action-button--primary {
+  background: rgba(15, 136, 194, 0.1);
+  border-color: rgba(15, 136, 194, 0.2);
+}
+
+.modal-action-button--primary i {
+  background: var(--admin-primary);
+  color: #fff;
+}
+
+.modal-action-button--neutral i {
+  background: rgba(15, 136, 194, 0.12);
+  color: var(--admin-primary);
+}
+
+.modal-action-button--soft i {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.modal-action-button--danger {
+  background: rgba(220, 38, 38, 0.06);
+  border-color: rgba(220, 38, 38, 0.14);
+}
+
+.modal-action-button--danger i {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
 }
 
 .highlights-list {
@@ -825,6 +933,10 @@ onMounted(loadReviews)
   .reviews-grid,
   .insights-grid,
   .review-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions-grid {
     grid-template-columns: 1fr;
   }
 

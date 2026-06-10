@@ -22,11 +22,13 @@ class ReconcileStockReservationsJob implements ShouldQueue
     public function handle(StockReservationService $reservationService): void
     {
         $batchSize = max(1, (int) config('services.stock_reservations.reconciliation_batch_size', 200));
-        $expiredResult = $reservationService->reconcileExpiredReservations($batchSize);
+
+        // Reutiliza StockReservationService para cerrar reservas vencidas como cancelaciones operativas.
+        $cancelledResult = $reservationService->reconcileExpiredReservations($batchSize);
         $counterResult = $reservationService->reconcileReservationCounters($batchSize);
 
         Log::info('Reconciliación de reservas de stock ejecutada.', [
-            'expired' => $expiredResult,
+            'cancelled_by_expiration' => $cancelledResult,
             'counters' => $counterResult,
         ]);
     }

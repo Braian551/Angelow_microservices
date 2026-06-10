@@ -230,7 +230,7 @@
             Cantidad *
             <AdminInfoTooltip text="Número de unidades a agregar, restar o establecer según la acción seleccionada." />
           </label>
-          <input id="adjust-quantity" v-model="adjustForm.quantity" type="number" min="0" class="form-control" :class="{ 'is-invalid': adjustErrors.quantity }" @input="validateAdjustField('quantity')">
+          <input id="adjust-quantity" v-model="adjustForm.quantity" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': adjustErrors.quantity }" @input="validateAdjustField('quantity')">
           <p v-if="adjustErrors.quantity" class="form-error">{{ adjustErrors.quantity }}</p>
         </div>
 
@@ -245,7 +245,9 @@
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeAdjustModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" @click="submitAdjust">Aplicar ajuste</button>
+        <button class="btn btn-primary" type="button" :disabled="stockSubmitting || Boolean(adjustErrors.quantity)" @click="submitAdjust">
+          {{ stockSubmitting ? 'Guardando...' : 'Aplicar ajuste' }}
+        </button>
       </template>
     </AdminModal>
 
@@ -275,7 +277,7 @@
             Cantidad *
             <AdminInfoTooltip text="Número de unidades a transferir. No puede superar el stock disponible en la variante origen." />
           </label>
-          <input id="transfer-quantity" v-model="transferForm.quantity" type="number" min="1" class="form-control" :class="{ 'is-invalid': transferErrors.quantity }" @input="validateTransferField('quantity')">
+          <input id="transfer-quantity" v-model="transferForm.quantity" type="text" inputmode="numeric" class="form-control" :class="{ 'is-invalid': transferErrors.quantity }" @input="validateTransferField('quantity')">
           <p v-if="transferErrors.quantity" class="form-error">{{ transferErrors.quantity }}</p>
         </div>
 
@@ -290,18 +292,22 @@
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeTransferModal">Cancelar</button>
-        <button class="btn btn-primary" type="button" @click="submitTransfer">Transferir stock</button>
+        <button class="btn btn-primary" type="button" :disabled="stockSubmitting || Boolean(transferErrors.target_variant_id) || Boolean(transferErrors.quantity)" @click="submitTransfer">
+          {{ stockSubmitting ? 'Guardando...' : 'Transferir stock' }}
+        </button>
       </template>
     </AdminModal>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useStockRealtime } from '../../../composables/useStockRealtime'
 import { catalogHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { validatePositiveInteger } from '../../../utils/numericValidation'
 import {
   buildInventoryVariantLabel as formatInventoryVariantLabel,
   normalizeInventoryStatus as resolveInventoryStatus,
@@ -341,6 +347,14 @@ const selectedProductDetail = ref(null)
 const selectedProductHistory = ref([])
 const selectedVariant = ref(null)
 const handledRouteTarget = ref('')
+const stockSubmitting = ref(false)
+const pendingRealtimeInventorySync = {
+  reloadDetail: false,
+  reloadHistory: false,
+}
+
+let realtimeInventorySyncTimerId = null
+let realtimeInventorySyncInFlight = false
 
 const adjustForm = reactive({
   action: 'add',
@@ -426,6 +440,14 @@ const filteredProducts = computed(() => {
     return matchesSearch && matchesTab
   })
 })
+
+const inventoryVariantIds = computed(() => inventoryRows.value
+  .map((row) => Number(row.id || 0))
+  .filter((variantId) => Number.isFinite(variantId) && variantId > 0))
+
+const selectedDetailVariantIds = computed(() => (selectedProductDetail.value?.variantRows || [])
+  .map((row) => Number(row.id || 0))
+  .filter((variantId) => Number.isFinite(variantId) && variantId > 0))
 
 const pagination = useAdminPagination(filteredProducts, {
   initialPageSize: 10,
@@ -766,8 +788,7 @@ function resetTransferForm() {
 
 function validateAdjustField(field) {
   if (field === 'quantity') {
-    const quantity = Number(adjustForm.quantity)
-    adjustErrors.quantity = Number.isFinite(quantity) && quantity >= 0 ? '' : 'La cantidad debe ser un numero valido.'
+    adjustErrors.quantity = validatePositiveInteger(adjustForm.quantity).message
   }
 }
 
@@ -777,11 +798,12 @@ function validateTransferField(field) {
   }
 
   if (field === 'quantity') {
-    const quantity = Number(transferForm.quantity)
+    const result = validatePositiveInteger(transferForm.quantity)
+    const quantity = result.value
     const available = Number(selectedVariant.value?.quantity || 0)
-    transferErrors.quantity = Number.isFinite(quantity) && quantity > 0 && quantity <= available
+    transferErrors.quantity = result.valid && quantity <= available
       ? ''
-      : 'La cantidad debe ser mayor que cero y no exceder el stock disponible.'
+      : (result.message || 'La cantidad no puede exceder el stock disponible.')
   }
 }
 
@@ -883,14 +905,70 @@ async function refreshAfterStockChange() {
   }
 }
 
+async function flushRealtimeInventorySync() {
+  const reloadDetail = pendingRealtimeInventorySync.reloadDetail
+  const reloadHistory = pendingRealtimeInventorySync.reloadHistory
+
+  pendingRealtimeInventorySync.reloadDetail = false
+  pendingRealtimeInventorySync.reloadHistory = false
+
+  await loadInventory()
+
+  if (selectedProductSummary.value) {
+    const updatedSummary = groupedProducts.value.find((product) => Number(product.id) === Number(selectedProductSummary.value?.id || 0))
+    if (updatedSummary) {
+      selectedProductSummary.value = updatedSummary
+    }
+  }
+
+  if (reloadDetail && selectedProductSummary.value) {
+    await loadProductDetail(selectedProductSummary.value)
+    return
+  }
+
+  if (reloadHistory && showDetailModal.value) {
+    await reloadDetailHistory()
+  }
+}
+
+function scheduleRealtimeInventorySync(options = {}) {
+  pendingRealtimeInventorySync.reloadDetail = pendingRealtimeInventorySync.reloadDetail || Boolean(options.reloadDetail)
+  pendingRealtimeInventorySync.reloadHistory = pendingRealtimeInventorySync.reloadHistory || Boolean(options.reloadHistory)
+
+  if (realtimeInventorySyncTimerId) {
+    window.clearTimeout(realtimeInventorySyncTimerId)
+  }
+
+  realtimeInventorySyncTimerId = window.setTimeout(async () => {
+    realtimeInventorySyncTimerId = null
+
+    if (realtimeInventorySyncInFlight) {
+      scheduleRealtimeInventorySync(options)
+      return
+    }
+
+    realtimeInventorySyncInFlight = true
+
+    try {
+      await flushRealtimeInventorySync()
+    } catch {
+      showSnackbar({ type: 'error', message: 'No se pudo sincronizar el inventario en tiempo real' })
+    } finally {
+      realtimeInventorySyncInFlight = false
+    }
+  }, 280)
+}
+
 async function submitAdjust() {
+  if (stockSubmitting.value) return
   validateAdjustField('quantity')
   if (adjustErrors.quantity || !selectedVariant.value?.id) return
 
+  stockSubmitting.value = true
   try {
     await catalogHttp.patch(`/admin/inventory/${selectedVariant.value.id}/stock`, {
       action: adjustForm.action,
-      quantity: Number(adjustForm.quantity),
+      quantity: validatePositiveInteger(adjustForm.quantity).value,
       reason: adjustForm.reason?.trim() || null,
     })
 
@@ -899,19 +977,23 @@ async function submitAdjust() {
     await refreshAfterStockChange()
   } catch (error) {
     showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error ajustando stock' })
+  } finally {
+    stockSubmitting.value = false
   }
 }
 
 async function submitTransfer() {
+  if (stockSubmitting.value) return
   validateTransferField('target_variant_id')
   validateTransferField('quantity')
   if (transferErrors.target_variant_id || transferErrors.quantity || !selectedVariant.value?.id) return
 
+  stockSubmitting.value = true
   try {
     await catalogHttp.post('/admin/inventory/transfer', {
       source_variant_id: Number(transferForm.source_variant_id),
       target_variant_id: Number(transferForm.target_variant_id),
-      quantity: Number(transferForm.quantity),
+      quantity: validatePositiveInteger(transferForm.quantity).value,
       reason: transferForm.reason?.trim() || null,
     })
 
@@ -920,6 +1002,8 @@ async function submitTransfer() {
     await refreshAfterStockChange()
   } catch (error) {
     showSnackbar({ type: 'error', message: error?.response?.data?.message || 'Error transfiriendo stock' })
+  } finally {
+    stockSubmitting.value = false
   }
 }
 
@@ -938,6 +1022,25 @@ watch(
 onMounted(async () => {
   await loadInventory()
   await maybeHandleInventoryTargetFromRoute()
+})
+
+useStockRealtime((message) => {
+  const hasRelevantVariant = message.variantIds.some((variantId) => inventoryVariantIds.value.includes(variantId))
+  if (!hasRelevantVariant) {
+    return
+  }
+
+  const affectsOpenDetail = message.variantIds.some((variantId) => selectedDetailVariantIds.value.includes(variantId))
+  scheduleRealtimeInventorySync({
+    reloadDetail: affectsOpenDetail,
+    reloadHistory: message.historyUpdated && affectsOpenDetail,
+  })
+})
+
+onUnmounted(() => {
+  if (realtimeInventorySyncTimerId) {
+    window.clearTimeout(realtimeInventorySyncTimerId)
+  }
 })
 </script>
 

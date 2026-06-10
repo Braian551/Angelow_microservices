@@ -7,9 +7,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Cart Controller
+ * Controlador de carrito
  *
- * Handles API requests for shopping cart operations.
+ * Atiende solicitudes API para operaciones del carrito de compras.
  */
 class CartController extends Controller
 {
@@ -20,7 +20,7 @@ class CartController extends Controller
     /**
      * GET /api/cart
      *
-     * Get current cart items with details and totals.
+     * Obtiene los ítems actuales del carrito con detalle y totales.
      */
     public function index(Request $request): JsonResponse
     {
@@ -45,7 +45,7 @@ class CartController extends Controller
     /**
      * POST /api/cart/add
      *
-     * Add a product variant to the cart.
+     * Agrega una variante de producto al carrito.
      */
     public function add(Request $request): JsonResponse
     {
@@ -56,6 +56,9 @@ class CartController extends Controller
             'quantity'         => 'nullable|integer|min:1',
             'user_id'          => 'nullable|string',
             'session_id'       => 'nullable|string',
+        ], [
+            'quantity.integer' => 'La cantidad debe ser un número entero mayor o igual a 1.',
+            'quantity.min' => 'La cantidad debe ser un número entero mayor o igual a 1.',
         ]);
 
         try {
@@ -83,12 +86,16 @@ class CartController extends Controller
     /**
      * PUT /api/cart/{itemId}
      *
-     * Update the quantity of a cart item.
+     * Actualiza la cantidad de un ítem del carrito.
      */
     public function update(Request $request, int $itemId): JsonResponse
     {
         $request->validate([
             'quantity' => 'required|integer|min:1',
+        ], [
+            'quantity.required' => 'La cantidad es obligatoria.',
+            'quantity.integer' => 'La cantidad debe ser un número entero mayor o igual a 1.',
+            'quantity.min' => 'La cantidad debe ser un número entero mayor o igual a 1.',
         ]);
 
         try {
@@ -109,7 +116,7 @@ class CartController extends Controller
     /**
      * DELETE /api/cart/{itemId}
      *
-     * Remove an item from the cart.
+     * Elimina un ítem del carrito.
      */
     public function destroy(int $itemId): JsonResponse
     {
@@ -124,7 +131,7 @@ class CartController extends Controller
     /**
      * GET /api/cart/items
      *
-     * Get product IDs in the cart (lightweight check).
+     * Obtiene identificadores de productos del carrito para consultas ligeras.
      */
     public function productIds(Request $request): JsonResponse
     {

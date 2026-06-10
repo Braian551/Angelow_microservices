@@ -109,6 +109,24 @@
   transition: all 0.3s ease;
   flex: 1;
   max-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 4.6rem;
+}
+
+.alert-button:disabled,
+.alert-button.is-loading {
+  cursor: not-allowed;
+  opacity: 0.78;
+  transform: none;
+}
+
+.alert-button:disabled:hover,
+.alert-button.is-loading:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .alert-button.primary {

@@ -55,6 +55,7 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 30. Cuando un adjunto no pueda mostrarse, la IU debe usar copy neutro orientado al usuario y nunca mencionar carpetas, rutas físicas, contenedores, mounts ni detalles internos de almacenamiento.
 31. En cualquier flujo de imágenes del admin (settings, sliders, categorías, colecciones, productos, anuncios y similares) se debe usar lógica obligatoria de reemplazo: al subir una nueva imagen para el mismo campo/registro, eliminar de forma segura el archivo anterior y persistir solo la ruta vigente para evitar acumulación de basura en `/uploads`.
 32. En flujos con orden visual (sliders, listados ordenables, banners, bloques destacados), toda operación de actualización debe preservar un orden consistente y persistido (sin duplicados de posición, sin huecos y con feedback inmediato en la UI).
+33. Todo componente, modal, botón de tabla o acción que envíe cambios al servidor debe bloquear doble envío mientras la promesa está en curso, deshabilitar controles repetibles y mostrar estado visible de carga (spinner, texto "Guardando..." o equivalente) hasta recibir respuesta o error.
 
 ## Arquitectura funcional (resumen)
 - `auth-service`: login, registro, perfil, recuperación de contraseña.
