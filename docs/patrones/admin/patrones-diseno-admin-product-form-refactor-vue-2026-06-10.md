@@ -33,8 +33,10 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - `frontend/src/modules/admin/views/AdminCustomersPage.css`: contiene los estilos locales de clientes que antes vivían en `<style scoped>`, encapsulados bajo `.admin-customers-page`.
 - `frontend/src/modules/admin/pages/AdminReportsPage.vue`: conserva la lógica de informes intacta, importa el CSS externo de la vista y agrega wrapper interno para el modal de detalle.
 
-- `frontend/src/modules/admin/pages/AdminReviewsPage.vue`: conserva intacta la logica de resenas, filtros, graficos, moderacion, respuestas y exportaciones, importa el CSS externo de la vista y agrega wrapper interno para el modal de detalle.
-- `frontend/src/modules/admin/views/AdminReviewsPage.css`: contiene los estilos locales de resenas que antes vivian en `<style scoped>`, encapsulados bajo `.admin-reviews-page`.
+- `frontend/src/modules/admin/pages/AdminReviewsPage.vue`: conserva intacta la lógica de reseñas, filtros, gráficos, moderación, respuestas y exportaciones, importa el CSS externo de la vista y agrega wrapper interno para el modal de detalle.
+- `frontend/src/modules/admin/views/AdminReviewsPage.css`: contiene los estilos locales de reseñas que antes vivían en `<style scoped>`, encapsulados bajo `.admin-reviews-page`.
+- `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`: conserva intacta la lógica de preguntas, respuestas administrativas, filtros, estadísticas, gráficos, moderación y exportaciones, importa el CSS externo de la vista y agrega wrapper interno para el modal de detalle.
+- `frontend/src/modules/admin/views/AdminQuestionsPage.css`: contiene los estilos locales de preguntas que antes vivían en `<style scoped>`, encapsulados bajo `.admin-questions-page`.
 - `.agents/skills/skill/SKILL.md`: agrega la sección obligatoria de arquitectura frontend Vue.
 
 ## Patrones aplicados
@@ -76,6 +78,11 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Archivos: `frontend/src/modules/admin/pages/AdminReviewsPage.vue`, `frontend/src/modules/admin/views/AdminReviewsPage.css`.
 - Problema que resuelve: mantiene la página de reseñas como orquestadora de carga, estadísticas, filtros, gráficos, paginación, moderación, respuestas administrativas y exportaciones, mientras delega los estilos locales al CSS externo encapsulado sin cambiar comportamiento ni contratos.
 
+`Facade`
+
+- Archivos: `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`, `frontend/src/modules/admin/views/AdminQuestionsPage.css`.
+- Problema que resuelve: mantiene la página de preguntas como orquestadora de carga, estadísticas, filtros, gráficos, paginación, respuestas administrativas, moderación y exportaciones, mientras delega los estilos locales al CSS externo encapsulado sin cambiar comportamiento ni contratos.
+
 ## Decisiones de arquitectura
 
 - La página mantiene `RouterLink`, encabezado, tarjeta principal y coordinación de componentes, pero no contiene la lógica extensa del formulario.
@@ -87,7 +94,8 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Etapa `AdminPaymentsPage.vue`: se movieron los estilos locales de pagos a `frontend/src/modules/admin/views/AdminPaymentsPage.css`, encapsulados bajo `.admin-payments-page`; el modal de cuenta visible agrega wrapper interno `.admin-payments-page admin-payments-page--modal` por el `Teleport` de `AdminModal`.
 - Etapa `AdminCustomersPage.vue`: se movieron los estilos locales de clientes a `frontend/src/modules/admin/views/AdminCustomersPage.css`, encapsulados bajo `.admin-customers-page`; el modal de detalle agrega wrapper interno `.admin-customers-page admin-customers-page--modal` por el `Teleport` de `AdminModal`.
 
-- Etapa `AdminReviewsPage.vue`: se movieron los estilos locales de resenas a `frontend/src/modules/admin/views/AdminReviewsPage.css`, encapsulados bajo `.admin-reviews-page`; el modal de detalle agrega wrapper interno `.admin-reviews-page admin-reviews-page--modal` por el `Teleport` de `AdminModal`.
+- Etapa `AdminReviewsPage.vue`: se movieron los estilos locales de reseñas a `frontend/src/modules/admin/views/AdminReviewsPage.css`, encapsulados bajo `.admin-reviews-page`; el modal de detalle agrega wrapper interno `.admin-reviews-page admin-reviews-page--modal` por el `Teleport` de `AdminModal`.
+- Etapa `AdminQuestionsPage.vue`: se movieron los estilos locales de preguntas a `frontend/src/modules/admin/views/AdminQuestionsPage.css`, encapsulados bajo `.admin-questions-page`; el modal de detalle agrega wrapper interno `.admin-questions-page admin-questions-page--modal` por el `Teleport` de `AdminModal`.
 - No se cambiaron endpoints, payloads, `FormData`, rutas públicas ni nombres de campos enviados al backend.
 - La separación se hizo solo para el formulario de producto como primera etapa segura; las demás vistas grandes quedan pendientes para una etapa posterior validada.
 
@@ -102,6 +110,7 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Etapa `AdminCustomersPage.vue`: `npm run build`, `docker compose up -d --build frontend`, `docker compose exec -T frontend npm run build`, logs de `frontend`, `docker compose ps` y `HTTP 200` en `/admin/clientes` exitosos.
 
 - Etapa `AdminReviewsPage.vue`: `npm run build`, `docker compose up -d --build frontend`, `docker compose exec -T frontend npm run build`, logs de `frontend`, `docker compose ps` y `HTTP 200` en `/admin/resenas` exitosos.
+- Etapa `AdminQuestionsPage.vue`: `npm run build`, `docker compose up -d --build frontend`, `docker compose exec -T frontend npm run build`, logs de `frontend`, `docker compose ps` y `HTTP 200` en `/admin/preguntas` exitosos.
 
 - Pendiente por bloqueo de herramienta local: validación visual con consola del navegador integrado; el kernel falló por `windows sandbox failed: spawn setup refresh`.
 

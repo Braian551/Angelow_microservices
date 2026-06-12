@@ -168,7 +168,8 @@
 
     <AdminModal :show="showDetailModal" :title="selectedQuestion ? `Pregunta #${selectedQuestion.id}` : 'Detalle de pregunta'" max-width="1040px" @close="closeQuestionModal">
       <template v-if="selectedQuestion">
-        <div class="question-detail-grid">
+        <div class="admin-questions-page admin-questions-page--modal">
+          <div class="question-detail-grid">
           <div>
             <AdminCard title="Consulta del cliente" icon="fas fa-comment">
               <div class="question-customer-cell question-customer-cell--detail">
@@ -233,6 +234,7 @@
             </AdminCard>
           </div>
         </div>
+              </div>
       </template>
 
       <template #footer>
@@ -244,6 +246,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import '../views/AdminQuestionsPage.css'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -568,145 +571,3 @@ function exportQuestions(format) {
 onMounted(loadQuestions)
 </script>
 
-<style scoped>
-/* --- Layout de insights --- */
-.insights-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-/* --- Highlights recientes --- */
-.highlights-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.highlight-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--admin-border-light);
-  border-radius: var(--admin-radius-md);
-  background: #fff;
-  cursor: pointer;
-  text-align: left;
-}
-
-.highlight-item__info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.highlight-item__name {
-  color: var(--admin-text-heading);
-  font-size: 1.28rem;
-  font-weight: 700;
-}
-
-.highlight-item__product {
-  color: var(--admin-text-light);
-  font-size: 1.18rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 22rem;
-}
-
-.highlight-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.highlight-item span,
-.highlight-item small,
-.question-detail-text,
-.timeline-item small {
-  color: var(--admin-text-light);
-}
-
-/* --- Celda de cliente con avatar --- */
-.question-customer-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.question-customer-cell img {
-  width: 3.6rem;
-  height: 3.6rem;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--admin-bg-soft);
-}
-
-.question-customer-cell--detail img {
-  width: 4.8rem;
-  height: 4.8rem;
-}
-
-/* --- Grid de detalle --- */
-.question-detail-grid {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 1.5rem;
-}
-
-.question-detail-text {
-  margin-top: 1rem;
-  line-height: 1.6;
-}
-
-/* --- Timeline de respuestas --- */
-.timeline-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.timeline-item {
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--admin-border-light);
-  border-radius: var(--admin-radius-md);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-/* --- Acciones del modal --- */
-.modal-actions-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.detail-empty {
-  color: var(--admin-text-light);
-  padding: 0.6rem 0;
-}
-
-/* --- Responsive --- */
-@media (max-width: 980px) {
-  .insights-grid,
-  .question-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .highlight-item,
-  .question-customer-cell {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-</style>

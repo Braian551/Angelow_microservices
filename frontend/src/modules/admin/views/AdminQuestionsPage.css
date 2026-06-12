@@ -1,0 +1,135 @@
+/* Estilos locales de la vista AdminQuestionsPage; los comunes están en admin.css. */
+
+.admin-questions-page .insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-questions-page .highlights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-questions-page .highlight-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-questions-page .highlight-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.admin-questions-page .highlight-item__name {
+  color: var(--admin-text-heading);
+  font-size: 1.28rem;
+  font-weight: 700;
+}
+
+.admin-questions-page .highlight-item__product {
+  color: var(--admin-text-light);
+  font-size: 1.18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22rem;
+}
+
+.admin-questions-page .highlight-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-questions-page .highlight-item span,
+.admin-questions-page .highlight-item small,
+.admin-questions-page .question-detail-text,
+.admin-questions-page .timeline-item small {
+  color: var(--admin-text-light);
+}
+
+.admin-questions-page .question-customer-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-questions-page .question-customer-cell img {
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--admin-bg-soft);
+}
+
+.admin-questions-page .question-customer-cell--detail img {
+  width: 4.8rem;
+  height: 4.8rem;
+}
+
+.admin-questions-page .question-detail-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 1.5rem;
+}
+
+.admin-questions-page .question-detail-text {
+  margin-top: 1rem;
+  line-height: 1.6;
+}
+
+.admin-questions-page .timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-questions-page .timeline-item {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-questions-page .modal-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-questions-page .detail-empty {
+  color: var(--admin-text-light);
+  padding: 0.6rem 0;
+}
+
+@media (max-width: 980px) {
+  .admin-questions-page .insights-grid,
+  .admin-questions-page .question-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-questions-page .highlight-item,
+  .admin-questions-page .question-customer-cell {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
