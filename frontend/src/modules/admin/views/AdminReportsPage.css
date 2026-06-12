@@ -1,0 +1,142 @@
+.admin-reports-page .report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  padding: 1.25rem 1.75rem;
+}
+
+.admin-reports-page .report-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid rgba(15, 122, 191, 0.16);
+  background: #f8fbfe;
+  color: var(--admin-text);
+  border-radius: 999px;
+  padding: 0.9rem 1.4rem;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.admin-reports-page .report-tab.active {
+  background: var(--admin-primary);
+  color: #fff;
+  border-color: var(--admin-primary);
+}
+
+.admin-reports-page .filters-row--reports {
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.admin-reports-page .report-section {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.admin-reports-page .report-grid {
+  display: grid;
+  gap: 1.6rem;
+}
+
+.admin-reports-page .report-grid--sales-charts,
+.admin-reports-page .report-grid--customers-charts {
+  grid-template-columns: 1.25fr 0.95fr;
+}
+
+.admin-reports-page .report-grid--products-charts {
+  grid-template-columns: 1.2fr 0.9fr 0.9fr;
+}
+
+.admin-reports-page .chart-card__body {
+  height: 32rem;
+  padding: 1.4rem;
+}
+
+.admin-reports-page .chart-card__body--compact {
+  height: 30rem;
+}
+
+.admin-reports-page .chart-card__body--large {
+  height: 34rem;
+}
+
+.admin-reports-page .reports-table th,
+.admin-reports-page .reports-table td {
+  vertical-align: middle;
+}
+
+.admin-reports-page .report-product-cell,
+.admin-reports-page .report-customer-cell,
+.admin-reports-page .report-product-detail,
+.admin-reports-page .report-customer-detail {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.admin-reports-page .report-product-cell__image,
+.admin-reports-page .report-product-detail__image {
+  width: 5.4rem;
+  height: 5.4rem;
+  border-radius: 1rem;
+  object-fit: cover;
+  background: #f3f7fb;
+  border: 1px solid rgba(15, 122, 191, 0.12);
+}
+
+.admin-reports-page .report-customer-cell__image,
+.admin-reports-page .report-customer-detail__image {
+  width: 4.8rem;
+  height: 4.8rem;
+  border-radius: 999px;
+  object-fit: cover;
+  background: #f3f7fb;
+  border: 1px solid rgba(15, 122, 191, 0.12);
+}
+
+.admin-reports-page .report-product-detail,
+.admin-reports-page .report-customer-detail {
+  align-items: stretch;
+}
+
+.admin-reports-page .report-product-detail__image {
+  width: 12rem;
+  height: 12rem;
+}
+
+.admin-reports-page .report-customer-detail__image {
+  width: 8.4rem;
+  height: 8.4rem;
+}
+
+@media (max-width: 1100px) {
+  .admin-reports-page .report-grid--sales-charts,
+  .admin-reports-page .report-grid--customers-charts,
+  .admin-reports-page .report-grid--products-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-reports-page .report-tabs {
+    padding: 1.2rem 1.2rem 0;
+  }
+
+  .admin-reports-page .report-tab {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .admin-reports-page .report-product-cell,
+  .admin-reports-page .report-customer-cell,
+  .admin-reports-page .report-product-detail,
+  .admin-reports-page .report-customer-detail {
+    align-items: flex-start;
+  }
+
+  .admin-reports-page .chart-card__body,
+  .admin-reports-page .chart-card__body--compact,
+  .admin-reports-page .chart-card__body--large {
+    height: 28rem;
+  }
+}

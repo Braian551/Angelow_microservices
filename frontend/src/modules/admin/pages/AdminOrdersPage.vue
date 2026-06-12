@@ -182,10 +182,11 @@
     />
 
     <AdminModal :show="showDetailModal" :title="selectedOrder ? `Orden ${selectedOrder.order_number || `#${selectedOrder.id}`}` : 'Detalle de orden'" max-width="1120px" @close="closeDetailModal">
-      <div v-if="detailLoading" class="detail-loading">
-        <AdminTableShimmer :rows="4" :columns="['line', 'line', 'line', 'line']" />
-      </div>
-      <template v-else-if="detailOrder">
+      <div class="admin-orders-page admin-orders-page--modal">
+        <div v-if="detailLoading" class="detail-loading">
+          <AdminTableShimmer :rows="4" :columns="['line', 'line', 'line', 'line']" />
+        </div>
+        <template v-else-if="detailOrder">
         <div class="order-detail-grid">
           <div>
             <AdminCard title="Items del pedido" icon="fas fa-box" :flush="true">
@@ -254,7 +255,8 @@
             </AdminCard>
           </div>
         </div>
-      </template>
+        </template>
+      </div>
       <template #footer>
         <RouterLink v-if="selectedOrder" :to="buildOrderDetailRoute(selectedOrder)" class="btn btn-primary" @click="closeDetailModal">
           <i class="fas fa-arrow-right"></i> Ver detalle completo
@@ -264,6 +266,7 @@
     </AdminModal>
 
     <AdminModal :show="showStatusModal" title="Actualizar estado de la orden" max-width="560px" @close="closeStatusModal">
+      <div class="admin-orders-page admin-orders-page--modal">
       <div class="status-form-grid">
         <div class="form-group status-form-grid__full">
           <label>Orden seleccionada</label>
@@ -290,6 +293,7 @@
           <p v-if="statusErrors.description" class="form-error">{{ statusErrors.description }}</p>
         </div>
       </div>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="savingStatusChange" @click="closeStatusModal">Cancelar</button>
@@ -301,6 +305,7 @@
     </AdminModal>
 
     <AdminModal :show="showPaymentStatusModal" title="Actualizar estado de pago" max-width="560px" @close="closePaymentStatusModal">
+      <div class="admin-orders-page admin-orders-page--modal">
       <div class="status-form-grid">
         <div class="form-group status-form-grid__full">
           <label>Orden seleccionada</label>
@@ -332,6 +337,7 @@
           <p v-if="paymentErrors.description" class="form-error">{{ paymentErrors.description }}</p>
         </div>
       </div>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="savingPaymentStatusChange" @click="closePaymentStatusModal">Cancelar</button>
@@ -343,6 +349,7 @@
     </AdminModal>
 
     <AdminModal :show="showBulkModal" title="Acciones masivas" max-width="560px" @close="closeBulkModal">
+      <div class="admin-orders-page admin-orders-page--modal">
       <div class="bulk-form-grid">
         <div class="bulk-modal-summary">
           <div class="bulk-modal-summary__count">
@@ -411,6 +418,7 @@
           <p v-if="bulkErrors.description" class="form-error">{{ bulkErrors.description }}</p>
         </div>
       </div>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="bulkSaving" @click="closeBulkModal">Cancelar</button>
@@ -453,6 +461,7 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import '../views/AdminOrdersPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -1088,212 +1097,3 @@ function exportOrders(format) {
 onMounted(loadOrders)
 </script>
 
-<style scoped>
-/* Estilos específicos de Órdenes — los comunes están en admin.css */
-
-.order-number-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.order-number-cell span {
-  color: var(--admin-text-light);
-  font-size: 1.2rem;
-}
-
-.selection-cell {
-  width: 4.2rem;
-  text-align: center;
-}
-
-.status-chip-button {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-
-.order-detail-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.6rem;
-}
-
-.detail-empty {
-  padding: 1.6rem;
-  color: var(--admin-text-light);
-}
-
-.status-form-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.2rem;
-}
-
-.status-preview {
-  width: 100%;
-  padding: 1rem 1.2rem;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-bg-dark);
-}
-
-.detail-loading {
-  min-height: 18rem;
-}
-
-.bulk-form-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.2rem;
-}
-
-.bulk-modal-summary {
-  display: grid;
-  gap: 0.9rem;
-  padding: 1.2rem 1.25rem;
-  border: 1px solid rgba(148, 184, 216, 0.24);
-  border-radius: 1.6rem;
-  background: rgba(247, 251, 255, 0.82);
-}
-
-.bulk-modal-summary__count {
-  display: flex;
-  align-items: baseline;
-  gap: 0.55rem;
-}
-
-.bulk-modal-summary__count strong {
-  font-size: 2.1rem;
-  color: var(--admin-primary-dark);
-}
-
-.bulk-modal-summary__count span {
-  font-size: 1.18rem;
-  color: var(--admin-text-soft);
-  font-weight: 600;
-}
-
-.bulk-modal-summary__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.bulk-modal-summary__chip {
-  padding: 0.55rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(0, 119, 182, 0.1);
-  border: 1px solid rgba(0, 119, 182, 0.14);
-  color: var(--admin-primary-dark);
-  font-size: 1.08rem;
-  font-weight: 700;
-}
-
-.bulk-modal-summary__chip--muted {
-  background: rgba(138, 160, 184, 0.12);
-  border-color: rgba(138, 160, 184, 0.18);
-  color: var(--admin-text-soft);
-}
-
-.bulk-modal-summary__helper {
-  margin: 0;
-  color: var(--admin-text-light);
-  font-size: 1.15rem;
-}
-
-.orders-results-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.orders-results-actions__selection {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 4.1rem;
-  padding: 0.72rem 1.1rem;
-  border-radius: 1.25rem;
-  background: rgba(0, 119, 182, 0.08);
-  border: 1px solid rgba(0, 119, 182, 0.14);
-  color: var(--admin-primary-dark);
-  font-weight: 700;
-}
-
-.results-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.72rem;
-  min-height: 4.1rem;
-  padding: 0.72rem 1.18rem;
-  border-radius: 1.25rem;
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--admin-text-heading);
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 10px 20px rgba(15, 55, 96, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-}
-
-.results-action-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(15, 55, 96, 0.1);
-}
-
-.results-action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.results-action-btn__icon {
-  width: 3rem;
-  height: 3rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.results-action-btn--neutral {
-  border-color: rgba(148, 184, 216, 0.2);
-  color: var(--admin-primary);
-}
-
-.results-action-btn--neutral .results-action-btn__icon {
-  background: rgba(0, 119, 182, 0.1);
-  color: var(--admin-primary);
-}
-
-.results-action-btn--primary {
-  background: rgba(86, 191, 116, 0.14);
-  border-color: rgba(86, 191, 116, 0.22);
-  color: #1f6e33;
-}
-
-.results-action-btn--primary .results-action-btn__icon {
-  background: rgba(86, 191, 116, 0.18);
-  color: #1f6e33;
-}
-
-.action-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-@media (max-width: 900px) {
-  .orders-results-actions {
-    justify-content: flex-start;
-  }
-
-  .order-detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

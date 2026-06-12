@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-entity-page">
+  <div class="admin-entity-page admin-payments-page">
     <AdminPageHeader
       icon="fas fa-credit-card"
       title="Pagos"
@@ -160,7 +160,7 @@
     />
 
     <AdminModal :show="showAccountModal" title="Cuenta visible al cliente" max-width="1040px" @close="closeAccountModal">
-      <div class="payment-account-modal">
+      <div class="admin-payments-page admin-payments-page--modal payment-account-modal">
         <p class="payment-account-modal__intro">Esta es la cuenta activa que se muestra al cliente cuando va a registrar una transferencia en el paso de pagos.</p>
 
         <div class="payment-account-modal__grid">
@@ -341,6 +341,7 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 import { useAdminPagination } from '../composables/useAdminPagination'
 import { getPaymentMethodLabel, getPaymentStatusBadgeClass, getPaymentStatusLabel } from '../utils/orderPresentation'
+import '../views/AdminPaymentsPage.css'
 
 const { showSnackbar } = useSnackbarSystem()
 
@@ -806,116 +807,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.payment-account-modal {
-  display: grid;
-  gap: 1rem;
-}
-
-.payment-account-modal__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  gap: 1rem;
-}
-
-.payment-account-modal__editor {
-  border: 1px solid #d8e5f2;
-  border-radius: 1rem;
-  padding: 1rem;
-  background: #f9fcff;
-  display: grid;
-  gap: 1rem;
-}
-
-.payment-account-modal__editor-header {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.payment-account-modal__editor-header h4 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: #20344a;
-}
-
-.payment-account-modal__editor-header p {
-  margin: 0;
-  color: #607289;
-  line-height: 1.5;
-}
-
-.payment-account-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.payment-account-form-grid .form-group {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.payment-account-form-grid .form-group label {
-  font-weight: 700;
-  color: #30475f;
-}
-
-.payment-account-form-grid .form-group input,
-.payment-account-form-grid .form-group select {
-  width: 100%;
-  border: 1px solid #cfe0ec;
-  border-radius: 0.7rem;
-  padding: 0.65rem 0.8rem;
-  font-size: 0.95rem;
-  background: #fff;
-}
-
-.payment-account-form-grid .form-group input:focus,
-.payment-account-form-grid .form-group select:focus {
-  outline: none;
-  border-color: #0f7abf;
-  box-shadow: 0 0 0 3px rgba(15, 122, 191, 0.12);
-}
-
-.payment-account-form-grid__full {
-  grid-column: 1 / -1;
-}
-
-.payment-account-form-grid__toggle {
-  margin-top: 0.25rem;
-}
-
-.payment-account-form-grid__toggle strong {
-  color: #20344a;
-  font-size: 1rem;
-}
-
-.payment-account-form-grid__toggle p {
-  margin: 0.25rem 0 0;
-  color: #607289;
-  line-height: 1.4;
-  font-size: 0.92rem;
-}
-
-.form-error {
-  color: #d14343;
-  font-size: 0.85rem;
-}
-
-.payment-account-modal__intro {
-  margin: 0;
-  color: #526277;
-  font-size: 1.05rem;
-  line-height: 1.6;
-}
-
-@media (max-width: 960px) {
-  .payment-account-modal__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .payment-account-form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

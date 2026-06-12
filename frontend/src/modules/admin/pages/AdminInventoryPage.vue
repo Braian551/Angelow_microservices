@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-entity-page inventory-page">
+  <div class="admin-entity-page inventory-page admin-inventory-page">
     <AdminPageHeader
       icon="fas fa-warehouse"
       title="Inventario"
@@ -101,6 +101,7 @@
     />
 
     <AdminModal :show="showDetailModal" :title="detailModalTitle" max-width="1180px" @close="closeDetailModal">
+      <div class="admin-inventory-page admin-inventory-page--modal">
       <div v-if="detailLoading" class="inventory-detail-loading">
         <AdminTableShimmer :rows="4" :columns="['line', 'line', 'line', 'line', 'btn']" />
       </div>
@@ -204,9 +205,11 @@
           </div>
         </div>
       </template>
+      </div>
     </AdminModal>
 
     <AdminModal :show="showAdjustModal" title="Ajustar stock" max-width="520px" @close="closeAdjustModal">
+      <div class="admin-inventory-page admin-inventory-page--modal">
       <div class="inventory-form-grid">
         <div class="form-group inventory-form-grid__full">
           <label>Variante seleccionada</label>
@@ -242,6 +245,7 @@
           <textarea id="adjust-reason" v-model="adjustForm.reason" class="form-control" rows="3"></textarea>
         </div>
       </div>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeAdjustModal">Cancelar</button>
@@ -252,6 +256,7 @@
     </AdminModal>
 
     <AdminModal :show="showTransferModal" title="Transferir stock" max-width="560px" @close="closeTransferModal">
+      <div class="admin-inventory-page admin-inventory-page--modal">
       <div class="inventory-form-grid">
         <div class="form-group inventory-form-grid__full">
           <label>Variante origen</label>
@@ -288,6 +293,7 @@
           </label>
           <textarea id="transfer-reason" v-model="transferForm.reason" class="form-control" rows="3"></textarea>
         </div>
+      </div>
       </div>
 
       <template #footer>
@@ -327,6 +333,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import '../views/AdminInventoryPage.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -1044,120 +1051,3 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-/* Estilos propios de inventario */
-.inventory-tabs {
-  margin-bottom: 1.6rem;
-}
-
-.inventory-summary,
-.inventory-detail-pills {
-  display: flex;
-  gap: 0.7rem;
-}
-
-.inventory-summary,
-.inventory-history-header p,
-.inventory-detail-header p {
-  color: var(--admin-text-light);
-  font-size: 1.25rem;
-}
-
-.inventory-summary {
-  flex-direction: column;
-}
-
-.inventory-stock {
-  font-weight: 700;
-}
-
-.inventory-stock--active {
-  color: var(--admin-success);
-}
-
-.inventory-stock--low {
-  color: var(--admin-warning-dark, #8a6d00);
-}
-
-.inventory-stock--out {
-  color: var(--admin-error);
-}
-
-.inventory-detail-header,
-.inventory-history-header,
-.inventory-form-grid__full {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.inventory-detail-header {
-  margin-bottom: 1.6rem;
-}
-
-.inventory-history-block {
-  margin-top: 2.4rem;
-  margin-bottom: 1.6rem;
-}
-
-.inventory-detail-header h4,
-.inventory-history-header h4 {
-  margin: 0 0 0.4rem;
-}
-
-.inventory-detail-pills {
-  flex-wrap: wrap;
-}
-
-.inventory-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2rem;
-}
-
-.inventory-form-grid__full {
-  grid-column: 1 / -1;
-}
-
-.inventory-form-grid__target {
-  grid-column: 1 / 2;
-}
-
-.inventory-form-grid__quantity {
-  grid-column: 2 / 3;
-}
-
-.inventory-variant-preview {
-  width: 100%;
-  padding: 1rem 1.2rem;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-bg-dark);
-  color: var(--admin-text);
-}
-
-.inventory-detail-loading {
-  min-height: 20rem;
-}
-
-@media (max-width: 900px) {
-  .inventory-detail-header,
-  .inventory-history-header,
-  .inventory-form-grid__full {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 768px) {
-  .inventory-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .inventory-form-grid__target,
-  .inventory-form-grid__quantity {
-    grid-column: 1 / -1;
-  }
-}
-</style>

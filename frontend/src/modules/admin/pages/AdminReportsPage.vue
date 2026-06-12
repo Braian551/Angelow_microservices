@@ -370,7 +370,8 @@
     </section>
 
     <AdminModal :show="showDetailModal" :title="detailTitle" max-width="980px" @close="closeDetailModal">
-      <template v-if="detailContext && detailContext.type === 'sales'">
+      <div v-if="detailContext" class="admin-reports-page admin-reports-page--modal">
+      <template v-if="detailContext.type === 'sales'">
         <div class="admin-detail-grid">
           <AdminCard title="Resumen del período" icon="fas fa-chart-line">
             <div class="admin-surface-card">
@@ -391,7 +392,7 @@
         </div>
       </template>
 
-      <template v-else-if="detailContext && detailContext.type === 'products'">
+      <template v-else-if="detailContext.type === 'products'">
         <div class="admin-detail-grid">
           <AdminCard title="Ficha del producto" icon="fas fa-box-open">
             <div class="report-product-detail">
@@ -421,7 +422,7 @@
         </div>
       </template>
 
-      <template v-else-if="detailContext && detailContext.type === 'customers'">
+      <template v-else-if="detailContext.type === 'customers'">
         <div class="admin-detail-grid">
           <AdminCard title="Perfil del cliente" icon="fas fa-user-circle">
             <div class="report-customer-detail">
@@ -451,6 +452,7 @@
           </AdminCard>
         </div>
       </template>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeDetailModal">Cerrar</button>
@@ -493,6 +495,7 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import '../views/AdminReportsPage.css'
 
 Chart.register(
   CategoryScale,
@@ -1276,147 +1279,3 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
-.report-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  padding: 1.25rem 1.75rem;
-}
-
-.report-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.8rem;
-  border: 1px solid rgba(15, 122, 191, 0.16);
-  background: #f8fbfe;
-  color: var(--admin-text);
-  border-radius: 999px;
-  padding: 0.9rem 1.4rem;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.report-tab.active {
-  background: var(--admin-primary);
-  color: #fff;
-  border-color: var(--admin-primary);
-}
-
-.filters-row--reports {
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-}
-
-.report-section {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.report-grid {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.report-grid--sales-charts,
-.report-grid--customers-charts {
-  grid-template-columns: 1.25fr 0.95fr;
-}
-
-.report-grid--products-charts {
-  grid-template-columns: 1.2fr 0.9fr 0.9fr;
-}
-
-.chart-card__body {
-  height: 32rem;
-  padding: 1.4rem;
-}
-
-.chart-card__body--compact {
-  height: 30rem;
-}
-
-.chart-card__body--large {
-  height: 34rem;
-}
-
-.reports-table th,
-.reports-table td {
-  vertical-align: middle;
-}
-
-.report-product-cell,
-.report-customer-cell,
-.report-product-detail,
-.report-customer-detail {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.report-product-cell__image,
-.report-product-detail__image {
-  width: 5.4rem;
-  height: 5.4rem;
-  border-radius: 1rem;
-  object-fit: cover;
-  background: #f3f7fb;
-  border: 1px solid rgba(15, 122, 191, 0.12);
-}
-
-.report-customer-cell__image,
-.report-customer-detail__image {
-  width: 4.8rem;
-  height: 4.8rem;
-  border-radius: 999px;
-  object-fit: cover;
-  background: #f3f7fb;
-  border: 1px solid rgba(15, 122, 191, 0.12);
-}
-
-.report-product-detail,
-.report-customer-detail {
-  align-items: stretch;
-}
-
-.report-product-detail__image {
-  width: 12rem;
-  height: 12rem;
-}
-
-.report-customer-detail__image {
-  width: 8.4rem;
-  height: 8.4rem;
-}
-
-@media (max-width: 1100px) {
-  .report-grid--sales-charts,
-  .report-grid--customers-charts,
-  .report-grid--products-charts {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 720px) {
-  .report-tabs {
-    padding: 1.2rem 1.2rem 0;
-  }
-
-  .report-tab {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .report-product-cell,
-  .report-customer-cell,
-  .report-product-detail,
-  .report-customer-detail {
-    align-items: flex-start;
-  }
-
-  .chart-card__body,
-  .chart-card__body--compact,
-  .chart-card__body--large {
-    height: 28rem;
-  }
-}
-</style>

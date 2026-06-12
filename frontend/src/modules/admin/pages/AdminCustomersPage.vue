@@ -149,7 +149,7 @@
     />
 
     <AdminModal :show="showDetailModal" :title="selectedCustomer ? selectedCustomer.name : 'Detalle de cliente'" max-width="1080px" @close="closeCustomerModal">
-      <template v-if="selectedCustomer">
+      <div v-if="selectedCustomer" class="admin-customers-page admin-customers-page--modal">
         <div class="customer-detail-grid">
           <div>
             <AdminCard title="Perfil del cliente" icon="fas fa-id-card">
@@ -217,7 +217,7 @@
             </AdminCard>
           </div>
         </div>
-      </template>
+      </div>
 
       <template #footer>
         <button
@@ -255,6 +255,7 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import '../views/AdminCustomersPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -695,56 +696,3 @@ watch(() => route.fullPath, async () => {
 }, { immediate: true })
 </script>
 
-<style scoped>
-/* Estilos específicos de Clientes — los comunes están en admin.css */
-
-/* Celda de cliente con avatar + texto */
-.customer-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* Perfil dentro del modal de detalle */
-.customer-profile {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.customer-profile__body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.customer-profile__body h3 {
-  margin: 0;
-}
-
-.customer-profile__body p {
-  color: var(--admin-text-light);
-  font-size: 1.2rem;
-  margin: 0;
-}
-
-/* Grid del modal de detalle de cliente (2 columnas) */
-.customer-detail-grid {
-  display: grid;
-  grid-template-columns: 1.8fr 1fr;
-  gap: 1.6rem;
-}
-
-/* Celda vacía en detalle de pedidos */
-.detail-empty {
-  padding: 1.6rem;
-  color: var(--admin-text-light);
-}
-
-@media (max-width: 900px) {
-  .customer-detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
