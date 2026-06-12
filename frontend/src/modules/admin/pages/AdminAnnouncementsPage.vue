@@ -163,48 +163,50 @@
 
     <AdminModal :show="showDetailModal" :title="selectedAnnouncement ? selectedAnnouncement.title : 'Detalle del anuncio'" max-width="1080px" @close="closeDetailModal">
       <template v-if="selectedAnnouncement">
-        <div class="announcement-detail-grid admin-detail-grid admin-detail-grid--featured">
-          <div class="announcement-preview-card">
-            <div class="announcement-preview-card__visual" :style="previewCardStyle(selectedAnnouncement)">
-              <img
-                v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.image"
-                :src="resolveMediaUrl(selectedAnnouncement.image, 'banner')"
-                :alt="selectedAnnouncement.title"
-                @error="handleMediaError($event, selectedAnnouncement.image, 'banner')"
-              >
-              <div class="announcement-preview-card__content">
-                <span class="announcement-preview-card__type">
-                  <i :class="['fas', selectedAnnouncement.icon || 'fa-bullhorn']"></i>
-                  {{ typeLabel(selectedAnnouncement.type) }}
-                </span>
-                <h3>{{ selectedAnnouncement.title }}</h3>
-                <p>{{ selectedAnnouncement.message || 'Sin mensaje configurado.' }}</p>
-                <p v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.subtitle" class="announcement-preview-card__subtitle">{{ selectedAnnouncement.subtitle }}</p>
-                <a v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.button_text" class="announcement-preview-card__button" href="#" @click.prevent>
-                  {{ selectedAnnouncement.button_text }}
-                </a>
+        <div class="admin-announcements-page admin-announcements-page--modal">
+          <div class="announcement-detail-grid admin-detail-grid admin-detail-grid--featured">
+            <div class="announcement-preview-card">
+              <div class="announcement-preview-card__visual" :style="previewCardStyle(selectedAnnouncement)">
+                <img
+                  v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.image"
+                  :src="resolveMediaUrl(selectedAnnouncement.image, 'banner')"
+                  :alt="selectedAnnouncement.title"
+                  @error="handleMediaError($event, selectedAnnouncement.image, 'banner')"
+                >
+                <div class="announcement-preview-card__content">
+                  <span class="announcement-preview-card__type">
+                    <i :class="['fas', selectedAnnouncement.icon || 'fa-bullhorn']"></i>
+                    {{ typeLabel(selectedAnnouncement.type) }}
+                  </span>
+                  <h3>{{ selectedAnnouncement.title }}</h3>
+                  <p>{{ selectedAnnouncement.message || 'Sin mensaje configurado.' }}</p>
+                  <p v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.subtitle" class="announcement-preview-card__subtitle">{{ selectedAnnouncement.subtitle }}</p>
+                  <a v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.button_text" class="announcement-preview-card__button" href="#" @click.prevent>
+                    {{ selectedAnnouncement.button_text }}
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div>
-            <AdminCard title="Configuración" icon="fas fa-cogs">
-              <div class="admin-detail-summary">
-                <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ announcementStatusLabel(selectedAnnouncement) }}</strong></div>
-                <div class="admin-detail-summary__row"><span>Prioridad</span><strong>{{ priorityLabel(selectedAnnouncement.priority) }}</strong></div>
-                <div class="admin-detail-summary__row"><span>Inicio</span><strong>{{ selectedAnnouncement.start_date ? formatDateTime(selectedAnnouncement.start_date) : 'Inmediato' }}</strong></div>
-                <div class="admin-detail-summary__row"><span>Fin</span><strong>{{ selectedAnnouncement.end_date ? formatDateTime(selectedAnnouncement.end_date) : 'Sin cierre' }}</strong></div>
-                <div v-if="selectedAnnouncement.type === 'promo_banner'" class="admin-detail-summary__row"><span>Botón</span><strong>{{ selectedAnnouncement.button_text || 'No configurado' }}</strong></div>
-                <div v-if="selectedAnnouncement.type === 'promo_banner'" class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Enlace</span><strong>{{ selectedAnnouncement.button_link || 'Sin enlace' }}</strong></div>
-              </div>
-            </AdminCard>
+            <div>
+              <AdminCard title="Configuración" icon="fas fa-cogs">
+                <div class="admin-detail-summary">
+                  <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ announcementStatusLabel(selectedAnnouncement) }}</strong></div>
+                  <div class="admin-detail-summary__row"><span>Prioridad</span><strong>{{ priorityLabel(selectedAnnouncement.priority) }}</strong></div>
+                  <div class="admin-detail-summary__row"><span>Inicio</span><strong>{{ selectedAnnouncement.start_date ? formatDateTime(selectedAnnouncement.start_date) : 'Inmediato' }}</strong></div>
+                  <div class="admin-detail-summary__row"><span>Fin</span><strong>{{ selectedAnnouncement.end_date ? formatDateTime(selectedAnnouncement.end_date) : 'Sin cierre' }}</strong></div>
+                  <div v-if="selectedAnnouncement.type === 'promo_banner'" class="admin-detail-summary__row"><span>Botón</span><strong>{{ selectedAnnouncement.button_text || 'No configurado' }}</strong></div>
+                  <div v-if="selectedAnnouncement.type === 'promo_banner'" class="admin-detail-summary__row admin-detail-summary__row--stack"><span>Enlace</span><strong>{{ selectedAnnouncement.button_link || 'Sin enlace' }}</strong></div>
+                </div>
+              </AdminCard>
 
-            <AdminCard title="Mensaje completo" icon="fas fa-align-left" style="margin-top: 1.2rem;">
-              <div class="detail-copy-block">
-                <p>{{ selectedAnnouncement.message || 'Sin mensaje.' }}</p>
-                <p v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.subtitle"><strong>Subtítulo:</strong> {{ selectedAnnouncement.subtitle }}</p>
-              </div>
-            </AdminCard>
+              <AdminCard title="Mensaje completo" icon="fas fa-align-left" style="margin-top: 1.2rem;">
+                <div class="detail-copy-block">
+                  <p>{{ selectedAnnouncement.message || 'Sin mensaje.' }}</p>
+                  <p v-if="selectedAnnouncement.type === 'promo_banner' && selectedAnnouncement.subtitle"><strong>Subtítulo:</strong> {{ selectedAnnouncement.subtitle }}</p>
+                </div>
+              </AdminCard>
+            </div>
           </div>
         </div>
       </template>
@@ -218,6 +220,7 @@
     </AdminModal>
 
     <AdminModal :show="showEditorModal" :title="editingAnnouncementId ? 'Editar anuncio' : 'Nuevo anuncio'" max-width="920px" @close="closeEditorModal">
+      <div class="admin-announcements-page admin-announcements-page--modal">
       <div class="editor-grid admin-editor-grid">
         <div>
           <div class="form-group">
@@ -434,6 +437,7 @@
           </template>
         </div>
       </div>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeEditorModal">Cancelar</button>
@@ -448,6 +452,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import '../views/AdminAnnouncementsPage.css'
 import { notificationHttp, catalogHttp } from '../../../services/http'
 import TopAnnouncementBar from '../../../components/home/TopAnnouncementBar.vue'
 import PromoBanner from '../../home/components/PromoBanner.vue'
@@ -991,197 +996,3 @@ onBeforeUnmount(() => {
   if (imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value)
 })
 </script>
-
-<style scoped>
-/* Estilos propios de anuncios */
-.announcement-thumb {
-  width: 6rem;
-  height: 6rem;
-  border: 1px solid var(--admin-border-light);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-bg-soft);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-
-.announcement-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.announcement-thumb i {
-  font-size: 1.8rem;
-  color: var(--admin-primary);
-}
-
-.announcement-preview-card__visual {
-  min-height: 30rem;
-  border-radius: var(--admin-radius-xl);
-  padding: 1.8rem;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-}
-
-.announcement-preview-card__visual img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.22;
-}
-
-.announcement-preview-card__content {
-  position: relative;
-  display: grid;
-  gap: 0.8rem;
-  max-width: 48rem;
-}
-
-.announcement-preview-card__type {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--admin-radius-pill);
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.announcement-preview-card__content h3 {
-  margin: 0;
-  font-size: 2.2rem;
-}
-
-.announcement-preview-card__content p {
-  margin: 0;
-  font-size: 1.45rem;
-  line-height: 1.6;
-}
-
-.announcement-preview-card__subtitle {
-  opacity: 0.85;
-}
-
-.announcement-preview-card__button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 16rem;
-  padding: 1rem 1.5rem;
-  border-radius: var(--admin-radius-pill);
-  background: rgba(255, 255, 255, 0.92);
-  color: #102236;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.editor-live-preview {
-  margin-top: 1.2rem;
-}
-
-.editor-live-preview__label {
-  margin: 0 0 0.8rem;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--admin-text-soft);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Contenedor que simula el ancho del sitio real */
-.editor-live-preview__frame {
-  border-radius: var(--admin-radius-lg);
-  overflow: hidden;
-  border: 1px solid var(--admin-border-light);
-}
-
-/* Contexto barra superior: franja angosta como en el sitio */
-.preview-site-context--topbar {
-  width: 100%;
-}
-
-/* Contexto banner promo: sección destacada como en la página de inicio */
-.preview-site-context--banner {
-  width: 100%;
-}
-
-/* Selector de color con muestra visual */
-.color-select-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.color-select-swatch {
-  width: 3rem;
-  height: 3rem;
-  border-radius: var(--admin-radius);
-  border: 1px solid var(--admin-border);
-  flex-shrink: 0;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.color-select-wrapper .form-control {
-  flex: 1;
-}
-
-/* Espaciado para input personalizado de URL */
-.mt-1 {
-  margin-top: 0.6rem;
-}
-
-.announcement-link-help {
-  display: block;
-  margin-top: 0.6rem;
-  font-size: 1.2rem;
-  color: var(--admin-text-soft);
-  line-height: 1.5;
-}
-
-.announcement-link-help--muted {
-  margin-top: 0.5rem;
-}
-
-.editor-preview-image {
-  margin-top: 1rem;
-  display: grid;
-  gap: 0.8rem;
-}
-
-.editor-preview-image img {
-  width: 100%;
-  max-height: 18rem;
-  border-radius: var(--admin-radius-lg);
-  object-fit: cover;
-}
-
-.detail-copy-block {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.detail-copy-block p {
-  margin: 0;
-  font-size: 1.4rem;
-  line-height: 1.6;
-}
-
-.results-note {
-  font-size: 1.3rem;
-  color: var(--admin-text-soft);
-}
-
-.results-note--warning {
-  color: var(--admin-danger);
-  font-weight: 700;
-}
-</style>

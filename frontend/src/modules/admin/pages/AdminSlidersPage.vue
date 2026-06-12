@@ -99,100 +99,102 @@
     </AdminCard>
 
     <AdminModal :show="showModal" :title="editingSliderId ? 'Editar slider' : 'Nuevo slider'" max-width="920px" @close="closeModal">
-      <div class="admin-editor-grid slider-editor-grid">
-        <div>
-          <div class="form-group">
-            <label for="slider-title">
-              Título *
-              <AdminInfoTooltip text="Texto principal del slide visible sobre la imagen. Ejemplos: «Nueva colección», «60% OFF»." />
-            </label>
-            <input id="slider-title" v-model.trim="form.title" type="text" class="form-control" :class="{ 'is-invalid': formErrors.title }" @input="validateField('title')">
-            <p v-if="formErrors.title" class="form-error">{{ formErrors.title }}</p>
-          </div>
-
-          <div class="form-group">
-            <label for="slider-subtitle">
-              Subtítulo
-              <AdminInfoTooltip text="Texto complementario que aparece bajo el título. Puede ampliar el mensaje principal." />
-            </label>
-            <input id="slider-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
-          </div>
-
-          <div class="form-group">
-            <label for="slider-link">
-              Destino del slider
-              <AdminInfoTooltip text="Página de la tienda a la que lleva el slider al hacer clic. Elige «Otro enlace personalizado» si necesitas una URL específica." />
-            </label>
-            <select id="slider-link" v-model="selectedLinkOption" class="form-control" @change="onLinkOptionChange(selectedLinkOption)">
-              <optgroup v-for="group in linkOptionGroups" :key="group.label" :label="group.label">
-                <option v-for="page in group.options" :key="page.value" :value="page.value">{{ page.label }}</option>
-              </optgroup>
-            </select>
-            <small class="slider-link-help">Usa un destino rápido o escribe una ruta propia para campañas, productos o páginas específicas.</small>
-            <input
-              v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE"
-              v-model.trim="form.link"
-              type="text"
-              class="form-control mt-1"
-              :class="{ 'is-invalid': formErrors.link }"
-              placeholder="Ej. /producto/vestido-verano, /tienda?collection=12 o https://..."
-              @input="validateField('link')"
-            >
-            <small v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE" class="slider-link-help slider-link-help--muted">Puedes enlazar a un producto por slug, a una colección concreta o a una URL externa.</small>
-            <p v-if="formErrors.link" class="form-error">{{ formErrors.link }}</p>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group" style="flex: 1;">
-              <label for="slider-order">
-                Orden *
-                <AdminInfoTooltip text="Posición en el carrusel. Los slides con número menor aparecen primero." />
+      <div class="admin-sliders-page admin-sliders-page--modal">
+        <div class="admin-editor-grid slider-editor-grid">
+          <div>
+            <div class="form-group">
+              <label for="slider-title">
+                Título *
+                <AdminInfoTooltip text="Texto principal del slide visible sobre la imagen. Ejemplos: «Nueva colección», «60% OFF»." />
               </label>
-              <input id="slider-order" v-model.number="form.sort_order" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.sort_order }" @input="validateField('sort_order')">
-              <p v-if="formErrors.sort_order" class="form-error">{{ formErrors.sort_order }}</p>
+              <input id="slider-title" v-model.trim="form.title" type="text" class="form-control" :class="{ 'is-invalid': formErrors.title }" @input="validateField('title')">
+              <p v-if="formErrors.title" class="form-error">{{ formErrors.title }}</p>
             </div>
-            <div class="form-group" style="flex: 1; display: flex; align-items: flex-end;">
-              <AdminToggleSwitch
-                id="slider-active"
-                v-model="form.active"
-                layout="inline"
-                label="Slider activo en el carrusel"
-              />
+
+            <div class="form-group">
+              <label for="slider-subtitle">
+                Subtítulo
+                <AdminInfoTooltip text="Texto complementario que aparece bajo el título. Puede ampliar el mensaje principal." />
+              </label>
+              <input id="slider-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
             </div>
+
+            <div class="form-group">
+              <label for="slider-link">
+                Destino del slider
+                <AdminInfoTooltip text="Página de la tienda a la que lleva el slider al hacer clic. Elige «Otro enlace personalizado» si necesitas una URL específica." />
+              </label>
+              <select id="slider-link" v-model="selectedLinkOption" class="form-control" @change="onLinkOptionChange(selectedLinkOption)">
+                <optgroup v-for="group in linkOptionGroups" :key="group.label" :label="group.label">
+                  <option v-for="page in group.options" :key="page.value" :value="page.value">{{ page.label }}</option>
+                </optgroup>
+              </select>
+              <small class="slider-link-help">Usa un destino rápido o escribe una ruta propia para campañas, productos o páginas específicas.</small>
+              <input
+                v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE"
+                v-model.trim="form.link"
+                type="text"
+                class="form-control mt-1"
+                :class="{ 'is-invalid': formErrors.link }"
+                placeholder="Ej. /producto/vestido-verano, /tienda?collection=12 o https://..."
+                @input="validateField('link')"
+              >
+              <small v-if="selectedLinkOption === CUSTOM_STORE_LINK_VALUE" class="slider-link-help slider-link-help--muted">Puedes enlazar a un producto por slug, a una colección concreta o a una URL externa.</small>
+              <p v-if="formErrors.link" class="form-error">{{ formErrors.link }}</p>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group" style="flex: 1;">
+                <label for="slider-order">
+                  Orden *
+                  <AdminInfoTooltip text="Posición en el carrusel. Los slides con número menor aparecen primero." />
+                </label>
+                <input id="slider-order" v-model.number="form.sort_order" type="number" min="0" class="form-control" :class="{ 'is-invalid': formErrors.sort_order }" @input="validateField('sort_order')">
+                <p v-if="formErrors.sort_order" class="form-error">{{ formErrors.sort_order }}</p>
+              </div>
+              <div class="form-group" style="flex: 1; display: flex; align-items: flex-end;">
+                <AdminToggleSwitch
+                  id="slider-active"
+                  v-model="form.active"
+                  layout="inline"
+                  label="Slider activo en el carrusel"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="form-group">
+              <label>
+                Imagen *
+                <AdminInfoTooltip text="Imagen principal del slide. Se recomienda formato horizontal amplio (mínimo 1920×600 px). JPG, PNG o WEBP. Máximo 4 MB." />
+              </label>
+              <div class="admin-upload-box" @click="openImagePicker">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>{{ imagePreviewUrl ? 'Cambiar imagen del slider' : 'Selecciona la imagen principal del slide' }}</p>
+                <small>JPG, PNG o WEBP. Máximo 4 MB.</small>
+              </div>
+              <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
+              <p v-if="formErrors.image" class="form-error">{{ formErrors.image }}</p>
+              <div v-if="imagePreviewUrl" class="slider-preview-image">
+                <img :src="imagePreviewUrl" alt="Vista previa del slider">
+                <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <div>
-          <div class="form-group">
-            <label>
-              Imagen *
-              <AdminInfoTooltip text="Imagen principal del slide. Se recomienda formato horizontal amplio (mínimo 1920×600 px). JPG, PNG o WEBP. Máximo 4 MB." />
-            </label>
-            <div class="admin-upload-box" @click="openImagePicker">
-              <i class="fas fa-cloud-upload-alt"></i>
-              <p>{{ imagePreviewUrl ? 'Cambiar imagen del slider' : 'Selecciona la imagen principal del slide' }}</p>
-              <small>JPG, PNG o WEBP. Máximo 4 MB.</small>
-            </div>
-            <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
-            <p v-if="formErrors.image" class="form-error">{{ formErrors.image }}</p>
-            <div v-if="imagePreviewUrl" class="slider-preview-image">
-              <img :src="imagePreviewUrl" alt="Vista previa del slider">
-              <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </div>
+        <div class="slider-preview-card">
+          <p class="slider-preview-card__label">
+            <i class="fas fa-eye"></i>
+            Vista previa del carrusel
+          </p>
+          <div class="slider-preview-card__surface slider-preview-card__surface--home">
+            <HomeHeroSlider :key="sliderPreviewKey" :slides="sliderPreviewSlides" :loading="false" :preview-mode="true" />
           </div>
-
-        </div>
-      </div>
-
-      <div class="slider-preview-card">
-        <p class="slider-preview-card__label">
-          <i class="fas fa-eye"></i>
-          Vista previa del carrusel
-        </p>
-        <div class="slider-preview-card__surface slider-preview-card__surface--home">
-          <HomeHeroSlider :key="sliderPreviewKey" :slides="sliderPreviewSlides" :loading="false" :preview-mode="true" />
         </div>
       </div>
 
@@ -209,6 +211,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import '../views/AdminSlidersPage.css'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -596,138 +599,3 @@ onBeforeUnmount(() => {
   }
 })
 </script>
-
-<style scoped>
-/* Estilos propios de sliders */
-.sliders-table th,
-.sliders-table td {
-  vertical-align: middle;
-}
-
-/* Columna de orden: ancho mínimo y centrado */
-.slider-td-order {
-  width: 7rem;
-  text-align: center;
-}
-
-/* Celda compacta: handle + número alineados horizontalmente */
-.slider-order-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  justify-content: center;
-  width: 100%;
-}
-
-.slider-order-num {
-  font-weight: 700;
-  font-size: 1.4rem;
-  color: var(--admin-text-dark);
-  min-width: 1.4rem;
-  text-align: center;
-}
-
-.slider-drag-handle {
-  width: 3.2rem;
-  height: 3.2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  border: 1px solid rgba(0, 119, 182, 0.2);
-  background: rgba(0, 119, 182, 0.1);
-  color: var(--admin-primary);
-  cursor: grab;
-}
-
-.slider-row--dragging {
-  opacity: 0.55;
-}
-
-.slider-row--over td {
-  background: rgba(0, 119, 182, 0.08);
-}
-
-.admin-entity-actions--compact {
-  gap: 0.4rem;
-}
-
-.slider-preview-image {
-  margin-top: 1rem;
-  display: grid;
-  gap: 0.8rem;
-}
-
-.slider-preview-image img {
-  width: 100%;
-  max-height: 20rem;
-  object-fit: cover;
-  border-radius: var(--admin-radius-lg);
-}
-
-.slider-preview-card {
-  margin-top: 1.4rem;
-}
-
-.slider-preview-card__label {
-  margin: 0 0 0.8rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--admin-text-light);
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.slider-preview-card__surface {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--admin-radius-xl);
-  border: 1px solid var(--admin-border-light);
-  background: #f4f8fb;
-}
-
-.slider-preview-card__surface--home {
-  width: 100%;
-  height: 30rem;
-}
-
-.slider-preview-card__surface--home :deep(.hero-banner) {
-  min-height: 100%;
-  height: 100%;
-  border-radius: inherit;
-}
-
-.slider-preview-card__surface--home :deep(.hero-title) {
-  font-size: clamp(2.8rem, 3.8vw, 4.8rem);
-}
-
-.slider-link-help {
-  display: block;
-  margin-top: 0.6rem;
-  font-size: 1.2rem;
-  color: var(--admin-text-soft);
-  line-height: 1.5;
-}
-
-.slider-link-help--muted {
-  margin-top: 0.5rem;
-}
-
-.mt-1 {
-  margin-top: 0.6rem;
-}
-
-@media (max-width: 768px) {
-  .slider-preview-card__surface--home {
-    height: 24rem;
-  }
-
-  .slider-preview-card__surface--home :deep(.hero-banner) {
-    min-height: 100%;
-    height: 100%;
-  }
-}
-</style>

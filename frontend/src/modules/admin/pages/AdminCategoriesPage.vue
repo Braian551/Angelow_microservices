@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-entity-page">
+  <div class="admin-entity-page admin-categories-page">
     <AdminPageHeader
       icon="fas fa-folder-open"
       title="Categorías"
@@ -127,82 +127,84 @@
       max-width="860px"
       @close="closeModal"
     >
-      <div class="admin-editor-grid">
-        <!-- Columna izquierda: datos principales -->
-        <div>
-          <div class="form-group">
-            <label for="category-name">
-              Nombre *
-              <AdminInfoTooltip text="Nombre visible de la categoría en la tienda y en el panel de administración. Debe ser claro y reconocible para el equipo." />
-            </label>
-            <input
-              id="category-name"
-              v-model="form.name"
-              class="form-control"
-              :class="{ 'is-invalid': errors.name }"
-              placeholder="Ej. Vestidos, Pijamas, Ropa Deportiva"
-              @input="onNameInput"
-            >
-            <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
-          </div>
-
-          <div class="form-group">
-            <label for="category-slug">
-              Identificador (slug)
-              <AdminInfoTooltip text="Clave única que identifica la categoría en las URLs. Se genera automáticamente al escribir el nombre. Solo letras minúsculas, números y guiones." />
-            </label>
-            <input
-              id="category-slug"
-              v-model="form.slug"
-              class="form-control"
-              placeholder="se-genera-automaticamente"
-              @input="onSlugInput"
-            >
-            <p v-if="form.slug" class="admin-field-hint">URL: <code>/tienda/categoria/{{ form.slug }}</code></p>
-          </div>
-
-          <div class="form-group">
-            <label for="category-description">
-              Descripción
-              <AdminInfoTooltip text="Descripción interna del alcance y contenido de la categoría. No es visible al cliente en la tienda." />
-            </label>
-            <textarea
-              id="category-description"
-              v-model="form.description"
-              class="form-control"
-              rows="4"
-              placeholder="Describe el tipo de prendas que incluye esta categoría."
-            ></textarea>
-          </div>
-
-          <AdminToggleSwitch
-            id="category-active"
-            v-model="form.is_active"
-            title="Categoría activa"
-            description="Si está activa, puede asociarse a productos y aparece disponible en los filtros del catálogo."
-          />
-        </div>
-
-        <!-- Columna derecha: imagen -->
-        <div>
-          <div class="form-group">
-            <label>
-              Imagen de la categoría
-              <AdminInfoTooltip text="Imagen representativa que se muestra en la tienda y el catálogo. Formatos admitidos: JPG, PNG o WEBP. Máximo 4 MB." />
-            </label>
-            <div class="admin-upload-box" @click="openImagePicker">
-              <i class="fas fa-cloud-upload-alt"></i>
-              <p>{{ imagePreviewUrl ? 'Cambiar imagen' : 'Selecciona la imagen de la categoría' }}</p>
-              <small>JPG, PNG o WEBP · Máximo 4 MB</small>
+      <div class="admin-categories-page admin-categories-page--modal">
+        <div class="admin-editor-grid">
+          <!-- Columna izquierda: datos principales -->
+          <div>
+            <div class="form-group">
+              <label for="category-name">
+                Nombre *
+                <AdminInfoTooltip text="Nombre visible de la categoría en la tienda y en el panel de administración. Debe ser claro y reconocible para el equipo." />
+              </label>
+              <input
+                id="category-name"
+                v-model="form.name"
+                class="form-control"
+                :class="{ 'is-invalid': errors.name }"
+                placeholder="Ej. Vestidos, Pijamas, Ropa Deportiva"
+                @input="onNameInput"
+              >
+              <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
             </div>
-            <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
-            <p v-if="errors.image" class="form-error">{{ errors.image }}</p>
-            <div v-if="imagePreviewUrl" class="admin-image-preview">
-              <img :src="imagePreviewUrl" alt="Vista previa de la imagen de categoría">
-              <div class="admin-image-preview__actions">
-                <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
+
+            <div class="form-group">
+              <label for="category-slug">
+                Identificador (slug)
+                <AdminInfoTooltip text="Clave única que identifica la categoría en las URLs. Se genera automáticamente al escribir el nombre. Solo letras minúsculas, números y guiones." />
+              </label>
+              <input
+                id="category-slug"
+                v-model="form.slug"
+                class="form-control"
+                placeholder="se-genera-automaticamente"
+                @input="onSlugInput"
+              >
+              <p v-if="form.slug" class="admin-field-hint">URL: <code>/tienda/categoria/{{ form.slug }}</code></p>
+            </div>
+
+            <div class="form-group">
+              <label for="category-description">
+                Descripción
+                <AdminInfoTooltip text="Descripción interna del alcance y contenido de la categoría. No es visible al cliente en la tienda." />
+              </label>
+              <textarea
+                id="category-description"
+                v-model="form.description"
+                class="form-control"
+                rows="4"
+                placeholder="Describe el tipo de prendas que incluye esta categoría."
+              ></textarea>
+            </div>
+
+            <AdminToggleSwitch
+              id="category-active"
+              v-model="form.is_active"
+              title="Categoría activa"
+              description="Si está activa, puede asociarse a productos y aparece disponible en los filtros del catálogo."
+            />
+          </div>
+
+          <!-- Columna derecha: imagen -->
+          <div>
+            <div class="form-group">
+              <label>
+                Imagen de la categoría
+                <AdminInfoTooltip text="Imagen representativa que se muestra en la tienda y el catálogo. Formatos admitidos: JPG, PNG o WEBP. Máximo 4 MB." />
+              </label>
+              <div class="admin-upload-box" @click="openImagePicker">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>{{ imagePreviewUrl ? 'Cambiar imagen' : 'Selecciona la imagen de la categoría' }}</p>
+                <small>JPG, PNG o WEBP · Máximo 4 MB</small>
+              </div>
+              <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
+              <p v-if="errors.image" class="form-error">{{ errors.image }}</p>
+              <div v-if="imagePreviewUrl" class="admin-image-preview">
+                <img :src="imagePreviewUrl" alt="Vista previa de la imagen de categoría">
+                <div class="admin-image-preview__actions">
+                  <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -222,6 +224,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import '../views/AdminCategoriesPage.css'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -525,16 +528,3 @@ async function toggleStatus(category) {
 
 onMounted(loadCategories)
 </script>
-
-<style scoped>
-/* Estilos responsivos propios de categorías */
-@media (max-width: 768px) {
-  .admin-editor-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-entity-actions {
-    flex-wrap: wrap;
-  }
-}
-</style>
