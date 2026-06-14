@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-entity-page">
+  <div class="admin-entity-page admin-sizes-page">
     <AdminPageHeader
       icon="fas fa-ruler"
       title="Tallas"
@@ -108,7 +108,8 @@
     />
 
     <AdminModal :show="showModal" :title="editing ? 'Editar talla' : 'Nueva talla'" max-width="720px" @close="closeModal">
-      <div class="admin-entity-form">
+      <div class="admin-sizes-page admin-sizes-page--modal">
+        <div class="admin-entity-form">
         <div class="form-group">
           <label for="size-name">
             Nombre *
@@ -135,13 +136,14 @@
           <textarea id="size-description" v-model="form.description" class="form-control" rows="3" placeholder="Opcional: rango de medidas, equivalencias internacionales, etc."></textarea>
         </div>
 
-        <AdminToggleSwitch
-          id="size-active"
-          class="admin-entity-form__full"
-          v-model="form.is_active"
-          title="Talla activa"
-          description="Si está activa, estará disponible para asignarla a variantes de productos. Si la desactivas, se conserva para historial."
-        />
+          <AdminToggleSwitch
+            id="size-active"
+            class="admin-entity-form__full"
+            v-model="form.is_active"
+            title="Talla activa"
+            description="Si está activa, estará disponible para asignarla a variantes de productos. Si la desactivas, se conserva para historial."
+          />
+        </div>
       </div>
 
       <template #footer>
@@ -154,6 +156,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import '../views/AdminSizesPage.css'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -379,13 +382,3 @@ async function toggleStatus(size) {
 
 onMounted(loadSizes)
 </script>
-
-<style scoped>
-/* Estilos específicos de Tallas — los comunes están en admin.css */
-
-@media (max-width: 768px) {
-  .admin-entity-filters__form {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

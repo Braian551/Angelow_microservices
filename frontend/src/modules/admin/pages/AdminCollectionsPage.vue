@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-entity-page">
+  <div class="admin-entity-page admin-collections-page">
     <AdminPageHeader
       icon="fas fa-layer-group"
       title="Colecciones"
@@ -119,90 +119,92 @@
       max-width="860px"
       @close="closeModal"
     >
-      <div class="admin-editor-grid">
-        <!-- Columna izquierda: datos principales -->
-        <div>
-          <div class="form-group">
-            <label for="collection-name">
-              Nombre *
-              <AdminInfoTooltip text="Nombre de la colección o temporada. Por ejemplo: «Verano 2025», «Colección Básicos» o «Edición especial»." />
-            </label>
-            <input
-              id="collection-name"
-              v-model="form.name"
-              class="form-control"
-              :class="{ 'is-invalid': errors.name }"
-              placeholder="Ej. Verano 2025, Línea Básicos"
-              @input="onNameInput"
-            >
-            <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
-          </div>
-
-          <div class="form-group">
-            <label for="collection-slug">
-              Identificador (slug)
-              <AdminInfoTooltip text="Clave única que identifica la colección en las URLs. Se genera automáticamente al escribir el nombre. Solo letras minúsculas, números y guiones." />
-            </label>
-            <input
-              id="collection-slug"
-              v-model="form.slug"
-              class="form-control"
-              placeholder="se-genera-automaticamente"
-              @input="onSlugInput"
-            >
-            <p v-if="form.slug" class="admin-field-hint">URL: <code>/tienda/coleccion/{{ form.slug }}</code></p>
-          </div>
-
-          <div class="form-group">
-            <label for="collection-date">
-              Fecha de lanzamiento
-              <AdminInfoTooltip text="Fecha en que la colección fue o será presentada. Es informativa y no activa ni desactiva la colección de forma automática." />
-            </label>
-            <input id="collection-date" v-model="form.launch_date" type="date" class="form-control">
-          </div>
-
-          <div class="form-group">
-            <label for="collection-description">
-              Descripción
-              <AdminInfoTooltip text="Descripción interna con el concepto y alcance de la colección. No es visible al cliente en la tienda." />
-            </label>
-            <textarea
-              id="collection-description"
-              v-model="form.description"
-              class="form-control"
-              rows="4"
-              placeholder="Describe el concepto, temporada o inspiración de esta colección."
-            ></textarea>
-          </div>
-
-          <AdminToggleSwitch
-            id="collection-active"
-            v-model="form.is_active"
-            title="Colección activa"
-            description="Si está activa, puede asociarse a productos y participa en los flujos promocionales del catálogo."
-          />
-        </div>
-
-        <!-- Columna derecha: imagen -->
-        <div>
-          <div class="form-group">
-            <label>
-              Imagen de portada
-              <AdminInfoTooltip text="Imagen principal que representa visualmente la colección en la tienda y el catálogo. Formatos: JPG, PNG o WEBP. Máximo 4 MB." />
-            </label>
-            <div class="admin-upload-box" @click="openImagePicker">
-              <i class="fas fa-cloud-upload-alt"></i>
-              <p>{{ imagePreviewUrl ? 'Cambiar imagen' : 'Selecciona la imagen de portada' }}</p>
-              <small>JPG, PNG o WEBP · Máximo 4 MB</small>
+      <div class="admin-collections-page admin-collections-page--modal">
+        <div class="admin-editor-grid">
+          <!-- Columna izquierda: datos principales -->
+          <div>
+            <div class="form-group">
+              <label for="collection-name">
+                Nombre *
+                <AdminInfoTooltip text="Nombre de la colección o temporada. Por ejemplo: «Verano 2025», «Colección Básicos» o «Edición especial»." />
+              </label>
+              <input
+                id="collection-name"
+                v-model="form.name"
+                class="form-control"
+                :class="{ 'is-invalid': errors.name }"
+                placeholder="Ej. Verano 2025, Línea Básicos"
+                @input="onNameInput"
+              >
+              <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
             </div>
-            <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
-            <p v-if="errors.image" class="form-error">{{ errors.image }}</p>
-            <div v-if="imagePreviewUrl" class="admin-image-preview">
-              <img :src="imagePreviewUrl" alt="Vista previa de la imagen de colección">
-              <div class="admin-image-preview__actions">
-                <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
+
+            <div class="form-group">
+              <label for="collection-slug">
+                Identificador (slug)
+                <AdminInfoTooltip text="Clave única que identifica la colección en las URLs. Se genera automáticamente al escribir el nombre. Solo letras minúsculas, números y guiones." />
+              </label>
+              <input
+                id="collection-slug"
+                v-model="form.slug"
+                class="form-control"
+                placeholder="se-genera-automaticamente"
+                @input="onSlugInput"
+              >
+              <p v-if="form.slug" class="admin-field-hint">URL: <code>/tienda/coleccion/{{ form.slug }}</code></p>
+            </div>
+
+            <div class="form-group">
+              <label for="collection-date">
+                Fecha de lanzamiento
+                <AdminInfoTooltip text="Fecha en que la colección fue o será presentada. Es informativa y no activa ni desactiva la colección de forma automática." />
+              </label>
+              <input id="collection-date" v-model="form.launch_date" type="date" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="collection-description">
+                Descripción
+                <AdminInfoTooltip text="Descripción interna con el concepto y alcance de la colección. No es visible al cliente en la tienda." />
+              </label>
+              <textarea
+                id="collection-description"
+                v-model="form.description"
+                class="form-control"
+                rows="4"
+                placeholder="Describe el concepto, temporada o inspiración de esta colección."
+              ></textarea>
+            </div>
+
+            <AdminToggleSwitch
+              id="collection-active"
+              v-model="form.is_active"
+              title="Colección activa"
+              description="Si está activa, puede asociarse a productos y participa en los flujos promocionales del catálogo."
+            />
+          </div>
+
+          <!-- Columna derecha: imagen -->
+          <div>
+            <div class="form-group">
+              <label>
+                Imagen de portada
+                <AdminInfoTooltip text="Imagen principal que representa visualmente la colección en la tienda y el catálogo. Formatos: JPG, PNG o WEBP. Máximo 4 MB." />
+              </label>
+              <div class="admin-upload-box" @click="openImagePicker">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>{{ imagePreviewUrl ? 'Cambiar imagen' : 'Selecciona la imagen de portada' }}</p>
+                <small>JPG, PNG o WEBP · Máximo 4 MB</small>
+              </div>
+              <input ref="imageInputRef" type="file" accept="image/*" style="display: none;" @change="onImageSelected">
+              <p v-if="errors.image" class="form-error">{{ errors.image }}</p>
+              <div v-if="imagePreviewUrl" class="admin-image-preview">
+                <img :src="imagePreviewUrl" alt="Vista previa de la imagen de colección">
+                <div class="admin-image-preview__actions">
+                  <button class="btn btn-secondary btn-sm" type="button" title="Quitar imagen" @click="clearSelectedImage">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -222,6 +224,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import '../views/AdminCollectionsPage.css'
 import { catalogHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -531,17 +534,3 @@ async function toggleStatus(collection) {
 
 onMounted(loadCollections)
 </script>
-
-<style scoped>
-/* Estilos específicos de Colecciones — los comunes están en admin.css */
-
-@media (max-width: 768px) {
-  .admin-editor-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-entity-filters__form {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

@@ -144,7 +144,8 @@
     />
 
     <AdminModal :show="showDetailModal" :title="selectedMethod ? selectedMethod.name : 'Detalle del método'" max-width="940px" @close="closeDetailModal">
-      <template v-if="selectedMethod">
+      <div class="admin-shipping-methods-page admin-shipping-methods-page--modal">
+        <template v-if="selectedMethod">
         <div class="shipping-detail-grid admin-detail-grid">
           <AdminCard title="Resumen del método" icon="fas fa-shipping-fast">
             <div class="admin-detail-summary">
@@ -167,7 +168,8 @@
             </div>
           </AdminCard>
         </div>
-      </template>
+        </template>
+      </div>
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeDetailModal">Cerrar</button>
         <button v-if="selectedMethod" class="btn btn-primary" type="button" @click="openEditFromDetail">
@@ -178,7 +180,8 @@
     </AdminModal>
 
     <AdminModal :show="showEditorModal" :title="editingMethodId ? 'Editar método de envío' : 'Nuevo método de envío'" max-width="860px" @close="closeEditorModal">
-      <div class="editor-grid editor-grid--shipping admin-editor-grid">
+      <div class="admin-shipping-methods-page admin-shipping-methods-page--modal">
+        <div class="editor-grid editor-grid--shipping admin-editor-grid">
         <div>
           <div class="form-group">
             <label for="shipping-method-name">
@@ -303,6 +306,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -318,6 +322,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import '../views/AdminShippingMethodsPage.css'
 import { shippingHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -639,113 +644,3 @@ function extractErrorMessage(error, fallback) {
 onMounted(loadMethods)
 </script>
 
-<style scoped>
-.shipping-method-hero h3 {
-  font-size: 2.2rem;
-}
-
-.shipping-editor-hint {
-  margin: 0.4rem 0 0;
-  color: #5a6571;
-  font-size: 1.28rem;
-  line-height: 1.45;
-}
-
-/* Mock card: réplica del card de método en checkout */
-.shipping-method-mock-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 1.2rem;
-  padding: 1.2rem;
-  border-radius: 1.4rem;
-  border: 2px solid #d0d7de;
-  background: #fafbfc;
-  margin-bottom: 1rem;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.shipping-method-mock-card--active {
-  border-color: #0077b6;
-  background: #f0f8ff;
-}
-
-.shipping-method-mock-icon {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 1rem;
-  background: #e8f4fd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #0077b6;
-  font-size: 1.6rem;
-  flex-shrink: 0;
-}
-
-.shipping-method-mock-copy {
-  flex: 1;
-  min-width: 0;
-}
-
-.shipping-method-mock-copy h4 {
-  margin: 0 0 0.35rem;
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #1a1a2e;
-}
-
-.shipping-method-mock-copy p {
-  margin: 0 0 0.45rem;
-  font-size: 1.22rem;
-  color: #5c6773;
-  line-height: 1.45;
-}
-
-.shipping-method-mock-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: #0077b6;
-  font-size: 1.18rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.shipping-method-mock-breakdown {
-  margin-top: 0.5rem;
-  display: grid;
-  gap: 0.28rem;
-  font-size: 1.15rem;
-}
-
-.shipping-method-mock-breakdown span {
-  color: #5c6773;
-}
-
-.shipping-method-mock-breakdown__hint {
-  color: #0077b6 !important;
-  font-weight: 600;
-}
-
-.shipping-method-mock-cost {
-  display: grid;
-  justify-items: end;
-  gap: 0.28rem;
-  flex-shrink: 0;
-  text-align: right;
-}
-
-.shipping-method-mock-cost small {
-  color: #6b7280;
-  font-size: 1.02rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-}
-
-.shipping-method-mock-cost strong {
-  color: #0077b6;
-  font-size: 1.65rem;
-  font-weight: 700;
-}
-</style>

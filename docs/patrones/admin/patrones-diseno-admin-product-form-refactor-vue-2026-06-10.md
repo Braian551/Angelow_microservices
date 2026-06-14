@@ -45,6 +45,12 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - `frontend/src/modules/admin/views/AdminSettingsPage.css`: contiene los estilos locales de configuración general que antes vivían en `<style scoped>`, encapsulados bajo `.admin-settings-page`.
 - `frontend/src/modules/admin/pages/AdminCategoriesPage.vue`: conserva intacta la lógica de categorías, imágenes, slugs, filtros, paginación, productos asociados, confirmaciones y `FormData`, e importa el CSS externo de la vista.
 - `frontend/src/modules/admin/views/AdminCategoriesPage.css`: contiene los estilos locales responsivos de categorías que antes vivían en `<style scoped>`, encapsulados bajo `.admin-categories-page`.
+- `frontend/src/modules/admin/pages/AdminCollectionsPage.vue`: conserva intacta la lógica de colecciones, imágenes, previews, slugs, fechas, filtros, paginación, productos asociados, confirmaciones y `FormData`, e importa el CSS externo de la vista.
+- `frontend/src/modules/admin/views/AdminCollectionsPage.css`: contiene los estilos locales responsivos de colecciones que antes vivían en `<style scoped>`, encapsulados bajo `.admin-collections-page`.
+- `frontend/src/modules/admin/pages/AdminSizesPage.vue`: conserva intacta la lógica de tallas, asociaciones, estados, orden, validaciones y confirmaciones, e importa el CSS externo de la vista.
+- `frontend/src/modules/admin/views/AdminSizesPage.css`: contiene los estilos locales responsivos de tallas que antes vivían en `<style scoped>`, encapsulados bajo `.admin-sizes-page`.
+- `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`: conserva intacta la lógica de métodos de envío, costos, tiempos, cobertura, estados, validaciones y confirmaciones, e importa el CSS externo de la vista.
+- `frontend/src/modules/admin/views/AdminShippingMethodsPage.css`: contiene los estilos locales de métodos de envío que antes vivían en `<style scoped>`, encapsulados bajo `.admin-shipping-methods-page`.
 - `.agents/skills/skill/SKILL.md`: agrega la sección obligatoria de arquitectura frontend Vue.
 
 ## Patrones aplicados
@@ -111,6 +117,21 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Archivos: `frontend/src/modules/admin/pages/AdminCategoriesPage.vue`, `frontend/src/modules/admin/views/AdminCategoriesPage.css`.
 - Problema que resuelve: mantiene la página de categorías como orquestadora de carga, filtros, paginación, creación, edición, eliminación, activación, imágenes, slugs, productos asociados y confirmaciones, mientras delega los estilos locales al CSS externo encapsulado sin cambiar comportamiento, `FormData`, nombres de campos ni contratos.
 
+`Facade`
+
+- Archivos: `frontend/src/modules/admin/pages/AdminCollectionsPage.vue`, `frontend/src/modules/admin/views/AdminCollectionsPage.css`.
+- Problema que resuelve: mantiene la página de colecciones como orquestadora de carga, filtros, paginación, creación, edición, eliminación, activación, imágenes, previews, slugs, fechas, productos asociados y confirmaciones, mientras delega los estilos locales al CSS externo encapsulado sin cambiar comportamiento, `FormData`, nombres de campos ni contratos.
+
+`Facade`
+
+- Archivos: `frontend/src/modules/admin/pages/AdminSizesPage.vue`, `frontend/src/modules/admin/views/AdminSizesPage.css`.
+- Problema que resuelve: mantiene la página de tallas como orquestadora de carga, filtros, creación, edición, eliminación, activación, asociaciones, orden y confirmaciones, mientras delega los estilos locales al CSS externo encapsulado sin cambiar comportamiento, nombres de campos ni contratos.
+
+`Facade`
+
+- Archivos: `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/views/AdminShippingMethodsPage.css`.
+- Problema que resuelve: mantiene la página de métodos de envío como orquestadora de carga, filtros, creación, edición, eliminación, activación, costos, tiempos, cobertura y confirmaciones, mientras delega los estilos locales al CSS externo encapsulado sin cambiar comportamiento, valores numéricos, nombres de campos ni contratos.
+
 ## Decisiones de arquitectura
 
 - La página mantiene `RouterLink`, encabezado, tarjeta principal y coordinación de componentes, pero no contiene la lógica extensa del formulario.
@@ -128,6 +149,9 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Etapa `AdminSlidersPage.vue`: se movieron los estilos locales de sliders a `frontend/src/modules/admin/views/AdminSlidersPage.css`, encapsulados bajo `.admin-sliders-page`; el modal de creación/edición agrega wrapper interno `.admin-sliders-page admin-sliders-page--modal` por el `Teleport` de `AdminModal`, y los previews de imagen/carrusel quedan dentro de esa raíz.
 - Etapa `AdminSettingsPage.vue`: se movieron los estilos locales de configuración general a `frontend/src/modules/admin/views/AdminSettingsPage.css`, encapsulados bajo `.admin-settings-page`; la vista no usa `AdminModal` ni `Teleport`, y los previews de logo, favicon e imágenes quedan dentro de la raíz principal existente.
 - Etapa `AdminCategoriesPage.vue`: se movieron los estilos locales responsivos de categorías a `frontend/src/modules/admin/views/AdminCategoriesPage.css`, encapsulados bajo `.admin-categories-page`; se conserva la clase global previa `admin-entity-page` en la raíz y se agrega `.admin-categories-page` como raíz exclusiva, mientras el modal de creación/edición agrega wrapper interno `.admin-categories-page admin-categories-page--modal` por el `Teleport` de `AdminModal`.
+- Etapa `AdminCollectionsPage.vue`: se movieron los estilos locales responsivos de colecciones a `frontend/src/modules/admin/views/AdminCollectionsPage.css`, encapsulados bajo `.admin-collections-page`; se conserva la clase global previa `admin-entity-page` en la raíz y se agrega `.admin-collections-page` como raíz exclusiva, mientras el modal de creación/edición agrega wrapper interno `.admin-collections-page admin-collections-page--modal` por el `Teleport` de `AdminModal`.
+- Etapa `AdminSizesPage.vue`: se movieron los estilos locales responsivos de tallas a `frontend/src/modules/admin/views/AdminSizesPage.css`, encapsulados bajo `.admin-sizes-page`; se conserva la clase compartida `admin-entity-page` en la raíz y el modal de creación/edición agrega el wrapper interno `.admin-sizes-page admin-sizes-page--modal` por el `Teleport` de `AdminModal`.
+- Etapa `AdminShippingMethodsPage.vue`: se movieron los estilos locales de métodos de envío a `frontend/src/modules/admin/views/AdminShippingMethodsPage.css`, encapsulados bajo `.admin-shipping-methods-page`; se conserva la raíz específica existente y los modales de detalle y edición agregan el wrapper interno `.admin-shipping-methods-page admin-shipping-methods-page--modal` por el `Teleport` de `AdminModal`.
 - No se cambiaron endpoints, payloads, `FormData`, rutas públicas ni nombres de campos enviados al backend.
 - La separación se hizo solo para el formulario de producto como primera etapa segura; las demás vistas grandes quedan pendientes para una etapa posterior validada.
 
@@ -147,6 +171,9 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Etapa `AdminSlidersPage.vue`: CSS externo creado y encapsulado bajo `.admin-sliders-page`; no hubo cambios funcionales en imágenes, orden, previews, enlaces, estados, endpoints, `FormData` ni payloads. Validaciones operativas ejecutadas en la intervención correspondiente.
 - Etapa `AdminSettingsPage.vue`: CSS externo creado y encapsulado bajo `.admin-settings-page`; no hubo cambios funcionales en configuraciones, imágenes, previews, redes sociales, contacto, eventos globales, endpoints, `FormData`, nombres de campos ni payloads. Validaciones operativas ejecutadas en la intervención correspondiente.
 - Etapa `AdminCategoriesPage.vue`: CSS externo creado y encapsulado bajo `.admin-categories-page`; no hubo cambios funcionales en categorías, imágenes, slugs, jerarquías, filtros, paginación, productos asociados, confirmaciones, endpoints, `FormData`, nombres de campos ni payloads. Validaciones operativas ejecutadas en la intervención correspondiente.
+- Etapa `AdminCollectionsPage.vue`: CSS externo creado y encapsulado bajo `.admin-collections-page`; no hubo cambios funcionales en colecciones, imágenes, previews, slugs, fechas, productos asociados, orden, filtros, paginación, confirmaciones, endpoints, `FormData`, nombres de campos ni payloads. Validaciones operativas ejecutadas en la intervención correspondiente.
+- Etapa `AdminSizesPage.vue`: CSS externo creado y encapsulado bajo `.admin-sizes-page`; se conservó `admin-entity-page` y no hubo cambios funcionales en tallas, asociaciones, estados, orden, validaciones, endpoints, nombres de campos ni payloads. El build local intermedio fue exitoso.
+- Etapa `AdminShippingMethodsPage.vue`: CSS externo creado y encapsulado bajo `.admin-shipping-methods-page`; no hubo cambios funcionales en métodos, costos, tiempos, cobertura, estados, validaciones, endpoints, nombres de campos ni payloads. Validaciones operativas ejecutadas al finalizar ambas etapas.
 
 - Pendiente por bloqueo de herramienta local: validación visual con consola del navegador integrado; el kernel falló por `windows sandbox failed: spawn setup refresh`.
 
