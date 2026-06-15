@@ -126,7 +126,8 @@
 
     <AdminModal :show="showDetailModal" :title="selectedRule ? rangeLabel(selectedRule) : 'Detalle de la regla'" max-width="920px" @close="closeDetailModal">
       <template v-if="selectedRule">
-        <div class="shipping-rule-detail-grid admin-detail-grid">
+        <div class="admin-shipping-rules-page admin-shipping-rules-page--modal">
+          <div class="shipping-rule-detail-grid admin-detail-grid">
           <AdminCard title="Resumen del recargo" icon="fas fa-money-bill-wave">
             <div class="shipping-rule-hero admin-surface-card">
               <p class="shipping-rule-hero__label admin-surface-card__label">Rango aplicado</p>
@@ -144,6 +145,7 @@
               <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ ruleStatusLabel(selectedRule) }}</strong></div>
             </div>
           </AdminCard>
+          </div>
         </div>
       </template>
       <template #footer>
@@ -156,7 +158,8 @@
     </AdminModal>
 
     <AdminModal :show="showEditorModal" :title="editingRuleId ? 'Editar regla por precio' : 'Nueva regla por precio'" max-width="760px" @close="closeEditorModal">
-      <div class="editor-grid editor-grid--shipping-rules admin-editor-grid">
+      <div class="admin-shipping-rules-page admin-shipping-rules-page--modal">
+        <div class="editor-grid editor-grid--shipping-rules admin-editor-grid">
         <div>
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
@@ -214,6 +217,7 @@
             <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -246,6 +250,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+import '../views/AdminShippingRulesPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -501,71 +506,3 @@ function extractErrorMessage(error, fallback) {
 onMounted(loadRules)
 </script>
 
-<style scoped>
-.shipping-rule-hero h3 {
-  font-size: 2.2rem;
-}
-
-/* Mock resumen: réplica de las filas de envío del resumen de pago en checkout */
-.shipping-rule-mock-summary {
-  display: grid;
-  gap: 0;
-  margin-bottom: 1.2rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 1.2rem;
-  overflow: hidden;
-}
-
-.shipping-rule-mock-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.8rem 1.2rem;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 1.28rem;
-}
-
-.shipping-rule-mock-row:last-child {
-  border-bottom: none;
-}
-
-.shipping-rule-mock-row span {
-  color: #5c6773;
-}
-
-.shipping-rule-mock-row strong {
-  color: #1a1a2e;
-  font-weight: 600;
-}
-
-.shipping-rule-mock-row--highlight {
-  background: #f0f8ff;
-}
-
-.shipping-rule-mock-row--highlight span,
-.shipping-rule-mock-row--highlight strong {
-  color: #005b8c !important;
-  font-weight: 700;
-}
-
-.shipping-rule-mock-row--free span,
-.shipping-rule-mock-row--free strong {
-  color: #4bb543 !important;
-  font-weight: 600;
-}
-
-.shipping-rule-mock-row--total {
-  background: #f8f8f8;
-}
-
-.shipping-rule-mock-row--total span {
-  color: #1a1a2e;
-  font-weight: 700;
-}
-
-.shipping-rule-mock-row--total strong {
-  color: #0077b6;
-  font-weight: 700;
-}
-</style>

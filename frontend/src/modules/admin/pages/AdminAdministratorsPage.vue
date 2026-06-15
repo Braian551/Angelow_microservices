@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-entity-page">
+  <div class="admin-entity-page admin-administrators-page">
     <AdminPageHeader icon="fas fa-user-shield" title="Administradores" subtitle="Gestiona los usuarios administradores del panel." :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Administradores' }]">
       <template #actions>
         <button class="btn btn-primary" type="button" @click="openModal()"><i class="fas fa-user-plus"></i> Nuevo administrador</button>
@@ -61,7 +61,8 @@
 
     <!-- Modal de administrador -->
     <AdminModal :show="showModal" :title="editing ? 'Editar administrador' : 'Nuevo administrador'" max-width="560px" @close="closeModal">
-      <div class="admin-entity-filters__form">
+      <div class="admin-administrators-page admin-administrators-page--modal">
+        <div class="admin-entity-filters__form">
         <!-- Foto de perfil: solo para el administrador actual -->
         <div v-if="isEditingCurrentAdmin" class="form-group admin-entity-filters__form--full admin-photo-upload-section">
           <label>Foto de perfil</label>
@@ -118,13 +119,14 @@
           <input id="admin-password" v-model="form.password" type="password" class="form-control" :class="{ 'is-invalid': errors.password }" @input="validateField('password')">
           <p v-if="errors.password" class="form-error">{{ errors.password }}</p>
         </div>
-        <AdminToggleSwitch
-          id="admin-active"
-          class="form-group admin-entity-filters__toggle"
-          v-model="form.active"
-          title="Activo"
-          description="Permite que este administrador acceda al panel."
-        />
+          <AdminToggleSwitch
+            id="admin-active"
+            class="form-group admin-entity-filters__toggle"
+            v-model="form.active"
+            title="Activo"
+            description="Permite que este administrador acceda al panel."
+          />
+        </div>
       </div>
 
       <template #footer>
@@ -154,6 +156,7 @@ import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+import '../views/AdminAdministratorsPage.css'
 
 const { showSnackbar } = useSnackbarSystem()
 const { showAlert } = useAlertSystem()
@@ -336,112 +339,3 @@ function deleteAdmin(id) {
 
 onMounted(loadAdmins)
 </script>
-
-<style scoped>
-.admin-photo-upload-section {
-  border: 1px solid var(--admin-border);
-  border-radius: 1rem;
-  padding: 1.4rem;
-  background: var(--admin-bg-soft);
-}
-
-.admin-photo-upload {
-  display: flex;
-  align-items: center;
-  gap: 1.6rem;
-  flex-wrap: wrap;
-}
-
-.admin-photo-preview-wrap {
-  position: relative;
-  width: fit-content;
-}
-
-.admin-photo-preview {
-  width: 7.2rem;
-  height: 7.2rem;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--admin-border);
-  flex-shrink: 0;
-}
-
-.admin-photo-state-icon {
-  position: absolute;
-  right: -0.2rem;
-  bottom: -0.2rem;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 999px;
-  background: var(--admin-primary);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 119, 182, 0.28);
-}
-
-.admin-photo-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.admin-photo-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.7rem;
-  padding: 0.8rem 1.25rem;
-  border-radius: 999px;
-  border: 1px solid var(--admin-border);
-  background: #fff;
-  color: var(--admin-primary);
-  font-size: 1.3rem;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.admin-photo-trigger:hover {
-  border-color: rgba(0, 119, 182, 0.32);
-  box-shadow: 0 6px 16px rgba(15, 55, 96, 0.12);
-  transform: translateY(-1px);
-}
-
-.admin-photo-trigger.is-disabled {
-  opacity: 0.65;
-  pointer-events: none;
-}
-
-.admin-photo-hint {
-  font-size: 1.2rem;
-  color: var(--admin-text-light);
-  margin: 0;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (max-width: 640px) {
-  .admin-photo-upload {
-    align-items: flex-start;
-    gap: 1.2rem;
-  }
-
-  .admin-photo-trigger {
-    width: 100%;
-  }
-}
-</style>

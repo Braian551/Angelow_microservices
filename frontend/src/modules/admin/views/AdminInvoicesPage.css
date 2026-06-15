@@ -1,0 +1,18 @@
+.admin-invoices-page .invoice-number-cell,
+.admin-invoices-page .invoice-order-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-invoices-page .invoice-number-cell span,
+.admin-invoices-page .invoice-order-cell span {
+  color: #718096;
+  font-size: 0.75rem;
+}
+
+.admin-invoices-page .invoices-results-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}

@@ -281,6 +281,7 @@ import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
+import '../views/AdminDashboardPage.css'
 
 const router = useRouter()
 const { settings: shellSettings } = useAppShell()
@@ -1128,5 +1129,3 @@ onBeforeUnmount(() => {
 
 onMounted(loadDashboard)
 </script>
-
-<style scoped src="./AdminDashboardPage.css"></style>

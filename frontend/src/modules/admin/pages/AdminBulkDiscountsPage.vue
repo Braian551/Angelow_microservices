@@ -125,7 +125,8 @@
 
     <AdminModal :show="showDetailModal" :title="selectedRule ? quantityLabel(selectedRule) : 'Detalle de la regla'" max-width="920px" @close="closeDetailModal">
       <template v-if="selectedRule">
-        <div class="bulk-detail-grid admin-detail-grid">
+        <div class="admin-bulk-discounts-page admin-bulk-discounts-page--modal">
+          <div class="bulk-detail-grid admin-detail-grid">
           <AdminCard title="Resumen de volumen" icon="fas fa-boxes">
             <div class="bulk-hero-card admin-surface-card">
               <p class="bulk-hero-card__label admin-surface-card__label">Escala</p>
@@ -143,6 +144,7 @@
               <div class="admin-detail-summary__row"><span>Aplicacion</span><strong>Tienda completa</strong></div>
             </div>
           </AdminCard>
+          </div>
         </div>
       </template>
       <template #footer>
@@ -155,7 +157,8 @@
     </AdminModal>
 
     <AdminModal :show="showEditorModal" :title="editingRuleId ? 'Editar descuento por cantidad' : 'Nuevo descuento por cantidad'" max-width="760px" @close="closeEditorModal">
-      <div class="editor-grid editor-grid--bulk admin-editor-grid">
+      <div class="admin-bulk-discounts-page admin-bulk-discounts-page--modal">
+        <div class="editor-grid editor-grid--bulk admin-editor-grid">
         <div>
           <div class="form-row">
             <div class="form-group" style="flex: 1;">
@@ -203,6 +206,7 @@
             <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -235,6 +239,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+import '../views/AdminBulkDiscountsPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -471,10 +476,3 @@ function extractErrorMessage(error, fallback) {
 
 onMounted(loadRules)
 </script>
-
-<style scoped>
-.bulk-hero-card h3,
-.bulk-preview-card h3 {
-  font-size: 2.2rem;
-}
-</style>

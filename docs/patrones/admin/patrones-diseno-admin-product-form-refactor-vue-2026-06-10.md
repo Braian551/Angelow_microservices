@@ -7,6 +7,8 @@
 - [Archivos intervenidos](#archivos-intervenidos)
 - [Patrones aplicados](#patrones-aplicados)
 - [Decisiones de arquitectura](#decisiones-de-arquitectura)
+- [Etapas adicionales](#etapas-adicionales)
+- [Refactorización de lógica administrativa - sliders, configuración, categorías y colecciones](#refactorización-de-lógica-administrativa---sliders-configuración-categorías-y-colecciones)
 - [Validaciones](#validaciones)
 - [Documentos relacionados](#documentos-relacionados)
 <!-- indice:auto:end -->
@@ -155,6 +157,26 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - No se cambiaron endpoints, payloads, `FormData`, rutas públicas ni nombres de campos enviados al backend.
 - La separación se hizo solo para el formulario de producto como primera etapa segura; las demás vistas grandes quedan pendientes para una etapa posterior validada.
 
+## Etapas adicionales
+
+### AdminShippingRulesPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue` y `frontend/src/modules/admin/views/AdminShippingRulesPage.css`.
+- Clase raíz: se conserva `.admin-shipping-rules-page` en la vista y se reutiliza `.admin-shipping-rules-page.admin-shipping-rules-page--modal` dentro de los contenidos teletransportados por `AdminModal`.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminCard`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminStatsGrid`, `AdminTableShimmer`, `AdminToggleSwitch`, `admin-detail-grid`, `admin-editor-grid`, `admin-surface-card`, `status-badge` y el resto de clases compartidas ya presentes.
+- Tratamiento de modales: el modal de detalle y el modal de creación/edición agregan wrapper interno con la raíz de la vista para conservar el aislamiento visual que antes aportaba `<style scoped>`.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminShippingRulesPage.css`, se importa desde la vista y todos los selectores propios quedaron encapsulados bajo `.admin-shipping-rules-page`.
+- Cero cambio funcional: no se modificaron carga, creación, edición, eliminación, validaciones, filtros, paginación, endpoints, contratos API, payloads ni nombres de campos.
+
+### AdminDiscountCodesPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue` y `frontend/src/modules/admin/views/AdminDiscountCodesPage.css`.
+- Clase raíz: se conserva `.admin-discount-codes-page` en la vista y se reutiliza `.admin-discount-codes-page.admin-discount-codes-page--modal` dentro de detalle, editor, envío masivo y campaña para usuarios específicos.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminCard`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminStatsGrid`, `AdminTableShimmer`, `AdminToggleSwitch`, `AdminExportActions`, `admin-detail-grid`, `admin-editor-grid`, `admin-surface-card`, `status-badge` y las demás clases compartidas ya existentes.
+- Tratamiento de modales: cada contenido renderizado por `AdminModal` ahora tiene wrapper interno con la raíz de la vista para evitar fugas de estilos en `Teleport`.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminDiscountCodesPage.css`, se importa desde la vista y los selectores locales quedaron prefijados bajo `.admin-discount-codes-page`, incluyendo los casos dentro de `@media`.
+- Cero cambio funcional: no se modificaron carga, creación, edición, eliminación, campañas, filtros, búsqueda, paginación, exportaciones, endpoints, contratos API, payloads ni nombres de campos.
+
 ## Validaciones
 
 - `npm run build` en `frontend`: exitoso.
@@ -174,6 +196,8 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Etapa `AdminCollectionsPage.vue`: CSS externo creado y encapsulado bajo `.admin-collections-page`; no hubo cambios funcionales en colecciones, imágenes, previews, slugs, fechas, productos asociados, orden, filtros, paginación, confirmaciones, endpoints, `FormData`, nombres de campos ni payloads. Validaciones operativas ejecutadas en la intervención correspondiente.
 - Etapa `AdminSizesPage.vue`: CSS externo creado y encapsulado bajo `.admin-sizes-page`; se conservó `admin-entity-page` y no hubo cambios funcionales en tallas, asociaciones, estados, orden, validaciones, endpoints, nombres de campos ni payloads. El build local intermedio fue exitoso.
 - Etapa `AdminShippingMethodsPage.vue`: CSS externo creado y encapsulado bajo `.admin-shipping-methods-page`; no hubo cambios funcionales en métodos, costos, tiempos, cobertura, estados, validaciones, endpoints, nombres de campos ni payloads. Validaciones operativas ejecutadas al finalizar ambas etapas.
+- Etapa `AdminShippingRulesPage.vue`: CSS externo creado y encapsulado bajo `.admin-shipping-rules-page`; no hubo cambios funcionales en reglas, recargos, filtros, validaciones, endpoints, nombres de campos ni payloads. El build local intermedio fue exitoso.
+- Etapa `AdminDiscountCodesPage.vue`: CSS externo creado y encapsulado bajo `.admin-discount-codes-page`; no hubo cambios funcionales en códigos, campañas, filtros, exportaciones, validaciones, endpoints, nombres de campos ni payloads. El build local final fue exitoso.
 
 - Pendiente por bloqueo de herramienta local: validación visual con consola del navegador integrado; el kernel falló por `windows sandbox failed: spawn setup refresh`.
 
@@ -181,3 +205,229 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 
 - [Índice de patrones](../README.md)
 - [Patrones de productos admin](patrones-diseno-admin-productos-2026-04-03.md)
+
+### AdminBulkDiscountsPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue` y `frontend/src/modules/admin/views/AdminBulkDiscountsPage.css`.
+- Clase raíz: se conserva `.admin-bulk-discounts-page` en la vista y se reutiliza `.admin-bulk-discounts-page.admin-bulk-discounts-page--modal` dentro de detalle y editor.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminCard`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminStatsGrid`, `AdminTableShimmer`, `AdminToggleSwitch`, `AdminInfoTooltip`, `AdminExportActions`, `admin-detail-grid`, `admin-editor-grid`, `admin-surface-card` y `status-badge`.
+- Tratamiento de modales: el modal de detalle y el modal de creación/edición agregan wrapper interno con la raíz de la vista para conservar el aislamiento visual del contenido teletransportado.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminBulkDiscountsPage.css`, se importa desde la vista y los selectores propios quedaron encapsulados bajo `.admin-bulk-discounts-page`.
+- Cero cambio funcional: no se modificaron reglas masivas, filtros, búsqueda, paginación, exportaciones, validaciones, endpoints, contratos API, payloads ni nombres de campos.
+
+### AdminDiscountSpecificCampaignPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminDiscountSpecificCampaignPage.vue` y `frontend/src/modules/admin/views/AdminDiscountSpecificCampaignPage.css`.
+- Clase raíz: la vista usa `.admin-discount-specific-campaign-page` como raíz principal.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminCard`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminEmptyState`, `AdminShimmer`, `AdminTableShimmer`, `AdminToggleSwitch`, `AdminInfoTooltip`, `admin-entity-name` y las clases compartidas de la tabla administrativa.
+- Tratamiento de modales: la vista no utiliza `AdminModal` ni `Teleport` en esta etapa, por lo que no requirió wrappers `--modal`.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminDiscountSpecificCampaignPage.css`, se importa desde la vista y los selectores locales quedaron prefijados bajo `.admin-discount-specific-campaign-page`, incluyendo `:deep(...)` y `@media`.
+- Cero cambio funcional: no se modificaron carga, selección de destinatarios, código asociado, canales, envío, filtros, paginación, endpoints, contratos API, payloads ni nombres de campos.
+
+- Etapa `AdminBulkDiscountsPage.vue`: CSS externo creado y encapsulado bajo `.admin-bulk-discounts-page`; no hubo cambios funcionales en reglas masivas, rangos, filtros, validaciones, endpoints, nombres de campos ni payloads. El build local intermedio fue exitoso.
+- Etapa `AdminDiscountSpecificCampaignPage.vue`: CSS externo creado y encapsulado bajo `.admin-discount-specific-campaign-page`; no hubo cambios funcionales en campañas específicas, destinatarios, canales, filtros, endpoints, nombres de campos ni payloads. El build local final fue exitoso.
+### AdminAdministratorsPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminAdministratorsPage.vue` y `frontend/src/modules/admin/views/AdminAdministratorsPage.css`.
+- Clase raíz: se conserva la clase compartida `admin-entity-page` y se agrega `.admin-administrators-page` como raíz específica de la vista.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminCard`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminTableShimmer`, `AdminToggleSwitch`, `AdminInfoTooltip`, `dashboard-table`, `status-badge`, `admin-entity-actions` y las clases compartidas del formulario administrativo.
+- Tratamiento de modales: el modal de creación/edición agrega wrapper interno `.admin-administrators-page.admin-administrators-page--modal` para conservar el aislamiento del contenido teletransportado.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminAdministratorsPage.css`, se importa desde la vista y los selectores propios quedaron encapsulados bajo `.admin-administrators-page`.
+- Cero cambio funcional: no se modificaron carga, creación, edición, eliminación, roles, permisos, validaciones, confirmaciones, endpoints, contratos API, payloads ni nombres de campos.
+
+### AdminInvoicesPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminInvoicesPage.vue` y `frontend/src/modules/admin/views/AdminInvoicesPage.css`.
+- Clase raíz: la vista conserva `.admin-invoices-page` como raíz principal.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminStatsGrid`, `AdminFilterCard`, `AdminResultsBar`, `AdminCard`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminTableShimmer`, `dashboard-table`, `status-badge` y las clases compartidas de filtros y acciones administrativas.
+- Tratamiento de modales: el modal de detalle agrega wrapper interno `.admin-invoices-page.admin-invoices-page--modal` dentro del contenido renderizado por `AdminModal`.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminInvoicesPage.css`, se importa desde la vista y los selectores propios quedaron encapsulados bajo `.admin-invoices-page`.
+- Cero cambio funcional: no se modificaron carga, detalle, descarga, reenvío por correo, filtros, búsqueda, paginación, exportaciones, endpoints, contratos API, payloads ni nombres de campos.
+
+### AdminOrderDetailPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminOrderDetailPage.vue` y `frontend/src/modules/admin/views/AdminOrderDetailPage.css`.
+- Clase raíz: la vista conserva `.admin-order-detail-page` como raíz principal.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminCard`, `AdminModal`, `AdminInfoTooltip`, `AdminTableImage`, `AdminTableShimmer`, `AdminPaymentProofModal`, `dashboard-table`, `status-badge`, `admin-detail-summary` y el resto de clases compartidas ya utilizadas por la vista.
+- Tratamiento de modales: los modales de edición, cambio de estado y cambio de estado de pago agregan wrapper interno `.admin-order-detail-page.admin-order-detail-page--modal`; `AdminPaymentProofModal` no se modificó.
+- Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminOrderDetailPage.css`, se importa desde la vista y los selectores propios quedaron encapsulados bajo `.admin-order-detail-page`, incluyendo reglas dentro de `@media`.
+- Cero cambio funcional: no se modificaron carga del pedido, cliente, direcciones, productos, historial, comprobante, tracking, cambios de estado, pagos, endpoints, contratos API, payloads ni reglas de transición.
+
+### AdminDashboardPage.vue
+
+- Archivos creados y modificados: `frontend/src/modules/admin/pages/AdminDashboardPage.vue`, `frontend/src/modules/admin/views/AdminDashboardPage.css` y se removió `frontend/src/modules/admin/pages/AdminDashboardPage.css` después de actualizar el import.
+- Clase raíz: la vista conserva `.admin-dashboard-page` como raíz principal.
+- Clases compartidas conservadas: se mantuvieron `AdminPageHeader`, `AdminStatsGrid`, `AdminCard`, `AdminEmptyState`, `AdminTableShimmer`, `AdminTableImage`, `dashboard-table`, `status-badge`, `btn`, `btn-secondary` y las demás clases compartidas del dashboard.
+- Tratamiento de modales: la vista no usa `AdminModal` ni `Teleport` en esta etapa, por lo que no requirió wrappers `--modal`.
+- Encapsulado CSS: el archivo exclusivo del dashboard se movió a `frontend/src/modules/admin/views/AdminDashboardPage.css`, se importa desde la vista y sus selectores exclusivos quedaron encapsulados bajo `.admin-dashboard-page`.
+- Cero cambio funcional: no se modificaron métricas, gráficas, datasets, filtros de rango, navegación clicable, endpoints, contratos API, payloads ni cálculos.
+
+
+## Saneamiento UTF-8 del frontend
+
+- Alcance auditado: barrido completo de `frontend/src` en archivos `.vue`, `.js`, `.css` y `.json` dentro de `src`, más revisión explícita de `docs/patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`.
+- Archivos realmente modificados por saneamiento: `frontend/src/modules/admin/pages/AdminOrderDetailPage.vue`, `frontend/src/modules/admin/views/AdminOrderDetailPage.css`, `frontend/src/modules/admin/views/AdminDashboardPage.css`, `frontend/src/components/layout/Header.css` y este documento de patrones.
+- Tipos de mojibake encontrados: secuencias corruptas de codificación y combinaciones dañadas en textos visibles, tooltips, comentarios y documentación.
+- Correcciones realizadas: se restauraron tildes, `ñ`, comillas angulares, viñetas textuales y comentarios dañados sin alterar lógica, selectores, valores CSS, rutas ni contratos.
+- Confirmación de cero cambio funcional: el saneamiento solo corrigió texto corrupto y comentarios; no se modificaron estructuras Vue, JavaScript ejecutable, endpoints, payloads, imports funcionales ni estilos operativos.
+- Resultado del barrido final: sin coincidencias injustificadas de secuencias corruptas dentro de `frontend/src` y este documento.
+- Resultado de builds: `npm run build` local exitoso, `docker compose up -d --build frontend` exitoso y `docker compose exec -T frontend npm run build` exitoso después del saneamiento.
+
+## Cierre de la etapa CSS del módulo administrativo
+
+- Alcance auditado: revisión completa de `frontend/src/modules/admin/pages`, `frontend/src/modules/admin/views`, `frontend/src/modules/admin/styles/admin.css` y verificación de dependencias visuales en `frontend/src/modules/admin/components`.
+- Resultado de `AdminForgotPasswordPage.vue`: no contiene bloque `<style>`, no usa `AdminModal` ni `Teleport`, mantiene la raíz `auth-page recovery-page`, pertenece al layout `auth` mediante la ruta `/admin/recuperar` y reutiliza de forma válida `frontend/src/modules/auth/views/ForgotPasswordView.css`; no requirió mover CSS a `admin/views`.
+- Páginas que conservan estilos locales justificados: ninguna dentro de `frontend/src/modules/admin/pages`; `AdminForgotPasswordPage.vue` queda justificada como excepción porque reutiliza el CSS compartido del flujo auth y no mantiene estilos locales.
+- Archivos CSS movidos en esta auditoría de cierre: ninguno; el barrido confirmó que no quedan archivos `.css` dentro de `frontend/src/modules/admin/pages`.
+- Imports corregidos: ninguno; todos los imports CSS de páginas admin resolvieron correctamente y no se detectaron imports duplicados ni rutas rotas.
+- Archivos huérfanos detectados: ninguno; cada archivo de `frontend/src/modules/admin/views` tiene una página correspondiente y está importado por su vista esperada.
+- Resultado del encapsulado: los archivos CSS de `frontend/src/modules/admin/views` conservan su raíz específica por página, no quedaron bloques `<style scoped>` pendientes en páginas admin y no se detectaron selectores globales accidentales introducidos por la etapa previa.
+- Resultado de `AdminModal` y `Teleport`: no se detectó `Teleport` en las páginas administrativas auditadas y las vistas que usan `AdminModal` ya incluyen wrappers internos `clase-pagina clase-pagina--modal`, por lo que no fue necesario intervenirlas en este cierre.
+- Resultado UTF-8: el barrido de secuencias corruptas sobre el alcance auditado y este documento se mantuvo limpio, sin reintroducción de mojibake.
+- Confirmación de cero cambio funcional: esta etapa solo auditó y documentó la separación de CSS; no se modificaron lógica, componentes, endpoints, payloads, services ni comportamiento visible de las páginas admin.
+- Resultado de builds: `npm run build` local, reconstrucción de `frontend`, build dentro del contenedor y validaciones HTTP quedaron pendientes de esta misma etapa para ejecutarse después de cerrar la documentación.
+## Refactorización de lógica administrativa — pedidos, pagos, inventario e informes
+
+### AdminOrdersPage.vue
+
+- Responsabilidad extraída: carga de pedidos, filtros, búsqueda, paginación, selección, modales, cambios de estado, cambios de pago, refresco y manejo de errores.
+- Composable creado o reutilizado: `frontend/src/modules/admin/composables/useAdminOrders.js`.
+- Utils creados o reutilizados: se reutilizó `frontend/src/modules/admin/utils/orderPresentation.js`; no se duplicaron utilidades.
+- Services preservados: se mantuvo `orderHttp` desde `frontend/src/services/http` y no se modificó `orderApi.js`.
+- Reducción aproximada de la página: la vista quedó en ~517 líneas y se trasladaron ~736 líneas de lógica reactiva/flujo al composable.
+- Confirmación de contratos conservados: mismos eventos, mismos payloads, mismos estados y mismas rutas de detalle.
+- Resultado del build individual: `npm run build` exitoso.
+
+## Refactorización de lógica administrativa — clientes, reseñas, preguntas y anuncios
+
+### AdminCustomersPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminCustomersPage.vue` y `frontend/src/modules/admin/composables/useAdminCustomers.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminCustomers.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/composables/useAdminCustomerProfiles.js`, `frontend/src/modules/admin/composables/useAdminPagination.js`, `frontend/src/modules/admin/composables/useAdminDataExport.js` y `resolveMediaUrl`/`handleMediaError`; no fue necesario crear `customerPresentation.js`.
+- Responsabilidad extraída: carga de clientes, búsqueda, filtros, paginación, estados de carga, selección de cliente, apertura y cierre del detalle, bloqueo o desbloqueo, refresco, datos derivados, coordinación con perfiles y coordinación con exportaciones.
+- Responsabilidad que permanece en la página: composición del template, imports de componentes, helper visual de avatar y conexión entre eventos del template y el composable.
+- Services preservados: se mantuvieron `authHttp` y `orderHttp` desde `frontend/src/services/http`; no se modificó `authApi.js`.
+- Líneas aproximadas antes y después: antes ~790 líneas concentradas en la vista; después ~288 líneas en la página y ~505 líneas en el composable principal.
+- Resultado del build individual: `npm run build` exitoso.
+- Confirmación de contratos preservados: mismos identificadores, mismos campos de cliente, mismos filtros, misma paginación, mismas exportaciones, mismos payloads y mismas reglas administrativas.
+
+### AdminReviewsPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminReviewsPage.vue` y `frontend/src/modules/admin/composables/useAdminReviews.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminReviews.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/composables/useAdminCustomerProfiles.js`, `frontend/src/modules/admin/composables/useAdminPagination.js`, `frontend/src/modules/admin/composables/useAdminDataExport.js` y `resolveMediaUrl`/`handleMediaError`; no fue necesario crear `reviewPresentation.js`.
+- Responsabilidad extraída: carga de reseñas, búsqueda, filtros, paginación, estadísticas, selección, apertura y cierre de detalle, aprobación, cambio de estado, eliminación, respuesta administrativa, refresco y valores computados de presentación.
+- Responsabilidad que permanece en la página: composición del template, imports de componentes, helper visual de avatar y conexión declarativa con el composable.
+- Services preservados: se mantuvo `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~740 líneas concentradas en la vista; después ~342 líneas en la página y ~402 líneas en el composable principal.
+- Resultado del build individual: `npm run build` exitoso.
+- Confirmación de contratos preservados: mismas estrellas, mismos comentarios, mismos estados, mismas métricas, mismos payloads, mismas notificaciones y mismos endpoints.
+
+### AdminQuestionsPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminQuestionsPage.vue` y `frontend/src/modules/admin/composables/useAdminQuestions.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminQuestions.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/composables/useAdminCustomerProfiles.js`, `frontend/src/modules/admin/composables/useAdminPagination.js`, `frontend/src/modules/admin/composables/useAdminDataExport.js` y `resolveMediaUrl`/`handleMediaError`; no fue necesario crear `questionPresentation.js`.
+- Responsabilidad extraída: carga de preguntas, búsqueda, filtros, paginación, selección, apertura y cierre de detalle, respuesta administrativa, moderación, eliminación, refresco y valores derivados.
+- Responsabilidad que permanece en la página: composición del template, imports de componentes, helper visual de avatar y orquestación del render de detalle y formulario.
+- Services preservados: se mantuvo `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~640 líneas concentradas en la vista; después ~301 líneas en la página y ~339 líneas en el composable principal.
+- Resultado del build individual: `npm run build` exitoso.
+- Confirmación de contratos preservados: mismos textos, misma relación pregunta-respuesta-producto-cliente, mismos contadores, mismos payloads, mismas notificaciones y mismos endpoints.
+
+### AdminAnnouncementsPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue` y `frontend/src/modules/admin/composables/useAdminAnnouncements.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminAnnouncements.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/utils/storeLinkOptions.js`, `frontend/src/modules/admin/composables/useAdminPagination.js`, `frontend/src/modules/admin/composables/useAdminDataExport.js` y `resolveMediaUrl`/`handleMediaError`; no fue necesario crear `announcementPresentation.js`.
+- Responsabilidad extraída: carga de anuncios, búsqueda, filtros, paginación, formulario, selección, creación, edición, eliminación, activación, fechas, preview, modales, estados de carga, errores, refresco y valores computados.
+- Responsabilidad que permanece en la página: composición del template, imports de componentes, preview visual con `TopAnnouncementBar` y `PromoBanner`, helper visual de imágenes y conexión entre eventos y composable.
+- Services preservados: se mantuvieron `notificationHttp` y `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~1135 líneas concentradas en la vista; después ~523 líneas en la página y ~612 líneas en el composable principal.
+- Resultado del build individual: `npm run build` exitoso.
+- Confirmación de contratos preservados: mismos campos, mismos payloads, mismas fechas, mismas notificaciones, mismos endpoints, mismo preview y mismo flujo de publicación.
+
+### AdminPaymentsPage.vue
+
+- Responsabilidad extraída: carga de pagos, filtros, búsqueda, paginación, selección, apertura/cierre de comprobante, aprobación, rechazo, mensajes y refresco.
+- Composable creado o reutilizado: `frontend/src/modules/admin/composables/useAdminPayments.js`.
+- Utils creados o reutilizados: se reutilizaron `getPaymentMethodLabel`, `getPaymentStatusBadgeClass` y `getPaymentStatusLabel` desde `frontend/src/modules/admin/utils/orderPresentation.js`; no se creó `paymentPresentation.js`.
+- Services preservados: se mantuvieron `paymentHttp`, `orderHttp` y las llamadas existentes de `frontend/src/services/paymentApi`.
+- Reducción aproximada de la página: la vista quedó en ~370 líneas y se trasladaron ~510 líneas de lógica reactiva/flujo al composable.
+- Confirmación de contratos conservados: mismos estados de pago, mismo motivo de rechazo, mismos montos, mismas referencias y mismo contrato de `AdminPaymentProofModal`.
+- Resultado del build individual: `npm run build` exitoso.
+
+### AdminInventoryPage.vue
+
+- Responsabilidad extraída: carga de inventario, filtros, búsqueda, paginación, alertas, selección, modales, ajustes de stock, refresco y coordinación con tiempo real.
+- Composable creado o reutilizado: `frontend/src/modules/admin/composables/useAdminInventory.js`.
+- Utils creados o reutilizados: se reutilizaron `frontend/src/modules/admin/utils/inventoryPresentation.js`, `frontend/src/composables/useStockRealtime.js`, `resolveMediaUrl` y `validatePositiveInteger`; no se duplicaron reglas.
+- Services preservados: se mantuvo `catalogHttp` y no se cambiaron contratos de API ni eventos de stock en tiempo real.
+- Reducción aproximada de la página: la vista quedó en ~374 líneas y se trasladaron ~783 líneas de lógica reactiva/flujo al composable.
+- Confirmación de contratos conservados: mismas cantidades, mismas validaciones numéricas, mismos payloads, mismos nombres de campo y mismas reglas de inventario.
+- Resultado del build individual: `npm run build` exitoso.
+
+### AdminReportsPage.vue
+
+- Responsabilidad extraída: carga de reportes, rango de fechas, filtros, estados de carga, errores, datasets calculados, exportaciones, refresco, métricas derivadas y coordinación de Chart.js.
+- Composable creado o reutilizado: `frontend/src/modules/admin/composables/useAdminReports.js`.
+- Utils creados o reutilizados: se reutilizó `frontend/src/modules/admin/composables/useAdminDataExport.js`; no fue necesario crear `reportPresentation.js`.
+- Services preservados: se mantuvieron `orderHttp`, `catalogHttp` y `authHttp` desde `frontend/src/services/http`.
+- Reducción aproximada de la página: la vista quedó en ~520 líneas y se trasladaron ~851 líneas de lógica reactiva/flujo al composable.
+- Confirmación de contratos conservados: mismas métricas, mismos datasets, mismas opciones visibles, mismos payloads de exportación y mismas rutas de informes.
+- Resultado del build individual: `npm run build` exitoso.
+
+## Refactorización de lógica administrativa - sliders, configuración, categorías y colecciones
+
+### AdminSlidersPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminSlidersPage.vue` y `frontend/src/modules/admin/composables/useAdminSliders.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminSliders.js`.
+- Utils reutilizados o creados: se reutilizó `frontend/src/modules/admin/utils/storeLinkOptions.js`; no fue necesario crear `sliderPresentation.js`.
+- Lógica extraída: carga de sliders, catálogos de enlaces, formulario, validaciones, imagen y preview, creación, edición, eliminación, activación, reordenamiento drag and drop, refresco, errores y limpieza de recursos.
+- Lógica conservada en la página: template, imports de componentes, integración visual de `HomeHeroSlider` y helpers visuales `resolveMediaUrl`/`handleMediaError`.
+- Organización mediante comentarios: imports visuales y bloque único de orquestación en la página; estado general, formulario, previews, carga, CRUD, orden visual, ciclo de vida y API pública en el composable.
+- Services preservados: `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~445 líneas concentradas en la vista; después ~265 líneas en la página y ~456 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos endpoints, mismo `FormData`, mismos nombres de campos (`title`, `subtitle`, `link_url`, `sort_order`, `active`, `image_file`, `image_url`), misma paginación visual y mismo comportamiento de preview/orden.
+
+### AdminSettingsPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminSettingsPage.vue` y `frontend/src/modules/admin/composables/useAdminSettings.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminSettings.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/constants/siteSettingsEvents.js`, `resolveMediaUrl` y `handleMediaError`; no fue necesario crear `settingsPresentation.js`.
+- Lógica extraída: carga de configuración, normalización de valores, secciones, validaciones en tiempo real, control de cambios pendientes, manejo de imágenes y previews, armado de `FormData`, guardado, refresco y emisión del evento global del sitio.
+- Lógica conservada en la página: template, imports de componentes y conexión declarativa de pestañas, campos y galerías.
+- Organización mediante comentarios: imports preservados y bloque de orquestación en la página; estado de configuración, constantes, computed, multimedia, carga, guardado, ciclo de vida y API pública en el composable.
+- Services preservados: `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~500 líneas concentradas en la vista; después ~313 líneas en la página y ~387 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismas claves de settings, mismo orden de envío, mismo `FormData`, mismos booleanos/números, mismos flags `${key}_remove`, mismos eventos globales y mismos endpoints.
+
+### AdminCategoriesPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminCategoriesPage.vue` y `frontend/src/modules/admin/composables/useAdminCategories.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminCategories.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/utils/productSlug.js`, `frontend/src/modules/admin/composables/useAdminPagination.js` y `resolveMediaUrl`; no fue necesario crear `categoryPresentation.js`.
+- Lógica extraída: carga de categorías, búsqueda, filtros, paginación, formulario, slug automático/manual, imagen y preview, creación, edición, eliminación, activación, refresco y limpieza de blobs.
+- Lógica conservada en la página: template, imports de componentes, wiring de `AdminPagination` y render declarativo de tabla y modal.
+- Organización mediante comentarios: imports preservados y bloque de orquestación en la página; estado principal, filtros, formulario, helpers, carga, CRUD, ciclo de vida y API pública en el composable.
+- Services preservados: `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~430 líneas concentradas en la vista; después ~275 líneas en la página y ~347 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos payloads `nombre`, `slug`, `descripcion`, `activo`, `image_file`; mismas reglas de eliminación por `product_count`, mismos filtros y misma paginación.
+
+### AdminCollectionsPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminCollectionsPage.vue` y `frontend/src/modules/admin/composables/useAdminCollections.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminCollections.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/utils/productSlug.js`, `frontend/src/modules/admin/composables/useAdminPagination.js` y `resolveMediaUrl`; no fue necesario crear `collectionPresentation.js`.
+- Lógica extraída: carga de colecciones, búsqueda, filtros, paginación, formulario, slug automático/manual, fecha de lanzamiento, imagen y preview, creación, edición, eliminación, activación, refresco y limpieza de blobs.
+- Lógica conservada en la página: template, imports de componentes y render declarativo de tabla, fecha y modal.
+- Organización mediante comentarios: imports preservados y bloque de orquestación en la página; estado principal, filtros, formulario, slug, fechas, imagen, carga, CRUD, ciclo de vida y API pública en el composable.
+- Services preservados: `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~435 líneas concentradas en la vista; después ~276 líneas en la página y ~351 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos payloads `nombre`, `slug`, `descripcion`, `activo`, `launch_date`, `image_file`; mismas confirmaciones, mismos filtros, misma paginación y mismos endpoints.

@@ -55,7 +55,7 @@
     animation: headerLogoShimmer 1.25s ease-in-out infinite;
 }
 
-/* â”€â”€ BotÃ³n hamburguesa con 3 barras animadas â”€â”€ */
+/* Botón hamburguesa con 3 barras animadas */
 .mobile-menu-toggle {
     display: none;
     flex-direction: column;
@@ -86,7 +86,7 @@
     transition: transform 0.22s ease, opacity 0.18s ease, width 0.18s ease;
 }
 
-/* â”€â”€ Barra de bÃºsqueda mÃ³vil (oculta en desktop) â”€â”€ */
+/* Barra de búsqueda móvil (oculta en desktop) */
 .mobile-search-bar {
     display: none;
     padding: 0.6rem 1.4rem 1rem;
@@ -371,7 +371,7 @@
     color: #0077b6;
 }
 
-/* ===== DRAWER MÃ“VIL ===== */
+/* ===== DRAWER MÓVIL ===== */
 /* Backdrop */
 .mobile-drawer-backdrop {
     position: fixed;
@@ -459,7 +459,7 @@
     color: #e11d48;
 }
 
-/* Lista de navegaciÃ³n del drawer */
+/* Lista de navegación del drawer */
 .mobile-drawer__nav {
     list-style: none;
     margin: 0;
@@ -497,7 +497,7 @@
     color: #0077b6;
 }
 
-/* Ãcono por Ã­tem del menÃº */
+/* Ícono por ítem del menú */
 .mobile-drawer__icon {
     width: 3.4rem;
     height: 3.4rem;
@@ -576,13 +576,13 @@
     padding: 0 0.3rem;
 }
 
-/* â”€â”€ TransiciÃ³n del backdrop â”€â”€ */
+/* Transición del backdrop */
 .drawer-backdrop-enter-active,
 .drawer-backdrop-leave-active  { transition: opacity 0.26s ease; }
 .drawer-backdrop-enter-from,
 .drawer-backdrop-leave-to      { opacity: 0; }
 
-/* â”€â”€ TransiciÃ³n del drawer â”€â”€ */
+/* Transición del drawer */
 .drawer-slide-enter-active,
 .drawer-slide-leave-active  { transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
 .drawer-slide-enter-from,
@@ -627,7 +627,7 @@
         display: none;
     }
 
-    /* Layout del header en mÃ³vil: hamburguesa | logo | iconos */
+    /* Layout del header en móvil: hamburguesa | logo | iconos */
     .header-container {
         flex-wrap: nowrap;
         justify-content: space-between;

@@ -150,7 +150,8 @@
 
     <AdminModal :show="showDetailModal" :title="selectedCode ? `Código ${selectedCode.code}` : 'Detalle del código'" max-width="960px" @close="closeDetailModal">
       <template v-if="selectedCode">
-        <div class="discount-detail-grid admin-detail-grid">
+        <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+          <div class="discount-detail-grid admin-detail-grid">
           <div>
             <AdminCard title="Resumen promocional" icon="fas fa-ticket-alt">
               <div class="discount-hero-card admin-surface-card">
@@ -174,6 +175,7 @@
               </div>
             </AdminCard>
           </div>
+          </div>
         </div>
       </template>
       <template #footer>
@@ -186,7 +188,8 @@
     </AdminModal>
 
     <AdminModal :show="showEditorModal" :title="editingCodeId ? 'Editar código' : 'Nuevo código'" max-width="760px" @close="closeEditorModal">
-      <div class="editor-grid editor-grid--discounts admin-editor-grid">
+      <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+        <div class="editor-grid editor-grid--discounts admin-editor-grid">
         <div>
           <div class="form-group">
             <div class="discount-code-field__header">
@@ -307,6 +310,7 @@
             <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -319,7 +323,8 @@
     </AdminModal>
 
     <AdminModal :show="showMassCampaignModal" title="Envío masivo de descuentos" max-width="700px" @close="closeMassCampaignModal">
-      <div class="campaign-modal">
+      <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+        <div class="campaign-modal">
         <p class="campaign-modal__intro">
           Envía un código de descuento a todos los clientes con notificación interna, correo o ambos canales.
         </p>
@@ -354,6 +359,7 @@
           </label>
           <p v-if="massCampaignErrors.channels" class="form-error">{{ massCampaignErrors.channels }}</p>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -366,7 +372,8 @@
     </AdminModal>
 
     <AdminModal :show="showSpecificCampaignModal" title="Descuento para usuarios específicos" max-width="1180px" @close="closeSpecificCampaignModal">
-      <div class="specific-campaign-modal">
+      <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+        <div class="specific-campaign-modal">
 
         <!-- Sección superior: selector de código y canales de envío -->
         <div class="specific-campaign-top">
@@ -547,6 +554,7 @@
           </label>
         </div>
         <p v-if="specificCampaignErrors.user_ids" class="form-error">{{ specificCampaignErrors.user_ids }}</p>
+        </div>
       </div>
 
       <template #footer>
@@ -590,6 +598,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+import '../views/AdminDiscountCodesPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -1211,537 +1220,3 @@ function extractErrorMessage(error, fallback) {
 onMounted(loadCodes)
 </script>
 
-<style scoped>
-.discount-code-pill {
-  display: inline-flex;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(15, 122, 191, 0.08);
-  color: var(--admin-primary);
-}
-
-.discount-preview-card {
-  margin-top: 1rem;
-  border: 1px solid rgba(15, 122, 191, 0.12);
-}
-
-.discount-code-field__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.6rem;
-}
-
-.discount-code-field__header label {
-  margin-bottom: 0;
-}
-
-.discount-code-field__generate {
-  border: 1px solid rgba(15, 122, 191, 0.18);
-  background: rgba(15, 122, 191, 0.08);
-  color: var(--admin-primary);
-  border-radius: 999px;
-  padding: 0.55rem 1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.discount-code-field__generate:hover {
-  background: rgba(15, 122, 191, 0.14);
-}
-
-.discount-code-field__hint {
-  margin: 0.55rem 0 0;
-  color: var(--admin-text-light);
-  font-size: 1.18rem;
-  line-height: 1.45;
-}
-
-.discount-code-field__mode {
-  margin-top: 1rem;
-}
-
-.discount-hero-card h3,
-.discount-preview-card h3 {
-  font-size: 2.6rem;
-  letter-spacing: 0.08em;
-}
-
-.campaign-modal {
-  display: grid;
-  gap: 1rem;
-}
-
-.campaign-modal__intro {
-  margin: 0;
-  color: var(--admin-text-muted);
-}
-
-.campaign-modal__availability {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 1rem 1.1rem;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 122, 191, 0.18);
-  background: rgba(15, 122, 191, 0.05);
-}
-
-.campaign-modal__availability i {
-  margin-top: 0.2rem;
-  color: var(--admin-primary);
-  font-size: 1.7rem;
-}
-
-.campaign-modal__availability strong {
-  display: block;
-  color: var(--admin-text);
-}
-
-.campaign-modal__availability p {
-  margin: 0.3rem 0 0;
-  color: var(--admin-text-muted);
-}
-
-.campaign-modal__availability--empty {
-  border-color: rgba(219, 39, 119, 0.14);
-  background: rgba(219, 39, 119, 0.05);
-}
-
-.campaign-modal__availability--empty i {
-  color: #be185d;
-}
-
-.campaign-form-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr;
-}
-
-.campaign-channels {
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.85rem;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 122, 191, 0.14);
-  background: rgba(15, 122, 191, 0.04);
-}
-
-.campaign-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-weight: 600;
-  color: var(--admin-text);
-}
-
-.campaign-user-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.campaign-user-toolbar__search {
-  flex: 1;
-  min-width: 240px;
-}
-
-.campaign-user-toolbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* ── Modal campaña específica mejorada ─────────────────────── */
-.specific-campaign-modal {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.specific-campaign-top {
-  display: grid;
-  gap: 1.35rem;
-  grid-template-columns: 1fr;
-}
-
-.specific-campaign-label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-weight: 700;
-  font-size: 0.93rem;
-  color: var(--admin-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.6rem;
-}
-
-/* Vista previa del código seleccionado */
-.campaign-code-preview {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 0.9rem 1rem;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 122, 191, 0.2);
-  background: rgba(15, 122, 191, 0.05);
-  margin-top: 0.6rem;
-}
-
-.campaign-code-preview__icon {
-  width: 2.8rem;
-  height: 2.8rem;
-  flex-shrink: 0;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  background: rgba(15, 122, 191, 0.12);
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-code-preview__icon.is-fixed {
-  background: rgba(34, 197, 94, 0.12);
-  color: #16a34a;
-}
-
-.campaign-code-preview__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-  min-width: 0;
-}
-
-.campaign-code-preview__code {
-  font-size: 1.18rem;
-  color: var(--admin-text);
-  word-break: break-all;
-}
-
-.campaign-code-preview__value {
-  font-size: 1.04rem;
-  font-weight: 700;
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-code-preview__meta {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.9rem;
-  color: var(--admin-text-muted);
-}
-
-/* Animación de entrada del preview */
-.campaign-preview-fade-enter-active,
-.campaign-preview-fade-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
-}
-.campaign-preview-fade-enter-from,
-.campaign-preview-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-/* Tarjetas de canal */
-.specific-campaign-channels-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.campaign-channel-card {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  border-radius: 12px;
-  border: 1.5px solid rgba(15, 122, 191, 0.14);
-  background: var(--admin-surface, #fff);
-  cursor: pointer;
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
-  user-select: none;
-}
-
-.campaign-channel-card:hover {
-  border-color: rgba(15, 122, 191, 0.32);
-  background: rgba(15, 122, 191, 0.04);
-}
-
-.campaign-channel-card.is-active {
-  border-color: var(--admin-primary, #0077b6);
-  background: rgba(15, 122, 191, 0.07);
-  box-shadow: 0 0 0 3px rgba(15, 122, 191, 0.08);
-}
-
-.campaign-channel-card__icon {
-  width: 2.4rem;
-  height: 2.4rem;
-  flex-shrink: 0;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  background: rgba(15, 122, 191, 0.1);
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-channel-card__icon--email {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-.campaign-channel-card__info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
-}
-
-.campaign-channel-card__info strong {
-  font-size: 1.04rem;
-  color: var(--admin-text);
-}
-
-.campaign-channel-card__info span {
-  font-size: 0.9rem;
-  color: var(--admin-text-muted);
-}
-
-.campaign-channel-card__toggle {
-  flex-shrink: 0;
-}
-
-.campaign-channel-card__toggle input[type="checkbox"] {
-  width: 1.1rem;
-  height: 1.1rem;
-  cursor: pointer;
-}
-
-/* Cabecera de destinatarios */
-.specific-campaign-users-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-}
-
-.specific-campaign-users-header__title {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-weight: 700;
-  color: var(--admin-text);
-}
-
-.specific-campaign-users-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-/* Botones de acción tipo chip para el panel de destinatarios */
-.campaign-action-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.32rem;
-  padding: 0.35rem 0.85rem;
-  border-radius: 999px;
-  font-size: 0.84rem;
-  font-weight: 700;
-  background: rgba(15, 122, 191, 0.08);
-  color: var(--admin-primary, #0077b6);
-  border: 1.5px solid rgba(15, 122, 191, 0.2);
-  cursor: pointer;
-  transition: background 0.16s, border-color 0.16s, color 0.16s;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.campaign-action-chip:hover {
-  background: rgba(15, 122, 191, 0.15);
-  border-color: rgba(15, 122, 191, 0.38);
-}
-
-.campaign-action-chip--clear {
-  background: rgba(220, 38, 38, 0.06);
-  color: #dc2626;
-  border-color: rgba(220, 38, 38, 0.18);
-}
-
-.campaign-action-chip--clear:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.12);
-  border-color: rgba(220, 38, 38, 0.35);
-}
-
-.campaign-action-chip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-
-.specific-campaign-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.83rem;
-  font-weight: 700;
-  background: rgba(15, 122, 191, 0.1);
-  color: var(--admin-text-muted);
-  transition: background 0.2s, color 0.2s;
-}
-
-.specific-campaign-badge.is-filled {
-  background: var(--admin-primary, #0077b6);
-  color: #fff;
-}
-
-/* Lista de usuarios */
-.campaign-users-list {
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid rgba(15, 122, 191, 0.14);
-  border-radius: 12px;
-  padding: 0.45rem;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.campaign-users-list--specific {
-  max-height: min(52vh, 430px);
-}
-
-.campaign-users-list__state {
-  padding: 1.4rem;
-  text-align: center;
-  color: var(--admin-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.campaign-user-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.campaign-user-item:hover {
-  background: rgba(15, 122, 191, 0.06);
-}
-
-.campaign-user-item.is-selected {
-  background: rgba(15, 122, 191, 0.09);
-}
-
-.campaign-user-item input[type="checkbox"] {
-  flex-shrink: 0;
-}
-
-.campaign-user-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: rgba(15, 122, 191, 0.14);
-  color: var(--admin-primary, #0077b6);
-  font-size: 0.86rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-transform: uppercase;
-}
-
-.campaign-user-item__meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.campaign-user-item__meta strong {
-  font-size: 1rem;
-  color: var(--admin-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.campaign-user-item__meta span {
-  color: var(--admin-text-muted);
-  font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.campaign-user-item__checkmark {
-  flex-shrink: 0;
-  color: var(--admin-primary, #0077b6);
-  font-size: 0.85rem;
-}
-
-@media (min-width: 760px) {
-  .specific-campaign-top {
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .campaign-form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .discount-code-field__header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .discount-code-field__generate {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .specific-campaign-users-panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .specific-campaign-users-header__actions {
-    width: 100%;
-  }
-
-  .specific-campaign-users-header__actions .btn {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .campaign-user-toolbar__actions {
-    width: 100%;
-  }
-
-  .campaign-user-toolbar__actions .btn {
-    flex: 1;
-  }
-}
-</style>

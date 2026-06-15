@@ -174,11 +174,11 @@
     />
 
     <AdminModal :show="showDetailModal" :title="selectedInvoice ? `Factura ${selectedInvoice.invoice_number}` : 'Detalle de factura'" max-width="1080px" @close="closeDetailModal">
-      <div v-if="detailLoading" class="detail-loading">
-        <AdminTableShimmer :rows="4" :columns="['line', 'line', 'line', 'line']" />
-      </div>
-      <template v-else-if="detailOrder">
-        <div class="order-detail-grid">
+      <div class="admin-invoices-page admin-invoices-page--modal">
+        <div v-if="detailLoading" class="detail-loading">
+          <AdminTableShimmer :rows="4" :columns="['line', 'line', 'line', 'line']" />
+        </div>
+        <div v-else-if="detailOrder" class="order-detail-grid">
           <div>
             <AdminCard title="Items facturados" icon="fas fa-box" :flush="true">
               <div v-if="detailOrder.items.length === 0" class="detail-empty">Sin items registrados.</div>
@@ -225,8 +225,8 @@
               </div>
             </AdminCard>
           </div>
+          </div>
         </div>
-      </template>
       <template #footer>
         <button v-if="selectedInvoice" class="btn btn-primary" type="button" @click="downloadInvoice(selectedInvoice)">
           <i class="fas fa-file-pdf"></i> Descargar PDF
@@ -261,6 +261,7 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import '../views/AdminInvoicesPage.css'
 
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
@@ -604,24 +605,3 @@ watch(() => route.fullPath, async () => {
   await applyRouteState()
 }, { immediate: true })
 </script>
-
-<style scoped>
-.invoice-number-cell,
-.invoice-order-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.invoice-number-cell span,
-.invoice-order-cell span {
-  color: #718096;
-  font-size: 0.75rem;
-}
-
-.invoices-results-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-</style>
