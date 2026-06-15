@@ -9,6 +9,7 @@
 - [Decisiones de arquitectura](#decisiones-de-arquitectura)
 - [Etapas adicionales](#etapas-adicionales)
 - [Refactorización de lógica administrativa - sliders, configuración, categorías y colecciones](#refactorización-de-lógica-administrativa---sliders-configuración-categorías-y-colecciones)
+- [Refactorización de lógica administrativa - tallas, métodos de envío, reglas de envío y códigos de descuento](#refactorización-de-lógica-administrativa---tallas-métodos-de-envío-reglas-de-envío-y-códigos-de-descuento)
 - [Validaciones](#validaciones)
 - [Documentos relacionados](#documentos-relacionados)
 <!-- indice:auto:end -->
@@ -176,6 +177,60 @@ Separar responsabilidades en `frontend/src/modules/admin/pages/AdminProductFormP
 - Tratamiento de modales: cada contenido renderizado por `AdminModal` ahora tiene wrapper interno con la raíz de la vista para evitar fugas de estilos en `Teleport`.
 - Encapsulado CSS: el bloque local se trasladó a `frontend/src/modules/admin/views/AdminDiscountCodesPage.css`, se importa desde la vista y los selectores locales quedaron prefijados bajo `.admin-discount-codes-page`, incluyendo los casos dentro de `@media`.
 - Cero cambio funcional: no se modificaron carga, creación, edición, eliminación, campañas, filtros, búsqueda, paginación, exportaciones, endpoints, contratos API, payloads ni nombres de campos.
+
+## Refactorización de lógica administrativa - tallas, métodos de envío, reglas de envío y códigos de descuento
+
+### AdminSizesPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminSizesPage.vue` y `frontend/src/modules/admin/composables/useAdminSizes.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminSizes.js`.
+- Utils reutilizados o creados: se reutilizó `frontend/src/modules/admin/composables/useAdminPagination.js`; no fue necesario crear `sizePresentation.js`.
+- Lógica extraída: carga de tallas, búsqueda, filtros, paginación, formulario, validaciones, creación, edición, eliminación, activación, refresco y confirmaciones.
+- Lógica conservada en la página: template, imports de componentes, wiring declarativo de tabla, modal y tarjetas estadísticas.
+- Organización mediante comentarios: imports visuales y bloque de orquestación en la página; estado principal, filtros y paginación, formulario, valores derivados, carga, CRUD, activación, watchers/ciclo de vida y API pública en el composable.
+- Services preservados: `catalogHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~470 líneas concentradas en la vista; después ~199 líneas en la página y ~280 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos campos `name`, `label`, `value`, `abbreviation`, `description`, `sort_order`, `active`; mismas validaciones numéricas, mismas confirmaciones y mismas restricciones por asociaciones.
+
+### AdminShippingMethodsPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue` y `frontend/src/modules/admin/composables/useAdminShippingMethods.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminShippingMethods.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/composables/useAdminPagination.js` y `frontend/src/modules/admin/composables/useAdminDataExport.js`; no fue necesario crear `shippingMethodPresentation.js`.
+- Lógica extraída: carga de métodos, búsqueda, filtros, paginación, formulario, costos, tiempos de entrega, cobertura, creación, edición, eliminación, activación, detalle, exportación y refresco.
+- Lógica conservada en la página: template, imports de componentes, helpers visuales de tabla y conexión declarativa de modales y exportaciones.
+- Organización mediante comentarios: imports visuales y bloque de orquestación en la página; estado principal, filtros y paginación, formulario, costos y tiempos, cobertura, carga, CRUD, modales, exportación y API pública en el composable.
+- Services preservados: `shippingHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~730 líneas concentradas en la vista; después ~375 líneas en la página y ~385 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos campos `name`, `description`, `carrier`, `code`, `base_cost`, `estimated_days_min`, `estimated_days_max`, `coverage_cities`, `icon`, `sort_order`, `active`; mismo tratamiento de `null`, mismos montos COP y mismos endpoints.
+
+### AdminShippingRulesPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue` y `frontend/src/modules/admin/composables/useAdminShippingRules.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminShippingRules.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/composables/useAdminPagination.js` y `frontend/src/modules/admin/composables/useAdminDataExport.js`; no fue necesario crear `shippingRulePresentation.js`.
+- Lógica extraída: carga de reglas y métodos asociados, búsqueda, filtros, paginación, formulario, condiciones, rangos, cobertura geográfica, creación, edición, eliminación, activación, detalle, exportación y refresco.
+- Lógica conservada en la página: template, imports de componentes y render declarativo de tabla, badges y modales.
+- Organización mediante comentarios: imports visuales y bloque de orquestación en la página; estado principal, filtros y paginación, formulario, métodos asociados, condiciones y rangos, cobertura, carga, CRUD, modales y API pública en el composable.
+- Services preservados: `shippingHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~620 líneas concentradas en la vista; después ~289 líneas en la página y ~338 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos campos de método, prioridad, zonas, rangos de peso/precio/cantidad, `fixed_cost`, `additional_cost`, `free_shipping`, fechas y estado; misma semántica para `null`, cero, arrays vacíos y prioridad.
+
+### AdminDiscountCodesPage.vue
+
+- Archivos modificados: `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue` y `frontend/src/modules/admin/composables/useAdminDiscountCodes.js`.
+- Composable creado: `frontend/src/modules/admin/composables/useAdminDiscountCodes.js`.
+- Utils reutilizados o creados: se reutilizaron `frontend/src/modules/admin/composables/useAdminPagination.js` y `frontend/src/modules/admin/composables/useAdminDataExport.js`; no fue necesario crear `discountCodePresentation.js`.
+- Lógica extraída: carga de códigos, búsqueda, filtros, paginación, formulario, generación automática de código, validaciones, creación, edición, eliminación, elegibilidad, campañas masivas y específicas, exportación, estados, límites, fechas y refresco.
+- Lógica conservada en la página: template, imports de componentes, navegación visual y conexión declarativa de modales, tabla, campañas y exportaciones.
+- Organización mediante comentarios: imports visuales y bloque de orquestación en la página; estado principal, filtros y paginación, formulario, campañas, valores derivados, validaciones, carga, CRUD, exportación, modales y API pública en el composable.
+- Services preservados: `discountHttp` desde `frontend/src/services/http`.
+- Líneas aproximadas antes y después: antes ~1221 líneas concentradas en la vista; después ~670 líneas en la página y ~740 líneas en el composable.
+- Build individual: `npm run build` exitoso.
+- Contratos preservados: mismos campos `code`, `type`, `value`, `max_uses`, `start_date`, `expires_at`, `active`, `is_single_use`; misma generación en mayúsculas, mismos arrays de IDs para campañas, mismos límites/fechas, mismas exportaciones y mismos endpoints.
 
 ## Validaciones
 

@@ -63,62 +63,62 @@
     <AdminModal :show="showModal" :title="editing ? 'Editar administrador' : 'Nuevo administrador'" max-width="560px" @close="closeModal">
       <div class="admin-administrators-page admin-administrators-page--modal">
         <div class="admin-entity-filters__form">
-        <!-- Foto de perfil: solo para el administrador actual -->
-        <div v-if="isEditingCurrentAdmin" class="form-group admin-entity-filters__form--full admin-photo-upload-section">
-          <label>Foto de perfil</label>
-          <div class="admin-photo-upload">
-            <div class="admin-photo-preview-wrap">
-              <img
-                :src="photoPreview || resolveMediaUrl(form.image, 'avatar')"
-                class="admin-photo-preview"
-                alt="Foto de perfil"
-                @error="(e) => handleMediaError(e, form.image, 'avatar')"
-              >
-              <span class="admin-photo-state-icon" aria-hidden="true">
-                <i class="fas fa-user-shield"></i>
-              </span>
-            </div>
-            <div class="admin-photo-controls">
-              <label for="admin-photo-input" class="admin-photo-trigger" :class="{ 'is-disabled': uploadingPhoto }">
-                <i :class="uploadingPhoto ? 'fas fa-circle-notch fa-spin' : 'fas fa-camera-retro'"></i>
-                {{ uploadingPhoto ? 'Subiendo foto...' : 'Cambiar foto de perfil' }}
-              </label>
-              <input
-                id="admin-photo-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                class="sr-only"
-                :disabled="uploadingPhoto"
-                @change="onPhotoSelected"
-              >
-              <p class="admin-photo-hint">JPG, PNG o WebP. Máx. 2 MB.</p>
+          <!-- Foto de perfil: solo para el administrador actual -->
+          <div v-if="isEditingCurrentAdmin" class="form-group admin-entity-filters__form--full admin-photo-upload-section">
+            <label>Foto de perfil</label>
+            <div class="admin-photo-upload">
+              <div class="admin-photo-preview-wrap">
+                <img
+                  :src="photoPreview || resolveMediaUrl(form.image, 'avatar')"
+                  class="admin-photo-preview"
+                  alt="Foto de perfil"
+                  @error="(e) => handleMediaError(e, form.image, 'avatar')"
+                >
+                <span class="admin-photo-state-icon" aria-hidden="true">
+                  <i class="fas fa-user-shield"></i>
+                </span>
+              </div>
+              <div class="admin-photo-controls">
+                <label for="admin-photo-input" class="admin-photo-trigger" :class="{ 'is-disabled': uploadingPhoto }">
+                  <i :class="uploadingPhoto ? 'fas fa-circle-notch fa-spin' : 'fas fa-camera-retro'"></i>
+                  {{ uploadingPhoto ? 'Subiendo foto...' : 'Cambiar foto de perfil' }}
+                </label>
+                <input
+                  id="admin-photo-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  class="sr-only"
+                  :disabled="uploadingPhoto"
+                  @change="onPhotoSelected"
+                >
+                <p class="admin-photo-hint">JPG, PNG o WebP. Máx. 2 MB.</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="form-group admin-entity-filters__form--full">
-          <label for="admin-name">
-            Nombre *
-            <AdminInfoTooltip text="Nombre completo del administrador. Se muestra en el perfil del panel." />
-          </label>
-          <input id="admin-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
-          <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
-        </div>
-        <div class="form-group admin-entity-filters__form--full">
-          <label for="admin-email">
-            Email *
-            <AdminInfoTooltip text="Correo de acceso al panel. Debe ser único por administrador." />
-          </label>
-          <input id="admin-email" v-model="form.email" type="email" class="form-control" :class="{ 'is-invalid': errors.email }" @input="validateField('email')">
-          <p v-if="errors.email" class="form-error">{{ errors.email }}</p>
-        </div>
-        <div v-if="!editing" class="form-group admin-entity-filters__form--full">
-          <label for="admin-password">
-            Contraseña *
-            <AdminInfoTooltip text="Contraseña de acceso. Mínimo 8 caracteres. No se puede recuperar desde aquí si se pierde." />
-          </label>
-          <input id="admin-password" v-model="form.password" type="password" class="form-control" :class="{ 'is-invalid': errors.password }" @input="validateField('password')">
-          <p v-if="errors.password" class="form-error">{{ errors.password }}</p>
-        </div>
+          <div class="form-group admin-entity-filters__form--full">
+            <label for="admin-name">
+              Nombre *
+              <AdminInfoTooltip text="Nombre completo del administrador. Se muestra en el perfil del panel." />
+            </label>
+            <input id="admin-name" v-model="form.name" class="form-control" :class="{ 'is-invalid': errors.name }" @input="validateField('name')">
+            <p v-if="errors.name" class="form-error">{{ errors.name }}</p>
+          </div>
+          <div class="form-group admin-entity-filters__form--full">
+            <label for="admin-email">
+              Email *
+              <AdminInfoTooltip text="Correo de acceso al panel. Debe ser único por administrador." />
+            </label>
+            <input id="admin-email" v-model="form.email" type="email" class="form-control" :class="{ 'is-invalid': errors.email }" @input="validateField('email')">
+            <p v-if="errors.email" class="form-error">{{ errors.email }}</p>
+          </div>
+          <div v-if="!editing" class="form-group admin-entity-filters__form--full">
+            <label for="admin-password">
+              Contraseña *
+              <AdminInfoTooltip text="Contraseña de acceso. Mínimo 8 caracteres. No se puede recuperar desde aquí si se pierde." />
+            </label>
+            <input id="admin-password" v-model="form.password" type="password" class="form-control" :class="{ 'is-invalid': errors.password }" @input="validateField('password')">
+            <p v-if="errors.password" class="form-error">{{ errors.password }}</p>
+          </div>
           <AdminToggleSwitch
             id="admin-active"
             class="form-group admin-entity-filters__toggle"
@@ -140,14 +140,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { authHttp } from '../../../services/http'
-import { updateProfile } from '../../../services/authApi'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
-import { useAlertSystem } from '../../../composables/useAlertSystem'
-import { useSession } from '../../../composables/useSession'
-import { useAdminPagination } from '../composables/useAdminPagination'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
@@ -156,186 +149,31 @@ import AdminPagination from '../components/AdminPagination.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+import { useAdminAdministrators } from '../composables/useAdminAdministrators'
 import '../views/AdminAdministratorsPage.css'
 
-const { showSnackbar } = useSnackbarSystem()
-const { showAlert } = useAlertSystem()
-const { user, token, saveSession } = useSession()
-const currentUserId = ref(user.value?.id)
-const admins = ref([])
-const loading = ref(true)
-const showModal = ref(false)
-const editing = ref(null)
-const errors = ref({})
-const emptyForm = { name: '', email: '', password: '', active: true, image: '' }
-const form = ref({ ...emptyForm })
-const photoPreview = ref(null)
-const uploadingPhoto = ref(false)
-const isEditingCurrentAdmin = computed(() => {
-  if (editing.value === null || editing.value === undefined) return false
-  return String(editing.value) === String(currentUserId.value)
-})
-
-const pagination = useAdminPagination(admins, {
-  initialPageSize: 10,
-  pageSizeOptions: [10, 20, 50],
-})
-
-function validateField(field) {
-  errors.value[field] = ''
-  if (field === 'name' && !form.value.name?.trim()) errors.value.name = 'El nombre es requerido'
-  if (field === 'email') {
-    if (!form.value.email?.trim()) errors.value.email = 'El email es requerido'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) errors.value.email = 'Email inválido'
-  }
-  if (field === 'password' && !editing.value && form.value.password.length < 6) errors.value.password = 'Mínimo 6 caracteres'
-}
-
-function resolveLastAccess(admin) {
-  return admin?.last_access || admin?.last_login || admin?.last_access_at || null
-}
-
-function formatDateTime(value) {
-  if (!value) return 'Sin registro'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Sin registro'
-  return date.toLocaleString('es-CO')
-}
-
-function openModal(admin = null) {
-  editing.value = admin ? admin.id : null
-  form.value = admin
-    ? {
-        name: admin.name || '',
-        email: admin.email || '',
-        password: '',
-        active: admin.active !== false,
-        image: admin.image || '',
-      }
-    : { ...emptyForm }
-  errors.value = {}
-  photoPreview.value = null
-  showModal.value = true
-}
-
-async function onPhotoSelected(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-
-  const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-  if (!isValidType) {
-    showSnackbar({ type: 'warning', message: 'Formato no permitido. Usa JPG, PNG o WebP.' })
-    event.target.value = ''
-    return
-  }
-
-  const maxSizeBytes = 2 * 1024 * 1024
-  if (file.size > maxSizeBytes) {
-    showSnackbar({ type: 'warning', message: 'La imagen supera el tamaño máximo de 2 MB.' })
-    event.target.value = ''
-    return
-  }
-
-  // Previsualización local
-  const reader = new FileReader()
-  reader.onload = (e) => { photoPreview.value = e.target.result }
-  reader.readAsDataURL(file)
-
-  // Subir al servidor via /auth/profile
-  uploadingPhoto.value = true
-  try {
-    const fd = new FormData()
-    fd.append('name', form.value.name || user.value?.name || '')
-    fd.append('image', file)
-    const result = await updateProfile(fd)
-    const newImage = result?.data?.image || result?.image || ''
-    if (newImage) {
-      form.value.image = newImage
-      // Actualizar imagen en la sesión del admin actual
-      saveSession(token.value, { ...user.value, image: newImage })
-    }
-    showSnackbar({ type: 'success', message: 'Foto de perfil actualizada' })
-    await loadAdmins()
-  } catch {
-    photoPreview.value = null
-    showSnackbar({ type: 'error', message: 'Error al subir la foto' })
-  } finally {
-    uploadingPhoto.value = false
-    event.target.value = ''
-  }
-}
-
-function closeModal() {
-  showModal.value = false
-  editing.value = null
-}
-
-async function loadAdmins() {
-  loading.value = true
-  try {
-    const { data } = await authHttp.get('/admin/administrators')
-    const rows = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : [])
-    admins.value = rows.map((admin) => ({
-      ...admin,
-      active: admin.active !== undefined ? Boolean(admin.active) : !Boolean(admin.is_blocked),
-    }))
-  } catch { admins.value = [] } finally { loading.value = false }
-}
-
-async function saveAdmin() {
-  ;['name', 'email'].forEach(validateField)
-  if (!editing.value) validateField('password')
-  if (Object.values(errors.value).some(Boolean)) return
-
-  try {
-    const payload = {
-      name: form.value.name,
-      email: form.value.email,
-      active: Boolean(form.value.active),
-    }
-    if (form.value.image) payload.image = form.value.image
-    if (!editing.value) payload.password = form.value.password
-    if (editing.value && form.value.password) payload.password = form.value.password
-    if (editing.value) {
-      await authHttp.put(`/admin/administrators/${editing.value}`, payload)
-      showSnackbar({ type: 'success', message: 'Administrador actualizado' })
-    } else {
-      await authHttp.post('/admin/administrators', payload)
-      showSnackbar({ type: 'success', message: 'Administrador creado' })
-    }
-    showModal.value = false
-    await loadAdmins()
-  } catch { showSnackbar({ type: 'error', message: 'Error al guardar administrador' }) }
-}
-
-function deleteAdmin(id) {
-  if (id === currentUserId.value) {
-    showSnackbar({ type: 'warning', message: 'No puedes eliminarte a ti mismo' })
-    return
-  }
-
-  showAlert({
-    type: 'warning',
-    title: 'Eliminar administrador',
-    message: '¿Deseas eliminar este administrador? Esta acción no se puede deshacer.',
-    actions: [
-      { text: 'Cancelar', style: 'secondary' },
-      {
-        text: 'Eliminar',
-        style: 'danger',
-        callback: async () => {
-          try {
-            await authHttp.delete(`/admin/administrators/${id}`)
-            showSnackbar({ type: 'success', message: 'Administrador eliminado' })
-            await loadAdmins()
-          } catch {
-            showSnackbar({ type: 'error', message: 'Error al eliminar' })
-          }
-        },
-      },
-    ],
-  })
-}
-
-onMounted(loadAdmins)
+// =====================================================
+// Orquestación de la vista
+// =====================================================
+const {
+  admins,
+  closeModal,
+  currentUserId,
+  deleteAdmin,
+  editing,
+  errors,
+  form,
+  formatDateTime,
+  isEditingCurrentAdmin,
+  loading,
+  onPhotoSelected,
+  openModal,
+  pagination,
+  photoPreview,
+  resolveLastAccess,
+  saveAdmin,
+  showModal,
+  uploadingPhoto,
+  validateField,
+} = useAdminAdministrators()
 </script>
