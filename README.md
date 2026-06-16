@@ -82,7 +82,7 @@ docker compose exec -T cart-service php artisan migrate --force
 docker compose exec -T order-service php artisan migrate --force
 docker compose exec -T payment-service php artisan migrate --force
 docker compose exec -T discount-service php artisan migrate --force
-docker compose exec -T shipping-service php artisan migrate --force
+docker compose exec -T shipping-service php artisan migrate --force![1781618389937](image/README/1781618389937.png)
 docker compose exec -T notification-service php artisan migrate --force
 docker compose exec -T audit-service php artisan migrate --force
 ```

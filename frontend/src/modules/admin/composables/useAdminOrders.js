@@ -1,4 +1,5 @@
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { orderHttp } from '../../../services/http'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -14,6 +15,7 @@ import {
 } from '../utils/orderPresentation'
 
 export function useAdminOrders() {
+  const router = useRouter()
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
   const { exportData, exportingFormat } = useAdminDataExport()
@@ -123,6 +125,16 @@ export function useAdminOrders() {
       params: { id: order?.id },
       query: isLegacy ? { vista: 'archivo' } : {},
     }
+  }
+
+  function goToOrderDetail(order, event = null) {
+    const interactiveTarget = event?.target?.closest?.('a, button, input, select, textarea, label')
+    if (!order || interactiveTarget) {
+      return
+    }
+
+    // Reutiliza la ruta de detalle existente para que fila y botón mantengan el mismo contrato de navegación.
+    router.push(buildOrderDetailRoute(order))
   }
 
   function buildOrderSelectionKey(orderOrId, source = null) {
@@ -417,6 +429,52 @@ export function useAdminOrders() {
     }
   }
 
+  function confirmCompleteOrder(order) {
+    if (!canCompleteOrder(order) || savingOrderActionKey.value) return
+
+    showAlert({
+      type: 'warning',
+      title: 'Completar orden',
+      message: `¿Deseas marcar la orden ${order.order_number || `#${order.id}`} como completada?`,
+      actions: [
+        { text: 'Cancelar', style: 'secondary' },
+        {
+          text: 'Completar',
+          style: 'primary',
+          callback: async () => {
+            await completeOrder(order)
+          },
+        },
+      ],
+    })
+  }
+
+  async function completeOrder(order) {
+    const actionKey = buildOrderActionKey(order, 'complete')
+    if (savingOrderActionKey.value) return
+
+    savingOrderActionKey.value = actionKey
+
+    try {
+      await orderHttp.patch(`/orders/${order.id}/status`, {
+        source: normalizeOrderSource(order.order_source),
+        status: 'completed',
+        description: 'Orden completada desde acción rápida administrativa.',
+      })
+      showSnackbar({ type: 'success', message: 'Orden completada correctamente' })
+      await loadOrders()
+    } catch {
+      showSnackbar({ type: 'error', message: 'No se pudo completar la orden' })
+    } finally {
+      savingOrderActionKey.value = ''
+    }
+  }
+
+  function canCompleteOrder(order) {
+    const status = normalizeAdminOrderStatus(order?.status)
+    return !['completed', 'delivered', 'cancelled', 'canceled', 'refunded'].includes(status)
+  }
+
   function buildOrderActionKey(order, action) {
     return `${buildOrderSelectionKey(order)}:${action}`
   }
@@ -672,6 +730,12 @@ export function useAdminOrders() {
 
   onMounted(loadOrders)
 
+  onBeforeUnmount(() => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+    }
+  })
+
   return {
     activeFilterCount,
     allSelected,
@@ -685,6 +749,8 @@ export function useAdminOrders() {
     closeDetailModal,
     closePaymentStatusModal,
     closeStatusModal,
+    canCompleteOrder,
+    confirmCompleteOrder,
     confirmDeactivateOrder,
     debouncedLoad,
     detailLoading,
@@ -695,6 +761,7 @@ export function useAdminOrders() {
     formatCurrency,
     formatDate,
     formatDateTime,
+    goToOrderDetail,
     isOrderActionLoading,
     isOrderSelected,
     loading,

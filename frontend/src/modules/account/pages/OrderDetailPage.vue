@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
@@ -109,6 +109,7 @@ import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { cancelOrder, downloadOrderInvoice, getOrderById } from '../../../services/orderApi'
+import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 import { getOrderStatusLabel, getPaymentStatusLabel, normalizeOrderStatus, normalizePaymentStatus } from '../../../utils/orderPresentation'
 
 const route = useRoute()
@@ -123,6 +124,7 @@ const orderItems = ref([])
 const orderHistory = ref([])
 const cancellingOrder = ref(false)
 const downloadingInvoice = ref(false)
+let unsubscribeOrderRealtime = null
 
 const defaultOrderSteps = Object.freeze([
   { key: 'pending', label: 'Pendiente', icon: 'fas fa-clock' },
@@ -146,10 +148,18 @@ const hasInvoiceAvailable = computed(() => {
 
 onMounted(async () => {
   await loadOrderDetail()
+  unsubscribeOrderRealtime = subscribeToOrderRealtime(handleRealtimeOrderUpdate)
 })
 
-async function loadOrderDetail() {
-  loading.value = true
+onUnmounted(() => {
+  unsubscribeOrderRealtime?.()
+})
+
+async function loadOrderDetail(options = {}) {
+  const silent = Boolean(options.silent)
+  if (!silent) {
+    loading.value = true
+  }
   errorMessage.value = ''
 
   try {
@@ -167,10 +177,39 @@ async function loadOrderDetail() {
       errorMessage.value = 'No se encontró el pedido solicitado.'
     }
   } catch {
-    errorMessage.value = 'No se pudo cargar el detalle del pedido.'
+    if (!silent) {
+      errorMessage.value = 'No se pudo cargar el detalle del pedido.'
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
+}
+
+async function handleRealtimeOrderUpdate(message) {
+  const currentOrderId = Number(route.params.id)
+  if (!Number.isFinite(currentOrderId) || currentOrderId !== Number(message.orderId) || !orderDetail.value) {
+    return
+  }
+
+  // Refleja el cambio entrante de websocket sin bloquear la interacción del detalle.
+  const nextOrder = { ...orderDetail.value }
+  if (message.field === 'status' && message.newValue) {
+    nextOrder.status = message.newValue
+  }
+  if (message.field === 'payment_status' && message.newValue) {
+    nextOrder.payment_status = message.newValue
+  }
+  if (message.status) {
+    nextOrder.status = message.status
+  }
+  if (message.paymentStatus) {
+    nextOrder.payment_status = message.paymentStatus
+  }
+
+  orderDetail.value = nextOrder
+  await loadOrderDetail({ silent: true })
 }
 
 function formatDate(value) {

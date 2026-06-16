@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -475,6 +475,12 @@ export function useAdminCustomers() {
   watch(() => route.fullPath, async () => {
     await applyRouteState()
   }, { immediate: true })
+
+  onBeforeUnmount(() => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+    }
+  })
 
   return {
     activeFilterCount,

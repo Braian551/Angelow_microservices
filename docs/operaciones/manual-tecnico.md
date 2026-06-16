@@ -77,6 +77,8 @@ Para importar datos legacy distribuidos:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\importar-datos-microservicios.ps1
 ```
 
+El importador lee `basededatos.sql` con detección estricta de codificación para preservar UTF-8 real. Si el dump viene de una herramienta antigua, usa fallback Windows-1252 y vuelve a enviar SQL temporal en UTF-8 sin BOM antes de ejecutar `psql`.
+
 Documentos relacionados:
 
 - `docs/datos/importacion-datos.md`

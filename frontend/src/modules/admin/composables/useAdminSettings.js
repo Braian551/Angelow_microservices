@@ -372,6 +372,7 @@ export function useAdminSettings() {
     loading,
     onImagePreviewError,
     onImageSelected,
+    openImagePicker,
     operationsFields,
     saveSettings,
     sectionErrorCount,

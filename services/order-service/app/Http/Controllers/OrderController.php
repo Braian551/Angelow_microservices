@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ExpireStockReservationJob;
 use App\Services\OrderInvoiceService;
+use App\Services\StockReservationRealtimePublisher;
 use App\Services\StockReservationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ class OrderController extends Controller
     public function __construct(
         private readonly OrderInvoiceService $orderInvoiceService,
         private readonly StockReservationService $stockReservationService,
+        private readonly StockReservationRealtimePublisher $stockRealtimePublisher,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -566,11 +568,14 @@ class OrderController extends Controller
 
         $oldPaymentStatus = $order->{$paymentStatusColumn} ?? $order->payment_status ?? null;
         $targetPaymentStatus = (string) $data['payment_status'];
-        $paymentStatusChanged = !$this->sameNormalizedValue($oldPaymentStatus, $targetPaymentStatus);
         $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], $sourceConnection);
         $oldStatus = $statusColumn
             ? ($order->{$statusColumn} ?? $order->status ?? $order->order_status ?? null)
             : ($order->status ?? $order->order_status ?? null);
+        if ($this->shouldMoveVerifiedPaymentToRefund($oldStatus, $targetPaymentStatus)) {
+            $targetPaymentStatus = 'pending_refund';
+        }
+        $paymentStatusChanged = !$this->sameNormalizedValue($oldPaymentStatus, $targetPaymentStatus);
 
         if ($paymentStatusChanged && $this->supportsReservationWorkflow($sourceConnection)) {
             if ($this->shouldConfirmReservationForPaymentStatus($targetPaymentStatus)) {
@@ -646,7 +651,7 @@ class OrderController extends Controller
             'field_changed' => 'payment_status',
             'old_value' => $oldPaymentStatus,
             'new_value' => $targetPaymentStatus,
-            'description' => $data['description'] ?? 'Cambio de estado de pago de la orden',
+            'description' => $data['description'] ?? $this->defaultPaymentStatusChangeDescription($oldStatus, $data['payment_status'], $targetPaymentStatus),
             'created_at' => now(),
         ]);
 
@@ -1588,6 +1593,26 @@ class OrderController extends Controller
         return in_array($normalizedPaymentStatus, ['rejected', 'failed', 'cancelled', 'canceled'], true);
     }
 
+    private function shouldMoveVerifiedPaymentToRefund(?string $orderStatus, ?string $paymentStatus): bool
+    {
+        // Reutiliza el flujo de reembolso ya visible en cuenta/admin cuando una orden cancelada recibe pago confirmado.
+        $normalizedOrderStatus = Str::lower(trim((string) ($orderStatus ?? '')));
+        $normalizedPaymentStatus = Str::lower(trim((string) ($paymentStatus ?? '')));
+
+        return in_array($normalizedOrderStatus, ['cancelled', 'canceled'], true)
+            && in_array($normalizedPaymentStatus, ['paid', 'approved', 'verified'], true);
+    }
+
+    private function defaultPaymentStatusChangeDescription(?string $orderStatus, ?string $requestedPaymentStatus, string $targetPaymentStatus): string
+    {
+        // Explica la automatización para que el historial no parezca una edición manual contradictoria.
+        if ($this->shouldMoveVerifiedPaymentToRefund($orderStatus, $requestedPaymentStatus) && $targetPaymentStatus === 'pending_refund') {
+            return 'Pago verificado sobre orden cancelada; se inicia proceso de reembolso.';
+        }
+
+        return 'Cambio de estado de pago de la orden';
+    }
+
     private function cancelOrderByInventoryConflict(
         int $orderId,
         object $order,
@@ -1842,6 +1867,8 @@ HTML;
             $orderLabel = $orderId > 0 ? '#' . $orderId : 'N/A';
         }
 
+        $this->publishOrderStatusRealtimeUpdate($order, $sourceConnection, $field, $oldValue, $normalizedNewValue);
+
         $title = $field === 'payment_status'
             ? 'Actualización de pago de tu orden'
             : 'Actualización de estado de tu orden';
@@ -1864,6 +1891,31 @@ HTML;
             : "Actualización de estado de tu orden {$orderLabel}";
 
         $this->sendOrderUpdateEmail($customerEmail, $customerName, $subject, $title, $message, $orderLabel);
+    }
+
+    private function publishOrderStatusRealtimeUpdate(object $order, ?string $sourceConnection, string $field, ?string $oldValue, string $newValue): void
+    {
+        $orderId = (int) ($order->id ?? 0);
+        if ($orderId <= 0) {
+            return;
+        }
+
+        // Reutiliza el canal de reservas para que el gateway websocket entregue cambios de pedido y stock juntos.
+        $payload = [
+            'order_id' => $orderId,
+            'order_number' => $this->nullableString($order->order_number ?? null),
+            'user_id' => $this->nullableString($order->user_id ?? null),
+            'user_email' => $this->nullableString($order->user_email ?? $order->customer_email ?? $order->billing_email ?? null),
+            'source' => $sourceConnection === self::LEGACY_CONNECTION ? 'legacy' : 'orders',
+            'field' => $field,
+            'old_value' => $this->nullableString($oldValue),
+            'new_value' => $newValue,
+            'status' => $field === 'status' ? $newValue : $this->nullableString($order->status ?? $order->order_status ?? null),
+            'payment_status' => $field === 'payment_status' ? $newValue : $this->nullableString($order->payment_status ?? null),
+        ];
+
+        $event = $field === 'payment_status' ? 'order.payment_status.updated' : 'order.status.updated';
+        $this->stockRealtimePublisher->publish($event, $payload);
     }
 
     private function buildOrderUpdateMessage(string $field, string $orderLabel, ?string $oldValue, string $newValue): string

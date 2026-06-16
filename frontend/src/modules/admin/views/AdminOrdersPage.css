@@ -15,6 +15,15 @@
   text-align: center;
 }
 
+.admin-orders-page .orders-table__row {
+  cursor: pointer;
+}
+
+.admin-orders-page .orders-table__row:focus-visible {
+  outline: 3px solid rgba(0, 119, 182, 0.26);
+  outline-offset: -3px;
+}
+
 .admin-orders-page .status-chip-button {
   border: none;
   background: transparent;
@@ -193,6 +202,10 @@
 .admin-orders-page .action-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.admin-orders-page .action-btn--complete {
+  color: #15803d;
 }
 
 @media (max-width: 900px) {

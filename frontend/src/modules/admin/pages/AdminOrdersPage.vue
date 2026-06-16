@@ -116,7 +116,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="order in pagination.paginatedItems" :key="`${order.order_source}-${order.id}`">
+            <tr
+              v-for="order in pagination.paginatedItems"
+              :key="`${order.order_source}-${order.id}`"
+              class="orders-table__row"
+              tabindex="0"
+              role="button"
+              :aria-label="`Abrir detalle de la orden ${order.order_number || `#${order.id}`}`"
+              @click="goToOrderDetail(order, $event)"
+              @keydown.enter.prevent="goToOrderDetail(order)"
+              @keydown.space.prevent="goToOrderDetail(order)"
+            >
               <td class="selection-cell">
                 <input type="checkbox" :checked="isOrderSelected(order)" @change="toggleOrderSelection(order, $event.target.checked)">
               </td>
@@ -152,6 +162,16 @@
                   </button>
                   <button class="action-btn edit" type="button" title="Cambiar estado de pago" @click="openPaymentStatusModal(order)">
                     <i class="fas fa-credit-card"></i>
+                  </button>
+                  <button
+                    class="action-btn edit action-btn--complete"
+                    type="button"
+                    :class="{ 'is-loading': isOrderActionLoading(order, 'complete') }"
+                    :disabled="!canCompleteOrder(order) || Boolean(savingOrderActionKey)"
+                    :title="canCompleteOrder(order) ? 'Completar orden' : 'Orden ya cerrada'"
+                    @click="confirmCompleteOrder(order)"
+                  >
+                    <i :class="isOrderActionLoading(order, 'complete') ? 'fas fa-spinner fa-spin' : 'fas fa-check'"></i>
                   </button>
                   <button
                     class="action-btn delete"
@@ -465,6 +485,8 @@ const {
   closeDetailModal,
   closePaymentStatusModal,
   closeStatusModal,
+  canCompleteOrder,
+  confirmCompleteOrder,
   confirmDeactivateOrder,
   debouncedLoad,
   detailLoading,
@@ -475,6 +497,7 @@ const {
   formatCurrency,
   formatDate,
   formatDateTime,
+  goToOrderDetail,
   isOrderActionLoading,
   isOrderSelected,
   loading,

@@ -104,13 +104,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { cancelOrder, getOrders } from '../../../services/orderApi'
 import { useSession } from '../../../composables/useSession'
+import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 import { getOrderStatusLabel, getPaymentStatusLabel, normalizeOrderStatus, normalizePaymentStatus } from '../../../utils/orderPresentation'
 
 const route = useRoute()
@@ -122,6 +123,7 @@ const loading = ref(true)
 const errorMessage = ref('')
 const orders = ref([])
 const cancellingOrderId = ref(null)
+let unsubscribeOrderRealtime = null
 
 const defaultOrderSteps = Object.freeze([
   { key: 'pending', label: 'Pendiente', icon: 'fas fa-clock' },
@@ -140,10 +142,18 @@ const selectedOrderId = computed(() => String(route.query.order || '').trim())
 
 onMounted(async () => {
   await loadOrders()
+  unsubscribeOrderRealtime = subscribeToOrderRealtime(handleRealtimeOrderUpdate)
 })
 
-async function loadOrders() {
-  loading.value = true
+onUnmounted(() => {
+  unsubscribeOrderRealtime?.()
+})
+
+async function loadOrders(options = {}) {
+  const silent = Boolean(options.silent)
+  if (!silent) {
+    loading.value = true
+  }
   errorMessage.value = ''
 
   try {
@@ -158,10 +168,39 @@ async function loadOrders() {
     })
     orders.value = Array.isArray(response?.data) ? response.data : []
   } catch {
-    errorMessage.value = 'No se pudieron cargar los pedidos.'
+    if (!silent) {
+      errorMessage.value = 'No se pudieron cargar los pedidos.'
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
+}
+
+async function handleRealtimeOrderUpdate(message) {
+  const orderIndex = orders.value.findIndex((order) => Number(order?.id) === Number(message.orderId))
+  if (orderIndex < 0) {
+    return
+  }
+
+  // Actualiza el estado visible de inmediato y refresca en segundo plano los campos derivados del pedido.
+  const nextOrder = { ...orders.value[orderIndex] }
+  if (message.field === 'status' && message.newValue) {
+    nextOrder.status = message.newValue
+  }
+  if (message.field === 'payment_status' && message.newValue) {
+    nextOrder.payment_status = message.newValue
+  }
+  if (message.status) {
+    nextOrder.status = message.status
+  }
+  if (message.paymentStatus) {
+    nextOrder.payment_status = message.paymentStatus
+  }
+
+  orders.value.splice(orderIndex, 1, nextOrder)
+  await loadOrders({ silent: true })
 }
 
 function formatPrice(value) {

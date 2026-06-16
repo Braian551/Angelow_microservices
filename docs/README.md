@@ -70,6 +70,7 @@ flowchart LR
     - `patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
   - `patrones/checkout/`
   - `patrones/dashboard/`
+    - `patrones/dashboard/patrones-diseno-dashboard-pedidos-realtime-2026-06-16.md`
   - `patrones/home/`
   - `patrones/tienda/`
 - `microservicios/`: índice de acceso a la documentación específica de cada servicio.

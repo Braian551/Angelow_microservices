@@ -221,10 +221,10 @@
             Acción
             <AdminInfoTooltip text="«Agregar» suma unidades al stock actual. «Restar» las descuenta. «Establecer» fija el valor exacto independientemente del stock actual." />
           </label>
-          <select id="adjust-action" v-model="adjustForm.action" class="form-control">
-            <option value="add">Agregar</option>
-            <option value="subtract">Restar</option>
-            <option value="set">Establecer</option>
+          <select id="adjust-action" v-model="adjustForm.action" class="form-control" @change="validateAdjustField('quantity')">
+            <option value="set">Establecer cantidad</option>
+            <option value="add">Sumar unidades</option>
+            <option value="subtract">Restar unidades</option>
           </select>
         </div>
 

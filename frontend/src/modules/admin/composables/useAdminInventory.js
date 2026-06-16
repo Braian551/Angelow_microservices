@@ -43,7 +43,7 @@ export function useAdminInventory() {
   let realtimeInventorySyncInFlight = false
 
   const adjustForm = reactive({
-    action: 'add',
+    action: 'set',
     quantity: '',
     reason: '',
   })
@@ -345,7 +345,18 @@ export function useAdminInventory() {
   function formatDateTime(value) {
     if (!value) return 'Sin fecha'
     const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleString('es-CO')
+    return Number.isNaN(date.getTime())
+      ? 'Sin fecha'
+      : date.toLocaleString('es-CO', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      })
   }
 
   function normalizeProductDetail(productId, payload) {
@@ -453,7 +464,7 @@ export function useAdminInventory() {
   }
 
   function resetAdjustForm() {
-    adjustForm.action = 'add'
+    adjustForm.action = 'set'
     adjustForm.quantity = ''
     adjustForm.reason = ''
     adjustErrors.quantity = ''
@@ -468,9 +479,26 @@ export function useAdminInventory() {
     transferErrors.quantity = ''
   }
 
+  function validateStockAdjustmentQuantity() {
+    if (adjustForm.action !== 'set') {
+      return validatePositiveInteger(adjustForm.quantity)
+    }
+
+    const normalized = String(adjustForm.quantity ?? '').trim()
+    if (!/^(0|[1-9]\d*)$/.test(normalized)) {
+      return {
+        valid: false,
+        value: null,
+        message: 'La cantidad debe ser un numero entero mayor o igual a 0.',
+      }
+    }
+
+    return { valid: true, value: Number(normalized), message: '' }
+  }
+
   function validateAdjustField(field) {
     if (field === 'quantity') {
-      adjustErrors.quantity = validatePositiveInteger(adjustForm.quantity).message
+      adjustErrors.quantity = validateStockAdjustmentQuantity().message
     }
   }
 
@@ -648,13 +676,14 @@ export function useAdminInventory() {
     if (stockSubmitting.value) return
     validateAdjustField('quantity')
     if (adjustErrors.quantity || !selectedVariant.value?.id) return
+    const quantity = validateStockAdjustmentQuantity().value
 
     stockSubmitting.value = true
 
     try {
       await catalogHttp.patch(`/admin/inventory/${selectedVariant.value.id}/stock`, {
         action: adjustForm.action,
-        quantity: validatePositiveInteger(adjustForm.quantity).value,
+        quantity,
         reason: adjustForm.reason?.trim() || null,
       })
 
