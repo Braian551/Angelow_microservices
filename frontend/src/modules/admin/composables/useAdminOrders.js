@@ -79,7 +79,7 @@ export function useAdminOrders() {
   })
 
   const stats = computed(() => [
-    { key: 'total', label: 'Órdenes totales', value: String(orderStats.value.total_orders || 0), icon: 'fas fa-shopping-bag', color: 'primary' },
+    { key: 'total', label: '\u00D3rdenes totales', value: String(orderStats.value.total_orders || 0), icon: 'fas fa-shopping-bag', color: 'primary' },
     { key: 'revenue', label: 'Ingresos filtrados', value: formatCurrency(orderStats.value.total_revenue || 0), icon: 'fas fa-sack-dollar', color: 'success' },
     { key: 'pending', label: 'Pendientes', value: String(orderStats.value.pending_orders || 0), icon: 'fas fa-hourglass-half', color: 'warning' },
     { key: 'completed', label: 'Completadas', value: String(orderStats.value.completed_orders || 0), icon: 'fas fa-circle-check', color: 'info' },
@@ -435,7 +435,7 @@ export function useAdminOrders() {
     showAlert({
       type: 'warning',
       title: 'Completar orden',
-      message: `¿Deseas marcar la orden ${order.order_number || `#${order.id}`} como completada?`,
+      message: `\u00BFDeseas marcar la orden ${order.order_number || `#${order.id}`} como completada?`,
       actions: [
         { text: 'Cancelar', style: 'secondary' },
         {
@@ -459,7 +459,7 @@ export function useAdminOrders() {
       await orderHttp.patch(`/orders/${order.id}/status`, {
         source: normalizeOrderSource(order.order_source),
         status: 'completed',
-        description: 'Orden completada desde acción rápida administrativa.',
+        description: 'Orden completada desde acci\u00F3n r\u00E1pida administrativa.',
       })
       showSnackbar({ type: 'success', message: 'Orden completada correctamente' })
       await loadOrders()

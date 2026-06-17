@@ -2,11 +2,16 @@
 
 namespace App\Support;
 
+// Comentario de mantenimiento: Este soporte agrupa utilidades compartidas por varias rutas del dominio.
+
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Str;
 
+/**
+ * Este soporte agrupa utilidades compartidas por varias rutas del dominio.
+ */
 class DiscountPdfAttachmentHelper
 {
     /**

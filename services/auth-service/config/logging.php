@@ -5,16 +5,29 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de registro de logs (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define los canales de logging disponibles para el servicio de
+| autenticación. Soporta stack, single, daily, slack, syslog,
+| errorlog, papertrail, stderr, null y emergencia.
+|
+| En producción se usa el canal 'stack' que agrupa 'single' y
+| opcionalmente otros canales según LOG_STACK en .env.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Log Channel
+    | Canal de log predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option defines the default log channel that is utilized to write
-    | messages to your logs. The value provided here should match one of
-    | the channels present in the list of "channels" configured below.
+    | Define qué canal se usará por defecto para escribir mensajes de
+    | log. Debe coincidir con uno de los canales definidos abajo.
     |
     */
 

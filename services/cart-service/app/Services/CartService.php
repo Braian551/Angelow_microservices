@@ -10,10 +10,18 @@ use Illuminate\Support\Facades\Redis;
 use Throwable;
 
 /**
- * Cart Service
+ * Servicio de carrito de compras (cart-service)
  *
- * Business logic for shopping cart operations.
- * Cart data stays in cart-service, product data is requested from catalog-service.
+ * Contiene toda la lógica de negocio del carrito: agregar productos,
+ * actualizar cantidades, eliminar ítems, calcular subtotales y
+ * gestionar recordatorios de carritos abandonados.
+ *
+ * Los datos del carrito se persisten localmente (tablas carts + cart_items),
+ * mientras que la información de productos y variantes se obtiene bajo
+ * demanda desde el catalog-service vía HTTP interno.
+ *
+ * @see CartRepositoryInterface
+ * @see QueryBuilderCartRepository
  */
 class CartService
 {
@@ -24,21 +32,30 @@ class CartService
     ) {}
 
     /**
-     * Add a product variant to the cart.
+     * Agrega una variante de producto al carrito.
      *
-     * @throws \InvalidArgumentException
+     * Valida que la variante exista en catalog-service, que pertenezca
+     * al producto indicado, que el color sea coherente con la talla,
+     * y que haya stock disponible (consultando Redis en tiempo real).
+     * Si el producto ya está en el carrito, incrementa la cantidad.
+     *
+     * @throws \InvalidArgumentException cuando la variante no existe,
+     *         no corresponde al producto, o el stock es insuficiente.
      */
     public function addToCart(?string $userId, ?string $sessionId, int $productId, ?int $colorVariantId, int $sizeVariantId, int $quantity = 1): array
     {
         $variant = $this->fetchVariantData($sizeVariantId);
+        // Sin variante válida no se puede calcular precio, stock ni atributos de compra.
         if (!$variant) {
             throw new \InvalidArgumentException('Variante de tamano no encontrada');
         }
 
+        // Evita que el frontend agregue una talla asociada a otro producto.
         if ((int) ($variant['product_id'] ?? 0) !== $productId) {
             throw new \InvalidArgumentException('La variante de tamano no pertenece a este producto');
         }
 
+        // Cuando el color viene explícito, debe coincidir con la talla seleccionada en catálogo.
         if ($colorVariantId !== null && (int) ($variant['color_variant_id'] ?? 0) !== $colorVariantId) {
             throw new \InvalidArgumentException('La variante de color no coincide con la variante de tamano seleccionada');
         }
@@ -48,6 +65,7 @@ class CartService
             (int) ($variant['quantity'] ?? 0),
         );
 
+        // La primera validación corta solicitudes que ya exceden el inventario disponible.
         if ($availableStock < $quantity) {
             throw new \InvalidArgumentException($this->buildOutOfStockMessage($availableStock));
         }
@@ -57,11 +75,13 @@ class CartService
 
         if ($existing) {
             $newQuantity = $existing->quantity + $quantity;
+            // Al sumar sobre un ítem existente se valida el total acumulado, no solo la cantidad nueva.
             if ($availableStock < $newQuantity) {
                 throw new \InvalidArgumentException($this->buildOutOfStockMessage($availableStock));
             }
             $this->cartRepository->updateItemQuantity($existing->id, $newQuantity);
         } else {
+            // Si no hay coincidencia exacta de producto/talla/color, se crea una línea nueva de carrito.
             $this->cartRepository->addItem($cartId, $productId, $colorVariantId, $sizeVariantId, $quantity);
         }
 
@@ -77,7 +97,11 @@ class CartService
     }
 
     /**
-     * Get all items from the user's cart with details from catalog-service.
+     * Obtiene todos los ítems del carrito con datos enriquecidos
+     * desde el catalog-service (nombre, imagen, precio, slug).
+     *
+     * Agrupa las consultas HTTP por producto y variante para evitar
+     * llamadas duplicadas. Calcula subtotal y conteo total de items.
      */
     public function getCartItems(?string $userId, ?string $sessionId): array
     {
@@ -92,10 +116,12 @@ class CartService
             $productId = (int) $rawItem['product_id'];
             $sizeVariantId = (int) $rawItem['size_variant_id'];
 
+            // Cache local por producto para no consultar catalog-service varias veces en el mismo carrito.
             if (!array_key_exists($productId, $productsById)) {
                 $productsById[$productId] = $this->fetchProductData($productId);
             }
 
+            // Cache local por variante para reutilizar precio, color, talla e inventario base.
             if (!array_key_exists($sizeVariantId, $variantsById)) {
                 $variantsById[$sizeVariantId] = $this->fetchVariantData($sizeVariantId);
             }
@@ -112,6 +138,7 @@ class CartService
             $sizeVariantId = isset($rawItem['size_variant_id']) ? (int) $rawItem['size_variant_id'] : 0;
             $colorVariantId = isset($rawItem['color_variant_id']) ? (int) $rawItem['color_variant_id'] : 0;
 
+            // Se arma un contrato estable para el frontend aunque catalog-service no responda algún dato.
             $item = [
                 'item_id' => (int) $rawItem['item_id'],
                 'quantity' => $quantity,
@@ -147,17 +174,22 @@ class CartService
     }
 
     /**
-     * Update the quantity of a cart item.
+     * Actualiza la cantidad de un ítem existente en el carrito.
      *
-     * @throws \InvalidArgumentException
+     * Valida que el ítem exista y que la nueva cantidad no supere
+     * el stock disponible (consultando catalog-service + Redis).
+     *
+     * @throws \InvalidArgumentException si el ítem no existe o el stock es insuficiente.
      */
     public function updateQuantity(int $itemId, int $quantity): void
     {
+        // La cantidad mínima se valida de nuevo aquí para proteger usos fuera del controlador HTTP.
         if ($quantity < 1) {
             throw new \InvalidArgumentException('La cantidad debe ser al menos 1');
         }
 
         $item = $this->cartRepository->findItem($itemId);
+        // No se actualizan líneas inexistentes para evitar inconsistencias silenciosas.
         if (!$item) {
             throw new \InvalidArgumentException('Articulo no encontrado en el carrito');
         }
@@ -169,6 +201,7 @@ class CartService
         );
 
         $currentQuantity = (int) ($item->quantity ?? 0);
+        // Si la operación aumenta unidades, se confirma stock; reducir cantidad siempre es seguro.
         if ($quantity > $currentQuantity && $availableStock < $quantity) {
             throw new \InvalidArgumentException($this->buildOutOfStockMessage($availableStock));
         }
@@ -177,7 +210,8 @@ class CartService
     }
 
     /**
-     * Remove an item from the cart.
+     * Elimina un ítem del carrito por su ID.
+     * No lanza excepción si el ítem no existe (eliminación idempotente).
      */
     public function removeFromCart(int $itemId): void
     {
@@ -185,7 +219,9 @@ class CartService
     }
 
     /**
-     * Get product IDs in the user's cart (lightweight).
+     * Obtiene solo los IDs de productos en el carrito del usuario.
+     * Método ligero usado por el frontend para marcar productos
+     * que ya están en el carrito (ícono de carrito lleno).
      */
     public function getCartProductIds(?string $userId, ?string $sessionId): array
     {
@@ -193,10 +229,21 @@ class CartService
     }
 
     /**
-     * Dispara recordatorios para carritos con inactividad prolongada.
+     * Dispara recordatorios para carritos abandonados (inactividad prolongada).
+     *
+     * Consulta carritos con user_id no nulo cuya última actualización
+     * supere el umbral de inactividad. Para cada candidato, envía una
+     * notificación push y un correo electrónico a través del
+     * notification-service, respetando un rate-limit por usuario en Redis
+     * (6 horas entre recordatorios) para evitar spam.
+     *
+     * @param int $inactiveMinutes Minutos de inactividad para considerar abandonado (30-10080).
+     * @param int $limit Máximo de carritos a procesar por ejecución (1-500).
+     * @return array Resumen con totales de procesados, enviados, fallidos y rate-limited.
      */
     public function dispatchAbandonedCartReminders(int $inactiveMinutes = 180, int $limit = 120): array
     {
+        // Se acotan los parámetros para proteger el job frente a llamadas manuales o payloads extremos.
         $inactiveMinutes = max(30, min($inactiveMinutes, 10080));
         $limit = max(1, min($limit, 500));
 
@@ -209,6 +256,7 @@ class CartService
         ];
 
         $endpoint = $this->resolveNotificationEndpoint();
+        // Sin endpoint configurado no se envían recordatorios, pero se retorna un resumen válido.
         if ($endpoint === null) {
             return $summary;
         }
@@ -229,6 +277,7 @@ class CartService
 
         foreach ($rows as $row) {
             $userId = trim((string) ($row->user_id ?? ''));
+            // Solo se envían recordatorios cuando el carrito puede asociarse a un usuario real.
             if ($userId === '') {
                 continue;
             }
@@ -236,6 +285,7 @@ class CartService
             $summary['processed']++;
 
             $rateLimitKey = "cart:abandoned:reminder:user:{$userId}";
+            // El rate-limit en Redis evita repetir recordatorios al mismo usuario dentro de la ventana definida.
             if (Redis::get($rateLimitKey) !== null) {
                 $summary['rate_limited']++;
                 continue;
@@ -257,11 +307,13 @@ class CartService
                 $request = Http::acceptJson()->timeout(8);
                 $token = trim((string) config('services.notifications.internal_token', ''));
 
+                // Si existe token interno, se envía para que notification-service valide la llamada.
                 if ($token !== '') {
                     $request = $request->withHeaders(['X-Internal-Token' => $token]);
                 }
 
                 $response = $request->post($endpoint, $payload);
+                // Una respuesta HTTP fallida cuenta como fallo de ambos canales solicitados.
                 if (!$response->successful()) {
                     $summary['notifications']['failed']++;
                     $summary['emails']['failed']++;
@@ -274,6 +326,7 @@ class CartService
                 $skipped = (bool) ($body['skipped'] ?? false);
                 $reason = (string) ($body['reason'] ?? '');
 
+                // Se separa el conteo push/email porque notification-service puede resolverlos de forma distinta.
                 if ($notificationSent) {
                     $summary['notifications']['sent']++;
                 } elseif ($skipped) {
@@ -307,42 +360,66 @@ class CartService
         return $summary;
     }
 
+    /**
+     * Obtiene los datos de un producto desde catalog-service.
+     * Consulta el endpoint interno /api/internal/products/{id}.
+     * Si falla o no hay datos, retorna null para mostrar valores por defecto.
+     */
     private function fetchProductData(int $productId): ?array
     {
         $response = Http::timeout(6)->get($this->catalogBaseUrl() . "/internal/products/{$productId}");
+        // Si catalog-service no responde OK, se usan datos por defecto en el armado del carrito.
         if (!$response->successful()) {
             return null;
         }
 
         $payload = $response->json();
+        // El contrato esperado ubica el producto dentro de data.
         return is_array($payload['data'] ?? null) ? $payload['data'] : null;
     }
 
+    /**
+     * Obtiene los datos de una variante (talla) desde catalog-service.
+     * Incluye precio, nombre de talla, color, stock e imagen de variante.
+     */
     private function fetchVariantData(int $sizeVariantId): ?array
     {
         $response = Http::timeout(6)->get($this->catalogBaseUrl() . "/internal/variants/{$sizeVariantId}");
+        // La variante es obligatoria para validar stock y atributos de compra.
         if (!$response->successful()) {
             return null;
         }
 
         $payload = $response->json();
+        // El contrato esperado ubica la variante dentro de data.
         return is_array($payload['data'] ?? null) ? $payload['data'] : null;
     }
 
+    /**
+     * Retorna la URL base del catalog-service desde la variable de entorno.
+     * Se usa para todas las llamadas HTTP internas a productos y variantes.
+     */
     private function catalogBaseUrl(): string
     {
         return rtrim((string) env('CATALOG_API_URL', 'http://localhost:8002/api'), '/');
     }
 
+    /**
+     * Resuelve la URL del endpoint de notificaciones en notification-service.
+     * Maneja ambos formatos de URL (con o sin /api) para flexibilidad.
+     * Retorna null si no hay URL configurada, desactivando los recordatorios.
+     */
     private function resolveNotificationEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.notifications.base_url', 'http://notification-service:8000/api'));
+        // Cadena vacía desactiva el envío sin romper el flujo del job.
         if ($baseUrl === '') {
             return null;
         }
 
         $baseUrl = rtrim($baseUrl, '/');
 
+        // Soporta configuraciones que ya incluyen /api para no duplicar el segmento.
         if (str_ends_with($baseUrl, '/api')) {
             return $baseUrl . '/notifications';
         }
@@ -350,9 +427,15 @@ class CartService
         return $baseUrl . '/api/notifications';
     }
 
+    /**
+     * Construye el mensaje de recordatorio para carrito abandonado.
+     * Incluye la cantidad de productos y un enlace al carrito.
+     * Usa singular "producto" o plural "productos" según el conteo.
+     */
     private function buildAbandonedCartMessage(int $itemsCount): string
     {
         $storeUrl = trim((string) config('services.frontend.store_url', 'http://localhost:5173'));
+        // Fallback local para que el mensaje siempre tenga un enlace usable en desarrollo.
         if ($storeUrl === '') {
             $storeUrl = 'http://localhost:5173';
         }
@@ -364,6 +447,16 @@ class CartService
         return "Aún tienes {$itemsCount} {$suffix} en tu carrito. Retoma tu compra en {$cartUrl}.";
     }
 
+    /**
+     * Obtiene el stock disponible en tiempo real desde Redis.
+     *
+     * Primero consulta la clave "stock:{variantId}" que contiene el stock
+     * absoluto sincronizado desde catalog-service. Si no existe, consulta
+     * "reserved:{variantId}" para restar reservas activas al stock base.
+     * Si Redis no está disponible, retorna el stock de catálogo como fallback.
+     *
+     * Este mecanismo evita sobreventas durante el checkout concurrente.
+     */
     private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
     {
         $safeFallback = max(0, $fallbackQuantity);
@@ -387,6 +480,10 @@ class CartService
         return $safeFallback;
     }
 
+    /**
+     * Construye un mensaje de error cuando el stock es insuficiente.
+     * Muestra la cantidad disponible en ese momento.
+     */
     private function buildOutOfStockMessage(int $availableStock): string
     {
         return "Stock insuficiente. Disponible en este momento: {$availableStock}.";

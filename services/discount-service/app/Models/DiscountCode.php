@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
+// Comentario de mantenimiento: Este modelo define la relación del dominio con su tabla y sus campos persistibles.
+
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Este modelo define la relación del dominio con su tabla y sus campos persistibles.
+ */
 class DiscountCode extends Model
 {
     protected $table = 'discount_codes';
@@ -31,6 +36,10 @@ class DiscountCode extends Model
         'start_date' => 'datetime',
         'end_date' => 'datetime',
     ];
+
+    /**
+     * Explica la intención de type dentro del flujo del servicio.
+     */
 
     public function type()
     {

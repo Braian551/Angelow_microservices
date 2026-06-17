@@ -2,14 +2,22 @@
 
 namespace App\Http\Middleware;
 
+// Comentario de mantenimiento: Este middleware valida condiciones de acceso antes de permitir que la petición llegue al controlador.
+
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Este middleware valida condiciones de acceso antes de permitir que la petición llegue al controlador.
+ */
 class EnsureAdmin
 {
+    /**
+     * Valida autenticación y rol administrativo antes de continuar con la petición.
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken();

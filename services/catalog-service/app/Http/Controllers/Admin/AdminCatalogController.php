@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+// Comentario de mantenimiento: Este controlador administra operaciones internas del panel y mantiene reglas de negocio del dominio.
+
 use App\Http\Controllers\Controller;
 use App\Models\SiteSetting;
 use App\Models\Slider;
@@ -161,6 +163,10 @@ class AdminCatalogController extends Controller
         return preg_match('/^[1-9]\d*$/', trim((string) $value)) === 1;
     }
 
+    /**
+     * Convierte un valor validado a entero positivo para evitar casteos dispersos.
+     */
+
     private function positiveIntegerValue(mixed $value): int
     {
         return (int) trim((string) $value);
@@ -232,6 +238,10 @@ class AdminCatalogController extends Controller
 
         return $snapshot;
     }
+
+    /**
+     * Publica cambios de stock en el canal configurado para refrescar consumidores en tiempo real.
+     */
 
     private function publishRealtimeStockEvent(string $event, array $items, array $context = []): void
     {
@@ -368,12 +378,20 @@ class AdminCatalogController extends Controller
         return '/uploads/' . trim($folder, '/') . '/' . $filename;
     }
 
+    /**
+     * Limpia cadenas opcionales y las convierte en null cuando no contienen información útil.
+     */
+
     private function nullableTrim(mixed $value): ?string
     {
         $clean = trim((string) $value);
 
         return $clean === '' ? null : $clean;
     }
+
+    /**
+     * Mapea campos semánticos del slider contra columnas reales disponibles en la tabla.
+     */
 
     private function sliderColumn(string $semantic): ?string
     {
@@ -385,6 +403,10 @@ class AdminCatalogController extends Controller
             default => null,
         };
     }
+
+    /**
+     * Transforma un registro de slider al contrato que consume el frontend administrativo.
+     */
 
     private function transformSlider(object $slider): array
     {
@@ -410,6 +432,10 @@ class AdminCatalogController extends Controller
         ];
     }
 
+    /**
+     * Elimina archivos reemplazados dentro de uploads controlados para evitar referencias huérfanas.
+     */
+
     private function deletePublicUpload(?string $path, string $folder): void
     {
         $cleanPath = trim((string) $path);
@@ -427,6 +453,10 @@ class AdminCatalogController extends Controller
             File::delete($absolutePath);
         }
     }
+
+    /**
+     * Normaliza valores de configuración según su tipo antes de persistirlos.
+     */
 
     private function normalizeSettingValue(string $key, mixed $value, array $definition): string
     {
@@ -463,6 +493,10 @@ class AdminCatalogController extends Controller
 
         return $clean;
     }
+
+    /**
+     * Combina valores guardados con definiciones por defecto para entregar una configuración completa.
+     */
 
     private function settingsValuesWithDefaults(): array
     {
@@ -846,7 +880,7 @@ class AdminCatalogController extends Controller
         }
     }
 
-    // ── Productos ────────────────────────────────────────────────────
+    // Sección: productos.
 
     public function products(Request $request): JsonResponse
     {
@@ -971,6 +1005,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'data' => $products]);
     }
+
+    /**
+     * Carga el detalle completo de un producto para edición administrativa.
+     */
 
     public function showProduct(int $id): JsonResponse
     {
@@ -1122,6 +1160,10 @@ class AdminCatalogController extends Controller
         ]);
     }
 
+    /**
+     * Crea un producto y sincroniza toda su estructura relacionada en una transacción.
+     */
+
     public function storeProduct(Request $request): JsonResponse
     {
         $payload = $this->parseProductPayload($request);
@@ -1146,6 +1188,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Producto creado', 'id' => $id], 201);
     }
 
+    /**
+     * Actualiza un producto existente conservando relaciones e imágenes vigentes.
+     */
+
     public function updateProduct(Request $request, int $id): JsonResponse
     {
         $product = DB::table('products')->where('id', $id)->first();
@@ -1164,6 +1210,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Producto actualizado']);
     }
+
+    /**
+     * Elimina un producto y sus dependencias directas para mantener consistencia de catálogo.
+     */
 
     public function destroyProduct(int $id): JsonResponse
     {
@@ -1235,6 +1285,10 @@ class AdminCatalogController extends Controller
         ]);
     }
 
+    /**
+     * Solicita al servicio de notificaciones avisar sobre un nuevo producto publicado.
+     */
+
     private function dispatchNewProductNotification(int $productId, string $productName): void
     {
         $endpoint = $this->resolveNotificationTriggerEndpoint();
@@ -1283,6 +1337,10 @@ class AdminCatalogController extends Controller
         }
     }
 
+    /**
+     * Construye la URL interna para disparar notificaciones desde catálogo.
+     */
+
     private function resolveNotificationTriggerEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.notification.base_url', 'http://notification-service:8000/api'));
@@ -1299,7 +1357,7 @@ class AdminCatalogController extends Controller
         return $baseUrl . '/api/notifications/triggers/dispatch';
     }
 
-    // ── Categorias ──────────────────────────────────────────────────
+    // Sección: categorías.
 
     public function categories(): JsonResponse
     {
@@ -1337,6 +1395,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'data' => $categories]);
     }
+
+    /**
+     * Crea una categoría y guarda su imagen opcional en el dominio de catálogo.
+     */
 
     public function storeCategory(Request $request): JsonResponse
     {
@@ -1385,6 +1447,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Categoria creada', 'id' => $id], 201);
     }
+
+    /**
+     * Actualiza una categoría y reemplaza su imagen solo cuando el formulario lo solicita.
+     */
 
     public function updateCategory(Request $request, int $id): JsonResponse
     {
@@ -1438,6 +1504,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Categoria actualizada']);
     }
 
+    /**
+     * Elimina una categoría si no tiene productos dependientes que impidan la operación.
+     */
+
     public function destroyCategory(int $id): JsonResponse
     {
         if (Schema::hasTable('products') && Schema::hasColumn('products', 'category_id')) {
@@ -1455,7 +1525,7 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Categoria eliminada']);
     }
 
-    // ── Colecciones ─────────────────────────────────────────────────
+    // Sección: colecciones.
 
     public function collections(): JsonResponse
     {
@@ -1494,6 +1564,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'data' => $collections]);
     }
 
+    /**
+     * Lista colores usados por variantes para poblar selectores administrativos.
+     */
+
     public function colors(): JsonResponse
     {
         if (!Schema::hasTable('colors')) {
@@ -1530,6 +1604,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'data' => $colors]);
     }
+
+    /**
+     * Crea una colección comercial con imagen y estado inicial.
+     */
 
     public function storeCollection(Request $request): JsonResponse
     {
@@ -1580,6 +1658,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Coleccion creada', 'id' => $id], 201);
     }
+
+    /**
+     * Actualiza una colección manteniendo control sobre reemplazo o eliminación de imagen.
+     */
 
     public function updateCollection(Request $request, int $id): JsonResponse
     {
@@ -1636,6 +1718,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Coleccion actualizada']);
     }
 
+    /**
+     * Elimina una colección si no conserva productos asociados.
+     */
+
     public function destroyCollection(int $id): JsonResponse
     {
         if (Schema::hasTable('products') && Schema::hasColumn('products', 'collection_id')) {
@@ -1653,7 +1739,7 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Coleccion eliminada']);
     }
 
-    // ── Tallas ──────────────────────────────────────────────────────
+    // Sección: tallas.
 
     public function sizes(Request $request): JsonResponse
     {
@@ -1720,6 +1806,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'data' => $sizes]);
     }
 
+    /**
+     * Crea una talla reutilizable para variantes de producto.
+     */
+
     public function storeSize(Request $request): JsonResponse
     {
         if (!Schema::hasTable('sizes')) {
@@ -1767,6 +1857,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Talla creada', 'id' => $id], 201);
     }
+
+    /**
+     * Actualiza los atributos editables de una talla existente.
+     */
 
     public function updateSize(Request $request, int $id): JsonResponse
     {
@@ -1816,6 +1910,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Talla actualizada']);
     }
+
+    /**
+     * Elimina una talla cuando no está vinculada a variantes de producto.
+     */
 
     public function destroySize(int $id): JsonResponse
     {
@@ -1887,7 +1985,7 @@ class AdminCatalogController extends Controller
         return 'active';
     }
 
-    // ── Inventario ──────────────────────────────────────────────────
+    // Sección: inventario.
 
     public function inventory(Request $request): JsonResponse
     {
@@ -2006,6 +2104,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'data' => $items]);
     }
 
+    /**
+     * Devuelve movimientos históricos de stock para auditoría operativa del catálogo.
+     */
+
     public function inventoryHistory(Request $request): JsonResponse
     {
         if (!Schema::hasTable('stock_history')) {
@@ -2056,6 +2158,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'data' => $history]);
     }
+
+    /**
+     * Ajusta el stock de una variante, registra historial y sincroniza alertas.
+     */
 
     public function adjustStock(Request $request, int $variantId): JsonResponse
     {
@@ -2124,6 +2230,10 @@ class AdminCatalogController extends Controller
             'new_stock' => $newStock,
         ]);
     }
+
+    /**
+     * Traslada stock entre variantes compatibles y registra ambos movimientos.
+     */
 
     public function transferStock(Request $request): JsonResponse
     {
@@ -2238,7 +2348,7 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Stock transferido correctamente']);
     }
 
-    // ── Resenas ─────────────────────────────────────────────────────
+    // Sección: reseñas.
 
     public function reviews(Request $request): JsonResponse
     {
@@ -2305,6 +2415,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'data' => $reviews]);
     }
 
+    /**
+     * Cambia el estado de moderación de una reseña sin alterar su contenido.
+     */
+
     public function updateReviewStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -2346,6 +2460,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Resena actualizada']);
     }
 
+    /**
+     * Elimina una reseña desde el panel de moderación.
+     */
+
     public function deleteReview(int $id): JsonResponse
     {
         $deleted = DB::table('product_reviews')->where('id', $id)->delete();
@@ -2357,7 +2475,7 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Resena eliminada']);
     }
 
-    // ── Preguntas ───────────────────────────────────────────────────
+    // Sección: preguntas.
 
     public function questions(Request $request): JsonResponse
     {
@@ -2417,6 +2535,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'data' => $questions]);
     }
 
+    /**
+     * Registra una respuesta administrativa para una pregunta de producto.
+     */
+
     public function answerQuestion(Request $request, int $questionId): JsonResponse
     {
         $data = $request->validate([
@@ -2456,6 +2578,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Respuesta enviada']);
     }
 
+    /**
+     * Elimina una pregunta y sus respuestas asociadas cuando corresponde moderarla.
+     */
+
     public function deleteQuestion(int $questionId): JsonResponse
     {
         $question = DB::table('product_questions')->where('id', $questionId)->first();
@@ -2472,7 +2598,7 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Pregunta eliminada']);
     }
 
-    // ── Sliders ─────────────────────────────────────────────────────
+    // Sección: sliders.
 
     public function sliders(): JsonResponse
     {
@@ -2485,6 +2611,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'data' => $sliders]);
     }
+
+    /**
+     * Crea un slider con imagen y posición inicial.
+     */
 
     public function storeSlider(Request $request): JsonResponse
     {
@@ -2534,6 +2664,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Slider creado', 'id' => $slider->id], 201);
     }
+
+    /**
+     * Actualiza un slider y controla reemplazo o eliminación de imagen.
+     */
 
     public function updateSlider(Request $request, int $id): JsonResponse
     {
@@ -2587,6 +2721,10 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Slider actualizado']);
     }
 
+    /**
+     * Elimina un slider y limpia su imagen pública asociada.
+     */
+
     public function destroySlider(int $id): JsonResponse
     {
         $slider = Slider::query()->find($id);
@@ -2602,6 +2740,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Slider eliminado']);
     }
+
+    /**
+     * Activa o desactiva un slider sin cambiar su orden.
+     */
 
     public function toggleSliderStatus(Request $request, int $id): JsonResponse
     {
@@ -2626,6 +2768,10 @@ class AdminCatalogController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Estado del slider actualizado.']);
     }
+
+    /**
+     * Persiste el nuevo orden visual de sliders enviado por el panel.
+     */
 
     public function reorderSliders(Request $request): JsonResponse
     {
@@ -2652,7 +2798,7 @@ class AdminCatalogController extends Controller
         return response()->json(['success' => true, 'message' => 'Orden de sliders actualizado.']);
     }
 
-    // ── Configuracion ───────────────────────────────────────────────
+    // Sección: configuración.
 
     public function settings(): JsonResponse
     {
@@ -2664,6 +2810,10 @@ class AdminCatalogController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Actualiza configuraciones del sitio y procesa imágenes asociadas cuando existen.
+     */
 
     public function updateSettings(Request $request): JsonResponse
     {
@@ -2714,6 +2864,10 @@ class AdminCatalogController extends Controller
         ]);
     }
 
+    /**
+     * Extrae IDs solicitados para exportaciones respetando filtros del usuario.
+     */
+
     private function requestedProductIds(Request $request)
     {
         return collect(explode(',', $request->string('ids')->toString()))
@@ -2724,6 +2878,10 @@ class AdminCatalogController extends Controller
             ->take(200)
             ->values();
     }
+
+    /**
+     * Corrige textos exportables para evitar caracteres corruptos en CSV o PDF.
+     */
 
     private function normalizeUtf8ExportText(mixed $value): string
     {
@@ -2782,6 +2940,11 @@ class AdminCatalogController extends Controller
         return trim($text);
     }
 
+
+    /**
+     * Da formato monetario consistente a valores incluidos en exportaciones.
+     */
+
     private function formatExportPrice(mixed $value): string
     {
         $amount = (float) ($value ?? 0);
@@ -2792,6 +2955,10 @@ class AdminCatalogController extends Controller
 
         return number_format($amount, 2, '.', '');
     }
+
+    /**
+     * Construye las filas de productos que alimentan reportes CSV y PDF.
+     */
 
     private function productRowsForExport(Request $request)
     {
@@ -2822,6 +2989,10 @@ class AdminCatalogController extends Controller
             ];
         })->values();
     }
+
+    /**
+     * Renderiza una tabla HTML simple para generar el PDF de productos.
+     */
 
     private function productsPdfHtml($rows): string
     {
@@ -2884,6 +3055,10 @@ class AdminCatalogController extends Controller
 </html>';
     }
 
+    /**
+     * Genera un CSV administrativo con los productos filtrados o seleccionados.
+     */
+
     public function exportProductsCsv(Request $request): Response
     {
         $rows = $this->productRowsForExport($request);
@@ -2911,6 +3086,10 @@ class AdminCatalogController extends Controller
         ]);
     }
 
+    /**
+     * Genera un PDF administrativo con los productos filtrados o seleccionados.
+     */
+
     public function exportProductsPdf(Request $request): Response
     {
         $rows = $this->productRowsForExport($request);
@@ -2934,7 +3113,7 @@ class AdminCatalogController extends Controller
         ]);
     }
 
-    // ── Reportes de productos ───────────────────────────────────────
+    // Sección: reportes de productos.
 
     public function reportProducts(Request $request): JsonResponse
     {

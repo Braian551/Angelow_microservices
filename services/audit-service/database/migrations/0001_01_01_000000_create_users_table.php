@@ -1,13 +1,36 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración principal del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Crea las cinco tablas de trazabilidad del sistema. Cada tabla
+| corresponde a un dominio auditado: categorías, órdenes, usuarios,
+| productos y eliminaciones. El esquema refleja la nomenclatura
+| y estructura heredada del sistema legacy Angelow.
+|
+| Las columnas `trialXXX` son remanentes de la base original;
+| se mantienen por compatibilidad durante la migración.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Ejecuta la migración: crea las tablas de auditoría.
+     */
     public function up(): void
     {
+        /*
+         * Trazabilidad de cambios en categorías del catálogo.
+         * Registra el tipo de acción (INSERT/UPDATE/DELETE) y
+         * los valores antes/después del nombre de la categoría.
+         */
         Schema::create('audit_categories', function (Blueprint $table) {
             $table->increments('audit_id');
             $table->unsignedInteger('category_id')->nullable();
@@ -18,6 +41,12 @@ return new class extends Migration
             $table->char('trial548', 1)->nullable();
         });
 
+        /*
+         * Auditoría de órdenes/pedidos.
+         * Cada fila representa una operación sobre un pedido,
+         * incluyendo qué usuario la ejecutó, desde qué sesión SQL
+         * y detalles adicionales del cambio.
+         */
         Schema::create('audit_orders', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('orden_id');
@@ -31,6 +60,12 @@ return new class extends Migration
             $table->index('orden_id');
         });
 
+        /*
+         * Auditoría de usuarios.
+         * Almacena qué acción se realizó sobre cada usuario,
+         * quién la ejecutó (usuario_modificador) y desde qué
+         * contexto SQL.
+         */
         Schema::create('audit_users', function (Blueprint $table) {
             $table->increments('id');
             $table->string('usuario_id', 20);
@@ -44,6 +79,11 @@ return new class extends Migration
             $table->index('usuario_id');
         });
 
+        /*
+         * Trazabilidad de productos.
+         * Nombrada con nomenclatura legacy (productos_auditoria).
+         * Registra creación y modificación de productos en el catálogo.
+         */
         Schema::create('productos_auditoria', function (Blueprint $table) {
             $table->increments('id');
             $table->string('nombre', 100);
@@ -53,6 +93,11 @@ return new class extends Migration
             $table->char('trial554', 1)->nullable();
         });
 
+        /*
+         * Registro de eliminaciones de productos.
+         * Tabla separada para mantener trazabilidad incluso
+         * cuando el registro original ya no existe en productos_auditoria.
+         */
         Schema::create('eliminaciones_auditoria', function (Blueprint $table) {
             $table->increments('id');
             $table->string('nombre', 100);
@@ -62,6 +107,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Revierte la migración: elimina todas las tablas de auditoría.
+     */
     public function down(): void
     {
         Schema::dropIfExists('eliminaciones_auditoria');

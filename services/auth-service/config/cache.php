@@ -2,16 +2,29 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de caché (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define los almacenes de caché disponibles. El auth-service usa Redis
+| para almacenar tokens de sesión temporales y cooldowns en el flujo
+| de recuperación de contraseña (PasswordRecoveryService).
+|
+| También soporta array (desarrollo), database, file, memcached y
+| DynamoDB según la configuración de .env.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Cache Store
+    | Almacén de caché predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option controls the default cache store that will be used by the
-    | framework. This connection is utilized if another isn't explicitly
-    | specified when running a cache operation inside the application.
+    | Define el almacén que se usará por defecto si no se especifica
+    | otro explícitamente en las operaciones de caché.
     |
     */
 

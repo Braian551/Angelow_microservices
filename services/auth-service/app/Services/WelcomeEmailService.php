@@ -6,8 +6,21 @@ use Illuminate\Support\Facades\Log;
 use PHPMailer\PHPMailer\Exception as MailException;
 use PHPMailer\PHPMailer\PHPMailer;
 
+/**
+ * Servicio de envío de correo de bienvenida post-registro.
+ *
+ * Envía un email de bienvenida con PHPMailer usando plantilla
+ * HTML heredada del legacy Angelow. El envío es no-bloqueante
+ * para el registro: si falla, solo se registra en log y no
+ * impide la creación de la cuenta (ver AuthService::register).
+ */
 class WelcomeEmailService
 {
+    /**
+     * Envía el correo de bienvenida al nuevo usuario.
+     *
+     * @return bool true si se envió correctamente, false si falló o el email es inválido
+     */
     public function send(string $email, string $name): bool
     {
         $normalizedEmail = trim($email);
@@ -44,6 +57,7 @@ class WelcomeEmailService
             $recipientName = trim($name) !== '' ? trim($name) : 'Cliente Angelow';
             $mail->addAddress($normalizedEmail, $recipientName);
 
+            // Incrusta el logo como imagen embebida (CID)
             $logoPath = public_path('images/logo2.png');
             $logoEmbedId = 'welcome_logo';
             $logoUrl = $this->buildLogoUrl();
@@ -69,6 +83,12 @@ class WelcomeEmailService
         }
     }
 
+    /**
+     * Construye la plantilla HTML del correo de bienvenida.
+     *
+     * Reutiliza el diseño visual del legacy Angelow con los beneficios
+     * de la plataforma. Escapa variables con e() para prevenir XSS.
+     */
     private function buildWelcomeTemplate(string $name, string $logoUrl, string $storeUrl): string
     {
         $safeName = e($name);
@@ -126,6 +146,9 @@ class WelcomeEmailService
 </html>';
     }
 
+    /**
+     * Construye la URL de la tienda para el botón en el correo.
+     */
     private function buildStoreUrl(): string
     {
         $url = trim((string) config('services.password_recovery.frontend_url', 'http://localhost:5173'));
@@ -136,6 +159,9 @@ class WelcomeEmailService
         return rtrim($url, '/');
     }
 
+    /**
+     * Construye la URL del logo para incrustar en el correo.
+     */
     private function buildLogoUrl(): string
     {
         return $this->buildStoreUrl() . '/logo_principal.png';

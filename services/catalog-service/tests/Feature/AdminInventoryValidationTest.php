@@ -2,13 +2,22 @@
 
 namespace Tests\Feature;
 
+// Comentario de mantenimiento: Esta prueba protege el comportamiento esperado del servicio.
+
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Esta prueba protege el comportamiento esperado del servicio.
+ */
 class AdminInventoryValidationTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Explica la intención de test_adjust_stock_rejects_decimal_quantity_with_spanish_message dentro del flujo del servicio.
+     */
 
     public function test_adjust_stock_rejects_decimal_quantity_with_spanish_message(): void
     {

@@ -2,16 +2,30 @@
 
 use Laravel\Sanctum\Sanctum;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de Sanctum (auth-service)
+|--------------------------------------------------------------------------
+|
+| Laravel Sanctum es el sistema de autenticación por tokens que usa el
+| auth-service. Emite tokens de acceso tipo Bearer para la SPA y
+| para consumidores internos (otros microservicios).
+|
+| La tabla personalizada access_tokens reemplaza a la migración por
+| defecto de Sanctum para compatibilidad con PK string(20).
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Stateful Domains
+    | Dominios con estado (stateful)
     |--------------------------------------------------------------------------
     |
-    | Requests from the following domains / hosts will receive stateful API
-    | authentication cookies. Typically, these should include your local
-    | and production domains which access your API via a frontend SPA.
+    | Los dominios listados aquí recibirán cookies de autenticación
+    | stateful. Incluye localhost y los dominios de producción que
+    | consumen la API desde un frontend SPA.
     |
     */
 

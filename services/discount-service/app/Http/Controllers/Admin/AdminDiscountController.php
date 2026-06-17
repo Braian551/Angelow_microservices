@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+// Comentario de mantenimiento: Este controlador administra operaciones internas del panel y mantiene reglas de negocio del dominio.
+
 use App\Http\Controllers\Controller;
 use App\Models\BulkDiscountRule;
 use App\Models\DiscountCode;
@@ -16,12 +18,15 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
+/**
+ * Centraliza endpoints del dominio y traduce peticiones HTTP a respuestas del servicio.
+ */
 class AdminDiscountController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
     private const DEFAULT_NOTIFICATION_TYPE_ID = 1;
 
-    // ── Codigos de descuento ────────────────────────────────
+    // Sección: códigos de descuento.
 
     public function codes(): JsonResponse
     {
@@ -38,6 +43,10 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'data' => $codes]);
     }
 
+    /**
+     * Crea un código de descuento a partir del payload normalizado del panel.
+     */
+
     public function storeCode(Request $request): JsonResponse
     {
         $admin = $request->input('_admin_user', []);
@@ -49,6 +58,10 @@ class AdminDiscountController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Codigo creado.', 'id' => $code->id], 201);
     }
+
+    /**
+     * Actualiza un código de descuento existente conservando campos no enviados en edición parcial.
+     */
 
     public function updateCode(Request $request, int $id): JsonResponse
     {
@@ -63,6 +76,10 @@ class AdminDiscountController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Codigo actualizado.']);
     }
+
+    /**
+     * Elimina un código de descuento y reporta si el registro no existía.
+     */
 
     public function destroyCode(int $id): JsonResponse
     {
@@ -154,7 +171,7 @@ class AdminDiscountController extends Controller
         );
     }
 
-    // ── Descuentos por volumen ──────────────────────────────
+    // Sección: descuentos por cantidad.
 
     public function bulkDiscounts(): JsonResponse
     {
@@ -239,6 +256,10 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Adapta un código de respaldo al contrato administrativo actual.
+     */
+
     private function transformLegacyCode(object $row): array
     {
         $typeName = Str::lower((string) ($row->discount_type_name ?? ''));
@@ -270,6 +291,10 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Comprueba existencia de tablas de respaldo antes de consultar datos migrados.
+     */
+
     private function legacyTableExists(string $table): bool
     {
         try {
@@ -278,6 +303,10 @@ class AdminDiscountController extends Controller
             return false;
         }
     }
+
+    /**
+     * Normaliza fechas a ISO para que frontend y APIs reciban un formato estable.
+     */
 
     private function toIsoString(mixed $value): ?string
     {
@@ -363,6 +392,10 @@ class AdminDiscountController extends Controller
         ]);
     }
 
+    /**
+     * Obtiene el código de descuento usado para construir la campaña.
+     */
+
     private function findCampaignDiscountCode(int $id): ?array
     {
         $code = DiscountCode::query()->with('type')->find($id);
@@ -403,6 +436,10 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Resuelve clientes desde auth-service y usa respaldo local si no hay respuesta.
+     */
+
     private function loadCampaignCustomers(?string $search = null, array $ids = [], ?int $limit = null): array
     {
         $authCustomers = $this->loadAuthServiceCustomers(request(), $search, $ids, $limit);
@@ -417,6 +454,10 @@ class AdminDiscountController extends Controller
 
         return $this->queryCampaignCustomers(null, $search, $ids, $limit);
     }
+
+    /**
+     * Consulta clientes al servicio de autenticación usando el token administrativo actual.
+     */
 
     private function loadAuthServiceCustomers(?Request $request, ?string $search, array $ids, ?int $limit): ?array
     {
@@ -475,6 +516,10 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Construye la URL interna para búsqueda de clientes en auth-service.
+     */
+
     private function resolveAuthCustomersEndpoint(): ?string
     {
         $baseUrl = trim((string) env('AUTH_SERVICE_URL', 'http://auth-service:8000/api'));
@@ -490,6 +535,10 @@ class AdminDiscountController extends Controller
 
         return $baseUrl . '/api/admin/customers';
     }
+
+    /**
+     * Consulta clientes en una conexión concreta aplicando filtros compatibles con el esquema.
+     */
 
     private function queryCampaignCustomers(?string $connection, ?string $search, array $ids, ?int $limit): array
     {
@@ -541,6 +590,10 @@ class AdminDiscountController extends Controller
             return [];
         }
     }
+
+    /**
+     * Envía una notificación de campaña al servicio de notificaciones para un cliente.
+     */
 
     private function sendCampaignNotification(array $customer, array $discountCode, bool $sendPush, bool $sendEmail): array
     {
@@ -625,6 +678,10 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Formatea el valor del descuento para textos de campaña.
+     */
+
     private function formatCampaignValue(array $discountCode): string
     {
         $value = (float) ($discountCode['discount_value'] ?? $discountCode['value'] ?? 0);
@@ -638,6 +695,10 @@ class AdminDiscountController extends Controller
         return $normalized . '% de descuento';
     }
 
+    /**
+     * Convierte la fecha de expiración en texto claro para el mensaje de campaña.
+     */
+
     private function formatCampaignEndDate(mixed $endDate): string
     {
         if ($endDate === null || $endDate === '') {
@@ -650,6 +711,10 @@ class AdminDiscountController extends Controller
             return 'Sin fecha de expiración';
         }
     }
+
+    /**
+     * Construye la URL del servicio de notificaciones para eventos internos.
+     */
 
     private function resolveNotificationEndpoint(): ?string
     {
@@ -666,6 +731,10 @@ class AdminDiscountController extends Controller
 
         return $baseUrl . '/api/notifications';
     }
+
+    /**
+     * Convierte un registro de cliente en el contrato interno usado por campañas.
+     */
 
     private function normalizeCustomer(array|object $row): array
     {
@@ -684,10 +753,18 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Selecciona el query builder adecuado según la conexión disponible.
+     */
+
     private function customersQueryBuilder(?string $connection)
     {
         return $connection ? DB::connection($connection) : DB::connection();
     }
+
+    /**
+     * Verifica existencia de tabla en una conexión concreta antes de consultarla.
+     */
 
     private function tableExistsByConnection(string $table, ?string $connection): bool
     {
@@ -699,6 +776,10 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Verifica existencia de columna para adaptar consultas a esquemas distintos.
+     */
+
     private function columnExistsByConnection(string $table, string $column, ?string $connection): bool
     {
         try {
@@ -709,6 +790,10 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Resuelve el operador LIKE adecuado según el motor de base de datos.
+     */
+
     private function likeOperatorByConnection(?string $connection): string
     {
         try {
@@ -718,12 +803,20 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Crea una regla de descuento por cantidad.
+     */
+
     public function storeBulkDiscount(Request $request): JsonResponse
     {
         $rule = BulkDiscountRule::query()->create($this->buildBulkDiscountPayload($request, false));
 
         return response()->json(['success' => true, 'message' => 'Regla creada.', 'id' => $rule->id], 201);
     }
+
+    /**
+     * Actualiza una regla de descuento por cantidad existente.
+     */
 
     public function updateBulkDiscount(Request $request, int $id): JsonResponse
     {
@@ -739,6 +832,10 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla actualizada.']);
     }
 
+    /**
+     * Elimina una regla de descuento por cantidad y reporta ausencia cuando corresponde.
+     */
+
     public function destroyBulkDiscount(int $id): JsonResponse
     {
         $deleted = BulkDiscountRule::query()->whereKey($id)->delete();
@@ -749,6 +846,10 @@ class AdminDiscountController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Regla eliminada.']);
     }
+
+    /**
+     * Normaliza nombres de campos de API y panel para persistir códigos de descuento.
+     */
 
     private function buildCodePayload(Request $request, bool $partial): array
     {
@@ -808,6 +909,10 @@ class AdminDiscountController extends Controller
         return $payload;
     }
 
+    /**
+     * Normaliza nombres de campos para persistir reglas de descuento por cantidad.
+     */
+
     private function buildBulkDiscountPayload(Request $request, bool $partial): array
     {
         $data = $request->validate([
@@ -840,6 +945,10 @@ class AdminDiscountController extends Controller
         return $payload;
     }
 
+    /**
+     * Convierte un modelo de código de descuento al contrato JSON del admin.
+     */
+
     private function transformCode(DiscountCode $code): array
     {
         $typeName = strtolower((string) ($code->type?->name ?? ''));
@@ -869,6 +978,10 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Convierte una regla de cantidad al contrato JSON del admin.
+     */
+
     private function transformBulkDiscount(BulkDiscountRule $rule): array
     {
         return [
@@ -883,6 +996,10 @@ class AdminDiscountController extends Controller
             'updated_at' => optional($rule->updated_at)?->toISOString(),
         ];
     }
+
+    /**
+     * Resuelve el tipo de descuento desde ID explícito o nombre lógico.
+     */
 
     private function resolveDiscountTypeId(?int $discountTypeId, ?string $type): int
     {

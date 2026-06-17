@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Authentication Service
+ * Servicio principal de autenticación.
  *
- * Contains all business logic for user registration and login.
- * Delegates data access to the UserRepository.
+ * Contiene toda la lógica de negocio para registro, inicio de sesión,
+ * autenticación con Google (Firebase) y cierre de sesión.
+ * Delega el acceso a datos al UserRepositoryInterface y usa
+ * WelcomeEmailService para notificaciones post-registro.
  */
 class AuthService
 {
@@ -25,22 +27,28 @@ class AuthService
     ) {}
 
     /**
-     * Register a new user.
+     * Registra un nuevo usuario en el sistema.
      *
-     * @throws \App\Exceptions\AuthException
+     * Valida que el email no esté duplicado, genera un ID único
+     * compatible con el sistema legacy (uniqid), persiste el usuario
+     * vía repositorio y crea un token Sanctum.
+     * El envío del email de bienvenida no debe impedir el registro
+     * si falla temporalmente.
+     *
+     * @throws AuthException si el email ya existe
      * @return array{user: User, token: string}
      */
     public function register(RegisterUserDTO $dto): array
     {
-        // Check for duplicate email
+        // Verifica email duplicado antes de crear
         if ($this->userRepository->emailExists($dto->email)) {
-            throw new \App\Exceptions\AuthException(
+            throw new AuthException(
                 'Este correo ya está registrado',
                 409
             );
         }
 
-        // Generate a unique ID compatible with the legacy system
+        // Genera ID único compatible con el sistema legacy (uniqid)
         $userId = uniqid();
 
         $user = $this->userRepository->create([
@@ -48,11 +56,11 @@ class AuthService
             'name'     => $dto->name,
             'email'    => $dto->email,
             'phone'    => $dto->phone,
-            'password' => $dto->password, // Model casts handle hashing
+            'password' => $dto->password, // El cast "hashed" del modelo se encarga del hash
             'role'     => 'customer',
         ]);
 
-        // Generate API token
+        // Genera token de acceso API
         $token = $user->createToken('auth-token')->plainTextToken;
 
         // El registro no debe fallar si el correo presenta un problema temporal.
@@ -65,9 +73,13 @@ class AuthService
     }
 
     /**
-     * Authenticate a user.
+     * Autentica un usuario por correo/teléfono y contraseña.
      *
-     * @throws \App\Exceptions\AuthException
+     * Busca al usuario por la credencial (email o teléfono),
+     * verifica que no esté bloqueado, valida la contraseña,
+     * actualiza el último acceso y genera un token Sanctum.
+     *
+     * @throws AuthException si las credenciales son inválidas o el usuario está bloqueado
      * @return array{user: User, token: string}
      */
     public function login(LoginUserDTO $dto): array
@@ -75,30 +87,30 @@ class AuthService
         $user = $this->userRepository->findByCredential($dto->credential);
 
         if (!$user) {
-            throw new \App\Exceptions\AuthException(
+            throw new AuthException(
                 'Credenciales incorrectas',
                 401
             );
         }
 
         if ($user->isBlocked()) {
-            throw new \App\Exceptions\AuthException(
+            throw new AuthException(
                 'Tu cuenta ha sido bloqueada. Por favor, contacta al administrador.',
                 403
             );
         }
 
         if (!Hash::check($dto->password, $user->password)) {
-            throw new \App\Exceptions\AuthException(
+            throw new AuthException(
                 'Credenciales incorrectas',
                 401
             );
         }
 
-        // Update last access
+        // Actualiza la fecha del último acceso
         $this->userRepository->updateLastAccess($user);
 
-        // Generate API token
+        // Genera token de acceso API
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return [
@@ -108,9 +120,14 @@ class AuthService
     }
 
     /**
-     * Authenticate a user with a Firebase Google ID token.
+     * Autentica o registra un usuario mediante token ID de Google (Firebase).
      *
-     * @throws \App\Exceptions\AuthException
+     * Valida el token contra Firebase Identity Toolkit. Si el email
+     * ya existe en BD, inicia sesión. Si no existe, crea una cuenta
+     * nueva con los datos de Google (nombre, teléfono si aplica,
+     * contraseña aleatoria de 40 caracteres).
+     *
+     * @throws AuthException si Firebase no valida el token o el email no está verificado
      * @return array{user: User, token: string}
      */
     public function loginWithGoogleToken(string $idToken): array
@@ -124,6 +141,7 @@ class AuthService
             );
         }
 
+        // Valida el token ID contra Firebase
         $response = Http::timeout(10)->post(
             "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}",
             ['idToken' => $idToken]
@@ -160,6 +178,7 @@ class AuthService
         $createdFromGoogle = false;
 
         if (!$user) {
+            // Crea cuenta nueva a partir de los datos de Google
             $displayName = trim((string) ($firebaseUser['displayName'] ?? ''));
             $name = $displayName !== '' ? $displayName : explode('@', $email)[0];
             $rawPhone = trim((string) ($firebaseUser['phoneNumber'] ?? ''));
@@ -191,8 +210,8 @@ class AuthService
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
+        // Solo envía bienvenida en la primera creación vía Google
         if ($createdFromGoogle) {
-            // Solo se envía en la primera creación de cuenta vía Google.
             $this->welcomeEmailService->send((string) $user->email, (string) $user->name);
         }
 
@@ -203,7 +222,7 @@ class AuthService
     }
 
     /**
-     * Revoke all tokens for a user (logout).
+     * Revoca todos los tokens del usuario (cierre de sesión completo).
      */
     public function logout(User $user): void
     {

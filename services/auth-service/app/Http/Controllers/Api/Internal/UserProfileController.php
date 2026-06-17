@@ -8,12 +8,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Expone perfiles publicos de usuarios para comunicacion interna entre servicios.
+ * Expone perfiles públicos de usuarios para comunicación interna entre servicios.
+ *
+ * Endpoint de servicio a servicio (no expuesto al frontend público).
+ * Permite que otros microservicios (order-service, catalog-service, etc.)
+ * consulten datos básicos de usuarios por lista de IDs.
+ * Protegido por token interno opcional (X-Internal-Token).
  */
 class UserProfileController extends Controller
 {
     /**
+     * Retorna perfiles básicos de usuarios dado un listado de IDs.
+     *
      * GET /api/internal/users/profiles?ids=id1,id2,id3
+     * Límite de 200 IDs por consulta.
+     * Si no hay token configurado en services.internal.api_token,
+     * el acceso es abierto (para entornos locales/desarrollo).
      */
     public function index(Request $request): JsonResponse
     {
@@ -54,6 +64,9 @@ class UserProfileController extends Controller
 
     /**
      * Valida token interno opcional para endpoints de servicio a servicio.
+     *
+     * Si no hay token configurado (vacío), permite acceso libre.
+     * La comparación usa hash_equals para prevención de timing attacks.
      */
     private function hasInternalAccess(Request $request): bool
     {
@@ -71,7 +84,9 @@ class UserProfileController extends Controller
     }
 
     /**
-     * Normaliza entrada de ids en formato CSV o arreglo y elimina duplicados.
+     * Normaliza entrada de IDs en formato CSV o arreglo y elimina duplicados.
+     *
+     * Límite de 200 IDs para evitar sobrecarga en la consulta.
      */
     private function parseUserIds(mixed $rawIds): array
     {
@@ -99,7 +114,10 @@ class UserProfileController extends Controller
     }
 
     /**
-     * Retorna nombre visible con fallback.
+     * Retorna nombre visible con fallback si está vacío.
+     *
+     * Si no hay nombre, intenta mostrar "Usuario {id}".
+     * Si tampoco hay ID, retorna "Usuario" genérico.
      */
     private function resolveUserName(?string $name, ?string $userId = null): string
     {
@@ -118,6 +136,8 @@ class UserProfileController extends Controller
 
     /**
      * Normaliza ruta de avatar para mantener compatibilidad con frontend.
+     *
+     * Comportamiento heredado de LoginController::normalizeUserImagePath.
      */
     private function normalizeUserImagePath(?string $path): string
     {
@@ -135,6 +155,9 @@ class UserProfileController extends Controller
 
     /**
      * Normaliza correo visible para consumo interno entre servicios.
+     *
+     * Si el correo no es válido o está vacío, retorna null
+     * para que el servicio consumidor maneje el campo ausente.
      */
     private function normalizeUserEmail(?string $email): ?string
     {
@@ -148,6 +171,8 @@ class UserProfileController extends Controller
 
     /**
      * Normaliza teléfono y evita retornar valores vacíos.
+     *
+     * Si el teléfono es null o cadena vacía, retorna null.
      */
     private function normalizeUserPhone(?string $phone): ?string
     {

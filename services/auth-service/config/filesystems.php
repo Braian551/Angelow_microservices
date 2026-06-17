@@ -1,15 +1,25 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de sistemas de archivos (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define los discos de almacenamiento disponibles: local (privado),
+| public (accesible vía web) y S3 (cloud). El auth-service usa el
+| disco local para almacenar avatares de usuario subidos vía perfil.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Filesystem Disk
+    | Disco de sistema de archivos predeterminado
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default filesystem disk that should be used
-    | by the framework. The "local" disk, as well as a variety of cloud
-    | based disks are available to your application for file storage.
+    | Define el disco que se usará por defecto en las operaciones de
+    | almacenamiento si no se especifica otro explícitamente.
     |
     */
 

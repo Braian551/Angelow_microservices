@@ -1,5 +1,7 @@
 <?php
 
+// Comentario de mantenimiento: Estas rutas conectan contratos HTTP con controladores del servicio.
+
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 

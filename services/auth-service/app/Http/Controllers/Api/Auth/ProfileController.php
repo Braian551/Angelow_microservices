@@ -8,10 +8,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+/**
+ * Controlador de perfil del usuario autenticado.
+ *
+ * Permite actualizar nombre, teléfono, avatar y contraseña.
+ * La subida de avatar reemplaza la imagen anterior usando
+ * la lógica de reemplazo seguro (regla 31 del proyecto).
+ */
 class ProfileController extends Controller
 {
     /**
-     * Actualiza perfil basico y avatar del usuario autenticado.
+     * Actualiza perfil básico y avatar del usuario autenticado.
+     *
+     * POST /api/auth/profile (requiere autenticación)
+     * Campos: name (obligatorio), phone, image (archivo)
+     * Si se sube imagen, elimina el avatar anterior y guarda el nuevo.
      */
     public function updateProfile(Request $request): JsonResponse
     {
@@ -25,6 +36,7 @@ class ProfileController extends Controller
         $user->name = trim((string) $data['name']);
         $user->phone = trim((string) ($data['phone'] ?? '')) ?: null;
 
+        // Procesa la subida de imagen con reemplazo seguro del archivo anterior
         if ($request->hasFile('image')) {
             $uploaded = $request->file('image');
             $extension = strtolower((string) $uploaded->getClientOriginalExtension());
@@ -59,7 +71,10 @@ class ProfileController extends Controller
     }
 
     /**
-     * Cambia la contraseña validando la contraseña actual.
+     * Cambia la contraseña validando la contraseña actual primero.
+     *
+     * POST /api/auth/password (requiere autenticación)
+     * Campos: current_password, password, password_confirmation
      */
     public function updatePassword(Request $request): JsonResponse
     {
@@ -87,7 +102,11 @@ class ProfileController extends Controller
     }
 
     /**
-     * Normaliza la ruta de imagen para el frontend.
+     * Normaliza la ruta de imagen para el frontend SPA.
+     *
+     * Si el path está vacío retorna default-avatar.png.
+     * Si solo es un nombre de archivo (legacy), antepone uploads/users/.
+     * Si ya tiene ruta, normaliza backslash a slash.
      */
     private function normalizeUserImagePath(?string $path): string
     {
@@ -105,6 +124,10 @@ class ProfileController extends Controller
 
     /**
      * Elimina avatar previo solo cuando pertenece a uploads/users.
+     *
+     * Valida que la ruta esté dentro de uploads/users para evitar
+     * eliminar archivos fuera del directorio controlado (seguridad).
+     * No hace nada si el archivo no existe físicamente.
      */
     private function deleteOldAvatar(string $storedPath): void
     {
@@ -115,16 +138,19 @@ class ProfileController extends Controller
 
         $normalized = str_replace('\\', '/', $cleanPath);
 
+        // Previene path traversal
         if (str_contains($normalized, '..')) {
             return;
         }
 
+        // Si es solo nombre de archivo, completa la ruta
         if (!str_contains($normalized, '/')) {
             $normalized = 'uploads/users/' . $normalized;
         }
 
         $normalized = ltrim($normalized, '/');
 
+        // Solo elimina archivos dentro del directorio controlado
         if (!str_starts_with($normalized, 'uploads/users/')) {
             return;
         }

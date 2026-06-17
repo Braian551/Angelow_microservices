@@ -5,18 +5,31 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Form Request for user registration validation.
+ * Request de validación para el registro de usuarios.
  *
- * All validation rules are centralized here to keep
- * the controller clean and focused on orchestration.
+ * Centraliza todas las reglas de validación para mantener
+ * el controlador limpio y enfocado en la orquestación.
+ * Incluye mensajes de error en español para el frontend.
  */
 class RegisterRequest extends FormRequest
 {
+    /**
+     * Autoriza la petición (pública, sin autenticación).
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Reglas de validación para el registro.
+     *
+     * - name: obligatorio, 2-100 caracteres
+     * - email: obligatorio, email válido, único en tabla users
+     * - phone: opcional, 10-15 dígitos
+     * - password: obligatorio, 6-20 caracteres, debe tener confirmation
+     * - terms: obligatorio, debe ser accepted (checkbox)
+     */
     public function rules(): array
     {
         return [
@@ -28,6 +41,9 @@ class RegisterRequest extends FormRequest
         ];
     }
 
+    /**
+     * Mensajes de error personalizados en español.
+     */
     public function messages(): array
     {
         return [

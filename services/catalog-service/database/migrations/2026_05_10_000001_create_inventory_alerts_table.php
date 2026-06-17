@@ -1,16 +1,23 @@
 <?php
 
+// Comentario de mantenimiento: Esta migración describe la estructura persistente necesaria para el dominio.
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Crea o ajusta tablas requeridas por el servicio.
+     */
     public function up(): void
     {
         if (Schema::hasTable('inventory_alerts')) {
             return;
         }
+
+        // Crea la tabla inventory_alerts con los campos necesarios para este flujo del dominio.
 
         Schema::create('inventory_alerts', function (Blueprint $table) {
             $table->increments('id');
@@ -33,8 +40,13 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Revierte las tablas creadas por esta migración en orden seguro.
+     */
+
     public function down(): void
     {
+        // Revierte la tabla inventory_alerts al deshacer la migración.
         Schema::dropIfExists('inventory_alerts');
     }
 };

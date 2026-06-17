@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+// Comentario de mantenimiento: Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+
 use App\Repositories\Contracts\SiteRepositoryInterface;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -13,6 +15,9 @@ use Throwable;
  */
 class SiteService
 {
+    /**
+     * Explica la intención de __construct dentro del flujo del servicio.
+     */
     public function __construct(
         private readonly SiteRepositoryInterface $siteRepository,
     ) {}
@@ -32,15 +37,27 @@ class SiteService
         ];
     }
 
+    /**
+     * Carga configuraciones persistidas y las transforma a un mapa por clave.
+     */
+
     public function getSettings(): array
     {
         return $this->siteRepository->getSettings();
     }
 
+    /**
+     * Carga sliders activos ordenados para la portada.
+     */
+
     public function getSliders(): array
     {
         return $this->siteRepository->getSliders();
     }
+
+    /**
+     * Consulta anuncios del servicio de notificaciones como fuente preferente.
+     */
 
     private function fetchHomeAnnouncementsFromNotification(): ?array
     {
@@ -68,6 +85,10 @@ class SiteService
             return null;
         }
     }
+
+    /**
+     * Construye la URL interna para anuncios visibles en la portada.
+     */
 
     private function resolveNotificationHomeAnnouncementsEndpoint(): string
     {

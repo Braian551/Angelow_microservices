@@ -2,19 +2,31 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de sesión (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define los parámetros de la sesión HTTP: driver, duración, cookie,
+| dominio y seguridad. El cart-service usa el driver 'database' como
+| predeterminado. Las sesiones se usan principalmente para la vista
+| welcome; la API identifica usuarios por user_id/session_id en
+| query params.
+|
+| Soporta: file, cookie, database, memcached, redis, dynamodb, array.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Session Driver
+    | Driver de sesión predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option determines the default session driver that is utilized for
-    | incoming requests. Laravel supports a variety of storage options to
-    | persist session data. Database storage is a great default choice.
-    |
-    | Supported: "file", "cookie", "database", "memcached",
-    |            "redis", "dynamodb", "array"
+    | Define el driver que gestionará el almacenamiento de las sesiones
+    | HTTP. El driver 'database' persiste las sesiones en la tabla
+    | configurada en .env.
     |
     */
 

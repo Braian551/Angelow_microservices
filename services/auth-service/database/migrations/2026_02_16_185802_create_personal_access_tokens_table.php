@@ -1,5 +1,19 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración: tabla personal_access_tokens (Sanctum)
+|--------------------------------------------------------------------------
+|
+| Crea la tabla requerida por Laravel Sanctum para la autenticación
+| basada en tokens de API. La columna tokenable_id se define como
+| string para compatibilidad con IDs alfanuméricos del legacy (uniqid).
+|
+| La migración posterior 2026_03_30_230000 corrige el tipo de dato
+| de tokenable_id según el motor de BD.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -7,7 +21,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Ejecuta la migración.
      */
     public function up(): void
     {
@@ -28,7 +42,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Revierte la migración.
      */
     public function down(): void
     {

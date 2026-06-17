@@ -1,5 +1,17 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de colas del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define los drivers de cola disponibles: sync, database, redis,
+| beanstalkd, sqs, entre otros. El audit-service usa Redis como
+| driver principal (QUEUE_CONNECTION=redis) para procesar tareas
+| asíncronas como limpieza de logs antiguos o generación de reportes.
+|
+*/
+
 return [
 
     /*

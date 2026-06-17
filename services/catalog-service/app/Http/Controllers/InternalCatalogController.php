@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
+
 use App\Services\StockRealtimePublisher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,8 +12,14 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
+/**
+ * Centraliza endpoints del dominio y traduce peticiones HTTP a respuestas del servicio.
+ */
 class InternalCatalogController extends Controller
 {
+    /**
+     * Explica la intención de product dentro del flujo del servicio.
+     */
     public function product(int $id): JsonResponse
     {
         $product = DB::table('products as p')
@@ -35,6 +43,10 @@ class InternalCatalogController extends Controller
 
         return response()->json(['data' => (array) $product]);
     }
+
+    /**
+     * Explica la intención de variant dentro del flujo del servicio.
+     */
 
     public function variant(int $id): JsonResponse
     {
@@ -77,6 +89,10 @@ class InternalCatalogController extends Controller
 
         return response()->json(['data' => $payload]);
     }
+
+    /**
+     * Explica la intención de commitInventory dentro del flujo del servicio.
+     */
 
     public function commitInventory(Request $request): JsonResponse
     {
@@ -242,6 +258,10 @@ class InternalCatalogController extends Controller
         }
     }
 
+    /**
+     * Explica la intención de resolveStockColumn dentro del flujo del servicio.
+     */
+
     private function resolveStockColumn(): string
     {
         foreach (['stock', 'quantity'] as $column) {
@@ -252,6 +272,10 @@ class InternalCatalogController extends Controller
 
         return '';
     }
+
+    /**
+     * Calcula stock disponible restando reservas activas y usando el inventario físico como respaldo.
+     */
 
     private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
     {
@@ -275,6 +299,10 @@ class InternalCatalogController extends Controller
         return $safeFallback;
     }
 
+    /**
+     * Explica la intención de resolveReservationAwareCommitStock dentro del flujo del servicio.
+     */
+
     private function resolveReservationAwareCommitStock(int $sizeVariantId, int $fallbackQuantity): int
     {
         $safeFallback = max(0, $fallbackQuantity);
@@ -294,6 +322,10 @@ class InternalCatalogController extends Controller
             return $safeFallback;
         }
     }
+
+    /**
+     * Explica la intención de buildRealtimeStockSnapshot dentro del flujo del servicio.
+     */
 
     private function buildRealtimeStockSnapshot(int $sizeVariantId, int $databaseStock): array
     {

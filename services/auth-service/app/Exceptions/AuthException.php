@@ -5,9 +5,12 @@ namespace App\Exceptions;
 use Exception;
 
 /**
- * Custom exception for authentication-related errors.
+ * Excepción personalizada para errores de autenticación.
  *
- * Provides structured error responses with appropriate HTTP status codes.
+ * Proporciona respuestas de error estructuradas con códigos
+ * HTTP apropiados (401, 403, 409, 422, 429, 500, etc.).
+ * Usada por AuthService, PasswordRecoveryService y los
+ * controladores para manejar errores del dominio de auth.
  */
 class AuthException extends Exception
 {

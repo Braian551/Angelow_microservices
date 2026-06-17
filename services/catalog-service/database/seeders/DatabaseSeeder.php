@@ -2,10 +2,15 @@
 
 namespace Database\Seeders;
 
+// Comentario de mantenimiento: Este seeder inicializa datos base requeridos por el servicio.
+
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * Este seeder inicializa datos base requeridos por el servicio.
+ */
 class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;

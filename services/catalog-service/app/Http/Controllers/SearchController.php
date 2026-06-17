@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
+
 use App\Models\PopularSearch;
 use App\Models\SearchHistory;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +22,9 @@ use Throwable;
  */
 class SearchController extends Controller
 {
+    /**
+     * Devuelve el historial de búsqueda del usuario cuando existe identidad disponible.
+     */
     public function history(Request $request): JsonResponse
     {
         $userId = trim((string) $request->query('user_id', ''));
@@ -38,6 +43,10 @@ class SearchController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Registra una búsqueda del usuario y actualiza popularidad agregada.
+     */
 
     public function storeHistory(Request $request): JsonResponse
     {
@@ -166,6 +175,10 @@ class SearchController extends Controller
             'terms' => $this->normalizeTerms($terms, 6),
         ];
     }
+
+    /**
+     * Explica la intención de findProductSuggestionsFallback dentro del flujo del servicio.
+     */
 
     private function findProductSuggestionsFallback(string $term): array
     {

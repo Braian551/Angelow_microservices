@@ -1,5 +1,17 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de autenticación del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define guards, providers y reseteo de contraseñas. Usa el modelo
+| User de Laravel con driver Eloquent. El audit-service requiere
+| autenticación principalmente para acceso administrativo; los
+| endpoints de consulta pública pueden configurarse sin auth.
+|
+*/
+
 return [
 
     /*

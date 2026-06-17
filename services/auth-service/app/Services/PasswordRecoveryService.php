@@ -15,17 +15,31 @@ use PHPMailer\PHPMailer\Exception as MailException;
 use PHPMailer\PHPMailer\PHPMailer;
 
 /**
- * Servicio para flujo de recuperación de contraseña.
+ * Servicio del flujo completo de recuperación de contraseña.
+ *
+ * Implementa 4 pasos: solicitar código, reenviar, verificar y
+ * restablecer contraseña. Usa PHPMailer para envío de correos
+ * con plantilla visual heredada del legacy Angelow. Incluye
+ * cooldown anti-spam en Redis/Cache y enmascaramiento seguro
+ * del identificador en las respuestas.
  */
 class PasswordRecoveryService
 {
     /**
-     * Solicita o reenvía código de recuperación.
+     * Solicita o reenvía un código de recuperación al correo/teléfono.
      *
+     * Normaliza el identificador, busca al usuario, verifica cooldown,
+     * genera código de 4 dígitos, lo almacena hasheado en password_resets,
+     * envía el correo y activa la ventana anti-spam.
+     *
+     * @param  string  $identifier  correo o teléfono
+     * @param  bool    $isResend    true si es reenvío (cambia mensaje de respuesta)
      * @return array{message:string,data:array<string,mixed>}
+     * @throws AuthException si el identificador es inválido, no hay cuenta, cooldown activo o falla el envío
      */
     public function requestCode(string $identifier, bool $isResend = false): array
     {
+        // Normaliza el identificador (email en lowercase, teléfono solo dígitos)
         $normalizedIdentifier = $this->normalizeIdentifier($identifier);
         if ($normalizedIdentifier === '') {
             throw new AuthException(
@@ -34,6 +48,7 @@ class PasswordRecoveryService
             );
         }
 
+        // Busca al usuario por email o teléfono
         $user = $this->findUserByIdentifier($normalizedIdentifier);
         if (!$user) {
             throw new AuthException(
@@ -42,6 +57,7 @@ class PasswordRecoveryService
             );
         }
 
+        // Verifica cooldown anti-spam
         $cooldown = $this->secondsUntilNextCode($user->id);
         if ($cooldown > 0) {
             throw new AuthException(
@@ -50,11 +66,13 @@ class PasswordRecoveryService
             );
         }
 
+        // Genera código aleatorio de 4 dígitos
         $codeLength = $this->getCodeLength();
         $maxValue = (10 ** $codeLength) - 1;
         $code = str_pad((string) random_int(0, $maxValue), $codeLength, '0', STR_PAD_LEFT);
         $expiresAt = now()->addSeconds($this->getCodeTtlSeconds());
 
+        // Persiste el código hasheado en la tabla password_resets
         PasswordReset::query()->create([
             'user_id' => $user->id,
             'token' => Hash::make($code),
@@ -62,6 +80,7 @@ class PasswordRecoveryService
             'is_used' => false,
         ]);
 
+        // Envía el código por correo; si falla, no se crea el registro
         if (!$this->sendRecoveryEmail($user, $code, $expiresAt)) {
             throw new AuthException(
                 'No pudimos enviar el correo de verificación en este momento. Inténtalo nuevamente.',
@@ -69,6 +88,7 @@ class PasswordRecoveryService
             );
         }
 
+        // Activa cooldown para evitar reenvío inmediato
         $this->startResendCooldown($user->id);
 
         return [
@@ -85,9 +105,14 @@ class PasswordRecoveryService
     }
 
     /**
-     * Verifica código y crea sesión temporal para cambio de contraseña.
+     * Verifica el código ingresado y emite un session_token temporal.
+     *
+     * El session_token se guarda en caché (Redis) con la misma
+     * duración que el código y permite al usuario cambiar la
+     * contraseña sin necesidad de autenticación adicional.
      *
      * @return array{session_token:string}
+     * @throws AuthException si el código expiró, ya fue usado o es inválido
      */
     public function verifyCode(string $identifier, string $code): array
     {
@@ -114,6 +139,7 @@ class PasswordRecoveryService
             );
         }
 
+        // Obtiene el último registro de código para este usuario
         $record = PasswordReset::query()
             ->where('user_id', $user->id)
             ->orderByDesc('id')
@@ -147,6 +173,7 @@ class PasswordRecoveryService
             );
         }
 
+        // Genera token de sesión temporal para el cambio de contraseña
         $sessionToken = Str::random(64);
         Cache::put(
             $this->sessionCacheKey($sessionToken),
@@ -163,7 +190,13 @@ class PasswordRecoveryService
     }
 
     /**
-     * Actualiza contraseña usando token temporal emitido tras validar código.
+     * Actualiza la contraseña usando el session_token emitido tras validar el código.
+     *
+     * Valida que el session_token sea válido y no haya expirado,
+     * verifica que el registro de password_reset asociado siga
+     * vigente, y ejecuta la actualización en una transacción.
+     *
+     * @throws AuthException si el token es inválido, la contraseña no cumple requisitos
      */
     public function resetPassword(string $sessionToken, string $password, string $passwordConfirmation): void
     {
@@ -210,6 +243,7 @@ class PasswordRecoveryService
         $userId = (string) ($context['user_id'] ?? '');
         $resetId = (int) ($context['reset_id'] ?? 0);
 
+        // Verifica que el registro de password_reset siga siendo válido
         $record = PasswordReset::query()
             ->where('id', $resetId)
             ->where('user_id', $userId)
@@ -223,6 +257,7 @@ class PasswordRecoveryService
             );
         }
 
+        // Transacción: actualiza contraseña y marca código como usado
         DB::transaction(function () use ($userId, $record, $password): void {
             $updatedUsers = User::query()
                 ->where('id', $userId)
@@ -244,11 +279,12 @@ class PasswordRecoveryService
             $record->save();
         });
 
+        // Limpia la caché del session_token (uso único)
         Cache::forget($cacheKey);
     }
 
     /**
-     * Busca usuario por correo o teléfono.
+     * Busca un usuario por correo electrónico o teléfono.
      */
     private function findUserByIdentifier(string $identifier): ?User
     {
@@ -259,7 +295,10 @@ class PasswordRecoveryService
     }
 
     /**
-     * Envía correo de recuperación usando PHPMailer con plantilla legacy.
+     * Envía el correo de recuperación usando PHPMailer con plantilla visual del legacy.
+     *
+     * Configura SMTP, incrusta el logo del sitio como imagen embebida,
+     * y construye el cuerpo HTML con la plantilla de recuperación.
      */
     private function sendRecoveryEmail(User $user, string $code, Carbon $expiresAt): bool
     {
@@ -292,6 +331,7 @@ class PasswordRecoveryService
             $recipientName = trim((string) $user->name) !== '' ? (string) $user->name : 'Cliente Angelow';
             $mail->addAddress((string) $user->email, $recipientName);
 
+            // Incrusta el logo como imagen embebida (CID)
             $logoPath = public_path('images/logo2.png');
             $logoEmbedId = 'recovery_logo';
             $logoUrl = $this->buildLogoUrl();
@@ -325,7 +365,11 @@ class PasswordRecoveryService
     }
 
     /**
-     * Reutiliza la plantilla visual del legacy Angelow.
+     * Construye la plantilla HTML del correo de recuperación.
+     *
+     * Reutiliza la plantilla visual del legacy Angelow con los estilos,
+     * colores y disposición originales. Escapa todas las variables
+     * con e() para prevenir XSS en el correo.
      */
     private function buildRecoveryEmailTemplate(
         string $name,
@@ -391,7 +435,10 @@ class PasswordRecoveryService
     }
 
     /**
-     * Normaliza correo/teléfono y descarta formatos inválidos.
+     * Normaliza el identificador (correo o teléfono) y descarta formatos inválidos.
+     *
+     * Si es email, lo convierte a minúsculas. Si es teléfono, extrae solo dígitos
+     * y valida que tenga entre 7 y 15 caracteres. Si no cumple, retorna vacío.
      */
     private function normalizeIdentifier(string $value): string
     {
@@ -414,7 +461,10 @@ class PasswordRecoveryService
     }
 
     /**
-     * Enmascara correo/teléfono para respuesta segura.
+     * Enmascara el identificador para la respuesta, protegiendo datos sensibles.
+     *
+     * Para email: muestra solo los primeros 2 caracteres antes del @.
+     * Para teléfono: muestra solo los últimos 4 dígitos.
      */
     private function maskIdentifier(string $identifier): string
     {
@@ -434,7 +484,7 @@ class PasswordRecoveryService
     }
 
     /**
-     * Cooldown para evitar spam de códigos.
+     * Retorna los segundos restantes de cooldown para evitar spam de códigos.
      */
     private function secondsUntilNextCode(string $userId): int
     {
@@ -453,7 +503,7 @@ class PasswordRecoveryService
     }
 
     /**
-     * Activa ventana anti-spam para reenvío.
+     * Activa la ventana anti-spam para reenvío de códigos.
      */
     private function startResendCooldown(string $userId): void
     {
@@ -465,31 +515,49 @@ class PasswordRecoveryService
         );
     }
 
+    /**
+     * Clave de caché para el session_token de recuperación.
+     */
     private function sessionCacheKey(string $sessionToken): string
     {
         return 'password_recovery:' . $sessionToken;
     }
 
+    /**
+     * Clave de caché para el cooldown anti-spam por usuario.
+     */
     private function cooldownCacheKey(string $userId): string
     {
         return 'password_recovery:cooldown:' . $userId;
     }
 
+    /**
+     * Longitud del código de verificación (4 dígitos).
+     */
     private function getCodeLength(): int
     {
         return 4;
     }
 
+    /**
+     * Tiempo de vida del código en segundos (configurable vía .env, mínimo 60s).
+     */
     private function getCodeTtlSeconds(): int
     {
         return max(60, (int) config('services.password_recovery.code_ttl', 900));
     }
 
+    /**
+     * Segundos de espera obligatoria entre reenvíos (60s).
+     */
     private function getResendCooldownSeconds(): int
     {
         return 60;
     }
 
+    /**
+     * Construye la URL del frontend para el botón "Abrir recuperador".
+     */
     private function buildRecoveryUrl(): string
     {
         $frontendUrl = rtrim((string) config('services.password_recovery.frontend_url', ''), '/');
@@ -500,6 +568,10 @@ class PasswordRecoveryService
         return $frontendUrl . '/recuperar';
     }
 
+    /**
+     * Construye la URL del logo para usar en el correo.
+     * Si no hay frontend configurado, usa placeholder.
+     */
     private function buildLogoUrl(): string
     {
         $frontendUrl = rtrim((string) config('services.password_recovery.frontend_url', ''), '/');

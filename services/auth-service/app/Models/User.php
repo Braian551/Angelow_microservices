@@ -8,27 +8,29 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * User Model
+ * Modelo de usuario del sistema Angelow.
  *
- * Represents a user in the Angelow platform.
- * Mirrors the legacy users table schema for migration compatibility.
+ * Refleja el esquema de la tabla legacy `users` para compatibilidad
+ * durante la migración. Usa IDs alfanuméricos (string) en lugar de
+ * autoincrementales, heredados del sistema legacy basado en uniqid().
+ * Implementa autenticación vía Sanctum (HasApiTokens).
  */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * Indicates if the IDs are auto-incrementing.
+     * Indica que los IDs NO son auto-incrementales (son string tipo uniqid).
      */
     public $incrementing = false;
 
     /**
-     * The data type of the primary key.
+     * Tipo de dato de la llave primaria (string para compatibilidad legacy).
      */
     protected $keyType = 'string';
 
     /**
-     * The attributes that are mass assignable.
+     * Atributos asignables masivamente (mass assignment).
      */
     protected $fillable = [
         'id',
@@ -42,7 +44,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * Atributos ocultos en serialización (JSON).
      */
     protected $hidden = [
         'password',
@@ -50,7 +52,11 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * Casts de tipos para atributos del modelo.
+     *
+     * - password: se hashea automáticamente al asignarlo
+     * - is_blocked: se convierte a booleano
+     * - created_at, updated_at, last_access, token_expiry: Carbon dates
      */
     protected function casts(): array
     {
@@ -65,7 +71,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user is an admin.
+     * Verifica si el usuario tiene rol de administrador.
      */
     public function isAdmin(): bool
     {
@@ -73,7 +79,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user is blocked.
+     * Verifica si el usuario está bloqueado.
      */
     public function isBlocked(): bool
     {

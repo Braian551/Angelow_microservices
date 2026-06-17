@@ -2,12 +2,20 @@
 
 namespace App\Services;
 
+// Comentario de mantenimiento: Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
 
+/**
+ * Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+ */
 class StockRealtimePublisher
 {
+    /**
+     * Publica un mensaje JSON en Redis si el canal de stock está configurado.
+     */
     public function publish(string $event, array $payload): void
     {
         $baseChannel = trim((string) config('services.stock_realtime.ws_channel', 'ws:orders:stock'));

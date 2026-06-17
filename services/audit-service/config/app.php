@@ -1,15 +1,24 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración general de la aplicación (audit-service)
+|--------------------------------------------------------------------------
+|
+| Define nombre, entorno, zona horaria, locale y clave de cifrado
+| del servicio de auditoría. Los valores se obtienen de .env y
+| pueden sobrescribirse por entorno (local, staging, producción).
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application Name
+    | Nombre de la aplicación
     |--------------------------------------------------------------------------
     |
-    | This value is the name of your application, which will be used when the
-    | framework needs to place the application's name in a notification or
-    | other UI elements where an application name needs to be displayed.
+    | Nombre visible del servicio. Se usa en notificaciones y metadatos.
     |
     */
 
@@ -17,12 +26,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application Environment
+    | Entorno de ejecución
     |--------------------------------------------------------------------------
     |
-    | This value determines the "environment" your application is currently
-    | running in. This may determine how you prefer to configure various
-    | services the application utilizes. Set this in your ".env" file.
+    | Define si la app corre en local, staging, producción, etc.
+    | Afecta el nivel de logging, caché y mensajes de error.
     |
     */
 
@@ -30,12 +38,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application Debug Mode
+    | Modo debug
     |--------------------------------------------------------------------------
     |
-    | When your application is in debug mode, detailed error messages with
-    | stack traces will be shown on every error that occurs within your
-    | application. If disabled, a simple generic error page is shown.
+    | En true muestra errores detallados con stack traces.
+    | Deshabilitar en producción por seguridad.
     |
     */
 
@@ -43,12 +50,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application URL
+    | URL base de la aplicación
     |--------------------------------------------------------------------------
     |
-    | This URL is used by the console to properly generate URLs when using
-    | the Artisan command line tool. You should set this to the root of
-    | the application so that it's available within Artisan commands.
+    | Usada por Artisan para generar URLs correctas en comandos
+    | y notificaciones.
     |
     */
 
@@ -56,12 +62,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application Timezone
+    | Zona horaria
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
+    | Zona horaria por defecto para todas las funciones de fecha/hora
+    | en PHP y Laravel. Se mantiene en UTC por compatibilidad distribuida.
     |
     */
 
@@ -69,12 +74,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application Locale Configuration
+    | Configuración regional (locale)
     |--------------------------------------------------------------------------
     |
-    | The application locale determines the default locale that will be used
-    | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
+    | Define el idioma de las traducciones y el generador de datos falsos.
+    | Se usa español (es) para consistencia con el resto de Angelow.
     |
     */
 
@@ -86,12 +90,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Encryption Key
+    | Clave de cifrado
     |--------------------------------------------------------------------------
     |
-    | This key is utilized by Laravel's encryption services and should be set
-    | to a random, 32 character string to ensure that all encrypted values
-    | are secure. You should do this prior to deploying the application.
+    | Clave AES-256-CBC usada por Laravel para encriptar cookies,
+    | sesiones y otros datos sensibles. Debe ser una cadena de 32
+    | caracteres generada con `php artisan key:generate`.
     |
     */
 
@@ -107,14 +111,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Maintenance Mode Driver
+    | Modo mantenimiento
     |--------------------------------------------------------------------------
     |
-    | These configuration options determine the driver used to determine and
-    | manage Laravel's "maintenance mode" status. The "cache" driver will
-    | allow maintenance mode to be controlled across multiple machines.
-    |
-    | Supported drivers: "file", "cache"
+    | Controla cómo se gestiona el modo mantenimiento. El driver "file"
+    | es suficiente para un solo servidor; "cache" permite coordinación
+    | entre múltiples instancias.
     |
     */
 

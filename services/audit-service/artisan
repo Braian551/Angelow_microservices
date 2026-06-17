@@ -1,15 +1,32 @@
 #!/usr/bin/env php
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Punto de entrada para comandos Artisan (CLI)
+|--------------------------------------------------------------------------
+|
+| Este archivo es el entry point de la consola de Laravel.
+| Permite ejecutar comandos como migraciones, seeders,
+| y tareas programadas del audit-service.
+|
+| Flujo:
+|   1. Marca el inicio de ejecución (LARAVEL_START).
+|   2. Carga el autoloader de Composer.
+|   3. Bootstrapea la aplicación Laravel.
+|   4. Ejecuta el comando Artisan solicitado.
+|
+*/
+
 use Illuminate\Foundation\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 
 define('LARAVEL_START', microtime(true));
 
-// Register the Composer autoloader...
+// Registra el autoloader de Composer
 require __DIR__.'/vendor/autoload.php';
 
-// Bootstrap Laravel and handle the command...
+// Bootstrapea Laravel y ejecuta el comando
 /** @var Application $app */
 $app = require_once __DIR__.'/bootstrap/app.php';
 

@@ -1,3 +1,17 @@
+/*
+|--------------------------------------------------------------------------
+| Estilos CSS del auth-service (Tailwind v4)
+|--------------------------------------------------------------------------
+|
+| Define los estilos base para las vistas Blade del servicio.
+| El auth-service usa Tailwind v4 con la fuente Instrument Sans.
+|
+| La SPA de Angelow consume los estilos desde su propio build de
+| Vite, no desde este archivo. Este CSS solo aplica a la vista
+| welcome.blade.php del propio servicio.
+|
+*/
+
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

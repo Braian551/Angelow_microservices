@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Modelo de códigos de recuperación de contraseña.
+ *
+ * Almacena cada solicitud de código de verificación (token hasheado)
+ * con su expiración y estado de uso. No usa timestamps automáticos
+ * de Laravel porque la tabla tiene created_at manual.
  */
 class PasswordReset extends Model
 {

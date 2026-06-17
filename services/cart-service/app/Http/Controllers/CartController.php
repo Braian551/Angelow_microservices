@@ -7,9 +7,16 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Controlador de carrito
+ * Controlador del carrito de compras (cart-service)
  *
- * Atiende solicitudes API para operaciones del carrito de compras.
+ * Expone los endpoints REST para gestionar el carrito: consultar,
+ * agregar productos, actualizar cantidades, eliminar ítems y
+ * disparar recordatorios de carritos abandonados.
+ *
+ * Delega toda la lógica de negocio a CartService y maneja las
+ * respuestas JSON con mensajes de error en español.
+ *
+ * @see CartService
  */
 class CartController extends Controller
 {
@@ -18,15 +25,17 @@ class CartController extends Controller
     ) {}
 
     /**
-     * GET /api/cart
+     * GET /api/cart — Obtiene el carrito actual con detalle y totales.
      *
-     * Obtiene los ítems actuales del carrito con detalle y totales.
+     * Requiere user_id (usuario autenticado) o session_id (visitante).
+     * Retorna items con datos enriquecidos desde catalog-service.
      */
     public function index(Request $request): JsonResponse
     {
         $userId    = $request->query('user_id');
         $sessionId = $request->query('session_id');
 
+        // El carrito siempre debe pertenecer a un usuario autenticado o a una sesión anónima.
         if (!$userId && !$sessionId) {
             return response()->json([
                 'success' => false,
@@ -43,9 +52,12 @@ class CartController extends Controller
     }
 
     /**
-     * POST /api/cart/add
+     * POST /api/cart/add — Agrega una variante de producto al carrito.
      *
-     * Agrega una variante de producto al carrito.
+     * Valida los campos obligatorios (product_id, size_variant_id) y
+     * opcionales (color_variant_id, quantity, user_id, session_id).
+     * Si la variante ya existe en el carrito, incrementa la cantidad.
+     * Retorna información de la variante agregada (talla, color, precio).
      */
     public function add(Request $request): JsonResponse
     {
@@ -62,6 +74,7 @@ class CartController extends Controller
         ]);
 
         try {
+            // CartService centraliza la validación contra catálogo y stock para no duplicar reglas en el controlador.
             $result = $this->cartService->addToCart(
                 $request->input('user_id'),
                 $request->input('session_id'),
@@ -76,6 +89,7 @@ class CartController extends Controller
                 ...$result,
             ]);
         } catch (\InvalidArgumentException $e) {
+            // Los errores de negocio se devuelven como 422 para que el frontend pueda mostrarlos como validación.
             return response()->json([
                 'success' => false,
                 'error'   => $e->getMessage(),
@@ -84,9 +98,10 @@ class CartController extends Controller
     }
 
     /**
-     * PUT /api/cart/{itemId}
+     * PUT /api/cart/{itemId} — Actualiza la cantidad de un ítem.
      *
-     * Actualiza la cantidad de un ítem del carrito.
+     * Valida que la cantidad sea un entero >= 1. Si el nuevo valor
+     * supera el stock disponible, retorna error 422.
      */
     public function update(Request $request, int $itemId): JsonResponse
     {
@@ -99,6 +114,7 @@ class CartController extends Controller
         ]);
 
         try {
+            // La actualización se delega para reutilizar la validación de stock en tiempo real del servicio.
             $this->cartService->updateQuantity($itemId, $request->input('quantity'));
 
             return response()->json([
@@ -106,6 +122,7 @@ class CartController extends Controller
                 'message' => 'Cantidad actualizada',
             ]);
         } catch (\InvalidArgumentException $e) {
+            // Mantiene el mismo contrato de errores de negocio usado al agregar productos.
             return response()->json([
                 'success' => false,
                 'error'   => $e->getMessage(),
@@ -114,12 +131,13 @@ class CartController extends Controller
     }
 
     /**
-     * DELETE /api/cart/{itemId}
+     * DELETE /api/cart/{itemId} — Elimina un ítem del carrito.
      *
-     * Elimina un ítem del carrito.
+     * Operación idempotente: si el ítem no existe, retorna éxito igualmente.
      */
     public function destroy(int $itemId): JsonResponse
     {
+        // La eliminación idempotente evita errores si el frontend repite una solicitud ya procesada.
         $this->cartService->removeFromCart($itemId);
 
         return response()->json([
@@ -129,15 +147,17 @@ class CartController extends Controller
     }
 
     /**
-     * GET /api/cart/items
+     * GET /api/cart/items — IDs de productos en el carrito.
      *
-     * Obtiene identificadores de productos del carrito para consultas ligeras.
+     * Método ligero para que el frontend marque visualmente los
+     * productos que ya están en el carrito del usuario.
      */
     public function productIds(Request $request): JsonResponse
     {
         $userId    = $request->query('user_id');
         $sessionId = $request->query('session_id');
 
+        // Se usa una consulta ligera para estados visuales del catálogo sin cargar todo el carrito.
         $ids = $this->cartService->getCartProductIds($userId, $sessionId);
 
         return response()->json([
@@ -149,10 +169,15 @@ class CartController extends Controller
     /**
      * POST /api/admin/cart/abandoned/reminders/dispatch
      *
-     * Dispara recordatorios para carritos abandonados.
+     * Dispara recordatorios para carritos abandonados. Endpoint interno
+     * protegido por token X-Internal-Token. Consulta carritos inactivos
+     * y envía notificaciones push + email vía notification-service.
+     *
+     * @see CartService::dispatchAbandonedCartReminders()
      */
     public function dispatchAbandonedReminders(Request $request): JsonResponse
     {
+        // Este endpoint es interno porque dispara mensajes fuera del flujo normal del comprador.
         if (!$this->hasInternalAccess($request)) {
             return response()->json([
                 'success' => false,
@@ -165,6 +190,7 @@ class CartController extends Controller
             'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
+        // Se aplican valores por defecto conservadores para evitar cargas excesivas en ejecuciones manuales.
         $summary = $this->cartService->dispatchAbandonedCartReminders(
             (int) ($data['inactive_minutes'] ?? 180),
             (int) ($data['limit'] ?? 120),
@@ -179,14 +205,22 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Verifica que la petición tenga el token interno correcto.
+     * Si no hay token configurado (vacío), permite el acceso libre
+     * (entorno de desarrollo). Usa hash_equals para comparación
+     * segura contra ataques de temporización.
+     */
     private function hasInternalAccess(Request $request): bool
     {
         $expectedToken = trim((string) config('services.notifications.internal_token', env('AUTH_INTERNAL_TOKEN', '')));
+        // En entornos locales sin token configurado se permite probar el flujo interno sin credenciales.
         if ($expectedToken === '') {
             return true;
         }
 
         $providedToken = trim((string) $request->header('X-Internal-Token', ''));
+        // Sin encabezado no hay identidad interna verificable para ejecutar recordatorios.
         if ($providedToken === '') {
             return false;
         }

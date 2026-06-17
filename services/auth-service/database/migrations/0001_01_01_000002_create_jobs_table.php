@@ -1,5 +1,22 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración: tabla de colas, lotes y trabajos fallidos (auth-service)
+|--------------------------------------------------------------------------
+|
+| Crea las tablas 'jobs', 'job_batches' y 'failed_jobs' necesarias
+| para el funcionamiento del sistema de colas con driver 'database'.
+|
+| - jobs: cola de trabajos pendientes con payload, intentos y reserva.
+| - job_batches: agrupación de trabajos en lotes (batch processing).
+| - failed_jobs: registro de trabajos que fallaron tras reintentos.
+|
+| El auth-service encola el envío de correos de bienvenida mediante
+| WelcomeEmailJob para no bloquear la respuesta HTTP del registro.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -7,7 +24,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Ejecuta la migración.
      */
     public function up(): void
     {
@@ -46,7 +63,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Revierte la migración.
      */
     public function down(): void
     {

@@ -10,10 +10,11 @@ use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 
 /**
- * Register Controller
+ * Controlador de registro de usuarios.
  *
- * Handles user registration via API.
- * Delegates business logic to AuthService.
+ * Maneja el registro vía API. Delega la lógica de negocio
+ * a AuthService y usa RegisterRequest para validación.
+ * Devuelve el usuario creado junto con un token Bearer de Sanctum.
  */
 class RegisterController extends Controller
 {
@@ -22,13 +23,17 @@ class RegisterController extends Controller
     ) {}
 
     /**
-     * Register a new user.
+     * Registra un nuevo usuario en el sistema.
      *
      * POST /api/auth/register
+     * Espera: name, email, phone, password, password_confirmation, terms
+     * Retorna: usuario creado + token de acceso (HTTP 201)
+     * En caso de error (email duplicado, etc.) lanza AuthException.
      */
     public function __invoke(RegisterRequest $request): JsonResponse
     {
         try {
+            // Convierte los datos validados en un DTO inmutable
             $dto = RegisterUserDTO::fromArray($request->validated());
             $result = $this->authService->register($dto);
 
@@ -50,6 +55,7 @@ class RegisterController extends Controller
                 ],
             ], 201);
         } catch (AuthException $e) {
+            // Captura errores controlados como email duplicado
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),

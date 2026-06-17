@@ -1,15 +1,30 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de colas (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define las conexiones de cola disponibles. El auth-service utiliza
+| la cola 'database' como predeterminada para procesar tareas en
+| segundo plano como el envío de correos de bienvenida sin bloquear
+| la respuesta del registro.
+|
+| Soporta: sync, database, beanstalkd, sqs, redis, deferred,
+| background y failover.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Queue Connection Name
+    | Conexión de cola predeterminada
     |--------------------------------------------------------------------------
     |
-    | Laravel's queue supports a variety of backends via a single, unified
-    | API, giving you convenient access to each backend using identical
-    | syntax for each. The default queue connection is defined below.
+    | Define qué conexión de cola se usará por defecto. Cada conexión
+    | puede tener una configuración independiente de driver, tabla,
+    | tiempo de reintento y comportamiento post-commit.
     |
     */
 

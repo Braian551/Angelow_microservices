@@ -1,15 +1,28 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de autenticación (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define los guards, providers y políticas de restablecimiento de
+| contraseña. El auth-service usa el guard 'web' con driver 'session'
+| y el provider Eloquent sobre el modelo App\Models\User.
+|
+| El restablecimiento de contraseña usa la tabla personalizada
+| password_resets (en lugar de password_reset_tokens de Laravel).
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Authentication Defaults
+    | Valores predeterminados de autenticación
     |--------------------------------------------------------------------------
     |
-    | This option defines the default authentication "guard" and password
-    | reset "broker" for your application. You may change these values
-    | as required, but they're a perfect start for most applications.
+    | Define el guard y el broker de restablecimiento de contraseña
+    | por defecto para toda la aplicación.
     |
     */
 

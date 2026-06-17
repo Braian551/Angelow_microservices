@@ -2,18 +2,22 @@
 
 use Laravel\Sanctum\Sanctum;
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Configuración de Sanctum (cart-service)
+|--------------------------------------------------------------------------
+|
+| Sanctum está disponible en el cart-service por compatibilidad con
+| la estructura base de Laravel, pero la autenticación de usuarios
+| se delega al auth-service. El cart-service identifica usuarios
+| por user_id recibido en los parámetros de consulta (query params).
+|
+| Los dominios stateful permiten que la SPA use cookies de sesión
+| si se requiere autenticación a futuro.
+|
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Stateful Domains
-    |--------------------------------------------------------------------------
-    |
-    | Requests from the following domains / hosts will receive stateful API
-    | authentication cookies. Typically, these should include your local
-    | and production domains which access your API via a frontend SPA.
-    |
-    */
+return [
 
     'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
         '%s%s',

@@ -1,16 +1,28 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración: tabla de intentos de inicio de sesión
+|--------------------------------------------------------------------------
+|
+| Registra intentos fallidos de login para protección contra
+| ataques de fuerza bruta. Cada fila almacena el usuario
+| intentado, dirección IP y fecha del intento.
+|
+| Los índices compuestos permiten consultas rápidas por
+| usuario+fecha o IP+fecha para detectar patrones anómalos.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Migration: Create login_attempts table
- *
- * Tracks failed login attempts for brute-force protection.
- */
 return new class extends Migration
 {
+    /**
+     * Ejecuta la migración: crea la tabla login_attempts.
+     */
     public function up(): void
     {
         Schema::create('login_attempts', function (Blueprint $table) {
@@ -25,6 +37,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Revierte la migración: elimina la tabla login_attempts.
+     */
     public function down(): void
     {
         Schema::dropIfExists('login_attempts');

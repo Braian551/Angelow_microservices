@@ -1,18 +1,22 @@
 <?php
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Servicios de terceros y configuración del dominio (auth-service)
+|--------------------------------------------------------------------------
+|
+| Agrupa las credenciales de servicios externos que consume el
+| auth-service: Firebase (verificación de token Google), PHPMailer
+| (envío SMTP), y la configuración interna del servicio.
+|
+| Incluye también parámetros del flujo de recuperación de contraseña
+| como TTL del código, cooldown de reenvío y URL del frontend.
+|
+| Ver PasswordRecoveryService y AuthService para el uso en runtime.
+|
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
+return [
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),

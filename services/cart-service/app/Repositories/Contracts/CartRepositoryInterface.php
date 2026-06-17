@@ -3,49 +3,56 @@
 namespace App\Repositories\Contracts;
 
 /**
- * Contract for Cart repository.
+ * Interfaz del repositorio de carrito.
  *
- * Defines the data access interface for shopping cart operations.
+ * Define el contrato para el acceso a datos de carritos e ítems.
+ * Separa la lógica de persistencia de la lógica de negocio (CartService).
+ *
+ * @see QueryBuilderCartRepository Implementación con Query Builder
+ * @see CartService Consumidor de esta interfaz
  */
 interface CartRepositoryInterface
 {
     /**
-     * Get or create a cart for a user or session.
+     * Obtiene un carrito existente o crea uno nuevo para el usuario/sesión.
+     * Si el usuario ya tiene un carrito, retorna el más reciente.
      */
     public function getOrCreateCart(?string $userId, ?string $sessionId): int;
 
     /**
-     * Get all items in a cart with product details.
+     * Retorna todos los ítems de un carrito con sus datos básicos.
      */
     public function getItems(int $cartId): array;
 
     /**
-     * Add an item to the cart.
+     * Agrega un nuevo ítem al carrito.
      */
     public function addItem(int $cartId, int $productId, ?int $colorVariantId, int $sizeVariantId, int $quantity): void;
 
     /**
-     * Update the quantity of a cart item.
+     * Actualiza la cantidad de un ítem existente.
      */
     public function updateItemQuantity(int $itemId, int $quantity): void;
 
     /**
-     * Remove an item from the cart.
+     * Elimina un ítem del carrito por su ID.
      */
     public function removeItem(int $itemId): void;
 
     /**
-     * Get a cart item by its ID.
+     * Busca un ítem del carrito por su ID.
      */
     public function findItem(int $itemId): ?object;
 
     /**
-     * Find an existing cart item matching product/variant combination.
+     * Busca un ítem existente que coincida con producto + variantes.
+     * Usado para evitar duplicados cuando se agrega el mismo producto.
      */
     public function findExistingItem(int $cartId, int $productId, ?int $colorVariantId, int $sizeVariantId): ?object;
 
     /**
-     * Get product IDs currently in the user's cart.
+     * Obtiene solo los IDs de productos en el carrito del usuario.
+     * Método ligero para el frontend (marcar productos en carrito).
      */
     public function getCartProductIds(?string $userId, ?string $sessionId): array;
 }

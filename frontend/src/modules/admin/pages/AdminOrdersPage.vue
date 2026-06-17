@@ -2,9 +2,9 @@
   <div class="admin-orders-page">
     <AdminPageHeader
       icon="fas fa-shopping-bag"
-      title="Gestión de Órdenes"
+      title="Gesti&oacute;n de &Oacute;rdenes"
       subtitle="Administra pedidos, revisa el historial y actualiza estados con la misma experiencia del panel administrativo."
-      :breadcrumbs="[{ label: 'Órdenes' }]"
+      :breadcrumbs="[{ label: '&Oacute;rdenes' }]"
     />
 
     <AdminStatsGrid :loading="loading" :stats="stats" :count="4" />
@@ -13,7 +13,7 @@
       v-model="filters.search"
       icon="fas fa-sliders-h"
       title="Filtros de búsqueda"
-      placeholder="Buscar por N° orden, cliente o email..."
+      placeholder="Buscar por N.° orden, cliente o email..."
       @search="applyFilters"
       @update:model-value="debouncedLoad"
     >
@@ -106,7 +106,7 @@
               <th class="selection-cell">
                 <input type="checkbox" :checked="allSelected" @change="toggleSelectAll($event.target.checked)">
               </th>
-              <th>N° Orden</th>
+              <th>N.° Orden</th>
               <th>Cliente</th>
               <th>Fecha</th>
               <th>Total</th>
@@ -284,37 +284,33 @@
         <button class="btn btn-secondary" type="button" @click="closeDetailModal">Cerrar</button>
       </template>
     </AdminModal>
-
     <AdminModal :show="showStatusModal" title="Actualizar estado de la orden" max-width="560px" @close="closeStatusModal">
       <div class="admin-orders-page admin-orders-page--modal">
       <div class="status-form-grid">
         <div class="form-group status-form-grid__full">
           <label>Orden seleccionada</label>
-          <div class="status-preview">{{ selectedOrder ? `${selectedOrder.order_number || `#${selectedOrder.id}`} | ${selectedOrder.customer_name}` : 'Sin selección' }}</div>
+          <div class="status-preview">{{ selectedOrder ? `${selectedOrder.order_number || `#${selectedOrder.id}`} | ${selectedOrder.customer_name}` : 'Sin selecci&oacute;n' }}</div>
         </div>
-
         <div class="form-group">
           <label for="order-status">
             Estado *
-            <AdminInfoTooltip text="Nuevo estado de la orden. Ejemplo: «En proceso» al confirmar el pago o «Enviado» al despachar." />
+            <AdminInfoTooltip text="Nuevo estado de la orden. Ejemplo: &laquo;En proceso&raquo; al confirmar el pago o &laquo;Enviado&raquo; al despachar." />
           </label>
           <select id="order-status" v-model="statusForm.status" class="form-control" @change="validateStatusField('status')">
             <option v-for="option in ADMIN_EDITABLE_ORDER_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
           <p v-if="statusErrors.status" class="form-error">{{ statusErrors.status }}</p>
         </div>
-
         <div class="form-group status-form-grid__full">
           <label for="status-description">
-            Descripción del cambio
-            <AdminInfoTooltip text="Razón interna del cambio de estado. Queda registrada en el historial de la orden. (opcional)" />
+            Descripci&oacute;n del cambio
+            <AdminInfoTooltip text="Raz&oacute;n interna del cambio de estado. Queda registrada en el historial de la orden. (opcional)" />
           </label>
           <textarea id="status-description" v-model="statusForm.description" class="form-control" rows="4" :class="{ 'is-invalid': statusErrors.description }" @input="validateStatusField('description')"></textarea>
           <p v-if="statusErrors.description" class="form-error">{{ statusErrors.description }}</p>
         </div>
       </div>
       </div>
-
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="savingStatusChange" @click="closeStatusModal">Cancelar</button>
         <button class="btn btn-primary" type="button" :class="{ 'is-loading': savingStatusChange }" :disabled="savingStatusChange" @click="submitStatusChange">
@@ -323,19 +319,17 @@
         </button>
       </template>
     </AdminModal>
-
     <AdminModal :show="showPaymentStatusModal" title="Actualizar estado de pago" max-width="560px" @close="closePaymentStatusModal">
       <div class="admin-orders-page admin-orders-page--modal">
       <div class="status-form-grid">
         <div class="form-group status-form-grid__full">
           <label>Orden seleccionada</label>
-          <div class="status-preview">{{ selectedOrder ? `${selectedOrder.order_number || `#${selectedOrder.id}`} | ${selectedOrder.customer_name}` : 'Sin selección' }}</div>
+          <div class="status-preview">{{ selectedOrder ? `${selectedOrder.order_number || `#${selectedOrder.id}`} | ${selectedOrder.customer_name}` : 'Sin selecci&oacute;n' }}</div>
         </div>
-
         <div class="form-group">
           <label for="payment-status">
             Estado de pago *
-            <AdminInfoTooltip text="Estado actual del pago. Cambia a «Pagado» cuando el pago es confirmado, a «Verificado» una vez revisado el comprobante." />
+            <AdminInfoTooltip text="Estado actual del pago. Cambia a &laquo;Pagado&raquo; cuando el pago es confirmado, a &laquo;Verificado&raquo; una vez revisado el comprobante." />
           </label>
           <select id="payment-status" v-model="paymentForm.payment_status" class="form-control" @change="validatePaymentField('payment_status')">
             <option value="pending">Pendiente</option>
@@ -347,10 +341,9 @@
           </select>
           <p v-if="paymentErrors.payment_status" class="form-error">{{ paymentErrors.payment_status }}</p>
         </div>
-
         <div class="form-group status-form-grid__full">
           <label for="payment-description">
-            Descripción del cambio
+            Descripci&oacute;n del cambio
             <AdminInfoTooltip text="Nota interna sobre el cambio de estado de pago. Queda registrada en el historial. (opcional)" />
           </label>
           <textarea id="payment-description" v-model="paymentForm.description" class="form-control" rows="4" :class="{ 'is-invalid': paymentErrors.description }" @input="validatePaymentField('description')"></textarea>
@@ -358,7 +351,6 @@
         </div>
       </div>
       </div>
-
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="savingPaymentStatusChange" @click="closePaymentStatusModal">Cancelar</button>
         <button class="btn btn-primary" type="button" :class="{ 'is-loading': savingPaymentStatusChange }" :disabled="savingPaymentStatusChange" @click="submitPaymentStatusChange">
@@ -367,56 +359,51 @@
         </button>
       </template>
     </AdminModal>
-
     <AdminModal :show="showBulkModal" title="Acciones masivas" max-width="560px" @close="closeBulkModal">
       <div class="admin-orders-page admin-orders-page--modal">
       <div class="bulk-form-grid">
         <div class="bulk-modal-summary">
           <div class="bulk-modal-summary__count">
             <strong>{{ selectedOrdersCount }}</strong>
-            <span>{{ selectedOrdersCount === 1 ? 'orden seleccionada' : 'órdenes seleccionadas' }}</span>
+            <span>{{ selectedOrdersCount === 1 ? 'orden seleccionada' : '&oacute;rdenes seleccionadas' }}</span>
           </div>
           <div class="bulk-modal-summary__chips">
             <span v-for="order in selectedOrdersPreview" :key="order.id" class="bulk-modal-summary__chip">{{ order.order_number }}</span>
-            <span v-if="selectedOrdersCount > selectedOrdersPreview.length" class="bulk-modal-summary__chip bulk-modal-summary__chip--muted">+{{ selectedOrdersCount - selectedOrdersPreview.length }} más</span>
+            <span v-if="selectedOrdersCount > selectedOrdersPreview.length" class="bulk-modal-summary__chip bulk-modal-summary__chip--muted">+{{ selectedOrdersCount - selectedOrdersPreview.length }} m&aacute;s</span>
           </div>
-          <p class="bulk-modal-summary__helper">La acción elegida se confirmará antes de aplicarse y luego verás un mensaje con el resultado.</p>
+          <p class="bulk-modal-summary__helper">La acci&oacute;n elegida se confirmar&aacute; antes de aplicarse y luego ver&aacute;s un mensaje con el resultado.</p>
         </div>
-
         <div class="form-group status-form-grid__full">
-          <label>Órdenes seleccionadas</label>
+          <label>&Oacute;rdenes seleccionadas</label>
           <div class="status-preview">{{ selectedOrdersCount }} seleccionada(s)</div>
         </div>
-
         <div class="form-group">
           <label for="bulk-action">
-            Acción *
-            <AdminInfoTooltip text="Operación a aplicar en bloque sobre todas las órdenes seleccionadas." />
+            Acci&oacute;n *
+            <AdminInfoTooltip text="Operaci&oacute;n a aplicar en bloque sobre todas las &oacute;rdenes seleccionadas." />
           </label>
           <select id="bulk-action" v-model="bulkForm.action" class="form-control" @change="validateBulkField('action')">
-            <option value="">Seleccionar acción</option>
+            <option value="">Seleccionar acci&oacute;n</option>
             <option value="change_status">Cambiar estado</option>
             <option value="change_payment_status">Cambiar estado de pago</option>
             <option value="deactivate">Desactivar</option>
           </select>
           <p v-if="bulkErrors.action" class="form-error">{{ bulkErrors.action }}</p>
         </div>
-
         <div v-if="bulkForm.action === 'change_status'" class="form-group">
           <label for="bulk-status">
             Estado *
-            <AdminInfoTooltip text="Estado que se aplicará a todas las órdenes seleccionadas." />
+            <AdminInfoTooltip text="Estado que se aplicar&aacute; a todas las &oacute;rdenes seleccionadas." />
           </label>
           <select id="bulk-status" v-model="bulkForm.status" class="form-control" @change="validateBulkField('status')">
             <option v-for="option in ADMIN_EDITABLE_ORDER_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
           <p v-if="bulkErrors.status" class="form-error">{{ bulkErrors.status }}</p>
         </div>
-
         <div v-if="bulkForm.action === 'change_payment_status'" class="form-group">
           <label for="bulk-payment-status">
             Estado de pago *
-            <AdminInfoTooltip text="Estado de pago que se aplicará a todas las órdenes seleccionadas." />
+            <AdminInfoTooltip text="Estado de pago que se aplicar&aacute; a todas las &oacute;rdenes seleccionadas." />
           </label>
           <select id="bulk-payment-status" v-model="bulkForm.payment_status" class="form-control" @change="validateBulkField('payment_status')">
             <option value="pending">Pendiente</option>
@@ -428,10 +415,9 @@
           </select>
           <p v-if="bulkErrors.payment_status" class="form-error">{{ bulkErrors.payment_status }}</p>
         </div>
-
         <div class="form-group status-form-grid__full">
           <label for="bulk-description">
-            Descripción del cambio
+            Descripci&oacute;n del cambio
             <AdminInfoTooltip text="Nota sobre el cambio masivo. Se registra en el historial de cada orden afectada. (opcional)" />
           </label>
           <textarea id="bulk-description" v-model="bulkForm.description" class="form-control" rows="4" :class="{ 'is-invalid': bulkErrors.description }" @input="validateBulkField('description')"></textarea>
@@ -439,7 +425,6 @@
         </div>
       </div>
       </div>
-
       <template #footer>
         <button class="btn btn-secondary" type="button" :disabled="bulkSaving" @click="closeBulkModal">Cancelar</button>
         <button class="btn btn-primary" type="button" :class="{ 'is-loading': bulkSaving }" :disabled="bulkSaving" @click="submitBulkAction">

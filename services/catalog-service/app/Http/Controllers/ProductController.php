@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
+
 use App\Services\CatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +15,9 @@ use Illuminate\Http\Request;
  */
 class ProductController extends Controller
 {
+    /**
+     * Explica la intención de __construct dentro del flujo del servicio.
+     */
     public function __construct(
         private readonly CatalogService $catalogService,
     ) {}

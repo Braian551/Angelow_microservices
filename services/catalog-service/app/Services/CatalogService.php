@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+// Comentario de mantenimiento: Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\CategoryRepositoryInterface;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,9 @@ use Throwable;
  */
 class CatalogService
 {
+    /**
+     * Explica la intención de __construct dentro del flujo del servicio.
+     */
     public function __construct(
         private readonly ProductRepositoryInterface $productRepository,
         private readonly CategoryRepositoryInterface $categoryRepository,
@@ -248,6 +253,10 @@ class CatalogService
 
         return $normalizedUserId;
     }
+
+    /**
+     * Normaliza valores opcionales a cadenas limpias o null.
+     */
 
     private function nullableString(mixed $value): ?string
     {

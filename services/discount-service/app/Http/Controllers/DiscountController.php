@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
+
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,8 +12,14 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
+/**
+ * Centraliza endpoints del dominio y traduce peticiones HTTP a respuestas del servicio.
+ */
 class DiscountController extends Controller
 {
+    /**
+     * Lista códigos públicos vigentes con respaldo de datos migrados.
+     */
     public function listCodes(): JsonResponse
     {
         $codes = DB::table('discount_codes')->orderByDesc('created_at')->limit(100)->get();
@@ -30,6 +38,10 @@ class DiscountController extends Controller
 
         return response()->json(['data' => $codes]);
     }
+
+    /**
+     * Valida un cupón contra estado, fechas, límites y uso previo del usuario.
+     */
 
     public function validateCode(Request $request): JsonResponse
     {
@@ -102,6 +114,10 @@ class DiscountController extends Controller
         ]);
     }
 
+    /**
+     * Calcula si una orden califica a descuento por cantidad.
+     */
+
     public function validateBulkDiscount(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -137,6 +153,10 @@ class DiscountController extends Controller
             'bulk_discount' => $bulkDiscount,
         ]);
     }
+
+    /**
+     * Busca un cupón activo en la fuente principal y luego en respaldo si hace falta.
+     */
 
     private function findActiveCode(string $code): ?object
     {
@@ -182,6 +202,10 @@ class DiscountController extends Controller
         }
     }
 
+    /**
+     * Comprueba si un cupón de uso único ya fue aplicado por el usuario.
+     */
+
     private function alreadyUsedByUser(int $discountCodeId, string $userId, bool $legacySource): bool
     {
         if ($discountCodeId <= 0 || trim($userId) === '') {
@@ -205,6 +229,10 @@ class DiscountController extends Controller
             return false;
         }
     }
+
+    /**
+     * Resuelve la mejor regla de descuento por cantidad para la orden actual.
+     */
 
     private function resolveBulkDiscount(int $itemCount, float $orderTotal): ?array
     {
@@ -268,6 +296,10 @@ class DiscountController extends Controller
         ];
     }
 
+    /**
+     * Calcula el monto descontado y arma la respuesta pública del cupón.
+     */
+
     private function formatCodeDiscount(object $discount, float $orderTotal): array
     {
         $discountType = $this->resolveCodeType($discount);
@@ -294,6 +326,10 @@ class DiscountController extends Controller
         ];
     }
 
+    /**
+     * Determina si un cupón es porcentual, fijo o de envío gratis.
+     */
+
     private function resolveCodeType(object $discount): string
     {
         $typeName = Str::lower((string) ($discount->discount_type_name ?? ''));
@@ -309,6 +345,10 @@ class DiscountController extends Controller
         return 'percent';
     }
 
+    /**
+     * Genera una etiqueta humana para el rango de cantidades de una regla.
+     */
+
     private function formatQuantityLabel(int $minQuantity, ?int $maxQuantity): string
     {
         if ($maxQuantity === null) {
@@ -317,6 +357,10 @@ class DiscountController extends Controller
 
         return sprintf('%d a %d unidades', $minQuantity, $maxQuantity);
     }
+
+    /**
+     * Convierte valores de fecha heterogéneos en objetos Carbon seguros.
+     */
 
     private function parseDate(mixed $value): ?Carbon
     {
@@ -331,12 +375,20 @@ class DiscountController extends Controller
         }
     }
 
+    /**
+     * Normaliza fechas a ISO para que frontend y APIs reciban un formato estable.
+     */
+
     private function toIsoString(mixed $value): ?string
     {
         $date = $this->parseDate($value);
 
         return $date ? $date->toISOString() : null;
     }
+
+    /**
+     * Comprueba existencia de tablas de respaldo antes de consultar datos migrados.
+     */
 
     private function legacyTableExists(string $table): bool
     {

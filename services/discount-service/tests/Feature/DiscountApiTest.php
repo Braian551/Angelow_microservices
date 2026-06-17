@@ -2,13 +2,22 @@
 
 namespace Tests\Feature;
 
+// Comentario de mantenimiento: Esta prueba protege el comportamiento esperado del servicio.
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+/**
+ * Esta prueba protege el comportamiento esperado del servicio.
+ */
 class DiscountApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Explica la intención de test_validate_returns_valid_for_active_code dentro del flujo del servicio.
+     */
 
     public function test_validate_returns_valid_for_active_code(): void
     {
@@ -43,6 +52,10 @@ class DiscountApiTest extends TestCase
             'order_total' => 200000,
         ])->assertOk()->assertJsonPath('valid', true);
     }
+
+    /**
+     * Explica la intención de test_validate_returns_error_for_expired_code dentro del flujo del servicio.
+     */
 
     public function test_validate_returns_error_for_expired_code(): void
     {
