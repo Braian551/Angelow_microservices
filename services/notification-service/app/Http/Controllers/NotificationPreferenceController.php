@@ -10,10 +10,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Controlador de preferencias de notificación del usuario.
+ * Permite consultar y actualizar qué tipos de notificaciones
+ * (productos, promociones, recordatorios de carrito) quiere recibir
+ * un usuario, y por qué canales (email, push).
+ */
 class NotificationPreferenceController extends Controller
 {
+    /** Conexión legacy donde vive la tabla de preferencias. */
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
+    /**
+     * Muestra las preferencias actuales del usuario.
+     * Si no existen, retorna los valores por defecto (todo habilitado).
+     */
     public function show(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -32,6 +43,7 @@ class NotificationPreferenceController extends Controller
             ], 422);
         }
 
+        // Asegura que existan los tipos base antes de construir la respuesta.
         $this->ensureDefaultNotificationTypes();
 
         return response()->json([
@@ -39,6 +51,11 @@ class NotificationPreferenceController extends Controller
         ]);
     }
 
+    /**
+     * Actualiza las preferencias de notificación del usuario.
+     * Cada tipo (product, promotion, order) se actualiza o crea
+     * mediante upsert en la tabla legacy notification_preferences.
+     */
     public function update(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -70,6 +87,7 @@ class NotificationPreferenceController extends Controller
                 return Str::lower((string) $type->name);
             });
 
+        // Ejecuta toda la actualización en una transacción sobre legacy.
         DB::connection(self::LEGACY_CONNECTION)->transaction(function () use ($userId, $data, $typesByName): void {
             $emailEnabled = (bool) $data['email_notifications'];
 
@@ -98,6 +116,7 @@ class NotificationPreferenceController extends Controller
                 (bool) $data['cart_reminders'],
             );
 
+            // Actualiza el flag global de email habilitado para todas las preferencias del usuario.
             NotificationPreference::query()
                 ->where('user_id', $userId)
                 ->update([
@@ -112,6 +131,9 @@ class NotificationPreferenceController extends Controller
         ]);
     }
 
+    /**
+     * Crea o actualiza una preferencia individual para un tipo concreto.
+     */
     private function upsertPreference(
         string $userId,
         $typesByName,
@@ -138,6 +160,10 @@ class NotificationPreferenceController extends Controller
         );
     }
 
+    /**
+     * Construye el payload completo de preferencias para un usuario.
+     * Si no hay preferencias registradas, retorna los valores por defecto.
+     */
     private function buildPreferencesPayload(string $userId): array
     {
         $this->ensureDefaultNotificationTypes();
@@ -154,6 +180,7 @@ class NotificationPreferenceController extends Controller
             ->get()
             ->keyBy('type_id');
 
+        // Email global: si alguna preferencia tiene email_enabled=false, se considera deshabilitado.
         $emailNotifications = true;
 
         if ($preferences->isNotEmpty()) {
@@ -174,6 +201,9 @@ class NotificationPreferenceController extends Controller
         ];
     }
 
+    /**
+     * Resuelve si un tipo específico tiene push habilitado, con valor por defecto.
+     */
     private function resolvePushPreference($preferences, $typesByName, string $typeName, bool $default): bool
     {
         $type = $typesByName->get(Str::lower($typeName));
@@ -189,6 +219,10 @@ class NotificationPreferenceController extends Controller
         return (bool) $pref->push_enabled;
     }
 
+    /**
+     * Resuelve el ID de usuario preferido: primero el user_id directo,
+     * luego por resolución de correo en legacy.
+     */
     private function resolvePreferredUserId(?string $userId, ?string $userEmail): ?string
     {
         if ($userId !== null && $userId !== '') {
@@ -198,6 +232,9 @@ class NotificationPreferenceController extends Controller
         return $this->resolveLegacyUserIdByEmail($userEmail);
     }
 
+    /**
+     * Busca el ID de un usuario legacy a partir de su correo electrónico.
+     */
     private function resolveLegacyUserIdByEmail(?string $userEmail): ?string
     {
         if ($userEmail === null || $userEmail === '') {
@@ -220,6 +257,9 @@ class NotificationPreferenceController extends Controller
         }
     }
 
+    /**
+     * Normaliza un valor a string nullable.
+     */
     private function nullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));
@@ -228,6 +268,8 @@ class NotificationPreferenceController extends Controller
 
     /**
      * Garantiza que existan los tipos base usados por preferencias de cliente.
+     * Si un tipo existe pero está inactivo o sin descripción, lo reactiva y completa.
+     * Si no existe, lo crea con valores predeterminados.
      */
     private function ensureDefaultNotificationTypes(): void
     {

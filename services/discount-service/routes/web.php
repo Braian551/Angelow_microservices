@@ -1,11 +1,13 @@
 <?php
 
-// Comentario de mantenimiento: Estas rutas conectan contratos HTTP con controladores del servicio.
+/**
+ * Rutas web del servicio de descuentos.
+ * Mayormente usadas para página de bienvenida y pruebas internas.
+ */
 
 use Illuminate\Support\Facades\Route;
 
-// Expone un endpoint GET del servicio y delega la operación al controlador correspondiente.
-
+// Ruta raíz: muestra la página de bienvenida del servicio de descuentos.
 Route::get('/', function () {
     return view('welcome');
 });

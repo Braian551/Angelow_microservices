@@ -10,14 +10,26 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Controlador principal del dominio de notificaciones.
+ * Gestiona el CRUD de notificaciones, marcado como leído,
+ * eliminación y disparo masivo de eventos (trigger) para campañas.
+ * Soporta doble origen de datos: microservicio y legacy durante la migración.
+ */
 class NotificationController extends Controller
 {
+    /** Conexión legacy durante la migración. */
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
     public function __construct(
         private readonly NotificationDispatchService $dispatchService,
     ) {}
 
+    /**
+     * Lista las notificaciones de un usuario, resolviendo por user_id o user_email.
+     * Primero consulta en la base local del microservicio; si no encuentra,
+     * hace fallback a la base legacy.
+     */
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -44,6 +56,10 @@ class NotificationController extends Controller
         return response()->json(['data' => $items]);
     }
 
+    /**
+     * Crea una nueva notificación para un usuario y la encola para envío
+     * por push y/o email según las preferencias del usuario y los canales solicitados.
+     */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -99,6 +115,8 @@ class NotificationController extends Controller
 
     /**
      * Disparo interno por lotes para eventos del cliente (producto/oferta/carrito).
+     * Usado por otros microservicios para enviar notificaciones masivas.
+     * Requiere token interno de acceso (X-Internal-Token).
      */
     public function dispatchTrigger(Request $request): JsonResponse
     {
@@ -183,6 +201,10 @@ class NotificationController extends Controller
         ]);
     }
 
+    /**
+     * Marca todas las notificaciones de un usuario como leídas.
+     * Aplica tanto en base local como en legacy según donde estén los datos.
+     */
     public function markAllAsRead(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -214,6 +236,10 @@ class NotificationController extends Controller
         ]);
     }
 
+    /**
+     * Marca una notificación específica como leída por su ID.
+     * Busca primero en local y luego en legacy.
+     */
     public function markAsRead(int $id): JsonResponse
     {
         $updated = $this->markOneReadByConnection(null, $id);
@@ -229,6 +255,9 @@ class NotificationController extends Controller
         return response()->json(['message' => 'Notificación marcada como leída']);
     }
 
+    /**
+     * Elimina una notificación específica verificando la pertenencia al usuario.
+     */
     public function destroy(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -258,6 +287,9 @@ class NotificationController extends Controller
         return response()->json(['message' => 'Notificación eliminada']);
     }
 
+    /**
+     * Obtiene las notificaciones de un usuario desde una conexión específica.
+     */
     private function fetchNotificationsByConnection(?string $connection, string $userId): Collection
     {
         try {
@@ -272,6 +304,10 @@ class NotificationController extends Controller
         }
     }
 
+    /**
+     * Obtiene notificaciones para múltiples IDs candidatos,
+     * las fusiona eliminando duplicados y las ordena por fecha descendente.
+     */
     private function fetchNotificationsForCandidates(?string $connection, array $candidateUserIds): Collection
     {
         $items = collect();
@@ -290,6 +326,9 @@ class NotificationController extends Controller
             ->values();
     }
 
+    /**
+     * Marca todas las notificaciones no leídas de un usuario como leídas en una conexión.
+     */
     private function markAllReadByConnection(?string $connection, string $userId): int
     {
         try {
@@ -306,6 +345,9 @@ class NotificationController extends Controller
         }
     }
 
+    /**
+     * Marca como leídas para múltiples IDs candidatos en una conexión.
+     */
     private function markAllReadForCandidates(?string $connection, array $candidateUserIds): int
     {
         $updated = 0;
@@ -317,6 +359,9 @@ class NotificationController extends Controller
         return $updated;
     }
 
+    /**
+     * Marca una notificación individual como leída por su ID en una conexión.
+     */
     private function markOneReadByConnection(?string $connection, int $id): int
     {
         try {
@@ -332,6 +377,9 @@ class NotificationController extends Controller
         }
     }
 
+    /**
+     * Elimina una notificación verificando que pertenezca al usuario en una conexión.
+     */
     private function deleteByConnection(?string $connection, int $id, string $userId): int
     {
         try {
@@ -345,6 +393,9 @@ class NotificationController extends Controller
         }
     }
 
+    /**
+     * Elimina una notificación probando con cada ID candidato hasta encontrar la correcta.
+     */
     private function deleteForCandidates(?string $connection, int $id, array $candidateUserIds): int
     {
         foreach ($candidateUserIds as $candidateUserId) {
@@ -377,6 +428,9 @@ class NotificationController extends Controller
         return $candidateUserIds;
     }
 
+    /**
+     * Retorna el primer ID de usuario candidato o null si no hay ninguno.
+     */
     private function resolvePreferredUserId(?string $userId, ?string $userEmail): ?string
     {
         $candidateUserIds = $this->buildCandidateUserIds($userId, $userEmail);
@@ -387,6 +441,9 @@ class NotificationController extends Controller
         return $candidateUserIds[0];
     }
 
+    /**
+     * Resuelve el ID de un usuario legacy a partir de su correo electrónico.
+     */
     private function resolveLegacyUserIdByEmail(?string $userEmail): ?string
     {
         if ($userEmail === null || $userEmail === '') {
@@ -418,6 +475,10 @@ class NotificationController extends Controller
         return $connection ? DB::connection($connection) : DB::connection();
     }
 
+    /**
+     * Verifica que la petición tenga el token interno de servicio a servicio.
+     * Si no hay token configurado, permite el acceso (entorno de desarrollo).
+     */
     private function hasInternalAccess(Request $request): bool
     {
         $expectedToken = trim((string) config('services.internal.api_token', config('services.auth.internal_token', '')));
@@ -433,6 +494,9 @@ class NotificationController extends Controller
         return hash_equals($expectedToken, $providedToken);
     }
 
+    /**
+     * Normaliza un valor a string nullable, retornando null si está vacío.
+     */
     private function nullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));

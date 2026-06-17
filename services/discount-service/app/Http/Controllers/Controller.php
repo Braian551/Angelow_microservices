@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
-// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
-
+/**
+ * Clase base abstracta para todos los controladores del servicio de descuentos.
+ * Los controladores concretos extienden esta clase para heredar métodos comunes
+ * y mantener una estructura uniforme en el manejo de peticiones HTTP.
+ */
 abstract class Controller
 {
-    //
+    // Reservado para lógica compartida entre controladores si es necesario en el futuro.
 }

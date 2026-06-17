@@ -2,23 +2,23 @@
 
 namespace Tests\Feature;
 
-// Comentario de mantenimiento: Esta prueba protege el comportamiento esperado del servicio.
-
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Esta prueba protege el comportamiento esperado del servicio.
+ * Pruebas de integración para la API de descuentos.
+ * Verifica la validación de códigos de descuento activos y expirados,
+ * así como el comportamiento esperado del endpoint /api/discounts/validate.
  */
 class DiscountApiTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Explica la intención de test_validate_returns_valid_for_active_code dentro del flujo del servicio.
+     * Verifica que un código de descuento activo y vigente se valide correctamente
+     * y retorne valid=true con la información del descuento aplicado.
      */
-
     public function test_validate_returns_valid_for_active_code(): void
     {
         $typeId = DB::table('discount_types')->insertGetId([
@@ -54,9 +54,9 @@ class DiscountApiTest extends TestCase
     }
 
     /**
-     * Explica la intención de test_validate_returns_error_for_expired_code dentro del flujo del servicio.
+     * Verifica que un código de descuento expirado retorne error 422
+     * con el mensaje "Codigo expirado".
      */
-
     public function test_validate_returns_error_for_expired_code(): void
     {
         $typeId = DB::table('discount_types')->insertGetId([

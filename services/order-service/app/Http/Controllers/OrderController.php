@@ -21,23 +21,49 @@ use Throwable;
 
 class OrderController extends Controller
 {
+    // Conexión legacy usada como respaldo durante la migración.
     private const LEGACY_CONNECTION = 'legacy_mysql';
+
+    // ID por defecto para notificaciones de tipo orden.
     private const DEFAULT_NOTIFICATION_TYPE_ID = 1;
+
+    // Estados que pueden pasar a revisión al recibir comprobante de pago.
     private const REVIEWABLE_ORDER_STATUSES = ['pending', 'pending_payment', 'created'];
+
+    // Estado destino cuando se recibe el comprobante y se inicia la verificación.
     private const REVIEW_STATUS = 'processing';
+
+    // Lista completa de estados de orden permitidos para actualización manual.
     private const ALLOWED_ORDER_STATUS_VALUES = ['created', 'pending', 'pending_payment', 'in_review', 'en_revision', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'canceled', 'refunded'];
+    // Estados de orden que confirman la reserva de inventario.
     private const CONFIRM_RESERVATION_STATUS_VALUES = ['paid', 'confirmed', 'processing', 'completed', 'delivered'];
+
+    // Estados de orden que liberan la reserva de inventario.
     private const RELEASE_RESERVATION_STATUS_VALUES = ['cancelled', 'canceled', 'rejected', 'failed'];
+
+    // Estados de pago que confirman la reserva de inventario.
     private const CONFIRM_RESERVATION_PAYMENT_VALUES = ['paid', 'approved', 'verified'];
+
+    // Estados de pago que liberan la reserva de inventario.
     private const RELEASE_RESERVATION_PAYMENT_VALUES = ['rejected', 'failed', 'cancelled', 'canceled'];
+
+    // Caché local de perfiles de auth-service para evitar consultas repetidas.
     private array $authProfilesById = [];
 
+    /**
+     * Inyecta los servicios necesarios para operaciones de orden,
+     * facturación y reserva de inventario.
+     */
     public function __construct(
         private readonly OrderInvoiceService $orderInvoiceService,
         private readonly StockReservationService $stockReservationService,
         private readonly StockReservationRealtimePublisher $stockRealtimePublisher,
     ) {}
 
+    /**
+     * Lista órdenes del usuario. Soporta filtro por status y búsqueda
+     * por user_id o user_email. Hace fallback a legacy si no hay datos locales.
+     */
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -75,11 +101,19 @@ class OrderController extends Controller
             $orders = $this->fetchOrdersForCandidates(self::LEGACY_CONNECTION, $candidateUserIds, $status);
         }
 
+        // Retorna los resultados combinados (microservicio + legacy si aplica).
+
         return response()->json([
             'data' => $orders,
         ]);
     }
 
+    /**
+     * Muestra el detalle completo de una orden: datos del cliente,
+     * productos con imágenes y el historial de cambios de estado.
+     * Útil para que administradores y clientes vean la información
+     * completa de un pedido.
+     */
     public function show(Request $request, int $id): JsonResponse
     {
         $preferredConnection = $this->normalizeSourceConnection($request->input('source'));
@@ -89,8 +123,10 @@ class OrderController extends Controller
             return response()->json(['message' => 'Orden no encontrada'], 404);
         }
 
+        // Enriquece la orden con datos del usuario (nombre, email, teléfono).
         $order = $this->hydrateOrderCustomerIdentity($order, $sourceConnection);
 
+        // Obtiene los productos de la orden y les asigna imágenes desde el catálogo.
         $items = $this->fetchOrderItemsByConnection($sourceConnection, $id);
         $items = $this->enrichOrderItemsWithCatalogImages($items);
         $history = $this->fetchOrderHistoryByConnection($sourceConnection, $id);
@@ -102,6 +138,9 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Descarga la factura en PDF de una orden, solo si el cliente tiene permisos.
+     */
     public function downloadInvoice(Request $request, int $id)
     {
         // Reutiliza la generación de factura existente, pero valida primero que el pedido pertenezca al cliente.
@@ -139,6 +178,11 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Crea una nueva orden con sus ítems asociados, realiza la
+     * reserva de inventario y programa la expiración de la misma.
+     * Si la orden ya existe (duplicada), retorna el ID existente.
+     */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -174,6 +218,7 @@ class OrderController extends Controller
             'items.*.total' => ['required_with:items', 'numeric'],
         ]);
 
+        // Verifica duplicados por número de orden antes de crear.
         $existingOrderId = DB::table('orders')
             ->where('order_number', $data['order_number'])
             ->value('id');
@@ -192,6 +237,7 @@ class OrderController extends Controller
 
         try {
             $ordersTable = 'orders';
+            // Construye el payload base de la orden con campos siempre presentes.
             $orderPayload = [
                 'order_number' => $data['order_number'],
                 'user_id' => $data['user_id'] ?? null,
@@ -202,6 +248,7 @@ class OrderController extends Controller
                 'updated_at' => now(),
             ];
 
+            // Agrega descuento solo si la columna existe (compatibilidad entre esquemas).
             if (Schema::hasColumn($ordersTable, 'discount_amount')) {
                 $orderPayload['discount_amount'] = (float) ($data['discount_amount'] ?? 0);
             }
@@ -224,6 +271,7 @@ class OrderController extends Controller
                 'notes' => $data['notes'] ?? null,
             ];
 
+            // Itera campos opcionales incluyéndolos solo si existen en la tabla y tienen valor.
             foreach ($optionalOrderFields as $column => $value) {
                 if (!Schema::hasColumn($ordersTable, $column)) {
                     continue;
@@ -236,6 +284,7 @@ class OrderController extends Controller
 
             $id = (int) DB::table('orders')->insertGetId($orderPayload);
 
+            // Inserta los ítems de la orden si la tabla existe.
             if (Schema::hasTable('order_items')) {
                 $itemsTable = 'order_items';
 
@@ -271,6 +320,7 @@ class OrderController extends Controller
                 }
             }
 
+            // Reserva inventario (TTL configurable, por defecto 2 horas).
             $reservationTtl = (int) config('services.stock_reservations.ttl_seconds', 7200);
             $reservationResult = $this->stockReservationService->reserveForOrder(
                 orderId: $id,
@@ -279,6 +329,7 @@ class OrderController extends Controller
                 ttlSeconds: $reservationTtl,
             );
 
+            // Si la reserva falla, revierte toda la transacción.
             if (!($reservationResult['ok'] ?? false)) {
                 DB::rollBack();
 
@@ -290,10 +341,12 @@ class OrderController extends Controller
 
             DB::commit();
         } catch (Throwable $throwable) {
+            // Reversión completa ante cualquier excepción no manejada.
             DB::rollBack();
             throw $throwable;
         }
 
+        // Programa la expiración automática de la reserva si el servicio devolvió una fecha.
         if (!empty($reservationResult['expires_at'])) {
             try {
                 ExpireStockReservationJob::dispatch($id)
@@ -332,6 +385,11 @@ class OrderController extends Controller
         ], 201);
     }
 
+    /**
+     * Envía confirmación de checkout al cliente y,
+     * si el flujo de reserva está activo, mueve la orden
+     * a revisión y extiende la reserva de inventario.
+     */
     public function sendCheckoutConfirmation(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -349,12 +407,14 @@ class OrderController extends Controller
             return response()->json(['message' => 'Orden no encontrada'], 404);
         }
 
+        // Si el origen soporta el flujo de reservas, procesa transición a revisión.
         if ($this->supportsReservationWorkflow($sourceConnection)) {
             $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], $sourceConnection);
             $oldStatus = $statusColumn
                 ? ($order->{$statusColumn} ?? $order->status ?? $order->order_status ?? null)
                 : ($order->status ?? $order->order_status ?? null);
 
+            // Cambia el estado a "en revisión" si la orden está en un estado reviewable.
             if ($statusColumn !== null && $this->shouldMoveOrderToReview($oldStatus)) {
                 $this->query($sourceConnection)->table('orders')->where('id', $id)->update([
                     $statusColumn => self::REVIEW_STATUS,
@@ -382,6 +442,7 @@ class OrderController extends Controller
                 );
             }
 
+            // Extiende la reserva de stock para dar tiempo a la verificación del pago.
             $extensionTtl = (int) config('services.stock_reservations.extend_on_confirmation_seconds', 1800);
             if ($extensionTtl > 0) {
                 try {
@@ -414,6 +475,12 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Actualiza el estado de una orden, gestionando reservas de
+     * inventario (confirmar o liberar según el destino) y generando
+     * factura si corresponde. También maneja transiciones automáticas
+     * de estado de pago hacia pending_refund.
+     */
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -440,12 +507,15 @@ class OrderController extends Controller
         $oldPaymentStatus = $paymentStatusColumn
             ? ($order->{$paymentStatusColumn} ?? $order->payment_status ?? null)
             : ($order->payment_status ?? null);
+        // Determina si debe pasar a pendiente de reembolso cuando se cancela con pago previo.
         $shouldMoveToPendingRefund = $paymentStatusColumn !== null
             && $this->shouldMoveToPendingRefund($data['status'], $oldPaymentStatus, $oldStatus);
         $newPaymentStatus = $shouldMoveToPendingRefund ? 'pending_refund' : null;
         $targetStatus = (string) $data['status'];
 
+        // Gestiona reserva de inventario según el estado destino.
         if ($this->supportsReservationWorkflow($sourceConnection)) {
+            // Confirma la reserva si el nuevo estado requiere inventario asegurado.
             if ($this->shouldConfirmReservationForOrderStatus($targetStatus)) {
                 $confirmResult = $this->stockReservationService->confirmReservation($id);
                 if (!($confirmResult['ok'] ?? false)) {
@@ -458,6 +528,7 @@ class OrderController extends Controller
                         'code' => $errorCode,
                     ], $httpStatus);
                 }
+            // Libera la reserva si el nuevo estado es de cancelación o rechazo.
             } elseif ($this->shouldReleaseReservationForOrderStatus($targetStatus)) {
                 $releaseResult = $this->stockReservationService->releaseReservation(
                     orderId: $id,
@@ -487,8 +558,10 @@ class OrderController extends Controller
             $updatePayload[$paymentStatusColumn] = $newPaymentStatus;
         }
 
+        // Persiste los cambios de estado en la BD del origen correspondiente.
         $this->query($sourceConnection)->table('orders')->where('id', $id)->update($updatePayload);
 
+        // Registra el cambio en el historial de estados de la orden.
         $this->insertOrderHistory($sourceConnection, [
             'order_id' => $id,
             'changed_by' => $data['changed_by'] ?? null,
@@ -502,6 +575,7 @@ class OrderController extends Controller
         ]);
 
         if ($newPaymentStatus !== null && !$this->sameNormalizedValue($oldPaymentStatus, $newPaymentStatus)) {
+            // Registra el cambio automático de estado de pago en el historial.
             $this->insertOrderHistory($sourceConnection, [
                 'order_id' => $id,
                 'changed_by' => $data['changed_by'] ?? null,
@@ -517,6 +591,7 @@ class OrderController extends Controller
 
         $hydratedOrder = $this->hydrateOrderCustomerIdentity($order, $sourceConnection);
 
+        // Notifica del cambio de estado si realmente hubo modificación.
         if (!$this->sameNormalizedValue($oldStatus, $data['status'])) {
             $this->notifyOrderUpdateChannels(
                 $hydratedOrder,
@@ -527,6 +602,7 @@ class OrderController extends Controller
             );
         }
 
+        // Notifica del cambio de pago si aplica (todavía no está en sameNormalizedValue).
         if ($newPaymentStatus !== null && !$this->sameNormalizedValue($oldPaymentStatus, $newPaymentStatus)) {
             $this->notifyOrderUpdateChannels(
                 $hydratedOrder,
@@ -537,6 +613,7 @@ class OrderController extends Controller
             );
         }
 
+        // Verifica si debe generar factura para órdenes completadas (lo delega al servicio).
         $invoiceResult = $this->orderInvoiceService->ensureInvoiceForCompletedOrder($id, $sourceConnection);
 
         return response()->json([
@@ -545,6 +622,11 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Actualiza el estado de pago de una orden, con manejo de
+     * confirmación/liberación de reserva de inventario, cancelación
+     * automática por falta de stock, y notificaciones al cliente.
+     */
     public function updatePaymentStatus(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -702,6 +784,11 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Desactiva (cancela) una orden desde administración.
+     * Libera la reserva de inventario, registra historial y
+     * notifica al cliente del cambio.
+     */
     public function deactivate(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -812,6 +899,11 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Cancela una orden desde el frontend del cliente.
+     * Valida permisos, libera inventario, y maneja la
+     * lógica de reembolso si el pedido ya fue pagado.
+     */
     public function cancel(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -829,6 +921,7 @@ class OrderController extends Controller
             return response()->json(['message' => 'Orden no encontrada'], 404);
         }
 
+        // Verifica que el cliente sea el propietario de la orden antes de cancelar.
         if (!$this->canCustomerManageOrder(
             $order,
             $sourceConnection,
@@ -846,12 +939,14 @@ class OrderController extends Controller
         }
 
         $oldStatus = trim((string) ($order->{$statusColumn} ?? $order->status ?? $order->order_status ?? ''));
+        // Previene doble cancelación.
         if ($this->sameNormalizedValue($oldStatus, 'cancelled') || $this->sameNormalizedValue($oldStatus, 'canceled')) {
             return response()->json([
                 'message' => 'La orden ya se encuentra cancelada.',
             ], 422);
         }
 
+        // Restringe cancelación solo a estados permitidos para el cliente.
         if (!$this->isCustomerCancelableStatus($oldStatus)) {
             return response()->json([
                 'message' => 'Solo se pueden cancelar pedidos pendientes o en proceso.',
@@ -943,6 +1038,11 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Actualiza campos administrativos de una orden (datos de
+     * contacto, dirección, método de pago, notas). Usa un mapeo
+     * de campos para adaptarse al esquema de la BD destino.
+     */
     public function update(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -1067,6 +1167,10 @@ class OrderController extends Controller
             ->values();
     }
 
+    /**
+     * Busca una orden por ID en la conexión indicada y
+     * etiqueta el origen (microservicio o legacy).
+     */
     private function findOrderByConnection(?string $connection, int $orderId): ?object
     {
         try {
@@ -1085,6 +1189,9 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Obtiene los ítems de una orden desde la conexión indicada.
+     */
     private function fetchOrderItemsByConnection(?string $connection, int $orderId): Collection
     {
         try {
@@ -1097,6 +1204,11 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Enriquece los ítems de la orden con imágenes del catálogo
+     * de productos. Usa el servicio de catálogo interno
+     * (services/catalog) para resolver la URL de cada imagen.
+     */
     private function enrichOrderItemsWithCatalogImages(Collection $items): Collection
     {
         if ($items->isEmpty()) {
@@ -1165,6 +1277,10 @@ class OrderController extends Controller
         })->values();
     }
 
+    /**
+     * Resuelve la URL base del endpoint de productos del catálogo
+     * para consultar imágenes. Utilizado por enrichOrderItemsWithCatalogImages.
+     */
     private function resolveCatalogProductImageEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.catalog.base_url', 'http://catalog-service:8000/api'));
@@ -1181,6 +1297,10 @@ class OrderController extends Controller
         return $baseUrl . '/api/internal/products';
     }
 
+    /**
+     * Selecciona la primera imagen de producto disponible
+     * entre las candidatas (primary, image_path, image, image_url).
+     */
     private function pickCatalogProductImage(array $payload): ?string
     {
         $candidates = [
@@ -1200,6 +1320,10 @@ class OrderController extends Controller
         return null;
     }
 
+    /**
+     * Recupera el historial de cambios de estado de una orden
+     * desde la tabla order_status_history.
+     */
     private function fetchOrderHistoryByConnection(?string $connection, int $orderId): Collection
     {
         try {
@@ -1217,6 +1341,10 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Completa los datos del cliente (nombre, email, teléfono)
+     * en la orden consultando la tabla users o el auth-service.
+     */
     private function hydrateOrderCustomerIdentity(object $order, ?string $sourceConnection): object
     {
         $currentName = trim((string) ($order->user_name ?? $order->customer_name ?? $order->billing_name ?? ''));
@@ -1256,6 +1384,10 @@ class OrderController extends Controller
         return $order;
     }
 
+    /**
+     * Busca un usuario por ID, primero en la tabla users de la
+     * conexión dada y luego como fallback en auth-service.
+     */
     private function findUserById(?string $connection, string $userId): ?object
     {
         $user = null;
@@ -1284,6 +1416,11 @@ class OrderController extends Controller
         return (object) $authProfile;
     }
 
+    /**
+     * Consulta el perfil de un usuario en auth-service
+     * utilizando un endpoint interno con token opcional.
+     * Los resultados se cachean localmente en $authProfilesById.
+     */
     private function findAuthUserById(string $userId): ?array
     {
         $normalizedUserId = trim($userId);
@@ -1360,6 +1497,10 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Resuelve la URL del endpoint de perfiles internos
+     * del auth-service para obtener datos de usuario.
+     */
     private function resolveAuthProfilesEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
@@ -1430,6 +1571,10 @@ class OrderController extends Controller
         return $connection ? DB::connection($connection) : DB::connection();
     }
 
+    /**
+     * Determina en qué conexión (microservicio o legacy) existe
+     * la orden. Si se prefiere legacy, lo prueba primero.
+     */
     private function resolveOrderSource(int $orderId, ?string $preferredConnection = null): array
     {
         $connections = $preferredConnection === self::LEGACY_CONNECTION
@@ -1446,6 +1591,10 @@ class OrderController extends Controller
         return ['order' => null, 'connection' => null];
     }
 
+    /**
+     * Normaliza el parámetro source a la constante de conexión
+     * legacy o null para el microservicio por defecto.
+     */
     private function normalizeSourceConnection(mixed $source): ?string
     {
         $value = strtolower(trim((string) ($source ?? '')));
@@ -1457,16 +1606,27 @@ class OrderController extends Controller
         return null;
     }
 
+    /**
+     * Retorna el nombre de conexión o el default si es null.
+     */
     private function resolveConnectionName(?string $connection): string
     {
         return $connection ?: config('database.default');
     }
 
+    /**
+     * Verifica si una tabla existe en la conexión indicada.
+     */
     private function hasTable(string $table, ?string $connection): bool
     {
         return Schema::connection($this->resolveConnectionName($connection))->hasTable($table);
     }
 
+    /**
+     * Retorna la primera columna existente entre las candidatas
+     * en la tabla y conexión dadas. Útil para lidiar con esquemas
+     * legacy que usan nombres de columna distintos.
+     */
     private function firstExistingColumn(string $table, array $candidates, ?string $connection): ?string
     {
         $connectionName = $this->resolveConnectionName($connection);
@@ -1479,6 +1639,10 @@ class OrderController extends Controller
         return null;
     }
 
+    /**
+     * Inserta un registro en order_status_history de forma segura,
+     * tolerando que la tabla no exista (ej: entornos sin historial).
+     */
     private function insertOrderHistory(?string $connection, array $payload): void
     {
         try {
@@ -1492,6 +1656,10 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Verifica si un cliente (por user_id o user_email) es el
+     * propietario de la orden, para autorizar cancelación o descarga.
+     */
     private function canCustomerManageOrder(object $order, ?string $sourceConnection, ?string $userId, ?string $userEmail): bool
     {
         $normalizedUserEmail = $this->nullableString($userEmail);
@@ -1517,6 +1685,10 @@ class OrderController extends Controller
         return false;
     }
 
+    /**
+     * Determina si el estado actual permite cancelación por parte
+     * del cliente (pendiente, en proceso, confirmado o pagado).
+     */
     private function isCustomerCancelableStatus(?string $status): bool
     {
         $normalized = Str::lower(trim((string) ($status ?? '')));
@@ -1524,6 +1696,10 @@ class OrderController extends Controller
         return in_array($normalized, ['pending', 'processing', 'confirmed', 'paid'], true);
     }
 
+    /**
+     * Indica si la cancelación de una orden debe activar un
+     * proceso de reembolso, basado en el estado de pago actual.
+     */
     private function requiresRefundOnCancel(?string $paymentStatus, ?string $orderStatus): bool
     {
         $normalizedPaymentStatus = Str::lower(trim((string) ($paymentStatus ?? '')));
@@ -1535,6 +1711,10 @@ class OrderController extends Controller
         return $normalizedPaymentStatus === '' && in_array($normalizedOrderStatus, ['paid', 'confirmed'], true);
     }
 
+    /**
+     * Evalúa si se debe mover el pago a pending_refund
+     * cuando se cancela una orden que ya tenía un pago confirmado.
+     */
     private function shouldMoveToPendingRefund(?string $targetStatus, ?string $paymentStatus, ?string $orderStatus): bool
     {
         if (
@@ -1552,41 +1732,69 @@ class OrderController extends Controller
         return !in_array($normalizedPaymentStatus, ['pending_refund', 'refunded'], true);
     }
 
+    /**
+     * Indica si la conexión soporta el flujo de reserva de
+     * inventario (solo el microservicio, no legacy).
+     */
     private function supportsReservationWorkflow(?string $sourceConnection): bool
     {
         return $sourceConnection !== self::LEGACY_CONNECTION;
     }
 
+    /**
+     * Determina si la orden debe pasar a revisión al recibir
+     * un comprobante de pago, según los estados reviewable definidos.
+     */
     private function shouldMoveOrderToReview(?string $status): bool
     {
         $normalizedStatus = Str::lower(trim((string) ($status ?? '')));
         return in_array($normalizedStatus, self::REVIEWABLE_ORDER_STATUSES, true);
     }
 
+    /**
+     * Determina si un estado de orden debe confirmar la reserva
+     * de inventario (paid, confirmed, processing, etc.).
+     */
     private function shouldConfirmReservationForOrderStatus(?string $status): bool
     {
         $normalizedStatus = Str::lower(trim((string) ($status ?? '')));
         return in_array($normalizedStatus, self::CONFIRM_RESERVATION_STATUS_VALUES, true);
     }
 
+    /**
+     * Determina si un estado de orden debe liberar la reserva
+     * de inventario (cancelled, rejected, failed).
+     */
     private function shouldReleaseReservationForOrderStatus(?string $status): bool
     {
         $normalizedStatus = Str::lower(trim((string) ($status ?? '')));
         return in_array($normalizedStatus, self::RELEASE_RESERVATION_STATUS_VALUES, true);
     }
 
+    /**
+     * Determina si un estado de pago debe confirmar la reserva
+     * de inventario (paid, approved, verified).
+     */
     private function shouldConfirmReservationForPaymentStatus(?string $paymentStatus): bool
     {
         $normalizedPaymentStatus = Str::lower(trim((string) ($paymentStatus ?? '')));
         return in_array($normalizedPaymentStatus, self::CONFIRM_RESERVATION_PAYMENT_VALUES, true);
     }
 
+    /**
+     * Determina si un estado de pago debe liberar la reserva
+     * de inventario (rejected, failed, cancelled).
+     */
     private function shouldReleaseReservationForPaymentStatus(?string $paymentStatus): bool
     {
         $normalizedPaymentStatus = Str::lower(trim((string) ($paymentStatus ?? '')));
         return in_array($normalizedPaymentStatus, self::RELEASE_RESERVATION_PAYMENT_VALUES, true);
     }
 
+    /**
+     * Determina si el pago rechazado/fallido debe provocar la
+     * cancelación automática de la orden.
+     */
     private function shouldAutoCancelOrderForPaymentStatus(?string $paymentStatus): bool
     {
         $normalizedPaymentStatus = Str::lower(trim((string) ($paymentStatus ?? '')));
@@ -1603,6 +1811,10 @@ class OrderController extends Controller
             && in_array($normalizedPaymentStatus, ['paid', 'approved', 'verified'], true);
     }
 
+    /**
+     * Genera una descripción por defecto para el historial cuando
+     * cambia el estado de pago, explicando automatizaciones.
+     */
     private function defaultPaymentStatusChangeDescription(?string $orderStatus, ?string $requestedPaymentStatus, string $targetPaymentStatus): string
     {
         // Explica la automatización para que el historial no parezca una edición manual contradictoria.
@@ -1613,6 +1825,11 @@ class OrderController extends Controller
         return 'Cambio de estado de pago de la orden';
     }
 
+    /**
+     * Cancela la orden y marca el pago como fallido cuando
+     * la reserva de inventario no pudo confirmarse por falta
+     * de stock. Notifica al cliente automáticamente.
+     */
     private function cancelOrderByInventoryConflict(
         int $orderId,
         object $order,
@@ -1690,6 +1907,10 @@ class OrderController extends Controller
         );
     }
 
+    /**
+     * Notifica la creación de una orden al cliente vía
+     * notificación push y correo electrónico.
+     */
     private function notifyOrderCreationChannels(object $order, ?string $sourceConnection): void
     {
         $orderId = (int) ($order->id ?? 0);
@@ -1716,6 +1937,10 @@ class OrderController extends Controller
         $this->sendOrderUpdateEmail($customerEmail, $customerName, $subject, $title, $message, $orderLabel);
     }
 
+    /**
+     * Notifica la cancelación de una orden al cliente y,
+     * si aplica, envía correo al equipo de reembolsos.
+     */
     private function notifyOrderCancellationChannels(object $order, ?string $sourceConnection, bool $requiresRefund, ?string $reason): void
     {
         $orderId = (int) ($order->id ?? 0);
@@ -1747,6 +1972,10 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Construye el mensaje de notificación para el cliente
+     * según si requiere reembolso o no, incluyendo el motivo.
+     */
     private function buildOrderCancellationMessage(string $orderLabel, bool $requiresRefund, ?string $reason): string
     {
         $message = $requiresRefund
@@ -1761,6 +1990,11 @@ class OrderController extends Controller
         return $message;
     }
 
+    /**
+     * Envía un correo al equipo financiero con los detalles de
+     * la solicitud de reembolso cuando un cliente cancela un
+     * pedido ya pagado.
+     */
     private function sendRefundTeamEmail(object $order, ?string $sourceConnection, string $orderLabel, ?string $reason): bool
     {
         $teamEmail = $this->nullableString(config('services.refunds.team_email'));
@@ -1802,6 +2036,10 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Genera el HTML del correo de solicitud de reembolso
+     * dirigido al equipo financiero.
+     */
     private function buildRefundTeamEmailHtml(
         string $orderLabel,
         string $customerName,
@@ -1854,6 +2092,10 @@ class OrderController extends Controller
 HTML;
     }
 
+    /**
+     * Notifica cambios de estado a través de canales en tiempo
+     * real (websocket), notificaciones push y correo electrónico.
+     */
     private function notifyOrderUpdateChannels(object $order, ?string $sourceConnection, string $field, ?string $oldValue, ?string $newValue): void
     {
         $normalizedNewValue = $this->nullableString($newValue);
@@ -1893,6 +2135,11 @@ HTML;
         $this->sendOrderUpdateEmail($customerEmail, $customerName, $subject, $title, $message, $orderLabel);
     }
 
+    /**
+     * Publica el cambio de estado en el canal en tiempo real
+     * reutilizando StockReservationRealtimePublisher para que
+     * el gateway websocket entregue actualizaciones de pedido.
+     */
     private function publishOrderStatusRealtimeUpdate(object $order, ?string $sourceConnection, string $field, ?string $oldValue, string $newValue): void
     {
         $orderId = (int) ($order->id ?? 0);
@@ -1918,6 +2165,10 @@ HTML;
         $this->stockRealtimePublisher->publish($event, $payload);
     }
 
+    /**
+     * Construye el mensaje legible para el cliente sobre la
+     * actualización de estado o pago de su orden.
+     */
     private function buildOrderUpdateMessage(string $field, string $orderLabel, ?string $oldValue, string $newValue): string
     {
         $oldLabel = $this->normalizeOperationalLabel($oldValue, $field);
@@ -1938,6 +2189,10 @@ HTML;
         return "La orden {$orderLabel} cambió de estado: {$oldLabel} a {$newLabel}.";
     }
 
+    /**
+     * Convierte un valor de estado interno a una etiqueta
+     * legible en español para mostrar al cliente.
+     */
     private function normalizeOperationalLabel(?string $value, string $field): ?string
     {
         $normalized = Str::lower(trim((string) ($value ?? '')));
@@ -1992,6 +2247,11 @@ HTML;
         return Str::title(str_replace(['_', '-'], ' ', $normalized));
     }
 
+    /**
+     * Envía una notificación push al usuario a través del
+     * notification-service, registrando el evento en la BD
+     * de notificaciones del sistema.
+     */
     private function sendOrderNotification(string $userId, int $orderId, string $title, string $message): bool
     {
         $endpoint = $this->resolveNotificationEndpoint();
@@ -2032,6 +2292,10 @@ HTML;
         }
     }
 
+    /**
+     * Envía un correo de actualización de orden al cliente
+     * usando una plantilla HTML predefinida.
+     */
     private function sendOrderUpdateEmail(string $email, string $customerName, string $subject, string $title, string $message, string $orderLabel): bool
     {
         try {
@@ -2054,6 +2318,10 @@ HTML;
         }
     }
 
+    /**
+     * Genera el HTML del correo de actualización de orden
+     * usando una plantilla responsive con branding de Angelow.
+     */
     private function buildOrderUpdateEmailHtml(string $customerName, string $title, string $message, string $orderLabel): string
     {
         $safeName = e($customerName);
@@ -2111,6 +2379,11 @@ HTML;
 HTML;
     }
 
+    /**
+     * Obtiene el correo del cliente asociado a la orden,
+     * probando múltiples campos candidatos y con fallback
+     * a la tabla users o auth-service. Reutiliza findUserById.
+     */
     private function resolveOrderCustomerEmail(object $order, ?string $sourceConnection): ?string
     {
         $candidates = [
@@ -2143,6 +2416,10 @@ HTML;
         return $email;
     }
 
+    /**
+     * Obtiene el nombre del cliente asociado a la orden,
+     * probando campos candidatos y con fallback a users/auth-service.
+     */
     private function resolveOrderCustomerName(object $order, ?string $sourceConnection): string
     {
         $candidates = [
@@ -2173,6 +2450,10 @@ HTML;
         return 'Cliente';
     }
 
+    /**
+     * Resuelve la URL del endpoint de notificaciones
+     * del notification-service para crear notificaciones push.
+     */
     private function resolveNotificationEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.notifications.base_url', 'http://notification-service:8000/api'));
@@ -2189,11 +2470,19 @@ HTML;
         return $baseUrl . '/api/notifications';
     }
 
+    /**
+     * Compara dos valores string normalizándolos (minúsculas, trim)
+     * para evitar falsos negativos por diferencias de formato.
+     */
     private function sameNormalizedValue(?string $left, ?string $right): bool
     {
         return Str::lower(trim((string) ($left ?? ''))) === Str::lower(trim((string) ($right ?? '')));
     }
 
+    /**
+     * Normaliza un valor mixto a string nulleable: si es vacío
+     * retorna null, en caso contrario el string trim.
+     */
     private function nullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));

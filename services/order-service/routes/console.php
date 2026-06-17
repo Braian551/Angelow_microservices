@@ -1,5 +1,10 @@
 <?php
 
+/*
+ * Definición de la programación de tareas en consola (schedule).
+ * Configura los jobs recurrentes para el servicio de órdenes.
+ */
+
 use App\Jobs\ReconcileStockReservationsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;

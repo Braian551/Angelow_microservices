@@ -2,23 +2,24 @@
 
 namespace App\Models;
 
-// Comentario de mantenimiento: Este modelo define la relación del dominio con su tabla y sus campos persistibles.
-
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Este modelo define la relación del dominio con su tabla y sus campos persistibles.
+ * Modelo que representa los tipos de descuento disponibles en el sistema.
+ * Ejemplos: 'percentage' (porcentual), 'fixed_amount' (monto fijo).
+ * Se relaciona con DiscountCode para categorizar cada cupón.
  */
 class DiscountType extends Model
 {
     protected $table = 'discount_types';
 
     protected $fillable = [
-        'name',
-        'description',
-        'is_active',
+        'name',        // Nombre interno del tipo (percentage, fixed_amount)
+        'description', // Descripción legible del tipo de descuento
+        'is_active',   // Indica si el tipo está habilitado
     ];
 
+    // Convierte is_active a booleano automáticamente al acceder al atributo.
     protected $casts = [
         'is_active' => 'boolean',
     ];

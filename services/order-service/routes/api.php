@@ -1,5 +1,10 @@
 <?php
 
+/*
+ * Rutas de la API REST para el servicio de órdenes (order-service).
+ * Agrupa rutas públicas, de administración y reportes.
+ */
+
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminInvoiceController;
 use App\Http\Controllers\HealthController;

@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers;
 
-// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
-
 use Illuminate\Http\JsonResponse;
 
 /**
- * Centraliza endpoints del dominio y traduce peticiones HTTP a respuestas del servicio.
+ * Controlador de salud del servicio de descuentos.
+ * Expone un endpoint para que el orquestador (Docker/k8s) verifique
+ * que el servicio está corriendo correctamente.
  */
 class HealthController extends Controller
 {
     /**
-     * Explica la intención de __invoke dentro del flujo del servicio.
+     * Responde con estado OK y la marca de tiempo actual.
+     * Usado por health checks de infraestructura.
      */
     public function __invoke(): JsonResponse
     {

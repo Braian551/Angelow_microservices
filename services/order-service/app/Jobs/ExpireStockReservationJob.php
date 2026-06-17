@@ -14,6 +14,12 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Job que expira una reserva de stock cuando se supera el tiempo límite.
+ *
+ * Si la orden no ha sido pagada antes del vencimiento de la reserva,
+ * este job cancela la orden automáticamente y notifica al cliente.
+ */
 class ExpireStockReservationJob implements ShouldQueue
 {
     use Queueable;
@@ -21,24 +27,38 @@ class ExpireStockReservationJob implements ShouldQueue
     public int $tries = 5;
     public int $timeout = 120;
 
+    /**
+     * Crea una nueva instancia del job.
+     *
+     * @param int $orderId Identificador de la orden a expirar.
+     */
     public function __construct(
         public readonly int $orderId,
     ) {
         $this->onQueue('orders');
     }
 
+    /**
+     * Ejecuta la lógica de expiración de la reserva.
+     *
+     * @param StockReservationService $reservationService Servicio de reservas.
+     * @param StockReservationRealtimePublisher $realtimePublisher Publicador de eventos en tiempo real.
+     */
     public function handle(StockReservationService $reservationService, StockReservationRealtimePublisher $realtimePublisher): void
     {
         $result = $reservationService->expireReservation($this->orderId);
+        // Si la expiración falló, lanzar excepción para reintentar
         if (!($result['ok'] ?? false)) {
             throw new RuntimeException((string) ($result['message'] ?? 'Falló la cancelación automática de la reserva de stock.'));
         }
 
+        // Si no se liberó ninguna reserva, no hay nada más que hacer
         if ((int) ($result['released'] ?? 0) <= 0) {
             return;
         }
 
         $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status']);
+        // Si no se encuentra la columna de estado, salir
         if ($statusColumn === null) {
             return;
         }
@@ -49,11 +69,13 @@ class ExpireStockReservationJob implements ShouldQueue
                 ->lockForUpdate()
                 ->first();
 
+            // Si la orden no existe, retornar nulo
             if (!$order) {
                 return null;
             }
 
             $currentStatus = Str::lower(trim((string) ($order->{$statusColumn} ?? '')));
+            // Si la orden ya está en un estado terminal, no hacer nada
             if (in_array($currentStatus, ['cancelled', 'canceled', 'completed', 'delivered'], true)) {
                 return null;
             }
@@ -66,6 +88,7 @@ class ExpireStockReservationJob implements ShouldQueue
                     'updated_at' => now(),
                 ]);
 
+            // Registrar el cambio en el historial de estados si la tabla existe
             if (Schema::hasTable('order_status_history')) {
                 DB::table('order_status_history')->insert([
                     'order_id' => $this->orderId,
@@ -97,6 +120,7 @@ class ExpireStockReservationJob implements ShouldQueue
             ];
         });
 
+        // Si no hay payload de notificación, salir
         if ($notificationPayload === null) {
             return;
         }
@@ -105,14 +129,21 @@ class ExpireStockReservationJob implements ShouldQueue
         $this->sendCustomerNotification($notificationPayload);
     }
 
+    /**
+     * Envía una notificación al cliente sobre la cancelación automática.
+     *
+     * @param array $payload Datos de la notificación.
+     */
     private function sendCustomerNotification(array $payload): void
     {
         $userId = trim((string) ($payload['user_id'] ?? ''));
+        // Si no hay usuario asociado, omitir notificación
         if ($userId === '') {
             return;
         }
 
         $endpoint = $this->resolveNotificationEndpoint();
+        // Si no se pudo resolver el endpoint, omitir
         if ($endpoint === null) {
             return;
         }
@@ -130,6 +161,7 @@ class ExpireStockReservationJob implements ShouldQueue
                     'related_entity_id' => (int) ($payload['order_id'] ?? 0) ?: null,
                 ]);
 
+            // Si la notificación falló, registrar advertencia
             if (!$response->successful()) {
                 Log::warning('No se pudo registrar notificación de cancelación automática por reserva.', [
                     'order_id' => $payload['order_id'] ?? null,
@@ -145,9 +177,15 @@ class ExpireStockReservationJob implements ShouldQueue
         }
     }
 
+    /**
+     * Resuelve la URL del endpoint de notificaciones.
+     *
+     * @return string|null URL completa del endpoint o nulo si no está configurado.
+     */
     private function resolveNotificationEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.notifications.base_url', 'http://notification-service:8000/api'));
+        // Si no hay URL base configurada, retornar nulo
         if ($baseUrl === '') {
             return null;
         }
@@ -161,6 +199,13 @@ class ExpireStockReservationJob implements ShouldQueue
         return $baseUrl . '/api/notifications';
     }
 
+    /**
+     * Encuentra la primera columna existente en una tabla entre una lista de candidatas.
+     *
+     * @param string $table Nombre de la tabla.
+     * @param array $candidates Lista de nombres de columna candidatos.
+     * @return string|null Nombre de la primera columna encontrada, o nulo si ninguna existe.
+     */
     private function firstExistingColumn(string $table, array $candidates): ?string
     {
         foreach ($candidates as $column) {
