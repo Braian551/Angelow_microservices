@@ -1,5 +1,18 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración CORS del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Permite solicitudes cross-origin desde cualquier origen (*)
+| hacia las rutas /api/* y sanctum/csrf-cookie.
+|
+| En producción se recomienda restringir allowed_origins a los
+| dominios específicos del frontend para mayor seguridad.
+|
+*/
+
 return [
 
     /*

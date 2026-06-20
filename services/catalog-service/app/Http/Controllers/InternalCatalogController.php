@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
+
+use App\Services\StockRealtimePublisher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -9,8 +12,14 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
+/**
+ * Centraliza endpoints del dominio y traduce peticiones HTTP a respuestas del servicio.
+ */
 class InternalCatalogController extends Controller
 {
+    /**
+     * Explica la intención de product dentro del flujo del servicio.
+     */
     public function product(int $id): JsonResponse
     {
         $product = DB::table('products as p')
@@ -24,6 +33,8 @@ class InternalCatalogController extends Controller
                 'p.id',
                 'p.name',
                 'p.slug',
+                'p.is_refundable',
+                'p.refund_days',
                 'pi.image_path as primary_image',
             ])
             ->first();
@@ -34,6 +45,10 @@ class InternalCatalogController extends Controller
 
         return response()->json(['data' => (array) $product]);
     }
+
+    /**
+     * Explica la intención de variant dentro del flujo del servicio.
+     */
 
     public function variant(int $id): JsonResponse
     {
@@ -76,6 +91,10 @@ class InternalCatalogController extends Controller
 
         return response()->json(['data' => $payload]);
     }
+
+    /**
+     * Explica la intención de commitInventory dentro del flujo del servicio.
+     */
 
     public function commitInventory(Request $request): JsonResponse
     {
@@ -204,6 +223,24 @@ class InternalCatalogController extends Controller
                 );
             }
 
+            app(StockRealtimePublisher::class)->publish('stock.inventory.committed', [
+                'source' => 'catalog-order-commit',
+                'history_updated' => true,
+                'order_id' => (int) $data['order_id'],
+                'strict_reservation' => $strictReservation,
+                'items' => array_map(function (array $item): array {
+                    $snapshot = $this->buildRealtimeStockSnapshot(
+                        (int) ($item['size_variant_id'] ?? 0),
+                        (int) ($item['stock_after'] ?? 0),
+                    );
+
+                    return [
+                        ...$snapshot,
+                        'committed_quantity' => (int) ($item['committed_quantity'] ?? 0),
+                    ];
+                }, $processed),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Inventario confirmado correctamente.',
@@ -223,6 +260,10 @@ class InternalCatalogController extends Controller
         }
     }
 
+    /**
+     * Explica la intención de resolveStockColumn dentro del flujo del servicio.
+     */
+
     private function resolveStockColumn(): string
     {
         foreach (['stock', 'quantity'] as $column) {
@@ -234,20 +275,37 @@ class InternalCatalogController extends Controller
         return '';
     }
 
+    /**
+     * Calcula stock disponible restando reservas activas y usando el inventario físico como respaldo.
+     */
+
     private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
     {
         $safeFallback = max(0, $fallbackQuantity);
 
         try {
             $stockValue = Redis::get("stock:{$sizeVariantId}");
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            $reserved = $reservedValue !== null && is_numeric((string) $reservedValue)
+                ? max(0, (int) $reservedValue)
+                : 0;
+
             if ($stockValue !== null && is_numeric((string) $stockValue)) {
-                return max(0, (int) $stockValue);
+                $available = max(0, (int) $stockValue);
+
+                // Reutiliza la BD de catálogo como fuente física cuando Redis queda con snapshot huérfano.
+                if (($available + $reserved) !== $safeFallback) {
+                    $available = max(0, $safeFallback - $reserved);
+                    Redis::set("stock:{$sizeVariantId}", (string) $available);
+                }
+
+                return $available;
             }
 
-            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
-            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
-                $reserved = max(0, (int) $reservedValue);
-                return max(0, $safeFallback - $reserved);
+            if ($reserved > 0) {
+                $available = max(0, $safeFallback - $reserved);
+                Redis::set("stock:{$sizeVariantId}", (string) $available);
+                return $available;
             }
         } catch (Throwable) {
             // Fallback a inventario en base de datos si Redis no esta disponible.
@@ -255,6 +313,10 @@ class InternalCatalogController extends Controller
 
         return $safeFallback;
     }
+
+    /**
+     * Explica la intención de resolveReservationAwareCommitStock dentro del flujo del servicio.
+     */
 
     private function resolveReservationAwareCommitStock(int $sizeVariantId, int $fallbackQuantity): int
     {
@@ -273,6 +335,46 @@ class InternalCatalogController extends Controller
             return max(0, $availableStock + $reservedStock);
         } catch (Throwable) {
             return $safeFallback;
+        }
+    }
+
+    /**
+     * Explica la intención de buildRealtimeStockSnapshot dentro del flujo del servicio.
+     */
+
+    private function buildRealtimeStockSnapshot(int $sizeVariantId, int $databaseStock): array
+    {
+        $snapshot = [
+            'size_variant_id' => $sizeVariantId,
+            'database_stock' => max(0, $databaseStock),
+            'available_stock' => max(0, $databaseStock),
+            'reserved_stock' => 0,
+        ];
+
+        if ($sizeVariantId <= 0) {
+            return $snapshot;
+        }
+
+        try {
+            $stockValue = Redis::get("stock:{$sizeVariantId}");
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+
+            $availableStock = $stockValue !== null && is_numeric((string) $stockValue)
+                ? max(0, (int) $stockValue)
+                : max(0, $databaseStock);
+
+            $reservedStock = $reservedValue !== null && is_numeric((string) $reservedValue)
+                ? max(0, (int) $reservedValue)
+                : 0;
+
+            return [
+                'size_variant_id' => $sizeVariantId,
+                'database_stock' => max(0, $databaseStock),
+                'available_stock' => $availableStock,
+                'reserved_stock' => $reservedStock,
+            ];
+        } catch (Throwable) {
+            return $snapshot;
         }
     }
 }

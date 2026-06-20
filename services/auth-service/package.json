@@ -2,6 +2,7 @@
     "$schema": "https://www.schemastore.org/package.json",
     "private": true,
     "type": "module",
+    "description": "Dependencias Node del auth-service para compilar assets con Vite + Tailwind. Las dependencias reales del backend están en composer.json.",
     "scripts": {
         "build": "vite build",
         "dev": "vite"

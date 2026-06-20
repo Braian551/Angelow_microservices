@@ -12,10 +12,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Login Controller
+ * Controlador de autenticación (login/logout/Google/me).
  *
- * Handles user authentication via API.
- * Delegates business logic to AuthService.
+ * Agrupa los endpoints públicos y protegidos de sesión.
+ * Delega la lógica de negocio a AuthService y normaliza
+ * las rutas de imágenes para el frontend SPA.
  */
 class LoginController extends Controller
 {
@@ -24,9 +25,11 @@ class LoginController extends Controller
     ) {}
 
     /**
-     * Authenticate a user.
+     * Autentica un usuario con correo/teléfono y contraseña.
      *
      * POST /api/auth/login
+     * Recibe: credential (email o phone), password
+     * Retorna: datos del usuario + token Bearer
      */
     public function login(LoginRequest $request): JsonResponse
     {
@@ -60,9 +63,11 @@ class LoginController extends Controller
     }
 
     /**
-     * Authenticate a user with Google (Firebase ID token).
+     * Autentica un usuario mediante token ID de Google (Firebase).
      *
      * POST /api/auth/google
+     * Recibe: id_token (Firebase ID token)
+     * Si el email no existe en BD, crea cuenta automáticamente.
      */
     public function google(GoogleLoginRequest $request): JsonResponse
     {
@@ -95,9 +100,9 @@ class LoginController extends Controller
     }
 
     /**
-     * Log out the authenticated user.
+     * Cierra la sesión revocando todos los tokens del usuario.
      *
-     * POST /api/auth/logout
+     * POST /api/auth/logout (requiere autenticación)
      */
     public function logout(Request $request): JsonResponse
     {
@@ -110,9 +115,9 @@ class LoginController extends Controller
     }
 
     /**
-     * Get the authenticated user's profile.
+     * Devuelve el perfil del usuario autenticado.
      *
-     * GET /api/auth/me
+     * GET /api/auth/me (requiere autenticación)
      */
     public function me(Request $request): JsonResponse
     {
@@ -134,6 +139,10 @@ class LoginController extends Controller
 
     /**
      * Normaliza la ruta de imagen de usuario para el frontend SPA.
+     *
+     * Si solo hay nombre de archivo (legacy), resuelve como uploads/users/.
+     * Si ya tiene ruta, la limpia y elimina backslash. Si está vacío,
+     * retorna default-avatar.png.
      */
     private function normalizeUserImagePath(?string $path): string
     {

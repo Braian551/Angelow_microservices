@@ -1,5 +1,18 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración correctiva: tokenable_id como string en personal_access_tokens
+|--------------------------------------------------------------------------
+|
+| Laravel Sanctum por defecto espera que tokenable_id sea BIGINT,
+| pero el modelo User del auth-service usa IDs alfanuméricos (string)
+| heredados del legacy. Esta migración corrige el tipo de columna
+| según el motor de BD (PostgreSQL o MySQL) para que Sanctum funcione
+| correctamente con IDs de tipo uniqid().
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -7,7 +20,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Corrige tokenable_id para IDs string del modelo User legacy.
+     * Cambia tokenable_id de BIGINT a VARCHAR(20).
      */
     public function up(): void
     {
@@ -41,6 +54,9 @@ return new class extends Migration
         }
     }
 
+    /**
+     * Revierte el cambio: restaura tokenable_id a BIGINT.
+     */
     public function down(): void
     {
         if (!Schema::hasTable('personal_access_tokens')) {

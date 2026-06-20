@@ -1,5 +1,18 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de sistemas de archivos del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define los discos disponibles: local (almacenamiento privado),
+| public (archivos públicos accesibles vía URL) y S3 (cloud).
+|
+| El audit-service puede usar estos discos para almacenar
+| reportes exportados o respaldos de auditoría.
+|
+*/
+
 return [
 
     /*

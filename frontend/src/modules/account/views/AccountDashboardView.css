@@ -93,6 +93,7 @@
   color: #6b7280;
   font-size: 1.2rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .user-menu {
@@ -806,10 +807,54 @@
     width: 100%;
     height: auto;
     position: relative;
+    border-right: 0;
+    border-bottom: 1px solid #e0e0e0;
   }
 
   .user-main-content {
     padding: 1.5rem;
+  }
+
+  /* Compacta el resumen del perfil para evitar bloques desproporcionados en tablet y móvil. */
+  .user-profile-summary {
+    padding: 1.6rem 1.4rem 1.5rem;
+  }
+
+  .back-button {
+    top: 1.3rem;
+    left: 1.3rem;
+  }
+
+  .user-avatar {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 1rem;
+  }
+
+  .user-info h3 {
+    font-size: 1.65rem;
+  }
+
+  .user-menu {
+    padding: 0.7rem 0;
+  }
+
+  .user-menu li a,
+  .user-menu li button {
+    padding: 1.1rem 1.4rem;
+  }
+
+  .dashboard-header,
+  .account-card {
+    padding: 1.6rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 2.4rem;
+  }
+
+  .dashboard-header p {
+    font-size: 1.45rem;
   }
 
   .account-shimmer__notification-row,
@@ -847,5 +892,78 @@
   .btn-primary-small,
   .btn-outline-small {
     width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .account-page,
+  .user-dashboard-container {
+    min-height: auto;
+  }
+
+  /* Mantiene el bloque del perfil legible sin ocupar demasiado alto al inicio de la cuenta. */
+  .user-profile-summary {
+    padding: 1.2rem 1rem 1.2rem;
+  }
+
+  .back-button {
+    width: 36px;
+    height: 36px;
+    top: 1rem;
+    left: 1rem;
+    font-size: 1.5rem;
+  }
+
+  .user-avatar {
+    width: 84px;
+    height: 84px;
+    border-width: 2px;
+  }
+
+  .user-info h3 {
+    font-size: 1.5rem;
+  }
+
+  .user-info p {
+    font-size: 1.1rem;
+  }
+
+  .user-menu li a,
+  .user-menu li button {
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+    font-size: 1.3rem;
+  }
+
+  .user-menu li a i,
+  .user-menu li button i {
+    width: 18px;
+    font-size: 1.55rem;
+  }
+
+  .notification-badge {
+    right: 10px;
+    min-width: 22px;
+    height: 22px;
+    font-size: 1.1rem;
+  }
+
+  .user-main-content {
+    padding: 1rem;
+  }
+
+  .dashboard-header,
+  .account-card {
+    border-radius: 12px;
+    padding: 1.35rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 2.1rem;
+  }
+
+  .dashboard-header p {
+    font-size: 1.32rem;
+    line-height: 1.5;
   }
 }

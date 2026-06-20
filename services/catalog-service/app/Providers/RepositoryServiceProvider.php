@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+// Comentario de mantenimiento: Este proveedor registra dependencias y ajustes de arranque propios del servicio.
+
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\CategoryRepositoryInterface;
 use App\Repositories\Contracts\WishlistRepositoryInterface;
@@ -30,10 +32,18 @@ class RepositoryServiceProvider extends ServiceProvider
         SiteRepositoryInterface::class     => QueryBuilderSiteRepository::class,
     ];
 
+    /**
+     * Registra bindings y servicios necesarios durante el arranque de Laravel.
+     */
+
     public function register(): void
     {
         //
     }
+
+    /**
+     * Ejecuta ajustes de arranque cuando el framework ya resolvió sus servicios.
+     */
 
     public function boot(): void
     {

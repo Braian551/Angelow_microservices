@@ -2,16 +2,31 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de caché (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define los almacenes de caché. El cart-service usa Redis para
+| almacenar el stock disponible en tiempo real (stock:{variantId})
+| y los rate-limits de recordatorios de carritos abandonados.
+|
+| Soporta: array (desarrollo), database, file, memcached, redis,
+| dynamodb y octane.
+|
+| @see CartService::resolveRealtimeAvailableStock()
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Cache Store
+    | Almacén de caché predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option controls the default cache store that will be used by the
-    | framework. This connection is utilized if another isn't explicitly
-    | specified when running a cache operation inside the application.
+    | Define el almacén que se usará por defecto si no se especifica
+    | otro explícitamente. En producción se usa Redis.
     |
     */
 

@@ -6,22 +6,28 @@ use App\Repositories\Contracts\CartRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Query Builder implementation of the Cart repository.
+ * Implementación del repositorio de carrito con Query Builder.
  *
- * Migrated from angelow/tienda/api/cart/ endpoints.
- * Uses DB facade instead of Eloquent ORM.
+ * Migrada desde los endpoints legacy de angelow/tienda/api/cart/.
+ * Usa DB facade en lugar de Eloquent ORM para mantener consistencia
+ * con la lógica original y evitar la sobrecarga del ORM en operaciones
+ * simples de carrito.
+ *
+ * @see CartRepositoryInterface
+ * @see CartService
  */
 class QueryBuilderCartRepository implements CartRepositoryInterface
 {
     /**
-     * Get or create a cart for a user or session.
-     *
-     * Migrated from add-cart.php cart lookup/creation logic.
+     * Obtiene el carrito más reciente del usuario/sesión o crea uno nuevo.
+     * Si se proporciona user_id, busca por usuario; si no, por session_id.
+     * Al crear, si hay user_id no guarda session_id (carrito vinculado).
      */
     public function getOrCreateCart(?string $userId, ?string $sessionId): int
     {
         $query = DB::table('carts');
 
+        // Los usuarios autenticados se agrupan por user_id; visitantes por session_id.
         if ($userId) {
             $query->where('user_id', $userId);
         } else {
@@ -34,7 +40,7 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
             return $cart->id;
         }
 
-        // Create new cart
+        // Crea un nuevo carrito si no existe uno previo para esa identidad.
         return DB::table('carts')->insertGetId([
             'user_id'    => $userId,
             'session_id' => $userId ? null : $sessionId,
@@ -44,10 +50,12 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Get all items in a cart.
+     * Retorna todos los ítems de un carrito con sus IDs de producto y variantes.
+     * Convierte cada registro stdClass a array para consumo en CartService.
      */
     public function getItems(int $cartId): array
     {
+        // Se seleccionan solo los campos que CartService necesita para enriquecer desde catalog-service.
         return DB::table('cart_items as ci')
             ->where('ci.cart_id', $cartId)
             ->select([
@@ -63,7 +71,7 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Add an item to the cart.
+     * Inserta un nuevo ítem en el carrito con los datos de producto y variantes.
      */
     public function addItem(int $cartId, int $productId, ?int $colorVariantId, int $sizeVariantId, int $quantity): void
     {
@@ -79,10 +87,11 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Update the quantity of a cart item.
+     * Actualiza la cantidad de un ítem existente y su timestamp.
      */
     public function updateItemQuantity(int $itemId, int $quantity): void
     {
+        // El timestamp permite detectar actividad reciente para recordatorios de carrito abandonado.
         DB::table('cart_items')
             ->where('id', $itemId)
             ->update([
@@ -92,7 +101,7 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Remove an item from the cart.
+     * Elimina un ítem del carrito. Operación idempotente.
      */
     public function removeItem(int $itemId): void
     {
@@ -100,7 +109,7 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Get a cart item by its ID.
+     * Busca un ítem por su ID. Retorna stdClass o null si no existe.
      */
     public function findItem(int $itemId): ?object
     {
@@ -108,7 +117,9 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Find an existing cart item matching product/variant combination.
+     * Busca un ítem existente que coincida con producto + variante de talla y color.
+     * Si colorVariantId es null, solo busca coincidencia por producto y talla.
+     * Usado por CartService::addToCart para incrementar cantidad en lugar de duplicar.
      */
     public function findExistingItem(int $cartId, int $productId, ?int $colorVariantId, int $sizeVariantId): ?object
     {
@@ -117,9 +128,11 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
             ->where('product_id', $productId)
             ->where('size_variant_id', $sizeVariantId);
 
+        // El color forma parte de la identidad de la línea cuando viene informado.
         if ($colorVariantId) {
             $query->where('color_variant_id', $colorVariantId);
         } else {
+            // Sin color explícito se busca una línea igualmente sin color para evitar fusionar variantes distintas.
             $query->whereNull('color_variant_id');
         }
 
@@ -127,15 +140,16 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
     }
 
     /**
-     * Get product IDs in the user's cart.
-     *
-     * Migrated from get-cart-items.php
+     * Obtiene los IDs de productos en el carrito del usuario/sesión.
+     * Para session_id, excluye carritos que ya tienen user_id asociado
+     * para evitar duplicados entre sesión anónima y usuario autenticado.
      */
     public function getCartProductIds(?string $userId, ?string $sessionId): array
     {
         $query = DB::table('carts as c')
             ->join('cart_items as ci', 'c.id', '=', 'ci.cart_id');
 
+        // La consulta sigue el mismo criterio de identidad usado al crear o recuperar el carrito.
         if ($userId) {
             $query->where('c.user_id', $userId);
         } else {

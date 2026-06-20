@@ -5,45 +5,48 @@ namespace App\Repositories\Contracts;
 use App\Models\User;
 
 /**
- * Contract for User repository implementations.
+ * Contrato (interfaz) para implementaciones del repositorio de usuarios.
  *
- * Defines the data access interface for user operations,
- * allowing for easy swapping of implementations (e.g., for testing).
+ * Define las operaciones de acceso a datos para el dominio de usuarios,
+ * permitiendo intercambiar implementaciones fácilmente (ej. Eloquent vs
+ * Query Builder) sin afectar la capa de servicios.
+ *
+ * Implementación concreta: QueryBuilderUserRepository
  */
 interface UserRepositoryInterface
 {
     /**
-     * Create a new user.
+     * Crea un nuevo usuario en la base de datos.
      */
     public function create(array $data): User;
 
     /**
-     * Find a user by email.
+     * Busca un usuario por su correo electrónico.
      */
     public function findByEmail(string $email): ?User;
 
     /**
-     * Find a user by phone number.
+     * Busca un usuario por su número de teléfono.
      */
     public function findByPhone(string $phone): ?User;
 
     /**
-     * Find a user by email or phone.
+     * Busca un usuario por correo electrónico o teléfono.
      */
     public function findByCredential(string $credential): ?User;
 
     /**
-     * Find a user by ID.
+     * Busca un usuario por su ID.
      */
     public function findById(string $id): ?User;
 
     /**
-     * Update last access timestamp.
+     * Actualiza la marca de tiempo del último acceso del usuario.
      */
     public function updateLastAccess(User $user): void;
 
     /**
-     * Check if an email is already registered.
+     * Verifica si un correo electrónico ya está registrado.
      */
     public function emailExists(string $email): bool;
 }

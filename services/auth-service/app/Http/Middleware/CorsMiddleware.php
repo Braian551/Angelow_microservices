@@ -7,13 +7,21 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * CORS Middleware
+ * Middleware CORS para permitir peticiones desde el frontend Vue.js.
  *
- * Handles Cross-Origin Resource Sharing headers
- * for the Vue.js frontend application.
+ * Configura los encabezados CORS necesarios para que la SPA de Vue
+ * (http://localhost:5173) pueda consumir la API del auth-service.
+ * Maneja adecuadamente las peticiones preflight OPTIONS.
  */
 class CorsMiddleware
 {
+    /**
+     * Maneja la petición y agrega encabezados CORS.
+     *
+     * Las peticiones OPTIONS (preflight) se responden con 204 sin
+     * procesar el resto del middleware. Los orígenes permitidos
+     * están definidos en $allowedOrigins.
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $allowedOrigins = [
@@ -23,7 +31,7 @@ class CorsMiddleware
 
         $origin = $request->header('Origin');
 
-        // Handle preflight OPTIONS requests
+        // Maneja peticiones preflight OPTIONS
         if ($request->isMethod('OPTIONS')) {
             $response = response('', 204);
         } else {

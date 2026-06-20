@@ -198,6 +198,7 @@ const searchableModules = [
   { title: 'Categorías', subtitle: 'Categorías de productos', url: '/admin/categorias', icon: 'fas fa-folder-open', keywords: ['categoria', 'categorias'] },
   { title: 'Colecciones', subtitle: 'Colecciones de productos', url: '/admin/colecciones', icon: 'fas fa-layer-group', keywords: ['coleccion', 'colecciones'] },
   { title: 'Pagos', subtitle: 'Configuración de pagos', url: '/admin/pagos', icon: 'fas fa-money-bill-wave', keywords: ['pago', 'pagos', 'comprobante'] },
+  { title: 'Reembolsos', subtitle: 'Solicitudes y estados de reembolso', url: '/admin/reembolsos', icon: 'fas fa-rotate-left', keywords: ['reembolso', 'reembolsos', 'devolucion', 'devoluciones'] },
   { title: 'Facturas', subtitle: 'Facturas generadas automáticamente', url: '/admin/facturas', icon: 'fas fa-file-invoice-dollar', keywords: ['factura', 'facturas'] },
   { title: 'Descuentos', subtitle: 'Códigos y descuentos', url: '/admin/descuentos/codigos', icon: 'fas fa-percentage', keywords: ['descuento', 'descuentos', 'cupon', 'cupones'] },
   { title: 'Envíos', subtitle: 'Métodos de envío', url: '/admin/envios/metodos', icon: 'fas fa-truck', keywords: ['envio', 'envios', 'domicilio'] },
@@ -560,6 +561,7 @@ function notificationIcon(type) {
   const icons = {
     order: 'fas fa-shopping-bag',
     payment: 'fas fa-money-bill-wave',
+    refund: 'fas fa-rotate-left',
     invoice: 'fas fa-file-invoice-dollar',
     inventory: 'fas fa-warehouse',
     review: 'fas fa-star',

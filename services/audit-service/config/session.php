@@ -1,5 +1,16 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de sesiones del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define el driver y comportamiento de las sesiones HTTP. Al ser
+| un servicio principalmente API, las sesiones se usan solo para
+| el panel de administración interno si se implementa.
+|
+*/
+
 use Illuminate\Support\Str;
 
 return [

@@ -5,15 +5,25 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Valida la entrada para verificar código de recuperación.
+ * Valida la entrada para verificar el código de recuperación.
+ *
+ * Recibe identifier (email/teléfono) y code (4 dígitos exactos).
+ * El formato del código se valida con regex en el request para
+ * evitar procesar códigos inválidos en la capa de servicio.
  */
 class PasswordRecoveryVerifyCodeRequest extends FormRequest
 {
+    /**
+     * Autoriza la petición (pública).
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Reglas: identifier obligatorio, code de 4 dígitos exactos.
+     */
     public function rules(): array
     {
         return [
@@ -22,6 +32,9 @@ class PasswordRecoveryVerifyCodeRequest extends FormRequest
         ];
     }
 
+    /**
+     * Mensajes de error personalizados en español.
+     */
     public function messages(): array
     {
         return [

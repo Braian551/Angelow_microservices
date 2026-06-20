@@ -13,6 +13,11 @@
 - [Extensión 2026-05-10: consolidación real de ventas distribuidas + legacy](#extensión-2026-05-10-consolidación-real-de-ventas-distribuidas-legacy)
   - [5. Adapter](#5-adapter)
   - [6. Aggregator](#6-aggregator)
+- [Extensión 2026-06-07: simplificación de acciones del encabezado](#extensión-2026-06-07-simplificación-de-acciones-del-encabezado)
+  - [7. Command](#7-command)
+- [Extensión 2026-06-20: coherencia de gráficas de informes](#extensión-2026-06-20-coherencia-de-gráficas-de-informes)
+  - [8. Adapter](#8-adapter)
+  - [9. Strategy](#9-strategy)
 <!-- indice:auto:end -->
 
 Fecha: 2026-04-05
@@ -79,3 +84,29 @@ Se migró la vista de informes de ventas, productos populares y clientes recurre
   - `reportProducts` ahora mezcla líneas de pedido del microservicio y legacy antes de agrupar por producto, evitando que el ranking dependa de un fallback de una sola fuente.
   - `reportCustomers` ahora arma la recurrencia sobre órdenes ya consolidadas e hidratadas, y usa un fallback adicional hacia auth-service con el bearer admin actual para completar nombre, correo y teléfono cuando el endpoint interno no resuelve todos los perfiles.
   - Si un `user_id` no existe ni en auth ni en legacy disponible, el sistema conserva el registro como cliente sin identidad resoluble en lugar de inventar datos.
+
+## Extensión 2026-06-07: simplificación de acciones del encabezado
+
+### 7. Command
+- Problema que resuelve: el encabezado compartido de informes mostraba una acción de impresión innecesaria para ventas, productos populares y clientes recurrentes, añadiendo ruido visual y una ruta de interacción poco útil frente a las exportaciones reales del módulo.
+- Aplicado en archivos:
+  - `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Implementación:
+  - se elimina `printReport` y su botón asociado del `AdminPageHeader`, dejando como acciones primarias `Restablecer` y las exportaciones reutilizables de Excel/PDF;
+  - la vista conserva el patrón Command porque las acciones visibles siguen encapsuladas en handlers claros (`resetFilters`, `exportReport`, `openDetailModal`) sin exponer lógica operativa en el template.
+
+## Extensión 2026-06-20: coherencia de gráficas de informes
+
+### 8. Adapter
+- Problema que resuelve: la gráfica “Top clientes por valor” quedaba vacía cuando el filtro de clientes recurrentes exigía dos o más órdenes, aunque existieran clientes con compras reales en `top_customers`.
+- Aplicado en archivos:
+  - `frontend/src/modules/admin/composables/useAdminReports.js`
+- Implementación:
+  - `loadCustomersReport` separa `customerRows` para la tabla de recurrencia y `topCustomerRows` para la gráfica de valor, reutilizando el payload `top_customers` del backend y enriqueciendo ambos conjuntos con perfiles de auth cuando hay `user_id`.
+
+### 9. Strategy
+- Problema que resuelve: las gráficas de ventas podían verse comprimidas o dar lectura incorrecta cuando solo existía un período de datos.
+- Aplicado en archivos:
+  - `frontend/src/modules/admin/composables/useAdminReports.js`
+- Implementación:
+  - las escalas de ventas, órdenes y comparativa mensual parten de cero y formatean moneda de forma consistente, mientras la agrupación temporal sigue definida por el filtro activo (`día`, `semana`, `mes` o `año`).

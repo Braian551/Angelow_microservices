@@ -1,17 +1,20 @@
 <?php
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Configuración general de la aplicación (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define nombre, entorno, zona horaria, locale y clave de cifrado
+| del servicio de autenticación. Los valores se obtienen de .env y
+| pueden sobrescribirse por entorno (local, staging, producción).
+|
+| El auth-service usa Sanctum para tokens de acceso y PHPMailer
+| para el envío de correos de recuperación de contraseña.
+|
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Application Name
-    |--------------------------------------------------------------------------
-    |
-    | This value is the name of your application, which will be used when the
-    | framework needs to place the application's name in a notification or
-    | other UI elements where an application name needs to be displayed.
-    |
-    */
+return [
 
     'name' => env('APP_NAME', 'Laravel'),
 

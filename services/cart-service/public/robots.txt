@@ -1,2 +1,7 @@
+# Política de robots para el cart-service
+# Permite el acceso completo a todos los robots de búsqueda.
+# Los endpoints de la API no están diseñados para ser rastreados,
+# pero no se bloquean explícitamente.
+
 User-agent: *
 Disallow:

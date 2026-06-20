@@ -1,0 +1,66 @@
+.admin-shipping-rules-page .shipping-rule-hero h3 {
+  font-size: 2.2rem;
+}
+
+/* Mock resumen: réplica de las filas de envío del resumen de pago en checkout */
+.admin-shipping-rules-page .shipping-rule-mock-summary {
+  display: grid;
+  gap: 0;
+  margin-bottom: 1.2rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 1.2rem;
+  overflow: hidden;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1.2rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 1.28rem;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row:last-child {
+  border-bottom: none;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row span {
+  color: #5c6773;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row strong {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row--highlight {
+  background: #f0f8ff;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row--highlight span,
+.admin-shipping-rules-page .shipping-rule-mock-row--highlight strong {
+  color: #005b8c !important;
+  font-weight: 700;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row--free span,
+.admin-shipping-rules-page .shipping-rule-mock-row--free strong {
+  color: #4bb543 !important;
+  font-weight: 600;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row--total {
+  background: #f8f8f8;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row--total span {
+  color: #1a1a2e;
+  font-weight: 700;
+}
+
+.admin-shipping-rules-page .shipping-rule-mock-row--total strong {
+  color: #0077b6;
+  font-weight: 700;
+}

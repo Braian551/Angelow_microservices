@@ -869,9 +869,39 @@
     align-items: flex-start;
   }
 
+  .addresses-list-container,
+  .address-form-container {
+    max-width: none;
+  }
+
+  .btn-add-address {
+    width: 100%;
+    justify-content: center;
+  }
+
   .addresses-grid,
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  /* Elimina alturas rígidas y reordena las tarjetas para que el contenido largo no rompa el flujo. */
+  .address-card {
+    padding: 1.45rem;
+    gap: 1rem;
+  }
+
+  .address-header {
+    grid-template-columns: auto 1fr;
+    align-items: flex-start;
+  }
+
+  .default-badge {
+    grid-column: 1 / -1;
+    justify-self: flex-start;
+  }
+
+  .address-details {
+    min-height: 0;
   }
 
   .address-actions {
@@ -927,5 +957,52 @@
   .gps-modal-actions {
     grid-template-columns: 1fr;
     padding: 1rem 1.2rem 1.2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .addresses-header h2,
+  .form-header h2 {
+    font-size: 1.9rem;
+  }
+
+  .no-addresses {
+    padding: 2.2rem 1.2rem;
+  }
+
+  .address-card {
+    padding: 1.2rem;
+    border-radius: 14px;
+  }
+
+  .address-icon {
+    width: 46px;
+    height: 46px;
+    font-size: 1.9rem;
+  }
+
+  .address-title h3 {
+    font-size: 1.55rem;
+  }
+
+  .address-type,
+  .default-badge {
+    font-size: 1.1rem;
+  }
+
+  .detail-item {
+    font-size: 1.15rem;
+  }
+
+  /* Apila el formulario por pasos con botones cómodos para pulgar en móvil. */
+  .step-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .step-actions .btn-outline-small,
+  .step-actions .btn-primary-small,
+  .btn-back {
+    width: 100%;
+    justify-content: center;
   }
 }

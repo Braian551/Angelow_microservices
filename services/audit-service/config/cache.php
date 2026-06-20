@@ -1,5 +1,17 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de caché del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define los stores de caché disponibles. El audit-service usa
+| Redis (CACHE_STORE=redis) como almacén principal para reducir
+| consultas repetitivas a las tablas de auditoría y optimizar
+| la respuesta de los endpoints.
+|
+*/
+
 use Illuminate\Support\Str;
 
 return [

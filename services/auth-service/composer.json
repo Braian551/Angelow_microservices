@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Servicio de autenticación de Angelow Microservicios. Gestiona registro, inicio de sesión, autenticación con Google, perfil de usuario y recuperación de contraseña. Usa Laravel 12, Sanctum para tokens, PHPMailer para correos y Firebase para verificación de tokens Google.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

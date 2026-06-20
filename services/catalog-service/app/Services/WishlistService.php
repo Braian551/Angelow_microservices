@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+// Comentario de mantenimiento: Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+
 use App\Repositories\Contracts\WishlistRepositoryInterface;
 
 /**
@@ -11,6 +13,9 @@ use App\Repositories\Contracts\WishlistRepositoryInterface;
  */
 class WishlistService
 {
+    /**
+     * Explica la intención de __construct dentro del flujo del servicio.
+     */
     public function __construct(
         private readonly WishlistRepositoryInterface $wishlistRepository,
     ) {}

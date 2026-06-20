@@ -1,5 +1,10 @@
 <?php
 
+/*
+ * Rutas de la API REST para el servicio de órdenes (order-service).
+ * Agrupa rutas públicas, de administración y reportes.
+ */
+
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminInvoiceController;
 use App\Http\Controllers\HealthController;
@@ -15,6 +20,8 @@ Route::prefix('orders')->group(function () {
     Route::post('/', [OrderController::class, 'store'])->middleware(PreventDuplicateOrderSubmission::class);
     Route::post('/{id}/send-confirmation', [OrderController::class, 'sendCheckoutConfirmation']);
     Route::patch('/{id}/cancel', [OrderController::class, 'cancel']);
+    Route::post('/{id}/refund-requests', [OrderController::class, 'requestRefund']);
+    Route::get('/{id}/invoice/download', [OrderController::class, 'downloadInvoice']);
     Route::get('/{id}', [OrderController::class, 'show']);
     Route::patch('/{id}', [OrderController::class, 'update']);
     Route::patch('/{id}/status', [OrderController::class, 'updateStatus']);
@@ -25,6 +32,8 @@ Route::prefix('orders')->group(function () {
 // ── Admin ───────────────────────────────────────────────────
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
     Route::get('/orders', [AdminOrderController::class, 'recentOrders']);
+    Route::get('/refund-requests', [AdminOrderController::class, 'refundRequests']);
+    Route::patch('/refund-requests/{id}', [AdminOrderController::class, 'updateRefundRequest']);
     Route::get('/invoices', [AdminInvoiceController::class, 'index']);
     Route::get('/invoices/{id}/download', [AdminInvoiceController::class, 'download']);
     Route::post('/invoices/{id}/resend', [AdminInvoiceController::class, 'resend']);

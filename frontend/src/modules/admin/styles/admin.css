@@ -1009,6 +1009,19 @@
   backdrop-filter: blur(12px);
 }
 
+.btn:disabled,
+.btn.is-loading {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
+}
+
+.btn:disabled:hover,
+.btn.is-loading:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 .btn-primary {
   background: rgba(0, 119, 182, 0.12);
   color: var(--admin-primary-dark);
@@ -1581,6 +1594,19 @@
 .action-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 26px rgba(15, 55, 96, 0.1);
+}
+
+.action-btn:disabled,
+.action-btn.is-loading {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
+}
+
+.action-btn:disabled:hover,
+.action-btn.is-loading:hover {
+  transform: none;
+  box-shadow: 0 10px 20px rgba(15, 55, 96, 0.06);
 }
 
 /* ===== INVENTORY ===== */

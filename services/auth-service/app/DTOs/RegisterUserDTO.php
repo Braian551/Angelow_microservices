@@ -3,10 +3,12 @@
 namespace App\DTOs;
 
 /**
- * Data Transfer Object for user registration.
+ * DTO (Data Transfer Object) para registro de usuarios.
  *
- * Encapsulates validated registration data for transfer
- * between the Controller and Service layers.
+ * Encapsula los datos validados del registro para transferencia
+ * entre la capa de Controlador y la capa de Servicio (AuthService).
+ * Es inmutable (readonly) para garantizar que los datos no se
+ * modifiquen durante el flujo.
  */
 final readonly class RegisterUserDTO
 {
@@ -18,7 +20,9 @@ final readonly class RegisterUserDTO
     ) {}
 
     /**
-     * Create a DTO instance from a validated request array.
+     * Crea una instancia del DTO a partir del array de datos validados.
+     *
+     * @param  array<string, mixed>  $data  Datos provenientes de RegisterRequest::validated()
      */
     public static function fromArray(array $data): self
     {

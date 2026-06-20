@@ -1,0 +1,115 @@
+/* Estilos propios de inventario, encapsulados para no afectar otras vistas admin. */
+.admin-inventory-page .inventory-tabs {
+  margin-bottom: 1.6rem;
+}
+
+.admin-inventory-page .inventory-summary,
+.admin-inventory-page .inventory-detail-pills {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.admin-inventory-page .inventory-summary,
+.admin-inventory-page .inventory-history-header p,
+.admin-inventory-page .inventory-detail-header p {
+  color: var(--admin-text-light);
+  font-size: 1.25rem;
+}
+
+.admin-inventory-page .inventory-summary {
+  flex-direction: column;
+}
+
+.admin-inventory-page .inventory-stock {
+  font-weight: 700;
+}
+
+.admin-inventory-page .inventory-stock--active {
+  color: var(--admin-success);
+}
+
+.admin-inventory-page .inventory-stock--low {
+  color: var(--admin-warning-dark, #8a6d00);
+}
+
+.admin-inventory-page .inventory-stock--out {
+  color: var(--admin-error);
+}
+
+.admin-inventory-page .inventory-detail-header,
+.admin-inventory-page .inventory-history-header,
+.admin-inventory-page .inventory-form-grid__full {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-inventory-page .inventory-detail-header {
+  margin-bottom: 1.6rem;
+}
+
+.admin-inventory-page .inventory-history-block {
+  margin-top: 2.4rem;
+  margin-bottom: 1.6rem;
+}
+
+.admin-inventory-page .inventory-detail-header h4,
+.admin-inventory-page .inventory-history-header h4 {
+  margin: 0 0 0.4rem;
+}
+
+.admin-inventory-page .inventory-detail-pills {
+  flex-wrap: wrap;
+}
+
+.admin-inventory-page .inventory-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.admin-inventory-page .inventory-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+.admin-inventory-page .inventory-form-grid__target {
+  grid-column: 1 / 2;
+}
+
+.admin-inventory-page .inventory-form-grid__quantity {
+  grid-column: 2 / 3;
+}
+
+.admin-inventory-page .inventory-variant-preview {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-bg-dark);
+  color: var(--admin-text);
+}
+
+.admin-inventory-page .inventory-detail-loading {
+  min-height: 20rem;
+}
+
+@media (max-width: 900px) {
+  .admin-inventory-page .inventory-detail-header,
+  .admin-inventory-page .inventory-history-header,
+  .admin-inventory-page .inventory-form-grid__full {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-inventory-page .inventory-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-inventory-page .inventory-form-grid__target,
+  .admin-inventory-page .inventory-form-grid__quantity {
+    grid-column: 1 / -1;
+  }
+}

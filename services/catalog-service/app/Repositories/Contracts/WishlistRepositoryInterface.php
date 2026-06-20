@@ -2,6 +2,8 @@
 
 namespace App\Repositories\Contracts;
 
+// Comentario de mantenimiento: Este contrato fija las operaciones que debe cumplir cualquier repositorio del dominio.
+
 /**
  * Contract for Wishlist repository.
  */

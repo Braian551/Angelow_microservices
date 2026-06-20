@@ -1,3 +1,8 @@
+# Configuración de EditorConfig para el auth-service
+# Define reglas de formato consistentes para todos los editores:
+# UTF-8, saltos de línea LF, indentación con espacios (4 espacios).
+# Los archivos Markdown no recortan espacios al final por compatibilidad.
+
 root = true
 
 [*]

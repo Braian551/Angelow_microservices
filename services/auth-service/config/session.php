@@ -2,19 +2,29 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de sesión (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define los parámetros de la sesión HTTP: driver, duración, cookie,
+| dominio y seguridad. El auth-service usa el driver 'database' como
+| predeterminado para persistir sesiones en la tabla sessions.
+|
+| Soporta: file, cookie, database, memcached, redis, dynamodb, array.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Session Driver
+    | Driver de sesión predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option determines the default session driver that is utilized for
-    | incoming requests. Laravel supports a variety of storage options to
-    | persist session data. Database storage is a great default choice.
-    |
-    | Supported: "file", "cookie", "database", "memcached",
-    |            "redis", "dynamodb", "array"
+    | Define el driver que gestionará el almacenamiento de las sesiones
+    | HTTP. El driver 'database' persiste las sesiones en la tabla
+    | configurada mediante SESSION_TABLE en .env.
     |
     */
 

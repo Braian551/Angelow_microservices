@@ -17,6 +17,7 @@ const MAX_VISIBLE_NOTIFICATIONS = 60
 const MODULE_ROUTES = {
   orders: '/admin/ordenes',
   payments: '/admin/pagos',
+  refunds: '/admin/reembolsos',
   invoices: '/admin/facturas',
   inventory: '/admin/inventario',
 }
@@ -24,6 +25,7 @@ const MODULE_ROUTES = {
 const MODULE_LABELS = {
   orders: 'Órdenes',
   payments: 'Pagos',
+  refunds: 'Reembolsos',
   invoices: 'Facturas',
   inventory: 'Inventario',
 }
@@ -50,6 +52,7 @@ const PAYMENT_STATUS_LABELS = {
   en_revision: 'En revisión',
   paid: 'Pagado',
   verified: 'Verificado',
+  refund_requested: 'Reembolso solicitado',
   pending_refund: 'Reembolso en proceso',
   failed: 'Fallido',
   refunded: 'Reembolsado',
@@ -58,7 +61,7 @@ const PAYMENT_STATUS_LABELS = {
   transfer: 'Transferencia',
 }
 
-const PAYMENT_REVIEW_STATUSES = new Set(['pending', 'pending_payment', 'in_review', 'en_revision', 'created'])
+const PAYMENT_REVIEW_STATUSES = new Set(['pending', 'pending_payment', 'in_review', 'en_revision', 'created', 'refund_requested'])
 
 const notifications = ref([])
 const dismissedNotificationReadAt = ref({})
@@ -68,6 +71,7 @@ const unreadByModule = computed(() => {
   const counters = {
     orders: 0,
     payments: 0,
+    refunds: 0,
     invoices: 0,
     inventory: 0,
   }
@@ -402,6 +406,10 @@ function resolveModuleFromRoute(routePath) {
     return 'payments'
   }
 
+  if (routePath.startsWith('/admin/reembolsos')) {
+    return 'refunds'
+  }
+
   if (routePath.startsWith('/admin/facturas')) {
     return 'invoices'
   }
@@ -540,11 +548,12 @@ function buildOrderEvents(rows) {
     const currentPaymentStatus = normalizeStatus(row.payment_status)
 
     if (previousPaymentStatus !== currentPaymentStatus) {
+      const isRefundRequest = currentPaymentStatus === 'refund_requested'
       events.push({
         id: `payment-${key}-${String(row.updated_at || Date.now())}-${currentPaymentStatus}`,
-        type: 'payment',
-        module_key: 'payments',
-        route: MODULE_ROUTES.payments,
+        type: isRefundRequest ? 'refund' : 'payment',
+        module_key: isRefundRequest ? 'refunds' : 'payments',
+        route: isRefundRequest ? MODULE_ROUTES.refunds : MODULE_ROUTES.payments,
         message: buildPaymentChangeMessage(row, previousPaymentStatus, currentPaymentStatus),
         created_at: row.updated_at || row.created_at || new Date().toISOString(),
         read_at: null,
@@ -629,11 +638,13 @@ function buildPaymentReviewEvent(row, key) {
     return null
   }
 
+  const isRefundRequest = currentPaymentStatus === 'refund_requested'
+
   return {
     id: `payment-review-${key}-${currentPaymentStatus}-${String(row.created_at || row.updated_at || Date.now())}`,
-    type: 'payment',
-    module_key: 'payments',
-    route: MODULE_ROUTES.payments,
+    type: isRefundRequest ? 'refund' : 'payment',
+    module_key: isRefundRequest ? 'refunds' : 'payments',
+    route: isRefundRequest ? MODULE_ROUTES.refunds : MODULE_ROUTES.payments,
     message: buildPaymentReviewMessage(row, currentPaymentStatus),
     created_at: row.updated_at || row.created_at || new Date().toISOString(),
     read_at: null,
@@ -646,6 +657,10 @@ function requiresPaymentReview(status) {
 
 function buildPaymentReviewMessage(order, status) {
   const normalizedStatus = normalizeStatus(status)
+
+  if (normalizedStatus === 'refund_requested') {
+    return `La orden ${formatOrderLabel(order)} tiene una solicitud de reembolso pendiente de revisión.`
+  }
 
   if (['in_review', 'en_revision'].includes(normalizedStatus)) {
     return `La orden ${formatOrderLabel(order)} tiene un pago en revisión.`
@@ -715,6 +730,10 @@ function isRecentTimestamp(value, lookbackHours) {
 function buildPaymentChangeMessage(order, oldStatus, newStatus) {
   const oldLabel = PAYMENT_STATUS_LABELS[oldStatus] || (oldStatus ? toSentenceCase(oldStatus) : null)
   const newLabel = PAYMENT_STATUS_LABELS[newStatus] || (newStatus ? toSentenceCase(newStatus) : 'Actualizado')
+
+  if (newStatus === 'refund_requested') {
+    return `La orden ${formatOrderLabel(order)} tiene una solicitud de reembolso pendiente de revisión.`
+  }
 
   if (!oldLabel) {
     return `El estado de pago de ${formatOrderLabel(order)} ahora es ${newLabel}.`

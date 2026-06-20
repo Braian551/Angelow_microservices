@@ -10,7 +10,44 @@ if (-not (Test-Path $SqlPath)) {
 }
 
 $sqlFullPath = (Resolve-Path $SqlPath).Path
-$sqlLines = Get-Content -Path $sqlFullPath
+
+function Read-SqlFileLines {
+    param(
+        [string]$Path
+    )
+
+    # Lee el dump como bytes para evitar que Windows PowerShell convierta UTF-8 a ANSI y rompa tildes/ñ.
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $encodingName = "UTF-8"
+
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes, 3, $bytes.Length - 3)
+    } else {
+        try {
+            $text = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes)
+        } catch [System.Text.DecoderFallbackException] {
+            # Fallback para dumps exportados desde herramientas antiguas en Windows-1252/Latin-1.
+            $encodingName = "Windows-1252"
+            $text = [System.Text.Encoding]::GetEncoding(1252).GetString($bytes)
+        }
+    }
+
+    Write-Host "Dump leído como ${encodingName}: $Path"
+    return $text -split "`r?`n", 0, "RegexMatch"
+}
+
+function Write-Utf8NoBomFile {
+    param(
+        [string]$Path,
+        [string[]]$Lines
+    )
+
+    # psql recibe un archivo UTF-8 real sin BOM para conservar caracteres como Bogotá, Itaú y Bancamía.
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($Path, ($Lines -join [Environment]::NewLine), $utf8NoBom)
+}
+
+$sqlLines = Read-SqlFileLines -Path $sqlFullPath
 
 $copyBlocks = @{}
 $setvalLines = @{}
@@ -172,9 +209,9 @@ foreach ($service in $services) {
     $importLines += "COMMIT;"
 
     $tempPath = Join-Path $env:TEMP ("angelow_import_{0}.sql" -f $service.Name)
-    Set-Content -Path $tempPath -Value $importLines -Encoding UTF8
+    Write-Utf8NoBomFile -Path $tempPath -Lines $importLines
 
-    $result = Get-Content -Path $tempPath | docker compose exec -T $service.DbService psql -U postgres -d $service.DbName 2>&1
+    $result = Get-Content -Path $tempPath -Encoding UTF8 | docker compose exec -T $service.DbService psql -U postgres -d $service.DbName 2>&1
     $result | Out-Host
 
     $hasError = $false

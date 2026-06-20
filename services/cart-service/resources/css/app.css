@@ -1,3 +1,14 @@
+/*
+|--------------------------------------------------------------------------
+| Estilos CSS del cart-service (Tailwind v4)
+|--------------------------------------------------------------------------
+|
+| Define los estilos base para las vistas Blade del servicio.
+| El cart-service usa Tailwind v4 con la fuente Instrument Sans.
+| Solo aplica a la vista welcome.blade.php del servicio.
+|
+*/
+
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

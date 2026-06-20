@@ -6,10 +6,24 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
+/**
+ * Pruebas de integración para la API del carrito de compras.
+ *
+ * Verifica los endpoints CRUD del carrito: consulta, agregar,
+ * actualizar cantidad, eliminar ítems y validaciones de stock.
+ * Usa HTTP falso (Http::fake) para simular catalog-service sin
+ * dependencia externa.
+ *
+ * @see CartController
+ * @see CartService
+ */
 class CartApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Verifica que un carrito vacío para una sesión retorne item_count 0.
+     */
     public function test_can_return_empty_cart_for_a_session(): void
     {
         Http::fake();
@@ -21,6 +35,10 @@ class CartApiTest extends TestCase
             ->assertJsonPath('data.subtotal', 0);
     }
 
+    /**
+     * Verifica el flujo completo: agregar producto y consultar carrito
+     * con datos enriquecidos desde catalog-service (nombre, precio, imagen).
+     */
     public function test_can_add_item_and_read_cart_with_catalog_data(): void
     {
         Http::fake([
@@ -67,6 +85,27 @@ class CartApiTest extends TestCase
             ->assertJsonPath('data.subtotal', 180000);
     }
 
+    /**
+     * Verifica que cantidades decimales sean rechazadas con mensaje en español.
+     */
+    public function test_add_rejects_decimal_quantity_with_spanish_message(): void
+    {
+        Http::fake();
+
+        $this->postJson('/api/cart/add', [
+            'session_id' => 'sess_test',
+            'product_id' => 100,
+            'size_variant_id' => 10,
+            'quantity' => 1.5,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('quantity')
+            ->assertJsonPath('errors.quantity.0', 'La cantidad debe ser un número entero mayor o igual a 1.');
+    }
+
+    /**
+     * Verifica que actualizar a una cantidad mayor al stock disponible
+     * retorne error 422 con mensaje de stock insuficiente.
+     */
     public function test_update_quantity_fails_if_new_quantity_exceeds_stock(): void
     {
         Http::fake([
@@ -112,5 +151,16 @@ class CartApiTest extends TestCase
         $this->putJson("/api/cart/{$itemId}", ['quantity' => 3])
             ->assertStatus(422)
             ->assertJsonPath('success', false);
+    }
+
+    /**
+     * Verifica que cantidades decimales en actualización sean rechazadas.
+     */
+    public function test_update_rejects_decimal_quantity_with_spanish_message(): void
+    {
+        $this->putJson('/api/cart/1', ['quantity' => 0.5])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('quantity')
+            ->assertJsonPath('errors.quantity.0', 'La cantidad debe ser un número entero mayor o igual a 1.');
     }
 }

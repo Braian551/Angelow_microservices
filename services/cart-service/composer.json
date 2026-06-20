@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Servicio de carrito de compras de Angelow Microservicios. Gestiona carritos, ítems y recordatorios de carritos abandonados. Consulta productos y variantes desde catalog-service vía HTTP. Usa Laravel 12, PostgreSQL y Redis.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

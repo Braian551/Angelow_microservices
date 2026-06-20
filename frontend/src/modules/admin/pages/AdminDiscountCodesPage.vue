@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="admin-discount-codes-page">
     <AdminPageHeader
       icon="fas fa-tags"
@@ -7,10 +7,14 @@
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Códigos de descuento' }]"
     >
       <template #actions>
-        <button class="btn btn-secondary" type="button" @click="exportCodes">
-          <i class="fas fa-file-export"></i>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="filteredCodes.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportCodes('excel')"
+          @pdf="exportCodes('pdf')"
+        />
         <button class="btn btn-secondary" type="button" @click="openMassCampaignModal">
           <i class="fas fa-bullhorn"></i>
           Envío masivo
@@ -146,7 +150,8 @@
 
     <AdminModal :show="showDetailModal" :title="selectedCode ? `Código ${selectedCode.code}` : 'Detalle del código'" max-width="960px" @close="closeDetailModal">
       <template v-if="selectedCode">
-        <div class="discount-detail-grid admin-detail-grid">
+        <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+          <div class="discount-detail-grid admin-detail-grid">
           <div>
             <AdminCard title="Resumen promocional" icon="fas fa-ticket-alt">
               <div class="discount-hero-card admin-surface-card">
@@ -170,6 +175,7 @@
               </div>
             </AdminCard>
           </div>
+          </div>
         </div>
       </template>
       <template #footer>
@@ -182,7 +188,8 @@
     </AdminModal>
 
     <AdminModal :show="showEditorModal" :title="editingCodeId ? 'Editar código' : 'Nuevo código'" max-width="760px" @close="closeEditorModal">
-      <div class="editor-grid editor-grid--discounts admin-editor-grid">
+      <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+        <div class="editor-grid editor-grid--discounts admin-editor-grid">
         <div>
           <div class="form-group">
             <div class="discount-code-field__header">
@@ -303,6 +310,7 @@
             <span class="status-badge" :class="form.active ? 'active' : 'rejected'">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
           </div>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -315,7 +323,8 @@
     </AdminModal>
 
     <AdminModal :show="showMassCampaignModal" title="Envío masivo de descuentos" max-width="700px" @close="closeMassCampaignModal">
-      <div class="campaign-modal">
+      <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+        <div class="campaign-modal">
         <p class="campaign-modal__intro">
           Envía un código de descuento a todos los clientes con notificación interna, correo o ambos canales.
         </p>
@@ -350,6 +359,7 @@
           </label>
           <p v-if="massCampaignErrors.channels" class="form-error">{{ massCampaignErrors.channels }}</p>
         </div>
+        </div>
       </div>
 
       <template #footer>
@@ -362,7 +372,8 @@
     </AdminModal>
 
     <AdminModal :show="showSpecificCampaignModal" title="Descuento para usuarios específicos" max-width="1180px" @close="closeSpecificCampaignModal">
-      <div class="specific-campaign-modal">
+      <div class="admin-discount-codes-page admin-discount-codes-page--modal">
+        <div class="specific-campaign-modal">
 
         <!-- Sección superior: selector de código y canales de envío -->
         <div class="specific-campaign-top">
@@ -543,6 +554,7 @@
           </label>
         </div>
         <p v-if="specificCampaignErrors.user_ids" class="form-error">{{ specificCampaignErrors.user_ids }}</p>
+        </div>
       </div>
 
       <template #footer>
@@ -567,14 +579,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { discountHttp } from '../../../services/http'
-import { useAlertSystem } from '../../../composables/useAlertSystem'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
-import { useAdminPagination } from '../composables/useAdminPagination'
+// =====================================================
+// Imports de la vista y componentes compartidos
+// =====================================================
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminInfoTooltip from '../components/AdminInfoTooltip.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -584,1150 +594,77 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
-
-const { showAlert } = useAlertSystem()
-const { showSnackbar } = useSnackbarSystem()
-const router = useRouter()
-
-const loading = ref(true)
-const codes = ref([])
-const selectedCode = ref(null)
-const showDetailModal = ref(false)
-const showEditorModal = ref(false)
-const editingCodeId = ref(null)
-const showMassCampaignModal = ref(false)
-const showSpecificCampaignModal = ref(false)
-const campaignSubmitting = ref(false)
-const campaignCustomersLoading = ref(false)
-const campaignCustomers = ref([])
-const specificCampaignSearch = ref('')
-const autoGenerateCode = ref(true)
-
-const filters = reactive({ search: '', state: 'all', type: 'all' })
-
-const form = reactive({
-  code: '',
-  type: 'percent',
-  value: 10,
-  max_uses: null,
-  start_date: '',
-  expires_at: '',
-  active: true,
-  is_single_use: false,
-})
-
-const formErrors = reactive({ code: '', type: '', value: '', max_uses: '', start_date: '', expires_at: '' })
-
-const massCampaignForm = reactive({
-  discount_code_id: '',
-  send_notification: true,
-  send_email: true,
-})
-
-const massCampaignErrors = reactive({
-  discount_code_id: '',
-  channels: '',
-})
-
-const specificCampaignForm = reactive({
-  discount_code_id: '',
-  send_notification: true,
-  send_email: true,
-  user_ids: [],
-})
-
-const specificCampaignErrors = reactive({
-  discount_code_id: '',
-  channels: '',
-  user_ids: '',
-})
-
-const filteredCodes = computed(() => {
-  const term = filters.search.trim().toLowerCase()
-
-  return codes.value.filter((code) => {
-    if (filters.type !== 'all' && code.type !== filters.type) return false
-    if (filters.state !== 'all' && codeStatusKey(code) !== filters.state) return false
-    if (!term) return true
-
-    return [code.code, code.type_label, code.discount_type_name].join(' ').toLowerCase().includes(term)
-  })
-})
-
-const pagination = useAdminPagination(filteredCodes, {
-  initialPageSize: 10,
-  pageSizeOptions: [10, 20, 50],
-})
-
-const activeFilterCount = computed(() => [filters.search, filters.state !== 'all', filters.type !== 'all'].filter(Boolean).length)
-
-const discountStats = computed(() => [
-  { key: 'total', label: 'Total códigos', value: codes.value.length, icon: 'fas fa-tags', color: 'primary' },
-  { key: 'active', label: 'Activos', value: codes.value.filter((code) => codeStatusKey(code) === 'active').length, icon: 'fas fa-check-circle', color: 'success' },
-  { key: 'expired', label: 'Vencidos', value: codes.value.filter((code) => codeStatusKey(code) === 'expired').length, icon: 'fas fa-calendar-times', color: 'warning' },
-  { key: 'single', label: 'Uso único', value: codes.value.filter((code) => code.is_single_use).length, icon: 'fas fa-user-shield', color: 'info' },
-])
-
-const campaignCodeOptions = computed(() => codes.value.map((code) => ({
-  id: code.id,
-  code: code.code,
-  type: code.type,
-  value: code.value,
-})))
-const massCampaignHasRecipients = computed(() => campaignCustomers.value.length > 0)
-const massCampaignAvailabilityTitle = computed(() => {
-  if (campaignCustomersLoading.value) {
-    return 'Validando clientes disponibles'
-  }
-
-  return massCampaignHasRecipients.value
-    ? 'Clientes listos para la campaña'
-    : 'No hay clientes disponibles para este envío'
-})
-const massCampaignAvailabilityMessage = computed(() => {
-  if (campaignCustomersLoading.value) {
-    return 'Estamos consultando la base de clientes antes de habilitar el envío masivo.'
-  }
-
-  if (!massCampaignHasRecipients.value) {
-    return 'Registra o habilita clientes antes de lanzar esta campaña. Cuando existan destinatarios válidos, el envío masivo se activará automáticamente.'
-  }
-
-  if (campaignCustomers.value.length >= 200) {
-    return 'Se detectaron al menos 200 clientes disponibles para la campaña.'
-  }
-
-  return `Se detectaron ${campaignCustomers.value.length} clientes disponibles para esta campaña.`
-})
-
-// Código completo seleccionado en campaña específica (para vista previa)
-const selectedSpecificCode = computed(() =>
-  codes.value.find((c) => String(c.id) === String(specificCampaignForm.discount_code_id)) || null
-)
-
-const filteredCampaignCustomers = computed(() => {
-  const term = specificCampaignSearch.value.trim().toLowerCase()
-
-  if (!term) return campaignCustomers.value
-
-  return campaignCustomers.value.filter((customer) => [customer.name, customer.email].join(' ').toLowerCase().includes(term))
-})
-
-function buildAutomaticDiscountCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  const segment = Array.from({ length: 6 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
-  return `PROMO-${segment}`
-}
-
-function regenerateAutomaticCode() {
-  form.code = buildAutomaticDiscountCode()
-  validateField('code')
-}
-
-function handleCodeGenerationToggle(nextValue) {
-  autoGenerateCode.value = Boolean(nextValue)
-
-  if (autoGenerateCode.value) {
-    regenerateAutomaticCode()
-    return
-  }
-
-  validateField('code')
-}
-
-function resetForm() {
-  autoGenerateCode.value = true
-  form.code = ''
-  form.type = 'percent'
-  form.value = 10
-  form.max_uses = null
-  form.start_date = ''
-  form.expires_at = ''
-  form.active = true
-  form.is_single_use = false
-  clearErrors()
-  regenerateAutomaticCode()
-}
-
-function clearErrors() {
-  Object.keys(formErrors).forEach((key) => {
-    formErrors[key] = ''
-  })
-}
-
-function clearFilters() {
-  filters.search = ''
-  filters.state = 'all'
-  filters.type = 'all'
-}
-
-function openCreateModal() {
-  editingCodeId.value = null
-  resetForm()
-  showEditorModal.value = true
-}
-
-function navigateToSpecificCampaignPage() {
-  router.push({ name: 'admin-discount-codes-specific-campaign' })
-}
-
-function openEditModal(code) {
-  editingCodeId.value = code.id
-  autoGenerateCode.value = false
-  clearErrors()
-  form.code = code.code || ''
-  form.type = code.type || 'percent'
-  form.value = Number(code.value || 0)
-  form.max_uses = code.max_uses ?? null
-  form.start_date = normalizeDateTimeInput(code.start_date)
-  form.expires_at = normalizeDateTimeInput(code.expires_at)
-  form.active = Boolean(code.active)
-  form.is_single_use = Boolean(code.is_single_use)
-  showEditorModal.value = true
-}
-
-function closeEditorModal() {
-  showEditorModal.value = false
-  editingCodeId.value = null
-  resetForm()
-}
-
-function openDetailModal(code) {
-  selectedCode.value = code
-  showDetailModal.value = true
-}
-
-function closeDetailModal() {
-  selectedCode.value = null
-  showDetailModal.value = false
-}
-
-function openEditFromDetail() {
-  if (!selectedCode.value) return
-  const current = selectedCode.value
-  closeDetailModal()
-  openEditModal(current)
-}
-
-function defaultCampaignCodeId() {
-  const firstCode = campaignCodeOptions.value[0]
-  return firstCode ? String(firstCode.id) : ''
-}
-
-function resetMassCampaignForm() {
-  massCampaignForm.discount_code_id = defaultCampaignCodeId()
-  massCampaignForm.send_notification = true
-  massCampaignForm.send_email = true
-  massCampaignErrors.discount_code_id = ''
-  massCampaignErrors.channels = ''
-}
-
-function resetSpecificCampaignForm() {
-  specificCampaignForm.discount_code_id = defaultCampaignCodeId()
-  specificCampaignForm.send_notification = true
-  specificCampaignForm.send_email = true
-  specificCampaignForm.user_ids = []
-  specificCampaignErrors.discount_code_id = ''
-  specificCampaignErrors.channels = ''
-  specificCampaignErrors.user_ids = ''
-  specificCampaignSearch.value = ''
-}
-
-async function openMassCampaignModal() {
-  resetMassCampaignForm()
-  showMassCampaignModal.value = true
-  await loadCampaignCustomers()
-}
-
-function closeMassCampaignModal() {
-  showMassCampaignModal.value = false
-  resetMassCampaignForm()
-}
-
-async function openSpecificCampaignModal() {
-  resetSpecificCampaignForm()
-  showSpecificCampaignModal.value = true
-  await loadCampaignCustomers()
-}
-
-function closeSpecificCampaignModal() {
-  showSpecificCampaignModal.value = false
-  resetSpecificCampaignForm()
-}
-
-async function loadCampaignCustomers() {
-  campaignCustomersLoading.value = true
-  try {
-    const { data } = await discountHttp.get('/admin/discount-codes/campaign/customers')
-    campaignCustomers.value = Array.isArray(data?.data) ? data.data : []
-  } catch (error) {
-    campaignCustomers.value = []
-    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudieron cargar los clientes para la campaña.') })
-  } finally {
-    campaignCustomersLoading.value = false
-  }
-}
-
-function validateMassCampaignField(field) {
-  if (field === 'discount_code_id') {
-    massCampaignErrors.discount_code_id = massCampaignForm.discount_code_id ? '' : 'Selecciona un código para el envío masivo.'
-    return
-  }
-
-  if (field === 'channels') {
-    massCampaignErrors.channels = massCampaignForm.send_notification || massCampaignForm.send_email
-      ? ''
-      : 'Activa al menos un canal de envío (notificación o correo).'
-  }
-}
-
-function validateSpecificCampaignField(field) {
-  if (field === 'discount_code_id') {
-    specificCampaignErrors.discount_code_id = specificCampaignForm.discount_code_id ? '' : 'Selecciona un código para el envío.'
-    return
-  }
-
-  if (field === 'channels') {
-    specificCampaignErrors.channels = specificCampaignForm.send_notification || specificCampaignForm.send_email
-      ? ''
-      : 'Activa al menos un canal de envío (notificación o correo).'
-    return
-  }
-
-  if (field === 'user_ids') {
-    specificCampaignErrors.user_ids = specificCampaignForm.user_ids.length > 0
-      ? ''
-      : 'Selecciona al menos un usuario para continuar.'
-  }
-}
-
-function validateMassCampaignForm() {
-  validateMassCampaignField('discount_code_id')
-  validateMassCampaignField('channels')
-
-  return !massCampaignErrors.discount_code_id && !massCampaignErrors.channels
-}
-
-function validateSpecificCampaignForm() {
-  validateSpecificCampaignField('discount_code_id')
-  validateSpecificCampaignField('channels')
-  validateSpecificCampaignField('user_ids')
-
-  return !specificCampaignErrors.discount_code_id && !specificCampaignErrors.channels && !specificCampaignErrors.user_ids
-}
-
-function clearSpecificCustomerSelection() {
-  specificCampaignForm.user_ids = []
-  validateSpecificCampaignField('user_ids')
-}
-
-function selectAllFilteredCustomers() {
-  const visibleIds = filteredCampaignCustomers.value.map((customer) => String(customer.id))
-  specificCampaignForm.user_ids = Array.from(new Set([...specificCampaignForm.user_ids, ...visibleIds]))
-  validateSpecificCampaignField('user_ids')
-}
-
-function campaignSummaryMessage(summary) {
-  if (!summary) {
-    return 'Campaña enviada correctamente.'
-  }
-
-  const notifications = summary.notifications || { sent: 0, failed: 0 }
-  const emails = summary.emails || { sent: 0, failed: 0 }
-
-  return `Notificaciones: ${notifications.sent} enviadas / ${notifications.failed} fallidas. Correos: ${emails.sent} enviados / ${emails.failed} fallidos.`
-}
-
-async function submitMassCampaign() {
-  if (!validateMassCampaignForm()) {
-    showSnackbar({ type: 'warning', message: 'Completa correctamente los campos del envío masivo.' })
-    return
-  }
-
-  if (campaignCustomersLoading.value) {
-    showSnackbar({ type: 'info', message: 'Todavía estamos validando los clientes disponibles para la campaña.' })
-    return
-  }
-
-  if (!massCampaignHasRecipients.value) {
-    showSnackbar({ type: 'warning', message: 'No hay clientes disponibles para el envío masivo. Registra al menos un cliente antes de continuar.' })
-    return
-  }
-
-  campaignSubmitting.value = true
-  try {
-    const payload = {
-      discount_code_id: Number(massCampaignForm.discount_code_id),
-      send_notification: Boolean(massCampaignForm.send_notification),
-      send_email: Boolean(massCampaignForm.send_email),
-    }
-
-    const { data } = await discountHttp.post('/admin/discount-codes/campaign/mass', payload)
-    showSnackbar({ type: 'success', message: campaignSummaryMessage(data?.data?.summary) })
-    closeMassCampaignModal()
-  } catch (error) {
-    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo ejecutar el envío masivo.') })
-  } finally {
-    campaignSubmitting.value = false
-  }
-}
-
-async function submitSpecificCampaign() {
-  if (!validateSpecificCampaignForm()) {
-    showSnackbar({ type: 'warning', message: 'Completa correctamente la selección de usuarios y canales.' })
-    return
-  }
-
-  campaignSubmitting.value = true
-  try {
-    const payload = {
-      discount_code_id: Number(specificCampaignForm.discount_code_id),
-      user_ids: specificCampaignForm.user_ids,
-      send_notification: Boolean(specificCampaignForm.send_notification),
-      send_email: Boolean(specificCampaignForm.send_email),
-    }
-
-    const { data } = await discountHttp.post('/admin/discount-codes/campaign/specific', payload)
-    showSnackbar({ type: 'success', message: campaignSummaryMessage(data?.data?.summary) })
-    closeSpecificCampaignModal()
-  } catch (error) {
-    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo ejecutar el envío a usuarios específicos.') })
-  } finally {
-    campaignSubmitting.value = false
-  }
-}
-
-function handleCodeInput() {
-  form.code = form.code.toUpperCase().replace(/\s+/g, '')
-  validateField('code')
-}
-
-function validateField(field) {
-  switch (field) {
-    case 'code':
-      formErrors.code = /^[A-Z0-9_-]{4,20}$/.test(form.code) ? '' : 'Usa entre 4 y 20 caracteres en mayúsculas, números o guiones.'
-      break
-    case 'type':
-      formErrors.type = form.type ? '' : 'Selecciona el tipo de descuento.'
-      break
-    case 'value':
-      formErrors.value = Number(form.value) > 0 ? '' : 'El valor del descuento debe ser mayor que cero.'
-      if (!formErrors.value && form.type === 'percent' && Number(form.value) > 100) formErrors.value = 'El porcentaje no puede superar el 100%.'
-      break
-    case 'max_uses':
-      formErrors.max_uses = form.max_uses === null || form.max_uses === '' || Number(form.max_uses) > 0 ? '' : 'El máximo de usos debe ser mayor que cero.'
-      break
-    case 'start_date':
-    case 'expires_at':
-      formErrors.start_date = ''
-      formErrors.expires_at = ''
-      if (form.start_date && form.expires_at && new Date(form.expires_at) <= new Date(form.start_date)) {
-        formErrors.expires_at = 'La expiración debe ser posterior al inicio.'
-      }
-      break
-    default:
-      break
-  }
-}
-
-function validateForm() {
-  validateField('code')
-  validateField('type')
-  validateField('value')
-  validateField('max_uses')
-  validateField('start_date')
-  return Object.values(formErrors).every((value) => !value)
-}
-
-async function loadCodes() {
-  loading.value = true
-  try {
-    const { data } = await discountHttp.get('/admin/discount-codes')
-    codes.value = Array.isArray(data?.data) ? data.data : []
-  } catch (error) {
-    codes.value = []
-    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudieron cargar los códigos.') })
-  } finally {
-    loading.value = false
-  }
-}
-
-async function saveCode() {
-  if (!validateForm()) {
-    showSnackbar({ type: 'warning', message: 'Corrige los errores del formulario antes de guardar.' })
-    return
-  }
-
-  const payload = {
-    code: form.code,
-    type: form.type,
-    value: Number(form.value),
-    max_uses: form.max_uses || null,
-    active: form.active,
-    is_single_use: form.is_single_use,
-    start_date: form.start_date || null,
-    expires_at: form.expires_at || null,
-  }
-
-  try {
-    if (editingCodeId.value) {
-      await discountHttp.put(`/admin/discount-codes/${editingCodeId.value}`, payload)
-      showSnackbar({ type: 'success', message: 'Código actualizado correctamente.' })
-    } else {
-      await discountHttp.post('/admin/discount-codes', payload)
-      showSnackbar({ type: 'success', message: 'Código creado correctamente.' })
-    }
-
-    closeEditorModal()
-    await loadCodes()
-  } catch (error) {
-    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo guardar el código.') })
-  }
-}
-
-function confirmDeleteCode(code) {
-  showAlert({
-    type: 'warning',
-    title: 'Eliminar código',
-    message: `Vas a eliminar el código ${code.code}. Esta acción no se puede deshacer.`,
-    actions: [
-      { text: 'Cancelar', style: 'secondary' },
-      {
-        text: 'Eliminar',
-        style: 'danger',
-        callback: async () => {
-          try {
-            await discountHttp.delete(`/admin/discount-codes/${code.id}`)
-            showSnackbar({ type: 'success', message: 'Código eliminado correctamente.' })
-            if (selectedCode.value?.id === code.id) closeDetailModal()
-            await loadCodes()
-          } catch (error) {
-            showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo eliminar el código.') })
-          }
-        },
-      },
-    ],
-  })
-}
-
-function exportCodes() {
-  const rows = filteredCodes.value.map((code) => [code.code, code.type_label, formatDiscountValue(code), code.times_used, code.max_uses || '∞', codeStatusLabel(code), code.start_date || '', code.expires_at || ''])
-  const csv = [['Código', 'Tipo', 'Valor', 'Usados', 'Máximo', 'Estado', 'Inicio', 'Expira'].join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv('codigos-descuento.csv', csv)
-}
-
-function codeStatusKey(code) {
-  if (!code.active) return 'inactive'
-  if (code.expires_at && new Date(code.expires_at) < new Date()) return 'expired'
-  if (code.is_single_use) return 'single-use'
-  return 'active'
-}
-
-function codeStatusLabel(code) {
-  return { active: 'Activo', inactive: 'Inactivo', expired: 'Vencido', 'single-use': 'Uso único' }[codeStatusKey(code)]
-}
-
-function codeStatusClass(code) {
-  return { active: 'active', inactive: 'rejected', expired: 'cancelled', 'single-use': 'info' }[codeStatusKey(code)]
-}
-
-function formatDiscountValue(code) {
-  return code.type === 'percent' ? `${Number(code.value || 0)}%` : formatCurrency(code.value || 0)
-}
-
-function remainingUsesLabel(code) {
-  const remaining = Number(code.max_uses || 0) - Number(code.times_used || 0)
-  return remaining > 0 ? `${remaining} usos disponibles` : 'Sin cupos disponibles'
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value || 0))
-}
-
-// Devuelve las iniciales del cliente para el avatar
-function userInitials(customer) {
-  const name = String(customer?.name || customer?.email || '?').trim()
-  return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('')
-}
-
-// Formatea una fecha ISO a formato legible en español
-function formatShortDate(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function formatDateTime(value) {
-  if (!value) return 'Sin fecha'
-  return new Date(value).toLocaleString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function normalizeDateTimeInput(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-  const hours = `${date.getHours()}`.padStart(2, '0')
-  const minutes = `${date.getMinutes()}`.padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function extractErrorMessage(error, fallback) {
-  return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-
-onMounted(loadCodes)
+import { useAdminDiscountCodes } from '../composables/useAdminDiscountCodes'
+import '../views/AdminDiscountCodesPage.css'
+
+// =====================================================
+// Orquestación de la lógica administrativa
+// =====================================================
+const {
+  activeFilterCount,
+  autoGenerateCode,
+  campaignCodeOptions,
+  campaignCustomers,
+  campaignCustomersLoading,
+  campaignSubmitting,
+  clearFilters,
+  clearSpecificCustomerSelection,
+  closeDetailModal,
+  closeEditorModal,
+  closeMassCampaignModal,
+  closeSpecificCampaignModal,
+  codeStatusClass,
+  codeStatusLabel,
+  confirmDeleteCode,
+  discountStats,
+  editingCodeId,
+  exportCodes,
+  exportingFormat,
+  filteredCampaignCustomers,
+  filteredCodes,
+  filters,
+  form,
+  formErrors,
+  formatCurrency,
+  formatDateTime,
+  formatDiscountValue,
+  formatShortDate,
+  handleCodeGenerationToggle,
+  handleCodeInput,
+  loading,
+  massCampaignAvailabilityMessage,
+  massCampaignAvailabilityTitle,
+  massCampaignErrors,
+  massCampaignForm,
+  massCampaignHasRecipients,
+  navigateToSpecificCampaignPage,
+  openCreateModal,
+  openDetailModal,
+  openEditFromDetail,
+  openEditModal,
+  openMassCampaignModal,
+  openSpecificCampaignModal,
+  pagination,
+  regenerateAutomaticCode,
+  remainingUsesLabel,
+  saveCode,
+  selectedCode,
+  selectedSpecificCode,
+  selectAllFilteredCustomers,
+  showDetailModal,
+  showEditorModal,
+  showMassCampaignModal,
+  showSpecificCampaignModal,
+  specificCampaignErrors,
+  specificCampaignForm,
+  specificCampaignSearch,
+  submitMassCampaign,
+  submitSpecificCampaign,
+  userInitials,
+  validateField,
+  validateMassCampaignField,
+  validateSpecificCampaignField,
+} = useAdminDiscountCodes()
 </script>
 
-<style scoped>
-.discount-code-pill {
-  display: inline-flex;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  background: rgba(15, 122, 191, 0.08);
-  color: var(--admin-primary);
-}
 
-.discount-preview-card {
-  margin-top: 1rem;
-  border: 1px solid rgba(15, 122, 191, 0.12);
-}
-
-.discount-code-field__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.6rem;
-}
-
-.discount-code-field__header label {
-  margin-bottom: 0;
-}
-
-.discount-code-field__generate {
-  border: 1px solid rgba(15, 122, 191, 0.18);
-  background: rgba(15, 122, 191, 0.08);
-  color: var(--admin-primary);
-  border-radius: 999px;
-  padding: 0.55rem 1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.discount-code-field__generate:hover {
-  background: rgba(15, 122, 191, 0.14);
-}
-
-.discount-code-field__hint {
-  margin: 0.55rem 0 0;
-  color: var(--admin-text-light);
-  font-size: 1.18rem;
-  line-height: 1.45;
-}
-
-.discount-code-field__mode {
-  margin-top: 1rem;
-}
-
-.discount-hero-card h3,
-.discount-preview-card h3 {
-  font-size: 2.6rem;
-  letter-spacing: 0.08em;
-}
-
-.campaign-modal {
-  display: grid;
-  gap: 1rem;
-}
-
-.campaign-modal__intro {
-  margin: 0;
-  color: var(--admin-text-muted);
-}
-
-.campaign-modal__availability {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 1rem 1.1rem;
-  border-radius: 14px;
-  border: 1px solid rgba(15, 122, 191, 0.18);
-  background: rgba(15, 122, 191, 0.05);
-}
-
-.campaign-modal__availability i {
-  margin-top: 0.2rem;
-  color: var(--admin-primary);
-  font-size: 1.7rem;
-}
-
-.campaign-modal__availability strong {
-  display: block;
-  color: var(--admin-text);
-}
-
-.campaign-modal__availability p {
-  margin: 0.3rem 0 0;
-  color: var(--admin-text-muted);
-}
-
-.campaign-modal__availability--empty {
-  border-color: rgba(219, 39, 119, 0.14);
-  background: rgba(219, 39, 119, 0.05);
-}
-
-.campaign-modal__availability--empty i {
-  color: #be185d;
-}
-
-.campaign-form-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr;
-}
-
-.campaign-channels {
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.85rem;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 122, 191, 0.14);
-  background: rgba(15, 122, 191, 0.04);
-}
-
-.campaign-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-weight: 600;
-  color: var(--admin-text);
-}
-
-.campaign-user-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.campaign-user-toolbar__search {
-  flex: 1;
-  min-width: 240px;
-}
-
-.campaign-user-toolbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* ── Modal campaña específica mejorada ─────────────────────── */
-.specific-campaign-modal {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.specific-campaign-top {
-  display: grid;
-  gap: 1.35rem;
-  grid-template-columns: 1fr;
-}
-
-.specific-campaign-label {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-weight: 700;
-  font-size: 0.93rem;
-  color: var(--admin-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.6rem;
-}
-
-/* Vista previa del código seleccionado */
-.campaign-code-preview {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 0.9rem 1rem;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 122, 191, 0.2);
-  background: rgba(15, 122, 191, 0.05);
-  margin-top: 0.6rem;
-}
-
-.campaign-code-preview__icon {
-  width: 2.8rem;
-  height: 2.8rem;
-  flex-shrink: 0;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  background: rgba(15, 122, 191, 0.12);
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-code-preview__icon.is-fixed {
-  background: rgba(34, 197, 94, 0.12);
-  color: #16a34a;
-}
-
-.campaign-code-preview__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-  min-width: 0;
-}
-
-.campaign-code-preview__code {
-  font-size: 1.18rem;
-  color: var(--admin-text);
-  word-break: break-all;
-}
-
-.campaign-code-preview__value {
-  font-size: 1.04rem;
-  font-weight: 700;
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-code-preview__meta {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.9rem;
-  color: var(--admin-text-muted);
-}
-
-/* Animación de entrada del preview */
-.campaign-preview-fade-enter-active,
-.campaign-preview-fade-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
-}
-.campaign-preview-fade-enter-from,
-.campaign-preview-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-/* Tarjetas de canal */
-.specific-campaign-channels-col {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.campaign-channel-card {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  border-radius: 12px;
-  border: 1.5px solid rgba(15, 122, 191, 0.14);
-  background: var(--admin-surface, #fff);
-  cursor: pointer;
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
-  user-select: none;
-}
-
-.campaign-channel-card:hover {
-  border-color: rgba(15, 122, 191, 0.32);
-  background: rgba(15, 122, 191, 0.04);
-}
-
-.campaign-channel-card.is-active {
-  border-color: var(--admin-primary, #0077b6);
-  background: rgba(15, 122, 191, 0.07);
-  box-shadow: 0 0 0 3px rgba(15, 122, 191, 0.08);
-}
-
-.campaign-channel-card__icon {
-  width: 2.4rem;
-  height: 2.4rem;
-  flex-shrink: 0;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  background: rgba(15, 122, 191, 0.1);
-  color: var(--admin-primary, #0077b6);
-}
-
-.campaign-channel-card__icon--email {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-.campaign-channel-card__info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.08rem;
-}
-
-.campaign-channel-card__info strong {
-  font-size: 1.04rem;
-  color: var(--admin-text);
-}
-
-.campaign-channel-card__info span {
-  font-size: 0.9rem;
-  color: var(--admin-text-muted);
-}
-
-.campaign-channel-card__toggle {
-  flex-shrink: 0;
-}
-
-.campaign-channel-card__toggle input[type="checkbox"] {
-  width: 1.1rem;
-  height: 1.1rem;
-  cursor: pointer;
-}
-
-/* Cabecera de destinatarios */
-.specific-campaign-users-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-}
-
-.specific-campaign-users-header__title {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-weight: 700;
-  color: var(--admin-text);
-}
-
-.specific-campaign-users-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-/* Botones de acción tipo chip para el panel de destinatarios */
-.campaign-action-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.32rem;
-  padding: 0.35rem 0.85rem;
-  border-radius: 999px;
-  font-size: 0.84rem;
-  font-weight: 700;
-  background: rgba(15, 122, 191, 0.08);
-  color: var(--admin-primary, #0077b6);
-  border: 1.5px solid rgba(15, 122, 191, 0.2);
-  cursor: pointer;
-  transition: background 0.16s, border-color 0.16s, color 0.16s;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.campaign-action-chip:hover {
-  background: rgba(15, 122, 191, 0.15);
-  border-color: rgba(15, 122, 191, 0.38);
-}
-
-.campaign-action-chip--clear {
-  background: rgba(220, 38, 38, 0.06);
-  color: #dc2626;
-  border-color: rgba(220, 38, 38, 0.18);
-}
-
-.campaign-action-chip--clear:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.12);
-  border-color: rgba(220, 38, 38, 0.35);
-}
-
-.campaign-action-chip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-
-.specific-campaign-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.2rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.83rem;
-  font-weight: 700;
-  background: rgba(15, 122, 191, 0.1);
-  color: var(--admin-text-muted);
-  transition: background 0.2s, color 0.2s;
-}
-
-.specific-campaign-badge.is-filled {
-  background: var(--admin-primary, #0077b6);
-  color: #fff;
-}
-
-/* Lista de usuarios */
-.campaign-users-list {
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid rgba(15, 122, 191, 0.14);
-  border-radius: 12px;
-  padding: 0.45rem;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.campaign-users-list--specific {
-  max-height: min(52vh, 430px);
-}
-
-.campaign-users-list__state {
-  padding: 1.4rem;
-  text-align: center;
-  color: var(--admin-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.campaign-user-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.campaign-user-item:hover {
-  background: rgba(15, 122, 191, 0.06);
-}
-
-.campaign-user-item.is-selected {
-  background: rgba(15, 122, 191, 0.09);
-}
-
-.campaign-user-item input[type="checkbox"] {
-  flex-shrink: 0;
-}
-
-.campaign-user-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: rgba(15, 122, 191, 0.14);
-  color: var(--admin-primary, #0077b6);
-  font-size: 0.86rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-transform: uppercase;
-}
-
-.campaign-user-item__meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.campaign-user-item__meta strong {
-  font-size: 1rem;
-  color: var(--admin-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.campaign-user-item__meta span {
-  color: var(--admin-text-muted);
-  font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.campaign-user-item__checkmark {
-  flex-shrink: 0;
-  color: var(--admin-primary, #0077b6);
-  font-size: 0.85rem;
-}
-
-@media (min-width: 760px) {
-  .specific-campaign-top {
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .campaign-form-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .discount-code-field__header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .discount-code-field__generate {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .specific-campaign-users-panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .specific-campaign-users-header__actions {
-    width: 100%;
-  }
-
-  .specific-campaign-users-header__actions .btn {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .campaign-user-toolbar__actions {
-    width: 100%;
-  }
-
-  .campaign-user-toolbar__actions .btn {
-    flex: 1;
-  }
-}
-</style>

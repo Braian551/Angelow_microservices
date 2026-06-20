@@ -12,6 +12,8 @@
 - [Extensión 2026-05-10: sincronización de notas e indicaciones de entrega](#extensión-2026-05-10-sincronización-de-notas-e-indicaciones-de-entrega)
   - [Observer](#observer)
   - [Adapter](#adapter-2)
+- [Extensión 2026-06-07: carrito responsive por tarjetas móviles](#extensión-2026-06-07-carrito-responsive-por-tarjetas-móviles)
+  - [Template Method + Composition](#template-method-composition)
 <!-- indice:auto:end -->
 
 ## Template Method
@@ -77,3 +79,25 @@
 - Ubicación: `frontend/src/modules/checkout/pages/PaymentPage.vue`
 - Ubicación: `frontend/src/modules/checkout/pages/ConfirmationPage.vue`
 - Problema resuelto: evitar guardar dos veces la misma instrucción y, al mismo tiempo, conservar visibles las notas realmente distintas en pago y confirmación.
+
+## Extensión 2026-06-07: carrito responsive por tarjetas móviles
+
+### Template Method + Composition
+
+- Referencia: https://refactoring.guru/es/design-patterns/template-method
+- Referencia complementaria: https://refactoring.guru/es/design-patterns/composite
+- Aplicación: refinamiento del patrón visual del carrito para que el paso 1 del checkout mantenga la misma narrativa de selección, resumen y acción primaria en móvil sin colapsar como tabla comprimida.
+- Ubicación: `frontend/src/modules/cart/pages/CartPage.vue`
+- Problema resuelto: en pantallas pequeñas el stepper, los bloques de precio/cantidad/total y la lectura de cada ítem del carrito seguían demasiado rígidos y generaban tarjetas difíciles de escanear.
+
+## Extensión 2026-06-07: carrito sincronizado con reservas de stock en tiempo real
+
+### Observer
+
+- Referencia: https://refactoring.guru/es/design-patterns/observer
+- Aplicación:
+  - `frontend/src/composables/useStockRealtime.js`
+  - `frontend/src/modules/cart/pages/CartPage.vue`
+- Problema resuelto: el carrito podía seguir mostrando cantidades seleccionables y subtotales sobre stock que ya había sido reservado o liberado por otra sesión, generando fricción al pasar al checkout.
+- Implementación clave:
+  - `CartPage.vue` escucha los eventos websocket globales y, si una variante del carrito fue afectada, relanza `syncCartState()` con debounce para recalcular disponibilidad, selección y cantidades válidas con el mismo contrato de `cart-service`.

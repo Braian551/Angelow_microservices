@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+// Comentario de mantenimiento: Este repositorio encapsula consultas a datos para aislar a los servicios del detalle SQL.
+
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -60,6 +62,10 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             'total'    => $result['total'],
         ];
     }
+
+    /**
+     * Construye y ejecuta la consulta de productos sobre una conexión específica.
+     */
 
     private function runFilteredQueryByConnection(
         ?string $connection,

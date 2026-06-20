@@ -1,0 +1,10 @@
+/* Estilos responsivos propios de categorías */
+@media (max-width: 768px) {
+  .admin-categories-page .admin-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-categories-page .admin-entity-actions {
+    flex-wrap: wrap;
+  }
+}

@@ -33,11 +33,16 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 14. Los elementos repetibles (feedback visual, formularios, tarjetas, modales, tablas, estados vacíos, loaders) deben implementarse como componentes reutilizables, escalables y mantenibles.
 14b. En ningún caso se deben reimplementar ad hoc en una vista componentes ya existentes en el sistema (`AdminStatsGrid`, `AdminCard`, `AdminPageHeader`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminModal`, `AdminEmptyState`, `AdminShimmer`, `AdminTableShimmer`, `AdminTableImage`). Toda vista nueva o mejorada debe consumir estos componentes directamente. Si un componente existente no cubre el caso de uso, se debe ampliar o parametrizar ese componente, nunca duplicarlo.
 14c. Todo componente reutilizable del módulo admin debe ser responsivo por diseño: no se considera terminada la intervención sobre un componente si solo funciona en desktop. Cualquier componente compartido que no sea responsivo en móvil y tablet debe corregirse en la misma tarea donde se detecte el problema, incluso si no era el objetivo principal.
+14d. Toda exportación administrativa a PDF o Excel debe salir de componentes/composables reutilizables compartidos. Si ya existen botones, contratos o helpers comunes de exportación, se deben reutilizar o ampliar; queda prohibido volver a crear helpers CSV/PDF aislados por vista para el mismo patrón funcional.
+14e. Las exportaciones administrativas a PDF o Excel deben heredar siempre el logo actual del sitio y la configuración vigente compartida del storefront (`useAppShell` o la fuente común equivalente). Si la vista intervenida ya muestra imágenes operativas, el contrato compartido debe permitir incluirlas en PDF sin duplicar plantillas por pantalla.
 15. Cada cambio del agente debe dejar documentación actualizada del patrón aplicado (o justificar por qué no aplica), tomando como referencia el catálogo de patrones de diseño: https://refactoring.guru/es/design-patterns/catalog.
+15b. Siempre que una tarea agregue, amplíe o modifique una funcionalidad visible o un comportamiento funcional del sistema, en la misma intervención se debe actualizar `docs/referencias/matriz-requerimientos-funcionales-actualizada.md` dentro del módulo o dominio correspondiente.
+15c. En `docs/referencias/matriz-requerimientos-funcionales-actualizada.md` las columnas `Nro.` de RF, RN y RI deben permanecer vacías para todas las filas nuevas o intervenidas; no se deben crear ni reutilizar numeraciones tipo `RF-###`, `RN-###` o `RI-###`.
 16. Todo formulario (sin excepción) debe implementar validación en tiempo real por campo (on input/on change), mostrando errores claros y consistentes antes del submit.
 17. Al documentar patrones de diseño, se debe indicar explícitamente en qué archivo(s) se aplicó cada patrón (ruta exacta en el proyecto), además del problema que resuelve.
 18. Siempre que se agregue, actualice o use una librería (frontend/backend) o dependencia Composer para resolver una tarea, se debe registrar en un archivo .md dentro de docs indicando: nombre/version, motivo, comando usado y ruta exacta donde se aplica.
 18b. Esta documentación de librerías/dependencias en docs es bloqueante: la tarea no puede marcarse como terminada si falta ese registro, aunque el código ya funcione.
+18c. Cada vez que se toque infraestructura compartida de exportación PDF/Excel o sus librerías asociadas, en la misma intervención se debe actualizar la guía del frontend correspondiente, el registro de patrones y el registro de dependencias para evitar divergencia documental.
 19. Después de cambios en endpoints/controladores, se deben ejecutar pruebas de verificación (endpoint o lógica equivalente) y eliminar al final cualquier archivo temporal de test/debug creado para esa validación.
 20. Todo ajuste visual en frontend debe validarse y resolverse de forma responsiva en desktop, tablet y móvil; no se considera terminado si la UI se rompe o se solapa en alguno de esos tamaños.
 21. Toda sección, vista, componente o bloque intervenido durante una tarea debe revisarse de forma explícita en sus breakpoints afectados y quedar responsive antes de cerrar el trabajo; no basta con que solo el layout general siga funcionando.
@@ -45,13 +50,14 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 23. Si las respuestas de las bases de datos (especialmente legacy) traen caracteres corruptos o errores UTF-8 (por ejemplo `Caf??` o `Mel??n`), se deben aplicar correcciones on-the-fly en las respuestas del backend o parseos del frontend para restaurar los formatos correctos (ej. `Café`, `Melón`) garantizando consistencia visual hasta que los esquemas DB de origen sean completamente corregidos en la migración.
 24. En el dashboard admin, el lenguaje visual base debe usar colores sólidos pero suaves, superficies tipo glass sutil, bordes ligeros y radios consistentes; evitar botones planos, bloques desproporcionados y contrastes agresivos.
 25. La regla visual del punto anterior aplica solo al módulo admin y debe implementarse desde estilos globales/componentes compartidos para mantener coherencia transversal entre todas las vistas administrativas.
-26. Todo valor operativo proveniente de base de datos que llegue en inglés o formato técnico (`pending`, `paid`, `transfer`, etc.) debe traducirse en la IU al español antes de renderizarse al usuario final.
+26. Todo valor operativo proveniente de base de datos que llegue en inglés o formato técnico (`pending`, `paid`, `transfer`, `producto_defectuoso`, valores con `_`, slugs, códigos de estado, métodos o motivos internos) debe pasar por una capa de presentación antes de renderizarse en frontend. Nunca se deben mostrar crudos los valores de BD; la UI debe usar el término adecuado en español, con espacios, tildes y redacción natural según el contexto.
 27. Las rutas, query params, slugs visibles y copy derivado de navegación no deben exponer términos internos de implementación como `legacy`, `microservice` o equivalentes; la URL pública debe mantenerse neutral para el usuario final.
 28. Todo archivo servido desde `/uploads` debe resolverse con una URL pública válida y, si la BD apunta a un archivo inexistente, la IU debe mostrar un estado controlado de archivo no disponible en vez de una imagen rota o enlace inválido.
 29. Antes de marcar un adjunto como no disponible, backend o frontend deben validar rutas candidatas razonables a partir del valor persistido (ruta completa, relativa, basename) para evitar falsos negativos por datos legacy o nombres parciales.
 30. Cuando un adjunto no pueda mostrarse, la IU debe usar copy neutro orientado al usuario y nunca mencionar carpetas, rutas físicas, contenedores, mounts ni detalles internos de almacenamiento.
 31. En cualquier flujo de imágenes del admin (settings, sliders, categorías, colecciones, productos, anuncios y similares) se debe usar lógica obligatoria de reemplazo: al subir una nueva imagen para el mismo campo/registro, eliminar de forma segura el archivo anterior y persistir solo la ruta vigente para evitar acumulación de basura en `/uploads`.
 32. En flujos con orden visual (sliders, listados ordenables, banners, bloques destacados), toda operación de actualización debe preservar un orden consistente y persistido (sin duplicados de posición, sin huecos y con feedback inmediato en la UI).
+33. Todo componente, modal, botón de tabla o acción que envíe cambios al servidor debe bloquear doble envío mientras la promesa está en curso, deshabilitar controles repetibles y mostrar estado visible de carga (spinner, texto "Guardando..." o equivalente) hasta recibir respuesta o error.
 
 ## Arquitectura funcional (resumen)
 - `auth-service`: login, registro, perfil, recuperación de contraseña.
@@ -60,6 +66,34 @@ Esta skill define cómo trabajar la migración de Angelow legacy (PHP) a Angelow
 - `shipping-service`: direcciones y lógica de envío.
 - `notification-service`: notificaciones y preferencias.
 - `frontend` (Vue): orquesta UX consumiendo APIs por dominio.
+
+## Arquitectura frontend Vue obligatoria
+- En Vue se permite usar Single File Components con `<template>`, `<script setup>` y `<style scoped>`, pero si un componente supera una complejidad razonable, debe separarse progresivamente.
+- Una página dentro de `modules/**/pages` debe actuar principalmente como contenedor/orquestador, no como archivo gigante con toda la lógica, todos los estilos y todos los subcomponentes embebidos.
+- Si una página o componente tiene mucha lógica reactiva, watchers, validaciones, carga de datos, procesamiento de imágenes, generación de payloads o reglas de negocio, esa lógica debe extraerse a composables dentro del módulo correspondiente, por ejemplo:
+  - `frontend/src/modules/admin/composables/useAdminProductForm.js`
+  - `frontend/src/modules/catalog/composables/useProductDetail.js`
+  - `frontend/src/modules/account/composables/useAddresses.js`
+- Si una lógica es reutilizable entre módulos, debe ir en `frontend/src/composables`, `frontend/src/utils` o `frontend/src/services`, según corresponda.
+- Si una vista tiene más de un bloque visual importante, se debe dividir en componentes hijos dentro de `components` del mismo módulo.
+- Los estilos extensos no deben permanecer dentro de `<style scoped>` cuando superen una complejidad razonable. Deben moverse a archivos `.css` externos ubicados en `frontend/src/modules/<modulo>/views`, `frontend/src/modules/<modulo>/styles` o `frontend/src/components/<dominio>`, según la responsabilidad.
+- En los `.vue`, importar CSS externo con `import './NombreVista.css'` o usar la convención existente del módulo.
+- No duplicar estilos globales ni estilos de componentes compartidos. Antes de crear CSS nuevo, revisar si ya existe una clase, componente o patrón en `frontend/src/modules/admin/styles/admin.css`, `frontend/src/styles/main.css`, `frontend/src/styles/variables.css` o componentes compartidos existentes.
+- Los componentes reutilizables del admin deben seguir usando los componentes existentes como `AdminCard`, `AdminPageHeader`, `AdminModal`, `AdminShimmer`, `AdminStatsGrid`, `AdminFilterCard`, `AdminResultsBar`, `AdminPagination`, `AdminEmptyState`, `AdminTableImage`, `AdminTableShimmer`, `AdminToggleSwitch`, entre otros.
+- No se permite crear variantes ad hoc de componentes que ya existen. Si falta una capacidad, ampliar el componente compartido de forma compatible.
+- Toda separación debe preservar la paridad visual y funcional actual.
+- No cambiar nombres de rutas públicas ni navegación SPA.
+- No cambiar contratos de API ni payloads sin necesidad.
+- No cambiar estructura de datos enviada o recibida si no es parte directa de la tarea.
+- No hacer refactor masivo ciego. Se debe migrar por módulos o vistas, validando cada paso.
+- Después de mover archivos, actualizar todos los imports, rutas relativas y referencias.
+- Después de mover CSS, verificar que no se pierdan estilos por `scoped`, especificidad o cascada.
+- Si un estilo dependía de `scoped`, adaptar selectores de forma segura para evitar fugas visuales.
+- Cada refactor debe validar desktop, tablet y móvil.
+- Cada refactor debe ejecutar `npm run build` o el comando equivalente disponible del frontend.
+- Si hay ESLint o análisis configurado, ejecutarlo solo sobre archivos afectados cuando sea posible para evitar gasto innecesario.
+- Documentar el patrón aplicado en `docs/patrones/<modulo>/...` indicando archivos exactos movidos o creados.
+- Actualizar documentación solo donde aplique, sin crear documentación excesiva ni changelogs innecesarios.
 
 ## Datos y migración
 - Durante la migración, el frontend debe enviar `user_id` y `user_email` cuando sea posible para resolver identidad legacy/distribuida.

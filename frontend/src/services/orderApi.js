@@ -10,6 +10,13 @@ export async function getOrderById(orderId) {
   return data
 }
 
+export async function downloadOrderInvoice(orderId, params = {}) {
+  return orderHttp.get(`/orders/${orderId}/invoice/download`, {
+    params,
+    responseType: 'blob',
+  })
+}
+
 export async function createOrder(payload) {
   const { data } = await orderHttp.post('/orders', payload)
   return data
@@ -22,5 +29,14 @@ export async function updateOrderStatus(orderId, payload) {
 
 export async function cancelOrder(orderId, payload) {
   const { data } = await orderHttp.patch(`/orders/${orderId}/cancel`, payload)
+  return data
+}
+
+export async function requestOrderRefund(orderId, payload) {
+  const { data } = await orderHttp.post(`/orders/${orderId}/refund-requests`, payload, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
   return data
 }

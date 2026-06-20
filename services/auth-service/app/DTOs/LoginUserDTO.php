@@ -3,21 +3,24 @@
 namespace App\DTOs;
 
 /**
- * Data Transfer Object for user login.
+ * DTO (Data Transfer Object) para inicio de sesión.
  *
- * Encapsulates validated login credentials for transfer
- * between the Controller and Service layers.
+ * Encapsula las credenciales validadas (correo/teléfono y contraseña)
+ * para transferencia entre el Controlador y AuthService.
+ * Incluye un helper isEmail() para determinar el tipo de credencial.
  */
 final readonly class LoginUserDTO
 {
     public function __construct(
-        public string $credential, // email or phone
+        public string $credential, // email o teléfono
         public string $password,
         public bool   $remember = false,
     ) {}
 
     /**
-     * Create a DTO instance from a validated request array.
+     * Crea una instancia del DTO a partir del array de datos validados.
+     *
+     * @param  array<string, mixed>  $data  Datos provenientes de LoginRequest::validated()
      */
     public static function fromArray(array $data): self
     {
@@ -29,7 +32,7 @@ final readonly class LoginUserDTO
     }
 
     /**
-     * Determine if the credential is an email address.
+     * Determina si la credencial ingresada es un correo electrónico.
      */
     public function isEmail(): bool
     {

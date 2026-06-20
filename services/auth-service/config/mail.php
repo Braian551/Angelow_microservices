@@ -1,16 +1,28 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de correo electrónico (auth-service)
+|--------------------------------------------------------------------------
+|
+| Define los transportes de correo disponibles. El auth-service usa
+| PHPMailer (configurado en services.php) para enviar correos de
+| recuperación de contraseña y bienvenida. El transporte 'log' se
+| usa en desarrollo para inspeccionar correos sin enviarlos.
+|
+| Ver services.php > phpmailer para credenciales SMTP reales.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Mailer
+    | Mailer predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option controls the default mailer that is used to send all email
-    | messages unless another mailer is explicitly specified when sending
-    | the message. All additional mailers can be configured within the
-    | "mailers" array. Examples of each type of mailer are provided.
+    | Define el mailer que se usará por defecto para enviar todos los
+    | correos salvo que se especifique otro explícitamente.
     |
     */
 

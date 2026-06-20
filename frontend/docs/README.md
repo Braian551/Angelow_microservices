@@ -13,6 +13,7 @@ Guía de navegación funcional y de patrones específicos del frontend SPA.
 ## Documentos relacionados
 
 - `../README.md`
+- `./exportaciones-admin-reutilizables.md`
 - `../../docs/operaciones/manual-tecnico.md`
 - `../../docs/patrones/README.md`
 
@@ -33,6 +34,7 @@ flowchart LR
 - `Service layer`: consumo API centralizado en `src/services/*Api.js`.
 - `Composables`: sesión compartida en `src/composables/useSession.js`.
 - `Presentational components`: componentes reutilizables en `modules/*/components`.
+- `Facade + Strategy para exportaciones admin`: `AdminExportActions` y `useAdminDataExport` centralizan botones, branding y generación PDF/Excel.
 
 ## Registro obligatorio de patrones
 

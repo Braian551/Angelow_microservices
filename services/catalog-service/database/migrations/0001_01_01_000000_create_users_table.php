@@ -1,13 +1,19 @@
 <?php
 
+// Comentario de mantenimiento: Esta migración describe la estructura persistente necesaria para el dominio.
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Crea o ajusta tablas requeridas por el servicio.
+     */
     public function up(): void
     {
+        // Crea la tabla categories con los campos necesarios para este flujo del dominio.
         Schema::create('categories', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name', 100);
@@ -20,6 +26,8 @@ return new class extends Migration
             $table->timestamp('updated_at')->useCurrent();
             $table->char('trial551', 1)->nullable();
         });
+
+        // Crea la tabla collections con los campos necesarios para este flujo del dominio.
 
         Schema::create('collections', function (Blueprint $table) {
             $table->increments('id');
@@ -34,6 +42,8 @@ return new class extends Migration
             $table->char('trial551', 1)->nullable();
         });
 
+        // Crea la tabla colors con los campos necesarios para este flujo del dominio.
+
         Schema::create('colors', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name', 50);
@@ -43,6 +53,8 @@ return new class extends Migration
             $table->char('trial551', 1)->nullable();
         });
 
+        // Crea la tabla sizes con los campos necesarios para este flujo del dominio.
+
         Schema::create('sizes', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name', 50);
@@ -51,6 +63,8 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
             $table->char('trial554', 1)->nullable();
         });
+
+        // Crea la tabla products con los campos necesarios para este flujo del dominio.
 
         Schema::create('products', function (Blueprint $table) {
             $table->increments('id');
@@ -76,6 +90,8 @@ return new class extends Migration
             $table->index('collection_id');
         });
 
+        // Crea la tabla product_collections con los campos necesarios para este flujo del dominio.
+
         Schema::create('product_collections', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('product_id');
@@ -88,6 +104,8 @@ return new class extends Migration
             $table->index('collection_id');
         });
 
+        // Crea la tabla product_color_variants con los campos necesarios para este flujo del dominio.
+
         Schema::create('product_color_variants', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('product_id');
@@ -97,6 +115,8 @@ return new class extends Migration
 
             $table->index('product_id');
         });
+
+        // Crea la tabla product_size_variants con los campos necesarios para este flujo del dominio.
 
         Schema::create('product_size_variants', function (Blueprint $table) {
             $table->increments('id');
@@ -114,6 +134,8 @@ return new class extends Migration
             $table->index('size_id');
         });
 
+        // Crea la tabla product_images con los campos necesarios para este flujo del dominio.
+
         Schema::create('product_images', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('product_id');
@@ -127,6 +149,8 @@ return new class extends Migration
 
             $table->index('product_id');
         });
+
+        // Crea la tabla variant_images con los campos necesarios para este flujo del dominio.
 
         Schema::create('variant_images', function (Blueprint $table) {
             $table->increments('id');
@@ -144,6 +168,8 @@ return new class extends Migration
             $table->index('product_id');
         });
 
+        // Crea la tabla wishlist con los campos necesarios para este flujo del dominio.
+
         Schema::create('wishlist', function (Blueprint $table) {
             $table->increments('id');
             $table->string('user_id', 20);
@@ -153,6 +179,8 @@ return new class extends Migration
 
             $table->unique(['user_id', 'product_id']);
         });
+
+        // Crea la tabla product_reviews con los campos necesarios para este flujo del dominio.
 
         Schema::create('product_reviews', function (Blueprint $table) {
             $table->increments('id');
@@ -173,6 +201,8 @@ return new class extends Migration
             $table->index('user_id');
         });
 
+        // Crea la tabla review_votes con los campos necesarios para este flujo del dominio.
+
         Schema::create('review_votes', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('review_id');
@@ -184,6 +214,8 @@ return new class extends Migration
             $table->unique(['review_id', 'user_id']);
         });
 
+        // Crea la tabla product_questions con los campos necesarios para este flujo del dominio.
+
         Schema::create('product_questions', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('product_id');
@@ -194,6 +226,8 @@ return new class extends Migration
 
             $table->index('product_id');
         });
+
+        // Crea la tabla question_answers con los campos necesarios para este flujo del dominio.
 
         Schema::create('question_answers', function (Blueprint $table) {
             $table->increments('id');
@@ -207,6 +241,8 @@ return new class extends Migration
             $table->index('question_id');
         });
 
+        // Crea la tabla popular_searches con los campos necesarios para este flujo del dominio.
+
         Schema::create('popular_searches', function (Blueprint $table) {
             $table->increments('id');
             $table->string('search_term', 255);
@@ -216,6 +252,8 @@ return new class extends Migration
 
             $table->unique('search_term');
         });
+
+        // Crea la tabla search_history con los campos necesarios para este flujo del dominio.
 
         Schema::create('search_history', function (Blueprint $table) {
             $table->increments('id');
@@ -227,6 +265,8 @@ return new class extends Migration
             $table->index('user_id');
         });
 
+        // Crea la tabla site_settings con los campos necesarios para este flujo del dominio.
+
         Schema::create('site_settings', function (Blueprint $table) {
             $table->increments('id');
             $table->string('setting_key', 120)->unique();
@@ -236,6 +276,8 @@ return new class extends Migration
             $table->timestamp('updated_at')->useCurrent();
             $table->char('trial554', 1)->nullable();
         });
+
+        // Crea la tabla sliders con los campos necesarios para este flujo del dominio.
 
         Schema::create('sliders', function (Blueprint $table) {
             $table->increments('id');
@@ -249,6 +291,8 @@ return new class extends Migration
             $table->timestamp('updated_at')->useCurrent();
             $table->char('trial558', 1)->nullable();
         });
+
+        // Crea la tabla announcements con los campos necesarios para este flujo del dominio.
 
         Schema::create('announcements', function (Blueprint $table) {
             $table->increments('id');
@@ -271,6 +315,8 @@ return new class extends Migration
             $table->char('trial548', 1)->nullable();
         });
 
+        // Crea la tabla stock_history con los campos necesarios para este flujo del dominio.
+
         Schema::create('stock_history', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('variant_id');
@@ -286,28 +332,53 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Revierte las tablas creadas por esta migración en orden seguro.
+     */
+
     public function down(): void
     {
+        // Revierte la tabla stock_history al deshacer la migración.
         Schema::dropIfExists('stock_history');
+        // Revierte la tabla announcements al deshacer la migración.
         Schema::dropIfExists('announcements');
+        // Revierte la tabla sliders al deshacer la migración.
         Schema::dropIfExists('sliders');
+        // Revierte la tabla site_settings al deshacer la migración.
         Schema::dropIfExists('site_settings');
+        // Revierte la tabla search_history al deshacer la migración.
         Schema::dropIfExists('search_history');
+        // Revierte la tabla popular_searches al deshacer la migración.
         Schema::dropIfExists('popular_searches');
+        // Revierte la tabla question_answers al deshacer la migración.
         Schema::dropIfExists('question_answers');
+        // Revierte la tabla product_questions al deshacer la migración.
         Schema::dropIfExists('product_questions');
+        // Revierte la tabla review_votes al deshacer la migración.
         Schema::dropIfExists('review_votes');
+        // Revierte la tabla product_reviews al deshacer la migración.
         Schema::dropIfExists('product_reviews');
+        // Revierte la tabla wishlist al deshacer la migración.
         Schema::dropIfExists('wishlist');
+        // Revierte la tabla variant_images al deshacer la migración.
         Schema::dropIfExists('variant_images');
+        // Revierte la tabla product_images al deshacer la migración.
         Schema::dropIfExists('product_images');
+        // Revierte la tabla product_size_variants al deshacer la migración.
         Schema::dropIfExists('product_size_variants');
+        // Revierte la tabla product_color_variants al deshacer la migración.
         Schema::dropIfExists('product_color_variants');
+        // Revierte la tabla product_collections al deshacer la migración.
         Schema::dropIfExists('product_collections');
+        // Revierte la tabla products al deshacer la migración.
         Schema::dropIfExists('products');
+        // Revierte la tabla sizes al deshacer la migración.
         Schema::dropIfExists('sizes');
+        // Revierte la tabla colors al deshacer la migración.
         Schema::dropIfExists('colors');
+        // Revierte la tabla collections al deshacer la migración.
         Schema::dropIfExists('collections');
+        // Revierte la tabla categories al deshacer la migración.
         Schema::dropIfExists('categories');
     }
 };

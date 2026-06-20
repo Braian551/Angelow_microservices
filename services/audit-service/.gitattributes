@@ -1,3 +1,8 @@
+# Atributos Git para el audit-service
+# Normaliza todos los archivos a LF (saltos de línea Unix) y
+# configura diferencias semánticas para Blade, CSS, HTML y PHP.
+# Excluye archivos de metadatos del paquete de exportación.
+
 * text=auto eol=lf
 
 *.blade.php diff=html

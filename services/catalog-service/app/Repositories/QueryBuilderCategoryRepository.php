@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+// Comentario de mantenimiento: Este repositorio encapsula consultas a datos para aislar a los servicios del detalle SQL.
+
 use App\Repositories\Contracts\CategoryRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -12,6 +14,9 @@ use Illuminate\Support\Facades\DB;
  */
 class QueryBuilderCategoryRepository implements CategoryRepositoryInterface
 {
+    /**
+     * Lista entidades activas necesarias para navegación o selectores.
+     */
     public function getAllActive(): array
     {
         return DB::table('categories')
@@ -24,12 +29,20 @@ class QueryBuilderCategoryRepository implements CategoryRepositoryInterface
             ->toArray();
     }
 
+    /**
+     * Busca una entidad por identificador primario.
+     */
+
     public function findById(int $id): ?object
     {
         return DB::table('categories')
             ->where('id', $id)
             ->first();
     }
+
+    /**
+     * Lista colecciones disponibles para filtros y navegación.
+     */
 
     public function getAllCollections(): array
     {

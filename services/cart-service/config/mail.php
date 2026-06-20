@@ -1,16 +1,28 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de correo (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define los transportes de correo disponibles. El cart-service no
+| envía correos directamente; delega los recordatorios de carritos
+| abandonados al notification-service vía HTTP interno.
+|
+| Esta configuración está disponible para uso futuro si se requieren
+| notificaciones propias del servicio.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Mailer
+    | Mailer predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option controls the default mailer that is used to send all email
-    | messages unless another mailer is explicitly specified when sending
-    | the message. All additional mailers can be configured within the
-    | "mailers" array. Examples of each type of mailer are provided.
+    | Define el mailer que se usará por defecto para enviar correos
+    | salvo que se especifique otro explícitamente.
     |
     */
 

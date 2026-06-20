@@ -24,8 +24,12 @@
             </span>
           </div>
 
-          <div v-if="canCancelCurrentOrder" class="order-hero-actions">
-            <button type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
+          <div v-if="hasInvoiceAvailable || canCancelCurrentOrder" class="order-hero-actions">
+            <button v-if="hasInvoiceAvailable" type="button" class="btn-invoice-detail" :disabled="downloadingInvoice" @click="downloadCurrentInvoice">
+              <i :class="downloadingInvoice ? 'fas fa-spinner fa-spin' : 'fas fa-file-pdf'" />
+              {{ downloadingInvoice ? 'Descargando...' : 'Descargar factura' }}
+            </button>
+            <button v-if="canCancelCurrentOrder" type="button" class="btn-cancel-detail" :disabled="cancellingOrder" @click="confirmCancelCurrentOrder">
               <i class="fas fa-ban" />
               {{ cancellingOrder ? 'Cancelando...' : 'Cancelar pedido' }}
             </button>
@@ -97,14 +101,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
-import { cancelOrder, getOrderById } from '../../../services/orderApi'
+import { cancelOrder, downloadOrderInvoice, getOrderById } from '../../../services/orderApi'
+import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 import { getOrderStatusLabel, getPaymentStatusLabel, normalizeOrderStatus, normalizePaymentStatus } from '../../../utils/orderPresentation'
 
 const route = useRoute()
@@ -118,6 +123,8 @@ const orderDetail = ref(null)
 const orderItems = ref([])
 const orderHistory = ref([])
 const cancellingOrder = ref(false)
+const downloadingInvoice = ref(false)
+let unsubscribeOrderRealtime = null
 
 const defaultOrderSteps = Object.freeze([
   { key: 'pending', label: 'Pendiente', icon: 'fas fa-clock' },
@@ -133,13 +140,26 @@ const refundOrderSteps = Object.freeze([
 ])
 
 const canCancelCurrentOrder = computed(() => isOrderCancelable(orderDetail.value))
+const hasInvoiceAvailable = computed(() => {
+  const invoiceNumber = String(orderDetail.value?.invoice_number || '').trim()
+  const invoiceDate = String(orderDetail.value?.invoice_date || '').trim()
+  return invoiceNumber !== '' || invoiceDate !== ''
+})
 
 onMounted(async () => {
   await loadOrderDetail()
+  unsubscribeOrderRealtime = subscribeToOrderRealtime(handleRealtimeOrderUpdate)
 })
 
-async function loadOrderDetail() {
-  loading.value = true
+onUnmounted(() => {
+  unsubscribeOrderRealtime?.()
+})
+
+async function loadOrderDetail(options = {}) {
+  const silent = Boolean(options.silent)
+  if (!silent) {
+    loading.value = true
+  }
   errorMessage.value = ''
 
   try {
@@ -157,10 +177,39 @@ async function loadOrderDetail() {
       errorMessage.value = 'No se encontró el pedido solicitado.'
     }
   } catch {
-    errorMessage.value = 'No se pudo cargar el detalle del pedido.'
+    if (!silent) {
+      errorMessage.value = 'No se pudo cargar el detalle del pedido.'
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
+}
+
+async function handleRealtimeOrderUpdate(message) {
+  const currentOrderId = Number(route.params.id)
+  if (!Number.isFinite(currentOrderId) || currentOrderId !== Number(message.orderId) || !orderDetail.value) {
+    return
+  }
+
+  // Refleja el cambio entrante de websocket sin bloquear la interacción del detalle.
+  const nextOrder = { ...orderDetail.value }
+  if (message.field === 'status' && message.newValue) {
+    nextOrder.status = message.newValue
+  }
+  if (message.field === 'payment_status' && message.newValue) {
+    nextOrder.payment_status = message.newValue
+  }
+  if (message.status) {
+    nextOrder.status = message.status
+  }
+  if (message.paymentStatus) {
+    nextOrder.payment_status = message.paymentStatus
+  }
+
+  orderDetail.value = nextOrder
+  await loadOrderDetail({ silent: true })
 }
 
 function formatDate(value) {
@@ -176,6 +225,49 @@ function formatPrice(value) {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(Number(value || 0))
+}
+
+function parseFilenameFromHeaders(headers, fallbackName) {
+  // Reutiliza el formato de descarga admin para respetar el nombre sugerido por el backend.
+  const disposition = String(headers?.['content-disposition'] || '').trim()
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1])
+  }
+
+  const regularMatch = disposition.match(/filename="?([^";]+)"?/i)
+  return regularMatch?.[1] ? regularMatch[1].trim() : fallbackName
+}
+
+async function downloadCurrentInvoice() {
+  // Descarga la factura generada del pedido actual sin exponer rutas administrativas al cliente.
+  if (!orderDetail.value || downloadingInvoice.value || !hasInvoiceAvailable.value) return
+
+  downloadingInvoice.value = true
+  const fallbackName = `factura_${orderDetail.value.invoice_number || orderDetail.value.order_number || orderDetail.value.id}.pdf`
+
+  try {
+    const response = await downloadOrderInvoice(orderDetail.value.id, {
+      source: String(orderDetail.value.order_source || '').trim() || undefined,
+      user_id: String(user.value?.id || '').trim() || undefined,
+      user_email: String(user.value?.email || '').trim() || undefined,
+    })
+    const fileName = parseFilenameFromHeaders(response.headers, fallbackName)
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const objectUrl = window.URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = fileName
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(objectUrl)
+    showSnackbar({ type: 'success', message: 'Factura descargada correctamente.' })
+  } catch {
+    showSnackbar({ type: 'error', message: 'No pudimos descargar la factura de este pedido.' })
+  } finally {
+    downloadingInvoice.value = false
+  }
 }
 
 function statusLabel(status) {
@@ -238,6 +330,7 @@ function resolveStandardProgressStatus(order) {
   let status = normalizeStatus(order?.status)
 
   if (status === 'confirmed' || status === 'paid') status = 'processing'
+  if (status === 'in_review' || status === 'en_revision') status = 'processing'
   if (status === 'completed') status = 'delivered'
 
   return status
@@ -419,6 +512,30 @@ function normalizeStatus(value) {
   justify-content: center;
   gap: 0.55rem;
   cursor: pointer;
+}
+
+.btn-invoice-detail {
+  border: 1px solid #90c6e8;
+  background: #e9f6fd;
+  color: #0077b6;
+  border-radius: 10px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  padding: 0.9rem 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.btn-invoice-detail:hover {
+  background: #dff0fb;
+}
+
+.btn-invoice-detail:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .btn-cancel-detail:hover {

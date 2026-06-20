@@ -167,3 +167,21 @@ Reduce la fuga de estados técnicos hacia la UI administrativa y agrupa varias r
 - El agotado de una variante ya puede persistirse y disparar correos inmediatos y recordatorios sin duplicar plantillas HTML.
 - Los productos con variantes agotadas ya no quedan ocultos por sumas agregadas.
 - La UI admin expone menos estados, pero conserva la lógica necesaria de pedidos y reservas.
+
+## Extensión 2026-06-07: inventario admin sincronizado por websocket global
+
+### Observer + Pub/Sub
+
+- Referencia: https://refactoring.guru/es/design-patterns/observer
+- Problema que resuelve: el inventario admin podía quedarse desfasado frente a reservas activas, confirmaciones de pedido y ajustes hechos desde otras sesiones, obligando a refrescos manuales para ver el stock real.
+- Aplicación:
+  - `services/catalog-service/app/Services/StockRealtimePublisher.php`
+  - `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`
+  - `services/catalog-service/app/Http/Controllers/InternalCatalogController.php`
+  - `services/realtime-gateway/server.js`
+  - `frontend/src/composables/useStockRealtime.js`
+  - `frontend/src/modules/admin/pages/AdminInventoryPage.vue`
+- Implementación clave:
+  - `catalog-service` publica eventos `stock.inventory.adjusted`, `stock.inventory.transferred` y `stock.inventory.committed` al mismo canal Redis que ya usaba `order-service` para reservas.
+  - `realtime-gateway` escucha el patrón `ws:orders:stock*` y retransmite por websocket a todos los clientes conectados.
+  - `AdminInventoryPage.vue` se suscribe al stream, detecta si alguna variante visible fue afectada y relanza la carga del inventario y del detalle abierto con debounce para evitar tormentas de refresco.

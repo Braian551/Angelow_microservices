@@ -1,3 +1,10 @@
+# Archivos ignorados por Git en el auth-service
+# Excluye dependencias (vendor, node_modules), archivos de entorno,
+# cachés de editor/IDE, builds de assets y bases de datos locales.
+#
+# El .env real contiene credenciales SMTP, Firebase y tokens
+# internos, por lo que NUNCA debe committearse.
+
 *.log
 .DS_Store
 .env

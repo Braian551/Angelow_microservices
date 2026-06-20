@@ -16,21 +16,32 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
+/**
+ * Controlador administrativo del dominio de descuentos.
+ * Gestiona el CRUD completo de códigos de descuento y reglas por cantidad,
+ * así como el envío de campañas masivas o específicas de descuentos a clientes.
+ * Soporta doble origen de datos (microservicio y legacy) durante la migración.
+ */
 class AdminDiscountController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
     private const DEFAULT_NOTIFICATION_TYPE_ID = 1;
 
-    // ── Codigos de descuento ────────────────────────────────
+    // ── Códigos de descuento ────────────────────────────────
 
+    /**
+     * Lista todos los códigos de descuento con su tipo asociado.
+     * Si no hay datos en microservicio, carga desde legacy.
+     */
     public function codes(): JsonResponse
     {
         $codes = DiscountCode::query()
             ->with('type')
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn (DiscountCode $code) => $this->transformCode($code));
+                ->map(fn (DiscountCode $code) => $this->transformCode($code));
 
+        // Si no hay códigos en microservicio, intenta cargar desde legacy como respaldo.
         if ($codes->isEmpty()) {
             $codes = collect($this->loadLegacyCodes());
         }
@@ -38,6 +49,9 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'data' => $codes]);
     }
 
+    /**
+     * Crea un código de descuento a partir del payload normalizado del panel.
+     */
     public function storeCode(Request $request): JsonResponse
     {
         $admin = $request->input('_admin_user', []);
@@ -50,10 +64,14 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'message' => 'Codigo creado.', 'id' => $code->id], 201);
     }
 
+    /**
+     * Actualiza un código de descuento existente conservando campos no enviados en edición parcial.
+     */
     public function updateCode(Request $request, int $id): JsonResponse
     {
         $code = DiscountCode::query()->find($id);
 
+        // Si el código no existe, retorna 404 antes de intentar actualizar.
         if (!$code) {
             return response()->json(['success' => false, 'message' => 'Codigo no encontrado.'], 404);
         }
@@ -64,10 +82,14 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'message' => 'Codigo actualizado.']);
     }
 
+    /**
+     * Elimina un código de descuento y reporta si el registro no existía.
+     */
     public function destroyCode(int $id): JsonResponse
     {
         $deleted = DiscountCode::query()->whereKey($id)->delete();
 
+        // Si no se eliminó ningún registro, el código no existía.
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Codigo no encontrado.'], 404);
         }
@@ -77,6 +99,7 @@ class AdminDiscountController extends Controller
 
     /**
      * Lista clientes disponibles para campañas de códigos.
+     * Soporta búsqueda por nombre/email y filtro por IDs específicos.
      */
     public function campaignCustomers(Request $request): JsonResponse
     {
@@ -99,7 +122,7 @@ class AdminDiscountController extends Controller
     }
 
     /**
-     * Envio masivo de descuento para todos los clientes.
+     * Envio masivo de descuento para todos los clientes disponibles.
      */
     public function sendMassCampaign(Request $request): JsonResponse
     {
@@ -118,7 +141,7 @@ class AdminDiscountController extends Controller
     }
 
     /**
-     * Envio de descuento para un conjunto especifico de clientes.
+     * Envio de descuento para un conjunto especifico de clientes por IDs.
      */
     public function sendSpecificCampaign(Request $request): JsonResponse
     {
@@ -139,6 +162,7 @@ class AdminDiscountController extends Controller
 
         $customers = $this->loadCampaignCustomers(null, $userIds);
 
+        // Sin clientes destino, no tiene sentido continuar con la campaña.
         if (empty($customers)) {
             return response()->json([
                 'success' => false,
@@ -154,15 +178,20 @@ class AdminDiscountController extends Controller
         );
     }
 
-    // ── Descuentos por volumen ──────────────────────────────
+    // ── Descuentos por cantidad ─────────────────────────────
 
+    /**
+     * Lista todas las reglas de descuento por cantidad ordenadas.
+     * Soporta fallback a legacy si no hay datos locales.
+     */
     public function bulkDiscounts(): JsonResponse
     {
         $rules = BulkDiscountRule::query()
             ->orderBy('min_quantity')
             ->get()
-            ->map(fn (BulkDiscountRule $rule) => $this->transformBulkDiscount($rule));
+                ->map(fn (BulkDiscountRule $rule) => $this->transformBulkDiscount($rule));
 
+        // Fallback a legacy si aún no hay reglas de cantidad en microservicio.
         if ($rules->isEmpty()) {
             $rules = collect($this->loadLegacyBulkDiscounts());
         }
@@ -175,6 +204,7 @@ class AdminDiscountController extends Controller
      */
     private function loadLegacyCodes(): array
     {
+        // Si la tabla legacy no existe, retorna vacío sin intentar la consulta.
         if (!$this->legacyTableExists('discount_codes')) {
             return [];
         }
@@ -203,6 +233,7 @@ class AdminDiscountController extends Controller
                 ->map(fn (object $row) => $this->transformLegacyCode($row))
                 ->all();
         } catch (\Throwable) {
+            // Error de conexión con legacy: retorna arreglo vacío.
             return [];
         }
     }
@@ -212,6 +243,7 @@ class AdminDiscountController extends Controller
      */
     private function loadLegacyBulkDiscounts(): array
     {
+        // Si la tabla legacy no existe, no intenta la consulta.
         if (!$this->legacyTableExists('bulk_discount_rules')) {
             return [];
         }
@@ -235,12 +267,17 @@ class AdminDiscountController extends Controller
                 ])
                 ->all();
         } catch (\Throwable) {
+            // Error de conexión con legacy: retorna arreglo vacío.
             return [];
         }
     }
 
+    /**
+     * Adapta un código de respaldo (legacy) al contrato administrativo actual.
+     */
     private function transformLegacyCode(object $row): array
     {
+        // Determina si es fijo o porcentual según el nombre del tipo de descuento.
         $typeName = Str::lower((string) ($row->discount_type_name ?? ''));
         $type = str_contains($typeName, 'fixed') || str_contains($typeName, 'fijo') || str_contains($typeName, 'monto')
             ? 'fixed'
@@ -270,17 +307,25 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Comprueba existencia de tablas legacy antes de consultar datos migrados.
+     */
     private function legacyTableExists(string $table): bool
     {
         try {
             return Schema::connection(self::LEGACY_CONNECTION)->hasTable($table);
         } catch (\Throwable) {
+            // Error de conexión: asume que la tabla no existe.
             return false;
         }
     }
 
+    /**
+     * Normaliza fechas a ISO para que frontend y APIs reciban un formato estable.
+     */
     private function toIsoString(mixed $value): ?string
     {
+        // Valor nulo o vacío: no hay fecha que formatear.
         if ($value === null || $value === '') {
             return null;
         }
@@ -288,15 +333,19 @@ class AdminDiscountController extends Controller
         try {
             return Carbon::parse($value)->toISOString();
         } catch (\Throwable) {
+            // Si el valor no es una fecha válida, retorna null.
             return null;
         }
     }
 
     /**
      * Ejecuta una campaña de descuento para una lista de clientes.
+     * Envía notificaciones push y/o emails según los canales seleccionados
+     * y retorna un resumen con totales enviados, fallidos y omitidos.
      */
     private function dispatchCampaign(int $discountCodeId, array $customers, bool $sendNotification, bool $sendEmail): JsonResponse
     {
+        // Al menos un canal de envío debe estar activo para continuar.
         if (!$sendNotification && !$sendEmail) {
             return response()->json([
                 'success' => false,
@@ -304,6 +353,7 @@ class AdminDiscountController extends Controller
             ], 422);
         }
 
+        // Sin destinatarios, la campaña no puede procesarse.
         if (empty($customers)) {
             return response()->json([
                 'success' => false,
@@ -311,8 +361,10 @@ class AdminDiscountController extends Controller
             ], 422);
         }
 
+        // Busca el código de descuento en microservicio o legacy.
         $discountCode = $this->findCampaignDiscountCode($discountCodeId);
 
+        // Si el código no existe en ninguna fuente, no se puede enviar la campaña.
         if ($discountCode === null) {
             return response()->json([
                 'success' => false,
@@ -326,9 +378,11 @@ class AdminDiscountController extends Controller
             'emails' => ['sent' => 0, 'failed' => 0, 'skipped' => 0],
         ];
 
+        // Itera cada cliente para enviar notificación push y/o email según la configuración.
         foreach ($customers as $customer) {
             $delivery = $this->sendCampaignNotification($customer, $discountCode, $sendNotification, $sendEmail);
 
+            // Acumula estadísticas de notificaciones push.
             if ($sendNotification) {
                 if ($delivery['notification_sent']) {
                     $summary['notifications']['sent']++;
@@ -339,6 +393,7 @@ class AdminDiscountController extends Controller
                 }
             }
 
+            // Acumula estadísticas de correos electrónicos.
             if ($sendEmail) {
                 if ($delivery['email_sent']) {
                     $summary['emails']['sent']++;
@@ -363,14 +418,20 @@ class AdminDiscountController extends Controller
         ]);
     }
 
+    /**
+     * Obtiene el código de descuento para la campaña, buscando en microservicio
+     * y con fallback a legacy.
+     */
     private function findCampaignDiscountCode(int $id): ?array
     {
+        // Busca primero en microservicio con su tipo de descuento asociado.
         $code = DiscountCode::query()->with('type')->find($id);
 
         if ($code) {
             return $this->transformCode($code);
         }
 
+        // Si no existe en microservicio, intenta fallback a legacy.
         if (!$this->legacyTableExists('discount_codes')) {
             return null;
         }
@@ -399,30 +460,43 @@ class AdminDiscountController extends Controller
 
             return $row ? $this->transformLegacyCode($row) : null;
         } catch (\Throwable) {
+            // Error de conexión con legacy: no se encontró el código.
             return null;
         }
     }
 
+    /**
+     * Resuelve clientes desde auth-service y usa respaldo local si no hay respuesta.
+     * Orden de resolución: auth-service -> legacy -> local.
+     */
     private function loadCampaignCustomers(?string $search = null, array $ids = [], ?int $limit = null): array
     {
+        // Primero intenta obtener clientes desde el auth-service vía HTTP.
         $authCustomers = $this->loadAuthServiceCustomers(request(), $search, $ids, $limit);
         if ($authCustomers !== null) {
             return $authCustomers;
         }
 
+        // Si auth-service no responde, intenta con la base de datos legacy.
         $legacyCustomers = $this->queryCampaignCustomers(self::LEGACY_CONNECTION, $search, $ids, $limit);
         if (!empty($legacyCustomers)) {
             return $legacyCustomers;
         }
 
+        // Último respaldo: consulta la base de datos local del microservicio.
         return $this->queryCampaignCustomers(null, $search, $ids, $limit);
     }
 
+    /**
+     * Consulta clientes al servicio de autenticación usando el token administrativo actual.
+     */
     private function loadAuthServiceCustomers(?Request $request, ?string $search, array $ids, ?int $limit): ?array
     {
+        // Resuelve el endpoint de clientes del auth-service y obtiene el token Bearer.
         $endpoint = $this->resolveAuthCustomersEndpoint();
         $token = trim((string) ($request?->bearerToken() ?? ''));
 
+        // Sin endpoint configurado o sin token, no se puede consultar el auth-service.
         if ($endpoint === null || $token === '') {
             return null;
         }
@@ -449,6 +523,7 @@ class AdminDiscountController extends Controller
                 ->timeout(8)
                 ->get($endpoint, $params);
 
+            // Si la respuesta HTTP no es exitosa (2xx), retorna null.
             if (!$response->successful()) {
                 return null;
             }
@@ -460,6 +535,7 @@ class AdminDiscountController extends Controller
 
             return collect($rows)
                 ->map(fn (array|object $row) => $this->normalizeCustomer($row))
+                // Filtra clientes sin ID y aquellos que están bloqueados.
                 ->filter(fn (array $customer) => $customer['id'] !== '' && !$customer['is_blocked'])
                 ->when($limit !== null, fn (Collection $customers) => $customers->take($limit))
                 ->values()
@@ -475,15 +551,20 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Construye la URL interna para búsqueda de clientes en auth-service.
+     */
     private function resolveAuthCustomersEndpoint(): ?string
     {
         $baseUrl = trim((string) env('AUTH_SERVICE_URL', 'http://auth-service:8000/api'));
+        // Si no hay URL configurada, no se puede resolver el endpoint.
         if ($baseUrl === '') {
             return null;
         }
 
         $baseUrl = rtrim($baseUrl, '/');
 
+        // Adapta la URL según si ya incluye /api o no.
         if (str_ends_with($baseUrl, '/api')) {
             return $baseUrl . '/admin/customers';
         }
@@ -491,8 +572,13 @@ class AdminDiscountController extends Controller
         return $baseUrl . '/api/admin/customers';
     }
 
+    /**
+     * Consulta clientes en una conexión concreta aplicando filtros compatibles con el esquema.
+     * Adapta el operador LIKE y las columnas según el motor de BD.
+     */
     private function queryCampaignCustomers(?string $connection, ?string $search, array $ids, ?int $limit): array
     {
+        // Verifica que la tabla users exista en la conexión antes de consultar.
         if (!$this->tableExistsByConnection('users', $connection)) {
             return [];
         }
@@ -502,6 +588,7 @@ class AdminDiscountController extends Controller
                 ->table('users')
                 ->select(['id', 'name', 'email', 'phone']);
 
+            // Filtra por rol "customer" solo si la columna existe en el esquema.
             if ($this->columnExistsByConnection('users', 'role', $connection)) {
                 $query->where('role', 'customer');
             }
@@ -519,6 +606,7 @@ class AdminDiscountController extends Controller
                 });
             }
 
+            // Ordena por nombre si la columna existe, de lo contrario por ID.
             if ($this->columnExistsByConnection('users', 'name', $connection)) {
                 $query->orderBy('name');
             } else {
@@ -538,13 +626,19 @@ class AdminDiscountController extends Controller
                 ->values()
                 ->all();
         } catch (\Throwable) {
+            // Error de base de datos: retorna arreglo vacío para no interrumpir.
             return [];
         }
     }
 
+    /**
+     * Envía una notificación de campaña al servicio de notificaciones para un cliente.
+     * Construye el payload con el código de descuento y lo envía por HTTP al notification-service.
+     */
     private function sendCampaignNotification(array $customer, array $discountCode, bool $sendPush, bool $sendEmail): array
     {
         $userId = trim((string) ($customer['id'] ?? ''));
+        // Si el cliente no tiene ID, no se puede enviar la notificación.
         if ($userId === '') {
             return [
                 'notification_sent' => false,
@@ -554,7 +648,9 @@ class AdminDiscountController extends Controller
             ];
         }
 
+        // Resuelve la URL del notification-service para el envío.
         $endpoint = $this->resolveNotificationEndpoint();
+        // Si no hay endpoint configurado, no se puede enviar.
         if ($endpoint === null) {
             return [
                 'notification_sent' => false,
@@ -565,6 +661,7 @@ class AdminDiscountController extends Controller
         }
 
         $userEmail = trim((string) ($customer['email'] ?? ''));
+        // Valida formato del email; si no es válido, lo limpia para evitar errores.
         if ($userEmail !== '' && !filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
             $userEmail = '';
         }
@@ -592,6 +689,7 @@ class AdminDiscountController extends Controller
                 ->timeout(8)
                 ->post($endpoint, $payload);
 
+            // Si el notification-service no respondió correctamente, registra como fallido.
             if (!$response->successful()) {
                 return [
                     'notification_sent' => false,
@@ -625,21 +723,31 @@ class AdminDiscountController extends Controller
         }
     }
 
+    /**
+     * Formatea el valor del descuento para textos de campaña.
+     * Ejemplos: "$10.000 de descuento", "15% de descuento".
+     */
     private function formatCampaignValue(array $discountCode): string
     {
         $value = (float) ($discountCode['discount_value'] ?? $discountCode['value'] ?? 0);
         $type = Str::lower((string) ($discountCode['type'] ?? 'percent'));
 
+        // Descuento fijo: formatea como monto en pesos chilenos.
         if ($type === 'fixed') {
             return '$' . number_format($value, 0, ',', '.') . ' de descuento';
         }
 
+        // Descuento porcentual: elimina decimales innecesarios (.00 -> sin decimales).
         $normalized = rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
         return $normalized . '% de descuento';
     }
 
+    /**
+     * Convierte la fecha de expiración en texto claro para el mensaje de campaña.
+     */
     private function formatCampaignEndDate(mixed $endDate): string
     {
+        // Si no hay fecha de expiración, muestra texto por defecto.
         if ($endDate === null || $endDate === '') {
             return 'Sin fecha de expiración';
         }
@@ -647,19 +755,25 @@ class AdminDiscountController extends Controller
         try {
             return 'Válido hasta ' . Carbon::parse($endDate)->format('d/m/Y');
         } catch (\Throwable) {
+            // Si la fecha no es válida, muestra texto genérico.
             return 'Sin fecha de expiración';
         }
     }
 
+    /**
+     * Construye la URL del servicio de notificaciones para eventos internos.
+     */
     private function resolveNotificationEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.notifications.base_url', 'http://notification-service:8000/api'));
+        // Sin URL configurada, no se puede resolver el endpoint de notificaciones.
         if ($baseUrl === '') {
             return null;
         }
 
         $baseUrl = rtrim($baseUrl, '/');
 
+        // Adapta la ruta según si la URL base ya incluye /api.
         if (str_ends_with($baseUrl, '/api')) {
             return $baseUrl . '/notifications';
         }
@@ -667,8 +781,12 @@ class AdminDiscountController extends Controller
         return $baseUrl . '/api/notifications';
     }
 
+    /**
+     * Convierte un registro de cliente (array u object) en el contrato interno usado por campañas.
+     */
     private function normalizeCustomer(array|object $row): array
     {
+        // Extrae campos comunes soportando tanto array como objeto (compatible con múltiples fuentes).
         $id = is_array($row) ? ($row['id'] ?? '') : ($row->id ?? '');
         $name = trim((string) (is_array($row) ? ($row['name'] ?? '') : ($row->name ?? '')));
         $email = trim((string) (is_array($row) ? ($row['email'] ?? '') : ($row->email ?? '')));
@@ -684,40 +802,60 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Selecciona el query builder adecuado según la conexión disponible.
+     */
     private function customersQueryBuilder(?string $connection)
     {
         return $connection ? DB::connection($connection) : DB::connection();
     }
 
+    /**
+     * Verifica existencia de tabla en una conexión concreta antes de consultarla.
+     * Evita errores de esquema cuando la base legacy no tiene ciertas tablas.
+     */
     private function tableExistsByConnection(string $table, ?string $connection): bool
     {
         try {
             $schemaConnection = $connection ?? DB::getDefaultConnection();
             return Schema::connection($schemaConnection)->hasTable($table);
         } catch (\Throwable) {
+            // Error de conexión: asume que la tabla no existe.
             return false;
         }
     }
 
+    /**
+     * Verifica existencia de columna para adaptar consultas a esquemas distintos.
+     */
     private function columnExistsByConnection(string $table, string $column, ?string $connection): bool
     {
         try {
             $schemaConnection = $connection ?? DB::getDefaultConnection();
             return Schema::connection($schemaConnection)->hasColumn($table, $column);
         } catch (\Throwable) {
+            // Error de conexión: asume que la columna no existe.
             return false;
         }
     }
 
+    /**
+     * Resuelve el operador LIKE adecuado según el motor de base de datos.
+     * PostgreSQL usa ILIKE (case-insensitive), MySQL/MariaDB usan LIKE.
+     */
     private function likeOperatorByConnection(?string $connection): string
     {
         try {
             return $this->customersQueryBuilder($connection)->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
         } catch (\Throwable) {
+            // Por defecto usa LIKE si no se puede determinar el driver.
             return 'LIKE';
         }
     }
 
+    /**
+     * Crea una regla de descuento por cantidad.
+     */
     public function storeBulkDiscount(Request $request): JsonResponse
     {
         $rule = BulkDiscountRule::query()->create($this->buildBulkDiscountPayload($request, false));
@@ -725,10 +863,14 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla creada.', 'id' => $rule->id], 201);
     }
 
+    /**
+     * Actualiza una regla de descuento por cantidad existente.
+     */
     public function updateBulkDiscount(Request $request, int $id): JsonResponse
     {
         $rule = BulkDiscountRule::query()->find($id);
 
+        // Si la regla no existe, retorna 404 antes de intentar actualizar.
         if (!$rule) {
             return response()->json(['success' => false, 'message' => 'Regla no encontrada.'], 404);
         }
@@ -739,10 +881,14 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla actualizada.']);
     }
 
+    /**
+     * Elimina una regla de descuento por cantidad y reporta ausencia cuando corresponde.
+     */
     public function destroyBulkDiscount(int $id): JsonResponse
     {
         $deleted = BulkDiscountRule::query()->whereKey($id)->delete();
 
+        // Si no se eliminó ningún registro, la regla no existía.
         if (!$deleted) {
             return response()->json(['success' => false, 'message' => 'Regla no encontrada.'], 404);
         }
@@ -750,6 +896,10 @@ class AdminDiscountController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla eliminada.']);
     }
 
+    /**
+     * Normaliza nombres de campos de API y panel para persistir códigos de descuento.
+     * Soporta alias como 'value'/'discount_value', 'start_date'/'starts_at', etc.
+     */
     private function buildCodePayload(Request $request, bool $partial): array
     {
         $data = $request->validate([
@@ -770,10 +920,12 @@ class AdminDiscountController extends Controller
 
         $payload = [];
 
+        // Normaliza el código a mayúsculas sin espacios.
         if (array_key_exists('code', $data)) {
             $payload['code'] = strtoupper(trim((string) $data['code']));
         }
 
+        // Resuelve el ID del tipo de descuento desde ID explícito o nombre lógico.
         if (array_key_exists('discount_type_id', $data) || array_key_exists('type', $data)) {
             $payload['discount_type_id'] = $this->resolveDiscountTypeId(
                 $data['discount_type_id'] ?? null,
@@ -781,6 +933,7 @@ class AdminDiscountController extends Controller
             );
         }
 
+        // Soporta tanto 'value' como 'discount_value' (alias del frontend).
         if (array_key_exists('value', $data) || array_key_exists('discount_value', $data)) {
             $payload['discount_value'] = (float) ($data['value'] ?? $data['discount_value'] ?? 0);
         }
@@ -789,14 +942,17 @@ class AdminDiscountController extends Controller
             $payload['max_uses'] = $data['max_uses'] ?? null;
         }
 
+        // Soporta 'start_date' o 'starts_at' según lo que envíe el panel.
         if (array_key_exists('start_date', $data) || array_key_exists('starts_at', $data)) {
             $payload['start_date'] = $data['start_date'] ?? $data['starts_at'] ?? null;
         }
 
+        // Soporta 'end_date' o 'expires_at' para compatibilidad con formularios legacy.
         if (array_key_exists('end_date', $data) || array_key_exists('expires_at', $data)) {
             $payload['end_date'] = $data['end_date'] ?? $data['expires_at'] ?? null;
         }
 
+        // Soporta 'is_active' o 'active' según la convención del cliente.
         if (array_key_exists('is_active', $data) || array_key_exists('active', $data)) {
             $payload['is_active'] = (bool) ($data['is_active'] ?? $data['active'] ?? false);
         }
@@ -808,6 +964,10 @@ class AdminDiscountController extends Controller
         return $payload;
     }
 
+    /**
+     * Normaliza nombres de campos para persistir reglas de descuento por cantidad.
+     * Soporta alias como 'discount_percentage'/'discount_percent', 'is_active'/'active'.
+     */
     private function buildBulkDiscountPayload(Request $request, bool $partial): array
     {
         $data = $request->validate([
@@ -840,8 +1000,13 @@ class AdminDiscountController extends Controller
         return $payload;
     }
 
+    /**
+     * Convierte un modelo de código de descuento al contrato JSON del admin.
+     * Proporciona alias para compatibilidad con el frontend (value/discount_value, starts_at/start_date, etc.).
+     */
     private function transformCode(DiscountCode $code): array
     {
+        // Determina el tipo (fixed o percent) según el nombre del tipo asociado.
         $typeName = strtolower((string) ($code->type?->name ?? ''));
         $type = str_contains($typeName, 'fixed') || str_contains($typeName, 'fijo') ? 'fixed' : 'percent';
 
@@ -869,6 +1034,9 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Convierte una regla de cantidad al contrato JSON del admin.
+     */
     private function transformBulkDiscount(BulkDiscountRule $rule): array
     {
         return [
@@ -884,17 +1052,24 @@ class AdminDiscountController extends Controller
         ];
     }
 
+    /**
+     * Resuelve el tipo de descuento desde ID explícito o nombre lógico.
+     * Si no existe, lo crea automáticamente (firstOrCreate).
+     */
     private function resolveDiscountTypeId(?int $discountTypeId, ?string $type): int
     {
+        // Si ya se proporcionó un ID explícito, lo usa directamente.
         if ($discountTypeId) {
             return $discountTypeId;
         }
 
+        // Mapea nombres lógicos a nombres internos de tipos de descuento.
         $normalizedType = Str::lower(trim((string) $type));
         $targetName = in_array($normalizedType, ['fixed', 'monto fijo', 'fixed_amount'], true)
             ? 'fixed_amount'
             : 'percentage';
 
+        // Crea el tipo si no existe (firstOrCreate) para mantener consistencia.
         $discountType = DiscountType::query()->firstOrCreate(
             ['name' => $targetName],
             [

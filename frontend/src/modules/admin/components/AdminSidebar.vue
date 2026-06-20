@@ -74,6 +74,14 @@
           </RouterLink>
         </li>
 
+        <li class="nav-item" :class="{ active: isActive('/admin/reembolsos') }">
+          <RouterLink to="/admin/reembolsos" @click="handleNavigate">
+            <i class="fas fa-rotate-left"></i>
+            <span>Reembolsos</span>
+            <span v-if="refundNotificationsCount > 0" class="badge nav-notification-badge">{{ refundNotificationsCount }}</span>
+          </RouterLink>
+        </li>
+
         <li class="nav-item" :class="{ active: isActive('/admin/facturas') }">
           <RouterLink to="/admin/facturas" @click="handleNavigate">
             <i class="fas fa-file-invoice-dollar"></i>
@@ -205,6 +213,7 @@ const {
 
 const orderNotificationsCount = computed(() => unreadByModule.value.orders || 0)
 const paymentNotificationsCount = computed(() => unreadByModule.value.payments || 0)
+const refundNotificationsCount = computed(() => unreadByModule.value.refunds || 0)
 const invoiceNotificationsCount = computed(() => unreadByModule.value.invoices || 0)
 const inventoryNotificationsCount = computed(() => unreadByModule.value.inventory || 0)
 const DEFAULT_PRIMARY_COLOR = '#0077b6'

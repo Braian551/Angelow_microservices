@@ -1,5 +1,21 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración: tabla de caché y bloqueos de caché (auth-service)
+|--------------------------------------------------------------------------
+|
+| Crea las tablas 'cache' y 'cache_locks' usadas por Laravel cuando
+| el driver de caché configurado es 'database'. La tabla 'cache'
+| almacena pares clave-valor con expiración, y 'cache_locks' gestiona
+| bloqueos atómicos entre procesos para evitar condiciones de carrera.
+|
+| El auth-service puede usar Redis como driver de caché en producción,
+| pero esta migración permite el fallback a base de datos cuando sea
+| necesario (por ejemplo, en entornos sin Redis disponible).
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -7,7 +23,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Ejecuta la migración.
      */
     public function up(): void
     {
@@ -25,7 +41,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Revierte la migración.
      */
     public function down(): void
     {

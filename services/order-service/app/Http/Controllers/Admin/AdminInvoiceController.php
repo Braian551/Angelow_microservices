@@ -8,14 +8,29 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
+/**
+ * Controlador administrativo para la gestión de facturas.
+ *
+ * Proporciona endpoints para listar, descargar y reenviar facturas
+ * desde fuentes heredadas (legacy) o del microservicio actual.
+ */
 class AdminInvoiceController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
+    /**
+     * Inyecta el servicio de facturación de órdenes.
+     */
     public function __construct(
         private readonly OrderInvoiceService $orderInvoiceService,
     ) {}
 
+    /**
+     * Lista las facturas generadas aplicando filtros opcionales.
+     *
+     * @param Request $request Parámetros de consulta con filtros.
+     * @return JsonResponse Listado de facturas y estadísticas.
+     */
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -39,6 +54,13 @@ class AdminInvoiceController extends Controller
         ]);
     }
 
+    /**
+     * Descarga una factura en formato PDF.
+     *
+     * @param Request $request Parámetros de consulta con fuente opcional.
+     * @param int $id Identificador de la factura.
+     * @return Response PDF de la factura o JSON de error.
+     */
     public function download(Request $request, int $id)
     {
         $data = $request->validate([
@@ -48,6 +70,7 @@ class AdminInvoiceController extends Controller
         $preferredConnection = $this->normalizeSourceConnection($data['source'] ?? null);
         $result = $this->orderInvoiceService->buildInvoicePdfForDownload($id, $preferredConnection);
 
+        // Si la respuesta no es exitosa, retornar error
         if (!($result['ok'] ?? false)) {
             return response()->json([
                 'success' => false,
@@ -63,6 +86,13 @@ class AdminInvoiceController extends Controller
         ]);
     }
 
+    /**
+     * Reenvía una factura por correo electrónico.
+     *
+     * @param Request $request Parámetros de consulta con fuente opcional.
+     * @param int $id Identificador de la factura.
+     * @return JsonResponse Resultado del reenvío.
+     */
     public function resend(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -72,6 +102,7 @@ class AdminInvoiceController extends Controller
         $preferredConnection = $this->normalizeSourceConnection($data['source'] ?? null);
         $result = $this->orderInvoiceService->resendInvoiceEmail($id, $preferredConnection);
 
+        // Si la respuesta no es exitosa, retornar error
         if (!($result['ok'] ?? false)) {
             return response()->json([
                 'success' => false,
@@ -86,10 +117,16 @@ class AdminInvoiceController extends Controller
         ]);
     }
 
+    /**
+     * Construye estadísticas a partir de la colección de facturas.
+     *
+     * @param Collection $rows Colección de facturas.
+     * @return array Estadísticas calculadas.
+     */
     private function buildStats(Collection $rows): array
     {
         $totalInvoices = $rows->count();
-        $totalAmount = $rows->sum(static fn (array $row): float => (float) ($row['total'] ?? 0));
+        $totalAmount = $rows->sum(static fn(array $row): float => (float) ($row['total'] ?? 0));
         $paidInvoices = $rows->filter(function (array $row): bool {
             $payment = strtolower(trim((string) ($row['payment_status'] ?? '')));
             return in_array($payment, ['paid', 'verified', 'approved'], true);
@@ -126,10 +163,17 @@ class AdminInvoiceController extends Controller
         ];
     }
 
+    /**
+     * Normaliza el parámetro de origen a un nombre de conexión de base de datos.
+     *
+     * @param string|null $source Valor del parámetro source.
+     * @return string|null Nombre de conexión o nulo para usar la conexión por defecto.
+     */
     private function normalizeSourceConnection(?string $source): ?string
     {
         $value = strtolower(trim((string) ($source ?? '')));
 
+        // Si se solicita la fuente legacy, retornar la conexión legacy
         if ($value === 'legacy') {
             return self::LEGACY_CONNECTION;
         }

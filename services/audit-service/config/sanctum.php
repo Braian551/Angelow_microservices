@@ -1,5 +1,16 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de Sanctum (autenticación SPA) para audit-service
+|--------------------------------------------------------------------------
+|
+| Sanctum permite autenticación basada en tokens para APIs y
+| cookies para SPAs. El audit-service puede usar Sanctum para
+| proteger endpoints administrativos si se requiere.
+|
+*/
+
 use Laravel\Sanctum\Sanctum;
 
 return [

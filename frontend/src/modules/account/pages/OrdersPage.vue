@@ -69,14 +69,14 @@
               <i class="fas fa-redo-alt" /> Volver a pedir
             </RouterLink>
             <button
-              v-if="canCancelOrder(order)"
+              v-if="canRequestRefund(order)"
               type="button"
-              class="btn-cancel-order"
-              :disabled="cancellingOrderId === order.id"
-              @click="confirmCancelOrder(order)"
+              class="btn-refund-order"
+              :disabled="submittingRefund"
+              @click="openRefundModal(order)"
             >
-              <i class="fas fa-ban" />
-              {{ cancellingOrderId === order.id ? 'Cancelando...' : 'Cancelar pedido' }}
+              <i class="fas fa-rotate-left" />
+              Reembolso
             </button>
           </div>
 
@@ -100,17 +100,66 @@
         </article>
       </div>
     </section>
+
+    <div v-if="refundModalOpen" class="refund-modal-overlay" @click.self="closeRefundModal">
+      <form class="refund-modal" @submit.prevent="submitRefundRequest">
+        <header class="refund-modal__header">
+          <div>
+            <h3>Solicitar reembolso</h3>
+            <p>Pedido #{{ activeRefundOrder?.order_number }}</p>
+          </div>
+          <button type="button" aria-label="Cerrar" @click="closeRefundModal">
+            <i class="fas fa-times" />
+          </button>
+        </header>
+
+        <div class="refund-modal__body">
+          <label for="refund-reason">Motivo de reembolso *</label>
+          <select id="refund-reason" v-model="refundForm.reason" class="refund-control" :class="{ 'is-invalid': refundErrors.reason }" @change="validateRefundField('reason')">
+            <option value="">Seleccionar motivo...</option>
+            <option v-for="reason in refundReasons" :key="reason.value" :value="reason.value">{{ reason.label }}</option>
+          </select>
+          <p v-if="refundErrors.reason" class="form-error">{{ refundErrors.reason }}</p>
+
+          <label v-if="refundForm.reason === 'otros'" for="refund-details">Cuéntanos qué pasó *</label>
+          <textarea
+            v-if="refundForm.reason === 'otros'"
+            id="refund-details"
+            v-model="refundForm.details"
+            class="refund-control"
+            :class="{ 'is-invalid': refundErrors.details }"
+            rows="4"
+            placeholder="Describe el motivo del reembolso."
+            @input="validateRefundField('details')"
+          />
+          <p v-if="refundErrors.details" class="form-error">{{ refundErrors.details }}</p>
+
+          <label for="refund-evidence">Evidencia (imagen, PDF o documento)</label>
+          <input id="refund-evidence" class="refund-control" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" @change="handleRefundEvidence">
+          <p v-if="refundForm.evidence" class="refund-modal__file">{{ refundForm.evidence.name }}</p>
+        </div>
+
+        <footer class="refund-modal__footer">
+          <button type="button" class="btn-repeat-order" @click="closeRefundModal">Volver</button>
+          <button type="submit" class="btn-refund-order" :disabled="submittingRefund">
+            <i class="fas fa-paper-plane" />
+            {{ submittingRefund ? 'Enviando...' : 'Enviar solicitud' }}
+          </button>
+        </footer>
+      </form>
+    </div>
   </template>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AccountShimmer from '../components/AccountShimmer.vue'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
-import { cancelOrder, getOrders } from '../../../services/orderApi'
+import { cancelOrder, getOrders, requestOrderRefund } from '../../../services/orderApi'
 import { useSession } from '../../../composables/useSession'
+import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 import { getOrderStatusLabel, getPaymentStatusLabel, normalizeOrderStatus, normalizePaymentStatus } from '../../../utils/orderPresentation'
 
 const route = useRoute()
@@ -122,6 +171,20 @@ const loading = ref(true)
 const errorMessage = ref('')
 const orders = ref([])
 const cancellingOrderId = ref(null)
+const refundModalOpen = ref(false)
+const activeRefundOrder = ref(null)
+const submittingRefund = ref(false)
+const refundForm = ref({ reason: '', details: '', evidence: null })
+const refundErrors = ref({ reason: '', details: '' })
+let unsubscribeOrderRealtime = null
+
+const refundReasons = Object.freeze([
+  { value: 'talla_incorrecta', label: 'La talla no fue adecuada' },
+  { value: 'producto_defectuoso', label: 'El producto llegó defectuoso' },
+  { value: 'producto_equivocado', label: 'Recibí un producto diferente' },
+  { value: 'no_cumple_expectativa', label: 'No cumple con lo esperado' },
+  { value: 'otros', label: 'Otros' },
+])
 
 const defaultOrderSteps = Object.freeze([
   { key: 'pending', label: 'Pendiente', icon: 'fas fa-clock' },
@@ -131,7 +194,7 @@ const defaultOrderSteps = Object.freeze([
 ])
 
 const refundOrderSteps = Object.freeze([
-  { key: 'cancelled', label: 'Cancelado', icon: 'fas fa-ban' },
+  { key: 'refund_requested', label: 'Solicitado', icon: 'fas fa-clipboard-check' },
   { key: 'pending_refund', label: 'Reembolso en proceso', icon: 'fas fa-rotate' },
   { key: 'refunded', label: 'Reembolsado', icon: 'fas fa-hand-holding-usd' },
 ])
@@ -140,10 +203,18 @@ const selectedOrderId = computed(() => String(route.query.order || '').trim())
 
 onMounted(async () => {
   await loadOrders()
+  unsubscribeOrderRealtime = subscribeToOrderRealtime(handleRealtimeOrderUpdate)
 })
 
-async function loadOrders() {
-  loading.value = true
+onUnmounted(() => {
+  unsubscribeOrderRealtime?.()
+})
+
+async function loadOrders(options = {}) {
+  const silent = Boolean(options.silent)
+  if (!silent) {
+    loading.value = true
+  }
   errorMessage.value = ''
 
   try {
@@ -158,10 +229,39 @@ async function loadOrders() {
     })
     orders.value = Array.isArray(response?.data) ? response.data : []
   } catch {
-    errorMessage.value = 'No se pudieron cargar los pedidos.'
+    if (!silent) {
+      errorMessage.value = 'No se pudieron cargar los pedidos.'
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
+}
+
+async function handleRealtimeOrderUpdate(message) {
+  const orderIndex = orders.value.findIndex((order) => Number(order?.id) === Number(message.orderId))
+  if (orderIndex < 0) {
+    return
+  }
+
+  // Actualiza el estado visible de inmediato y refresca en segundo plano los campos derivados del pedido.
+  const nextOrder = { ...orders.value[orderIndex] }
+  if (message.field === 'status' && message.newValue) {
+    nextOrder.status = message.newValue
+  }
+  if (message.field === 'payment_status' && message.newValue) {
+    nextOrder.payment_status = message.newValue
+  }
+  if (message.status) {
+    nextOrder.status = message.status
+  }
+  if (message.paymentStatus) {
+    nextOrder.payment_status = message.paymentStatus
+  }
+
+  orders.value.splice(orderIndex, 1, nextOrder)
+  await loadOrders({ silent: true })
 }
 
 function formatPrice(value) {
@@ -199,6 +299,7 @@ function paymentStatusLabel(order) {
 
   if (paymentStatus === 'verified' || paymentStatus === 'approved') return 'Pago verificado'
   if (paymentStatus === 'pending') return 'Pendiente de pago'
+  if (paymentStatus === 'refund_requested') return 'Reembolso solicitado'
   if (paymentStatus === 'pending_refund') return 'Reembolso en proceso'
   if (paymentStatus === 'refunded') return 'Reembolsado'
   if (paymentStatus === 'paid') return 'Pagado'
@@ -295,18 +396,94 @@ async function submitOrderCancellation(order) {
   }
 }
 
+function canRequestRefund(order) {
+  return Boolean(order?.refund_available)
+}
+
+function openRefundModal(order) {
+  activeRefundOrder.value = order
+  refundForm.value = { reason: '', details: '', evidence: null }
+  refundErrors.value = { reason: '', details: '' }
+  refundModalOpen.value = true
+}
+
+function closeRefundModal() {
+  if (submittingRefund.value) return
+  refundModalOpen.value = false
+  activeRefundOrder.value = null
+}
+
+function validateRefundField(field) {
+  if (field === 'reason') {
+    refundErrors.value.reason = refundForm.value.reason ? '' : 'Selecciona un motivo de reembolso.'
+  }
+
+  if (field === 'details') {
+    const requiresDetails = refundForm.value.reason === 'otros'
+    refundErrors.value.details = !requiresDetails || refundForm.value.details.trim().length >= 8
+      ? ''
+      : 'Cuéntanos el motivo con un poco más de detalle.'
+  }
+}
+
+function validateRefundForm() {
+  validateRefundField('reason')
+  validateRefundField('details')
+
+  return !refundErrors.value.reason && !refundErrors.value.details
+}
+
+function handleRefundEvidence(event) {
+  refundForm.value.evidence = event.target.files?.[0] || null
+}
+
+async function submitRefundRequest() {
+  if (!activeRefundOrder.value || submittingRefund.value || !validateRefundForm()) return
+
+  submittingRefund.value = true
+
+  try {
+    const body = new FormData()
+    body.append('user_id', String(user.value?.id || '').trim())
+    body.append('user_email', String(user.value?.email || '').trim())
+    body.append('reason', refundForm.value.reason)
+    body.append('details', refundForm.value.details.trim())
+    if (refundForm.value.evidence) {
+      body.append('evidence', refundForm.value.evidence)
+    }
+
+    const response = await requestOrderRefund(activeRefundOrder.value.id, body)
+    showSnackbar({
+      type: 'success',
+      title: 'Reembolso solicitado',
+      message: String(response?.message || 'Solicitud de reembolso enviada correctamente.'),
+    })
+    closeRefundModal()
+    await loadOrders()
+  } catch (error) {
+    const apiMessage = String(
+      error?.response?.data?.message
+      || error?.response?.data?.error
+      || 'No pudimos enviar la solicitud de reembolso.',
+    ).trim()
+
+    showSnackbar({
+      type: 'error',
+      title: 'No se pudo solicitar',
+      message: apiMessage || 'No pudimos enviar la solicitud de reembolso.',
+    })
+  } finally {
+    submittingRefund.value = false
+  }
+}
+
 function normalizeStatus(value) {
   return String(value || '').trim().toLowerCase()
 }
 
 function isRefundFlow(order) {
-  const status = normalizeStatus(order?.status)
-  if (!['cancelled', 'canceled'].includes(status)) {
-    return false
-  }
-
   const paymentStatus = normalizeStatus(order?.payment_status)
-  return ['pending_refund', 'refunded', 'paid', 'verified', 'approved'].includes(paymentStatus)
+  return ['refund_requested', 'pending_refund', 'refunded'].includes(paymentStatus)
 }
 
 function orderProgressSteps(order) {
@@ -324,6 +501,10 @@ function resolveStandardProgressStatus(order) {
 
 function resolveRefundProgressStatus(order) {
   const paymentStatus = normalizeStatus(order?.payment_status)
+  if (paymentStatus === 'refund_requested') {
+    return 'refund_requested'
+  }
+
   if (paymentStatus === 'refunded') {
     return 'refunded'
   }
@@ -337,7 +518,7 @@ function resolveRefundProgressStatus(order) {
 
 function isStepActive(order, stepKey) {
   const flow = isRefundFlow(order)
-    ? ['cancelled', 'pending_refund', 'refunded']
+    ? ['refund_requested', 'pending_refund', 'refunded']
     : ['pending', 'processing', 'shipped', 'delivered']
   const currentStatus = isRefundFlow(order)
     ? resolveRefundProgressStatus(order)
@@ -484,6 +665,107 @@ function isStepActive(order, stepKey) {
 .btn-cancel-order:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.btn-refund-order {
+  border: 1px solid #0f7bb8;
+  background: #0f7bb8;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  padding: 0.95rem 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.btn-refund-order:hover {
+  background: #0b679b;
+}
+
+.btn-refund-order:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.refund-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.42);
+  display: grid;
+  place-items: center;
+  padding: 1.6rem;
+}
+
+.refund-modal {
+  width: min(560px, 100%);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+}
+
+.refund-modal__header,
+.refund-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.4rem 1.6rem;
+  border-bottom: 1px solid #dbe5ef;
+}
+
+.refund-modal__header h3 {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.refund-modal__header p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+
+.refund-modal__header button {
+  border: 0;
+  background: #eef6fb;
+  color: #0f7bb8;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.refund-modal__body {
+  padding: 1.6rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.refund-control {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  font-size: 1.35rem;
+}
+
+.refund-control.is-invalid {
+  border-color: #ef4444;
+}
+
+.refund-modal__file {
+  margin: 0;
+  color: #0f7bb8;
+  font-weight: 700;
+}
+
+.refund-modal__footer {
+  border-top: 1px solid #dbe5ef;
+  border-bottom: 0;
 }
 
 .order-v2-progress {

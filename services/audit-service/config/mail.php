@@ -1,5 +1,17 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de correo del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define los mailers disponibles (smtp, ses, postmark, log, etc.)
+| y la dirección remitente por defecto. El audit-service puede
+| enviar notificaciones por correo ante eventos críticos de
+| auditoría (ej. eliminación masiva de registros).
+|
+*/
+
 return [
 
     /*

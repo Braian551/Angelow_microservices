@@ -1,5 +1,17 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración: tabla de colas, lotes y trabajos fallidos (cart-service)
+|--------------------------------------------------------------------------
+|
+| Crea las tablas 'jobs', 'job_batches' y 'failed_jobs' para el
+| sistema de colas con driver 'database'. El cart-service puede
+| encolar tareas como el envío de recordatorios de carritos
+| abandonados.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -7,7 +19,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Ejecuta la migración.
      */
     public function up(): void
     {
@@ -46,7 +58,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Revierte la migración.
      */
     public function down(): void
     {

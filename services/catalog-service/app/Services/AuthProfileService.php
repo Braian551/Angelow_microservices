@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+// Comentario de mantenimiento: Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 

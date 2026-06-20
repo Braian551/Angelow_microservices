@@ -1,5 +1,16 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de servicios terceros del audit-service
+|--------------------------------------------------------------------------
+|
+| Credenciales para servicios externos como Postmark, Resend, SES
+| (correo) y Slack (notificaciones). Se usan principalmente para
+| alertas operativas del servicio de auditoría.
+|
+*/
+
 return [
 
     /*

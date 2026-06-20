@@ -18,8 +18,8 @@
         :disabled="loadingAction"
         @click="markAllAsRead"
       >
-        <i class="fas fa-check-double"></i>
-        Marcar todas como leídas
+        <i :class="loadingAction ? 'fas fa-spinner fa-spin' : 'fas fa-check-double'"></i>
+        {{ loadingAction ? 'Actualizando...' : 'Marcar todas como leídas' }}
       </button>
     </section>
 
@@ -143,8 +143,8 @@
               :disabled="loadingAction"
               @click="markAsRead(notification.id)"
             >
-              <i class="fas fa-check"></i>
-              <span>Marcar leída</span>
+              <i :class="loadingAction ? 'fas fa-spinner fa-spin' : 'fas fa-check'"></i>
+              <span>{{ loadingAction ? 'Marcando...' : 'Marcar leída' }}</span>
             </button>
 
             <button
@@ -153,8 +153,8 @@
               :disabled="loadingAction"
               @click="deleteOne(notification.id)"
             >
-              <i class="fas fa-trash-alt"></i>
-              <span>Eliminar</span>
+              <i :class="loadingAction ? 'fas fa-spinner fa-spin' : 'fas fa-trash-alt'"></i>
+              <span>{{ loadingAction ? 'Eliminando...' : 'Eliminar' }}</span>
             </button>
           </div>
         </article>
@@ -175,10 +175,12 @@ import {
 } from '../../../services/notificationApi'
 import { useSession } from '../../../composables/useSession'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
+import { useAppShell } from '../../../composables/useAppShell'
 
 const router = useRouter()
 const { user, isLoggedIn } = useSession()
 const { showAlert } = useAlertSystem()
+const { setNotificationCount } = useAppShell()
 const setAccountUnreadNotifications = inject('setAccountUnreadNotifications', () => {})
 
 const loading = ref(true)
@@ -242,6 +244,7 @@ async function refreshNotifications({ showLoader = false } = {}) {
     if (!isLoggedIn.value) {
       notifications.value = []
       setAccountUnreadNotifications(0)
+      setNotificationCount(0)
       return
     }
 
@@ -250,6 +253,7 @@ async function refreshNotifications({ showLoader = false } = {}) {
     const response = await getNotifications(userId, userEmail)
     notifications.value = Array.isArray(response?.data) ? response.data : []
     setAccountUnreadNotifications(unreadCount.value)
+    setNotificationCount(unreadCount.value)
   } catch {
     if (showLoader) {
       errorMessage.value = 'No se pudieron cargar las notificaciones.'
@@ -292,6 +296,7 @@ async function markAsRead(notificationId) {
     ))
 
     setAccountUnreadNotifications(unreadCount.value)
+    setNotificationCount(unreadCount.value)
   } catch {
     showAlert({
       type: 'error',
@@ -323,6 +328,7 @@ function deleteOne(notificationId) {
             )
             notifications.value = notifications.value.filter((item) => Number(item.id) !== Number(notificationId))
             setAccountUnreadNotifications(unreadCount.value)
+            setNotificationCount(unreadCount.value)
           } catch {
             showAlert({
               type: 'error',
@@ -354,6 +360,7 @@ async function markAllAsRead() {
     }))
 
     setAccountUnreadNotifications(0)
+    setNotificationCount(0)
 
     showAlert({
       type: 'success',
