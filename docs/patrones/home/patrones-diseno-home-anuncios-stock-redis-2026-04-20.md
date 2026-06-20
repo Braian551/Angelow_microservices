@@ -11,6 +11,7 @@
 - [Patrón 5: Separación de estados de error UI (error de carga vs error de acción)](#patrón-5-separación-de-estados-de-error-ui-error-de-carga-vs-error-de-acción)
 - [Patrón 6: Single Source of Truth para confirmar reservas en checkout/pago](#patrón-6-single-source-of-truth-para-confirmar-reservas-en-checkout-pago)
 - [Ajustes de consistencia adicionales](#ajustes-de-consistencia-adicionales)
+- [Ajuste adicional 2026-06-19 (reconciliacion Redis y autosanacion de stock)](#ajuste-adicional-2026-06-19-reconciliacion-redis-y-autosanacion-de-stock)
 - [Ajuste adicional 2026-04-20 (cantidad máxima + botón volver)](#ajuste-adicional-2026-04-20-cantidad-máxima-botón-volver)
 - [Resultado esperado](#resultado-esperado)
 <!-- indice:auto:end -->
@@ -82,6 +83,16 @@ Fecha: 2026-04-20
   - La barra superior ahora renderiza message o title como fallback para evitar vacíos por datos incompletos.
 - frontend/src/modules/catalog/pages/ProductDetailPage.vue
   - addItemToCart() muestra el mensaje real devuelto por backend cuando no hay stock.
+
+## Ajuste adicional 2026-06-19 (reconciliacion Redis y autosanacion de stock)
+- Patron aplicado: Single Source of Truth + compensacion de Saga.
+- Problema que resuelve: evitar que una clave `reserved:*` huerfana en Redis mantenga una variante como agotada, bloquee la creacion de pedidos con 422 o muestre inventario incorrecto aunque la base fisica tenga unidades.
+- Aplicacion:
+  - services/order-service/app/Services/StockReservationService.php
+  - reconcileReservationCounters() sincroniza reservas activas desde `stock_reservations`, extrae correctamente el id aunque Redis devuelva claves con prefijo de Laravel y elimina `reserved`/`stock` cuando no existe reserva activa.
+  - services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php
+  - services/catalog-service/app/Http/Controllers/InternalCatalogController.php
+  - resolveRealtimeAvailableStock() recalcula el snapshot disponible si Redis queda desfasado frente al stock fisico y el reservado vigente.
 
 ## Ajuste adicional 2026-04-20 (cantidad máxima + botón volver)
 - Patrón aplicado: Guard Clauses en UI para validación temprana de cantidad.

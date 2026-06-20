@@ -3,7 +3,10 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-20 - Coherencia de gráficas de informes](#2026-06-20---coherencia-de-gráficas-de-informes)
+- [2026-06-20 - Administración de reembolsos](#2026-06-20---administración-de-reembolsos)
 - [2026-06-10 - Formulario de producto como orquestador Vue](#2026-06-10---formulario-de-producto-como-orquestador-vue)
+- [2026-06-19 - Reembolsos de cliente y política por producto](#2026-06-19---reembolsos-de-cliente-y-política-por-producto)
 - [2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito](#2026-06-10---validaciones-numéricas-reutilizables-para-productos-inventario-y-carrito)
 - [2026-06-08 - Factura descargable desde detalle de pedido y estados unificados](#2026-06-08---factura-descargable-desde-detalle-de-pedido-y-estados-unificados)
 - [2026-06-08 - Feedback de acciones mutables en header tablas y modales](#2026-06-08---feedback-de-acciones-mutables-en-header-tablas-y-modales)
@@ -11,6 +14,7 @@
 - [2026-04-24 - Migración de CSS legacy al flujo real frontend](#2026-04-24---migración-de-css-legacy-al-flujo-real-frontend)
 - [2026-04-18 - Persistencia robusta de direcciones ante caida de legacy](#2026-04-18---persistencia-robusta-de-direcciones-ante-caida-de-legacy)
 - [2026-04-17 - Reserva temporal de stock, confirmacion diferida y anti-duplicidad en ordenes](#2026-04-17---reserva-temporal-de-stock-confirmacion-diferida-y-anti-duplicidad-en-ordenes)
+- [2026-06-19 - Reconciliacion de stock Redis para ordenes e inventario](#2026-06-19---reconciliacion-de-stock-redis-para-ordenes-e-inventario)
 - [2026-04-17 - Campaña específica en vista dedicada, tiempo relativo y avisos de órdenes](#2026-04-17---campaña-específica-en-vista-dedicada-tiempo-relativo-y-avisos-de-órdenes)
 - [2026-04-17 - Campañas de descuentos y sincronización de anuncios](#2026-04-17---campañas-de-descuentos-y-sincronización-de-anuncios)
 - [2026-04-17 - Vista previa en vivo en modales y checkbox unificado](#2026-04-17---vista-previa-en-vivo-en-modales-y-checkbox-unificado)
@@ -40,6 +44,38 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-20 - Coherencia de gráficas de informes
+
+- Patrón: Adapter + Strategy (Refactoring Guru)
+- Aplicación: separación entre tabla de clientes recurrentes y gráfica de clientes por valor, más escalas de ventas con base cero para evitar lecturas comprimidas.
+- Ubicación: `frontend/src/modules/admin/composables/useAdminReports.js`, `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`
+- Problema resuelto: informes de clientes y ventas podían verse vacíos o incorrectos cuando había compras reales pero el filtro recurrente eliminaba la tabla, o cuando una única serie deformaba la escala visual.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-informes-2026-04-05.md`
+
+## 2026-06-20 - Administración de reembolsos
+
+- Patrón: State + Facade + Adapter + Command (Refactoring Guru)
+- Aplicación: se agregó una sección admin dedicada para revisar solicitudes de reembolso, motivo, evidencia, badges/notificaciones y acciones operativas con sincronización de estado de pago.
+- Ubicación: `frontend/src/modules/admin/pages/AdminRefundsPage.vue`, `frontend/src/modules/admin/composables/useAdminRefunds.js`, `frontend/src/modules/admin/composables/useAdminNotifications.js`, `frontend/src/modules/admin/components/AdminPaymentProofModal.vue`, `frontend/src/modules/admin/views/AdminRefundsPage.css`, `services/order-service/app/Http/Controllers/Admin/AdminOrderController.php`, `services/order-service/routes/api.php`
+- Problema resuelto: el reembolso solicitado por cliente quedaba sin gestión administrativa específica y dependía de cambios manuales de pago en órdenes.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-reembolsos-2026-06-20.md`
+
+## 2026-06-19 - Reembolsos de cliente y política por producto
+
+- Patrón: State + Facade + Adapter (Refactoring Guru)
+- Aplicación: se separó la solicitud de reembolso del estado de cancelación de orden, se centralizó el endpoint de solicitud en `orderApi` y se adaptó la política de catálogo al contrato de Mis pedidos.
+- Ubicación: `frontend/src/modules/account/pages/OrdersPage.vue`, `frontend/src/services/orderApi.js`, `frontend/src/utils/orderPresentation.js`, `frontend/src/modules/admin/pages/AdminProductFormPage.vue`, `frontend/src/modules/admin/components/products/AdminProductGeneralTab.vue`, `frontend/src/modules/admin/composables/useAdminProductForm.js`, `frontend/src/modules/admin/utils/productFormPayload.js`, `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`, `services/catalog-service/app/Http/Controllers/InternalCatalogController.php`, `services/order-service/app/Http/Controllers/OrderController.php`, `services/order-service/routes/api.php`
+- Problema resuelto: impedir cancelaciones de compra desde cliente y habilitar reembolsos trazables solo para productos con política activa y ventana vigente.
+- Referencia detallada: `docs/patrones/dashboard/patrones-diseno-reembolsos-cliente-producto-2026-06-19.md`
+
+## 2026-06-19 - Reconciliacion de stock Redis para ordenes e inventario
+
+- Patron: Saga + Single Source of Truth
+- Aplicacion: el catalogo autosana snapshots de stock disponible cuando Redis queda desfasado y order-service limpia claves `reserved:*` sin reserva activa persistida.
+- Ubicacion: `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`, `services/catalog-service/app/Http/Controllers/InternalCatalogController.php`, `services/order-service/app/Services/StockReservationService.php`
+- Problema resuelto: evitar que reservas huerfanas de Redis bloqueen pedidos o muestren variantes como sin stock cuando la base fisica conserva unidades disponibles.
+- Referencia detallada: `docs/patrones/home/patrones-diseno-home-anuncios-stock-redis-2026-04-20.md`
 
 ## 2026-06-10 - Formulario de producto como orquestador Vue
 

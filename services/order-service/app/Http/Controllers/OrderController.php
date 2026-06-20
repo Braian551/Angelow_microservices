@@ -1039,6 +1039,111 @@ class OrderController extends Controller
     }
 
     /**
+     * Registra una solicitud de reembolso del cliente sin cancelar la orden entregada.
+     */
+    public function requestRefund(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'source' => ['nullable', 'string', 'max:20'],
+            'user_id' => ['nullable', 'string', 'max:40'],
+            'user_email' => ['nullable', 'string', 'email', 'max:255'],
+            'reason' => ['required', 'string', 'max:80'],
+            'details' => ['nullable', 'string', 'max:1000'],
+            'evidence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf,doc,docx', 'max:10240'],
+        ]);
+
+        $preferredConnection = $this->normalizeSourceConnection($data['source'] ?? $request->input('source'));
+        ['order' => $order, 'connection' => $sourceConnection] = $this->resolveOrderSource($id, $preferredConnection);
+
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        // Reutiliza la autorización de gestión de pedido usada por factura y cancelación de cliente.
+        if (!$this->canCustomerManageOrder($order, $sourceConnection, $data['user_id'] ?? null, $data['user_email'] ?? null)) {
+            return response()->json(['message' => 'No tienes permisos para solicitar reembolso de esta orden.'], 403);
+        }
+
+        $eligibility = $this->resolveOrderRefundEligibility($order, $sourceConnection);
+        if (!($eligibility['available'] ?? false)) {
+            return response()->json([
+                'message' => $eligibility['message'] ?? 'Esta orden no tiene reembolso disponible.',
+                'data' => $eligibility,
+            ], 422);
+        }
+
+        if ($this->existingOpenRefundRequest($sourceConnection, $id) !== null) {
+            return response()->json(['message' => 'Ya existe una solicitud de reembolso en revisión para este pedido.'], 422);
+        }
+
+        $evidencePath = $this->storeRefundEvidence($request->file('evidence'));
+        $now = now();
+
+        $requestId = $this->query($sourceConnection)->table('order_refund_requests')->insertGetId([
+            'order_id' => $id,
+            'user_id' => $this->nullableString($data['user_id'] ?? null),
+            'user_email' => $this->nullableString($data['user_email'] ?? null),
+            'reason' => trim((string) $data['reason']),
+            'details' => $this->nullableString($data['details'] ?? null),
+            'evidence_path' => $evidencePath,
+            'evidence_original_name' => $request->file('evidence')?->getClientOriginalName(),
+            'status' => 'requested',
+            'requested_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $paymentStatusColumn = $this->firstExistingColumn('orders', ['payment_status'], $sourceConnection);
+        $oldPaymentStatus = $paymentStatusColumn ? ($order->{$paymentStatusColumn} ?? $order->payment_status ?? null) : null;
+        if ($paymentStatusColumn && !$this->sameNormalizedValue($oldPaymentStatus, 'refund_requested')) {
+            $this->query($sourceConnection)->table('orders')->where('id', $id)->update([
+                $paymentStatusColumn => 'refund_requested',
+                'updated_at' => $now,
+            ]);
+
+            $this->insertOrderHistory($sourceConnection, [
+                'order_id' => $id,
+                'changed_by' => $this->nullableString($data['user_id'] ?? null),
+                'changed_by_name' => 'Cliente',
+                'change_type' => 'payment_change',
+                'field_changed' => 'payment_status',
+                'old_value' => $oldPaymentStatus,
+                'new_value' => 'refund_requested',
+                'description' => 'Solicitud de reembolso creada por el cliente.',
+                'created_at' => $now,
+            ]);
+        }
+
+        $this->insertOrderHistory($sourceConnection, [
+            'order_id' => $id,
+            'changed_by' => $this->nullableString($data['user_id'] ?? null),
+            'changed_by_name' => 'Cliente',
+            'change_type' => 'refund_request',
+            'field_changed' => 'refund_status',
+            'old_value' => null,
+            'new_value' => 'requested',
+            'description' => 'Solicitud de reembolso registrada. Motivo: ' . trim((string) $data['reason']),
+            'created_at' => $now,
+        ]);
+
+        $hydratedOrder = $this->hydrateOrderCustomerIdentity($order, $sourceConnection);
+        if ($paymentStatusColumn && !$this->sameNormalizedValue($oldPaymentStatus, 'refund_requested')) {
+            $this->notifyOrderUpdateChannels($hydratedOrder, $sourceConnection, 'payment_status', $oldPaymentStatus, 'refund_requested');
+        }
+
+        $this->sendRefundTeamEmail($hydratedOrder, $sourceConnection, (string) ($hydratedOrder->order_number ?? ('#' . $id)), $data['reason']);
+
+        return response()->json([
+            'message' => 'Solicitud de reembolso enviada correctamente.',
+            'data' => [
+                'id' => $requestId,
+                'status' => 'requested',
+                'payment_status' => 'refund_requested',
+            ],
+        ], 201);
+    }
+
+    /**
      * Actualiza campos administrativos de una orden (datos de
      * contacto, dirección, método de pago, notas). Usa un mapeo
      * de campos para adaptarse al esquema de la BD destino.
@@ -1138,7 +1243,7 @@ class OrderController extends Controller
                 $query->where('status', $status);
             }
 
-            return $query->limit(50)->get();
+            return $this->attachRefundEligibilityToOrders($query->limit(50)->get(), $connection);
         } catch (Throwable) {
             return collect();
         }
@@ -1345,6 +1450,167 @@ class OrderController extends Controller
      * Completa los datos del cliente (nombre, email, teléfono)
      * en la orden consultando la tabla users o el auth-service.
      */
+    /**
+     * Adjunta a cada orden el estado de solicitud y disponibilidad de reembolso.
+     */
+    private function attachRefundEligibilityToOrders(Collection $orders, ?string $connection): Collection
+    {
+        return $orders->map(function ($order) use ($connection) {
+            $eligibility = $this->resolveOrderRefundEligibility($order, $connection);
+            $order->refund_available = (bool) ($eligibility['available'] ?? false);
+            $order->refund_deadline_at = $eligibility['deadline_at'] ?? null;
+            $order->refund_policy_days = $eligibility['refund_days'] ?? null;
+            $order->refund_request_status = $eligibility['request_status'] ?? null;
+            $order->refund_message = $eligibility['message'] ?? null;
+
+            return $order;
+        })->values();
+    }
+
+    /**
+     * Calcula si una orden entregada conserva ventana válida de reembolso por sus productos.
+     */
+    private function resolveOrderRefundEligibility(object $order, ?string $connection): array
+    {
+        if (!$this->hasTable('order_refund_requests', $connection)) {
+            return ['available' => false, 'message' => 'El flujo de reembolso aún no está disponible.'];
+        }
+
+        $openRequest = $this->existingOpenRefundRequest($connection, (int) ($order->id ?? 0));
+        if ($openRequest !== null) {
+            return [
+                'available' => false,
+                'request_status' => $openRequest->status ?? 'requested',
+                'message' => 'Ya tienes una solicitud de reembolso en revisión.',
+            ];
+        }
+
+        $normalizedStatus = Str::lower(trim((string) ($order->status ?? $order->order_status ?? '')));
+        if (!in_array($normalizedStatus, ['delivered', 'completed'], true)) {
+            return ['available' => false, 'message' => 'El reembolso se habilita cuando el pedido está completado.'];
+        }
+
+        $items = $this->fetchOrderItemsByConnection($connection, (int) ($order->id ?? 0));
+        $policy = $this->resolveRefundPolicyForItems($items);
+        if (!($policy['is_refundable'] ?? false)) {
+            return ['available' => false, 'message' => 'Los productos de este pedido no tienen reembolso activo.'];
+        }
+
+        $baseDate = $this->resolveRefundBaseDate($order);
+        $deadline = $baseDate->copy()->addDays((int) $policy['refund_days'])->endOfDay();
+        if (now()->greaterThan($deadline)) {
+            return [
+                'available' => false,
+                'refund_days' => (int) $policy['refund_days'],
+                'deadline_at' => $deadline->toIso8601String(),
+                'message' => 'El plazo de reembolso ya venció.',
+            ];
+        }
+
+        return [
+            'available' => true,
+            'refund_days' => (int) $policy['refund_days'],
+            'deadline_at' => $deadline->toIso8601String(),
+            'message' => 'Reembolso disponible.',
+        ];
+    }
+
+    /**
+     * Usa la fecha operativa más cercana a la entrega para calcular la ventana de reembolso.
+     */
+    private function resolveRefundBaseDate(object $order): Carbon
+    {
+        foreach (['delivered_at', 'completed_at', 'updated_at', 'created_at'] as $field) {
+            $value = $this->nullableString($order->{$field} ?? null);
+            if ($value !== null) {
+                return Carbon::parse($value);
+            }
+        }
+
+        return now();
+    }
+
+    /**
+     * Revisa productos del pedido en catálogo y usa la ventana más amplia configurada.
+     */
+    private function resolveRefundPolicyForItems(Collection $items): array
+    {
+        $productIds = $items
+            ->map(static fn ($item): int => (int) ($item->product_id ?? 0))
+            ->filter(static fn (int $productId): bool => $productId > 0)
+            ->unique()
+            ->values();
+
+        if ($productIds->isEmpty()) {
+            return ['is_refundable' => false, 'refund_days' => null];
+        }
+
+        $endpoint = $this->resolveCatalogProductImageEndpoint();
+        if ($endpoint === null) {
+            return ['is_refundable' => false, 'refund_days' => null];
+        }
+
+        $maxDays = 0;
+        foreach ($productIds as $productId) {
+            try {
+                $response = Http::acceptJson()->timeout(4)->get($endpoint . '/' . $productId);
+                if (!$response->successful()) {
+                    continue;
+                }
+
+                $product = $response->json('data');
+                if (!is_array($product) || !filter_var($product['is_refundable'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    continue;
+                }
+
+                $maxDays = max($maxDays, (int) ($product['refund_days'] ?? 0));
+            } catch (Throwable) {
+                continue;
+            }
+        }
+
+        return ['is_refundable' => $maxDays > 0, 'refund_days' => $maxDays > 0 ? $maxDays : null];
+    }
+
+    /**
+     * Busca una solicitud abierta para prevenir duplicados del cliente.
+     */
+    private function existingOpenRefundRequest(?string $connection, int $orderId): ?object
+    {
+        if ($orderId <= 0 || !$this->hasTable('order_refund_requests', $connection)) {
+            return null;
+        }
+
+        return $this->query($connection)
+            ->table('order_refund_requests')
+            ->where('order_id', $orderId)
+            ->whereIn('status', ['requested', 'reviewing', 'approved'])
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Guarda evidencia de reembolso en una ruta pública controlada por el servicio.
+     */
+    private function storeRefundEvidence(mixed $file): ?string
+    {
+        if (!$file instanceof \Illuminate\Http\UploadedFile) {
+            return null;
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
+        $filename = Str::uuid()->toString() . '.' . $extension;
+        $destination = public_path('uploads/refunds');
+
+        if (!is_dir($destination)) {
+            mkdir($destination, 0775, true);
+        }
+
+        $file->move($destination, $filename);
+
+        return '/uploads/refunds/' . $filename;
+    }
+
     private function hydrateOrderCustomerIdentity(object $order, ?string $sourceConnection): object
     {
         $currentName = trim((string) ($order->user_name ?? $order->customer_name ?? $order->billing_name ?? ''));
@@ -2225,6 +2491,7 @@ HTML;
             'pending' => 'Pendiente',
             'pending_payment' => 'Pago pendiente',
             'pending_refund' => 'Reembolso en proceso',
+            'refund_requested' => 'Reembolso solicitado',
             'paid' => 'Pagado',
             'approved' => 'Aprobado',
             'verified' => 'Verificado',

@@ -33,6 +33,8 @@ class InternalCatalogController extends Controller
                 'p.id',
                 'p.name',
                 'p.slug',
+                'p.is_refundable',
+                'p.refund_days',
                 'pi.image_path as primary_image',
             ])
             ->first();
@@ -283,14 +285,27 @@ class InternalCatalogController extends Controller
 
         try {
             $stockValue = Redis::get("stock:{$sizeVariantId}");
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            $reserved = $reservedValue !== null && is_numeric((string) $reservedValue)
+                ? max(0, (int) $reservedValue)
+                : 0;
+
             if ($stockValue !== null && is_numeric((string) $stockValue)) {
-                return max(0, (int) $stockValue);
+                $available = max(0, (int) $stockValue);
+
+                // Reutiliza la BD de catálogo como fuente física cuando Redis queda con snapshot huérfano.
+                if (($available + $reserved) !== $safeFallback) {
+                    $available = max(0, $safeFallback - $reserved);
+                    Redis::set("stock:{$sizeVariantId}", (string) $available);
+                }
+
+                return $available;
             }
 
-            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
-            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
-                $reserved = max(0, (int) $reservedValue);
-                return max(0, $safeFallback - $reserved);
+            if ($reserved > 0) {
+                $available = max(0, $safeFallback - $reserved);
+                Redis::set("stock:{$sizeVariantId}", (string) $available);
+                return $available;
             }
         } catch (Throwable) {
             // Fallback a inventario en base de datos si Redis no esta disponible.

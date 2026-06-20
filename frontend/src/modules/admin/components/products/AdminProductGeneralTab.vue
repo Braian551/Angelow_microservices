@@ -126,6 +126,25 @@
               <input id="product-collection-name" v-model="form.collection" class="form-control" placeholder="Drop verano 2026">
             </div>
           </div>
+
+          <div class="product-refund-policy">
+            <label class="product-refund-policy__toggle" for="product-refund-policy">
+              <input
+                id="product-refund-policy"
+                type="checkbox"
+                :checked="form.is_refundable"
+                @change="$emit('refund-policy-toggle')"
+              >
+              <span>
+                <strong>Producto con reembolso</strong>
+                <small>Permite que el cliente solicite reembolso después de recibir el pedido.</small>
+              </span>
+            </label>
+            <p v-if="form.is_refundable" class="product-refund-policy__summary">
+              Vigente por {{ form.refund_days }} día(s) después de completar la orden.
+            </p>
+            <p v-if="errors.refund_days" class="form-error">{{ errors.refund_days }}</p>
+          </div>
         </div>
 
         <div class="product-form-section">
@@ -184,6 +203,7 @@ defineEmits([
   'pick-main-image',
   'product-image-error',
   'remove-main-image',
+  'refund-policy-toggle',
   'set-main-image-input',
   'slug-input',
   'validate-field',

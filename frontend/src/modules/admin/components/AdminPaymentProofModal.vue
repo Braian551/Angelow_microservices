@@ -1,8 +1,8 @@
 <template>
   <AdminModal
     :show="show"
-    title="Comprobante de pago"
-    icon="fas fa-file-invoice-dollar"
+    :title="title"
+    :icon="icon"
     max-width="880px"
     @close="emit('close')"
   >
@@ -10,7 +10,7 @@
       <template v-if="proofAvailable">
         <div v-if="proofIsImage" class="proof-modal__viewer">
           <div class="proof-modal__image-wrap" :class="{ 'proof-modal__image-wrap--zoomed': proofZoomed }">
-            <img :src="payment?.proof_url" alt="Comprobante de pago" class="proof-modal__image" @click="toggleProofZoom">
+            <img :src="attachmentUrl" :alt="imageAlt" class="proof-modal__image" @click="toggleProofZoom">
           </div>
 
           <div class="proof-modal__zoom-bar">
@@ -23,28 +23,35 @@
 
         <div v-else class="proof-modal__file">
           <i class="fas fa-file-pdf"></i>
-          <strong>{{ payment?.proof_name || 'Documento adjunto' }}</strong>
-          <p>Este archivo no puede previsualizarse aquí. Usa el botón para abrirlo.</p>
+          <strong>{{ attachmentName || 'Documento adjunto' }}</strong>
+          <p>{{ filePreviewText }}</p>
         </div>
       </template>
 
-      <div v-else-if="payment?.proof_url" class="proof-modal__missing">
+      <div v-else-if="attachmentUrl" class="proof-modal__missing">
         <i class="fas fa-image-slash"></i>
         <div>
-          <strong>Comprobante no disponible.</strong>
-          <p>No pudimos mostrar el archivo en este momento.</p>
+          <strong>{{ missingTitle }}</strong>
+          <p>{{ missingText }}</p>
         </div>
       </div>
 
       <div v-else class="proof-modal__empty">
         <i class="fas fa-file-circle-xmark"></i>
         <div>
-          <strong>Sin comprobante adjunto</strong>
-          <p>Este pago no tiene un comprobante disponible para revisar.</p>
+          <strong>{{ emptyTitle }}</strong>
+          <p>{{ emptyText }}</p>
         </div>
       </div>
 
-      <div v-if="proofAvailable && (payment?.reference_number || paymentStatusLabel)" class="proof-modal__meta">
+      <div v-if="proofAvailable && metaItems.length > 0" class="proof-modal__meta">
+        <div v-for="item in metaItems" :key="item.label" class="proof-modal__meta-item">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+        </div>
+      </div>
+
+      <div v-else-if="proofAvailable && (payment?.reference_number || paymentStatusLabel)" class="proof-modal__meta">
         <div v-if="payment?.reference_number" class="proof-modal__meta-item">
           <span>Referencia</span>
           <strong>{{ payment.reference_number }}</strong>
@@ -59,15 +66,15 @@
 
     <template #footer>
       <a
-        v-if="proofAvailable && payment?.proof_url"
-        :href="payment.proof_url"
+        v-if="proofAvailable && attachmentUrl"
+        :href="attachmentUrl"
         target="_blank"
         rel="noreferrer"
         class="btn btn-primary"
         @click="emit('close')"
       >
         <i class="fas fa-external-link-alt"></i>
-        Abrir en nueva pestaña
+        {{ openLabel }}
       </a>
 
       <button type="button" class="btn btn-secondary" @click="emit('close')">Cerrar</button>
@@ -89,9 +96,53 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  attachment: {
+    type: Object,
+    default: null,
+  },
   fallbackStatus: {
     type: String,
     default: '',
+  },
+  title: {
+    type: String,
+    default: 'Comprobante de pago',
+  },
+  icon: {
+    type: String,
+    default: 'fas fa-file-invoice-dollar',
+  },
+  imageAlt: {
+    type: String,
+    default: 'Comprobante de pago',
+  },
+  filePreviewText: {
+    type: String,
+    default: 'Este archivo no puede previsualizarse aquí. Usa el botón para abrirlo.',
+  },
+  missingTitle: {
+    type: String,
+    default: 'Comprobante no disponible.',
+  },
+  missingText: {
+    type: String,
+    default: 'No pudimos mostrar el archivo en este momento.',
+  },
+  emptyText: {
+    type: String,
+    default: 'Este pago no tiene un comprobante disponible para revisar.',
+  },
+  emptyTitle: {
+    type: String,
+    default: 'Sin comprobante adjunto',
+  },
+  openLabel: {
+    type: String,
+    default: 'Abrir en nueva pestaña',
+  },
+  meta: {
+    type: Array,
+    default: () => [],
   },
 })
 
@@ -99,8 +150,12 @@ const emit = defineEmits(['close'])
 
 const proofZoomed = ref(false)
 
-const proofAvailable = computed(() => Boolean(props.payment?.proof_url && props.payment?.proof_exists !== false))
-const proofIsImage = computed(() => Boolean(props.payment?.proof_url && /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(props.payment.proof_url)))
+const attachmentUrl = computed(() => props.attachment?.url || props.payment?.proof_url || '')
+const attachmentName = computed(() => props.attachment?.name || props.payment?.proof_name || '')
+const attachmentExists = computed(() => props.attachment?.exists ?? props.payment?.proof_exists ?? true)
+const metaItems = computed(() => Array.isArray(props.meta) ? props.meta.filter((item) => item?.label && item?.value) : [])
+const proofAvailable = computed(() => Boolean(attachmentUrl.value && attachmentExists.value !== false))
+const proofIsImage = computed(() => Boolean(attachmentUrl.value && /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(attachmentUrl.value)))
 const paymentStatusLabel = computed(() => getPaymentStatusLabel(props.payment?.status || props.fallbackStatus || 'pending'))
 
 watch(() => props.show, (isOpen) => {

@@ -1,0 +1,145 @@
+.admin-refunds-page .admin-refunds-table__amount {
+  display: block;
+  margin-top: 0.25rem;
+  color: #607289;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.admin-refunds-page .admin-refunds-table__reason {
+  display: inline-block;
+  max-width: 18rem;
+  color: #31465f;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-refunds-page .action-btn--complete {
+  color: #16784a;
+  background: rgba(22, 120, 74, 0.1);
+}
+
+.admin-refunds-page .refund-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-refunds-page .refund-detail-card {
+  border: 1px solid #d8e5f2;
+  border-radius: 0.85rem;
+  padding: 0.9rem;
+  background: #f9fcff;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.admin-refunds-page .refund-detail-card span,
+.admin-refunds-page .refund-detail-section h4 {
+  color: #607289;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.admin-refunds-page .refund-detail-card strong {
+  color: #20344a;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-refunds-page .refund-detail-section {
+  margin-top: 1rem;
+  border: 1px solid #d8e5f2;
+  border-radius: 0.85rem;
+  padding: 1rem;
+  background: #ffffff;
+}
+
+.admin-refunds-page .refund-detail-section h4,
+.admin-refunds-page .refund-detail-section p {
+  margin: 0;
+}
+
+.admin-refunds-page .refund-detail-section p {
+  margin-top: 0.45rem;
+  color: #30475f;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.admin-refunds-page .refund-detail-section__details {
+  color: #526277;
+}
+
+.admin-refunds-page .refund-action-summary {
+  border: 1px solid #d8e5f2;
+  border-radius: 0.85rem;
+  padding: 0.95rem;
+  background: #f9fcff;
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.admin-refunds-page .refund-action-summary strong {
+  color: #20344a;
+  font-size: 1.05rem;
+}
+
+.admin-refunds-page .refund-action-summary span {
+  color: #607289;
+  line-height: 1.45;
+}
+
+.admin-refunds-page .form-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-refunds-page .form-group label {
+  color: #30475f;
+  font-weight: 800;
+}
+
+.admin-refunds-page .form-control {
+  width: 100%;
+  border: 1px solid #cfe0ec;
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  background: #fff;
+  color: #20344a;
+  font-size: 0.95rem;
+}
+
+.admin-refunds-page .form-control:focus {
+  outline: none;
+  border-color: #0f7abf;
+  box-shadow: 0 0 0 3px rgba(15, 122, 191, 0.12);
+}
+
+.admin-refunds-page .form-error {
+  color: #d14343;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .admin-refunds-page .refund-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-refunds-page .admin-refunds-table__reason {
+    max-width: 12rem;
+  }
+
+  .admin-refunds-page .refund-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

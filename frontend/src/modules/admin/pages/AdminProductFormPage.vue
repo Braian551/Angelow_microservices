@@ -47,6 +47,7 @@
           @remove-main-image="removeMainImage"
           @product-image-error="onProductImageError"
           @set-main-image-input="setMainImageInputRef"
+          @refund-policy-toggle="requestRefundPolicyToggle"
         />
 
         <AdminProductVariantsTab
@@ -101,6 +102,40 @@
       @validate-size-row="validateSizeRow"
       @size-sku-input="handleSizeSkuInput"
     />
+
+    <AdminModal
+      :show="refundPolicyModalOpen"
+      title="Configurar reembolso"
+      icon="fas fa-rotate-left"
+      subtitle="Define el plazo válido para solicitudes del cliente."
+      max-width="520px"
+      @close="closeRefundPolicyModal"
+    >
+      <div class="admin-product-form-page">
+        <div class="form-group">
+          <label for="refund-days">Días válidos para reembolso *</label>
+          <input
+            id="refund-days"
+            v-model="form.refund_days"
+            type="number"
+            min="1"
+            max="365"
+            class="form-control"
+            :class="{ 'is-invalid': errors.refund_days }"
+            placeholder="Ej. 7"
+            @input="validateField('refund_days')"
+          >
+          <p v-if="errors.refund_days" class="form-error">{{ errors.refund_days }}</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" class="btn btn-secondary" @click="closeRefundPolicyModal">Volver</button>
+        <button type="button" class="btn btn-primary" @click="confirmRefundPolicy">
+          <i class="fas fa-check"></i> Activar reembolso
+        </button>
+      </template>
+    </AdminModal>
   </div>
 </template>
 
@@ -108,6 +143,7 @@
 import { RouterLink } from 'vue-router'
 import { useAdminProductForm } from '../composables/useAdminProductForm'
 import AdminCard from '../components/AdminCard.vue'
+import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminShimmer from '../components/AdminShimmer.vue'
 import AdminProductGeneralTab from '../components/products/AdminProductGeneralTab.vue'
@@ -122,6 +158,7 @@ const {
   availableSizesForActiveVariant,
   canSaveProduct,
   categories,
+  closeRefundPolicyModal,
   collections,
   colorHex,
   colorName,
@@ -139,13 +176,16 @@ const {
   isEditing,
   mainImagePreview,
   removeMainImage,
+  refundPolicyModalOpen,
   removeSizeRow,
   removeVariant,
   removeVariantImageItem,
+  requestRefundPolicyToggle,
   saveProduct,
   saving,
   selectedSizeId,
   setDefaultVariant,
+  confirmRefundPolicy,
   setMainImageInputRef,
   setVariantImageInputRef,
   setVariantImagePrimary,

@@ -66,6 +66,7 @@ flowchart LR
 - `patrones/`: documentación de patrones de diseño organizada por módulo o contexto.
   - `patrones/README.md`
   - `patrones/admin/`
+    - `patrones/admin/patrones-diseno-admin-reembolsos-2026-06-20.md`
     - `patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`
     - `patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
   - `patrones/checkout/`

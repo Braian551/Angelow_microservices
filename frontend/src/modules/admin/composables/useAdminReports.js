@@ -64,6 +64,7 @@ export function useAdminReports() {
   const salesReport = ref({})
   const productRows = ref([])
   const customerRows = ref([])
+  const topCustomerRows = ref([])
   const customerStats = ref({ totalCustomers: 0, customersWithOrders: 0, returningCustomers: 0, avgOrdersPerCustomer: 0 })
   const customerDistribution = ref([])
 
@@ -203,6 +204,16 @@ export function useAdminReports() {
   const filteredCustomerRows = computed(() => {
     const term = filters.customers.search.trim().toLowerCase()
     return customerRows.value
+      .filter((row) => {
+        if (!term) return true
+        return [row.name, row.email, row.phone].join(' ').toLowerCase().includes(term)
+      })
+      .sort((a, b) => Number(b.total_spent || 0) - Number(a.total_spent || 0))
+  })
+
+  const filteredTopCustomerRows = computed(() => {
+    const term = filters.customers.search.trim().toLowerCase()
+    return topCustomerRows.value
       .filter((row) => {
         if (!term) return true
         return [row.name, row.email, row.phone].join(' ').toLowerCase().includes(term)
@@ -397,6 +408,7 @@ export function useAdminReports() {
             interaction: { mode: 'index', intersect: false },
             scales: {
               y: {
+                beginAtZero: true,
                 ticks: {
                   callback(value) {
                     return formatCurrency(value)
@@ -404,8 +416,10 @@ export function useAdminReports() {
                 },
               },
               y1: {
+                beginAtZero: true,
                 position: 'right',
                 grid: { drawOnChartArea: false },
+                ticks: { precision: 0 },
               },
             },
           },
@@ -428,6 +442,16 @@ export function useAdminReports() {
           options: {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback(value) {
+                    return formatCurrency(value)
+                  },
+                },
+              },
+            },
           },
         })
       }
@@ -524,13 +548,16 @@ export function useAdminReports() {
       }
 
       if (topCustomersCanvas.value) {
+        // La gráfica de valor usa top_customers del backend; la tabla conserva el filtro de recurrentes.
+        const topCustomers = filteredTopCustomerRows.value.slice(0, 10)
+
         topCustomersChart = new Chart(topCustomersCanvas.value, {
           type: 'bar',
           data: {
-            labels: filteredCustomerRows.value.slice(0, 10).map((row) => truncateText(row.name, 18)),
+            labels: topCustomers.map((row) => truncateText(row.name, 18)),
             datasets: [{
               label: 'Valor acumulado',
-              data: filteredCustomerRows.value.slice(0, 10).map((row) => Number(row.total_spent || 0)),
+              data: topCustomers.map((row) => Number(row.total_spent || 0)),
               backgroundColor: '#0f7abf',
               borderRadius: 8,
             }],
@@ -538,6 +565,16 @@ export function useAdminReports() {
           options: {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback(value) {
+                    return formatCurrency(value)
+                  },
+                },
+              },
+            },
           },
         })
       }
@@ -598,7 +635,8 @@ export function useAdminReports() {
     const authSummary = authSummaryResponse.data?.data || {}
     const orderPayload = orderCustomersResponse.data?.data || {}
     const orderRows = Array.isArray(orderPayload.rows) ? orderPayload.rows : []
-    const ids = orderRows.map((row) => row.user_id).filter(Boolean)
+    const topRows = Array.isArray(orderPayload.top_customers) ? orderPayload.top_customers : orderRows
+    const ids = [...orderRows, ...topRows].map((row) => row.user_id).filter(Boolean)
     let profilesById = new Map()
 
     if (ids.length) {
@@ -616,6 +654,17 @@ export function useAdminReports() {
         name: profile?.name || row.name,
         email: profile?.email || row.email,
         phone: profile?.phone || null,
+        image: profile?.image || null,
+      }
+    })
+
+    topCustomerRows.value = topRows.map((row) => {
+      const profile = row.user_id ? profilesById.get(String(row.user_id)) : null
+      return {
+        ...row,
+        name: profile?.name || row.name,
+        email: profile?.email || row.email,
+        phone: profile?.phone || row.phone || null,
         image: profile?.image || null,
       }
     })

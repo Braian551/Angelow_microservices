@@ -329,6 +329,49 @@
   border: 1px solid rgba(0, 119, 182, 0.1);
 }
 
+.admin-product-form-page .product-refund-policy {
+  margin-top: 1.2rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid rgba(0, 119, 182, 0.12);
+  border-radius: 14px;
+  background: rgba(0, 119, 182, 0.04);
+}
+
+.admin-product-form-page .product-refund-policy__toggle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.admin-product-form-page .product-refund-policy__toggle input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.admin-product-form-page .product-refund-policy__toggle span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-product-form-page .product-refund-policy__toggle strong {
+  color: var(--admin-text-dark);
+  font-size: 1.35rem;
+}
+
+.admin-product-form-page .product-refund-policy__toggle small,
+.admin-product-form-page .product-refund-policy__summary {
+  color: var(--admin-text-light);
+  font-size: 1.2rem;
+}
+
+.admin-product-form-page .product-refund-policy__summary {
+  margin: 0.9rem 0 0;
+  font-weight: 600;
+}
+
 .admin-product-form-page .variants-toolbar h3,
 .admin-product-form-page .variant-modal__intro h3 {
   margin: 0 0 0.4rem;

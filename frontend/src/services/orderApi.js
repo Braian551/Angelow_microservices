@@ -31,3 +31,12 @@ export async function cancelOrder(orderId, payload) {
   const { data } = await orderHttp.patch(`/orders/${orderId}/cancel`, payload)
   return data
 }
+
+export async function requestOrderRefund(orderId, payload) {
+  const { data } = await orderHttp.post(`/orders/${orderId}/refund-requests`, payload, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return data
+}

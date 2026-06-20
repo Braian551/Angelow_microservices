@@ -181,14 +181,27 @@ class AdminCatalogController extends Controller
 
         try {
             $stockValue = Redis::get("stock:{$sizeVariantId}");
+            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
+            $reserved = $reservedValue !== null && is_numeric((string) $reservedValue)
+                ? max(0, (int) $reservedValue)
+                : 0;
+
             if ($stockValue !== null && is_numeric((string) $stockValue)) {
-                return max(0, (int) $stockValue);
+                $available = max(0, (int) $stockValue);
+
+                // Autosana contadores Redis cuando el snapshot disponible + reservado no coincide con la BD física.
+                if (($available + $reserved) !== $safeFallback) {
+                    $available = max(0, $safeFallback - $reserved);
+                    Redis::set("stock:{$sizeVariantId}", (string) $available);
+                }
+
+                return $available;
             }
 
-            $reservedValue = Redis::get("reserved:{$sizeVariantId}");
-            if ($reservedValue !== null && is_numeric((string) $reservedValue)) {
-                $reserved = max(0, (int) $reservedValue);
-                return max(0, $safeFallback - $reserved);
+            if ($reserved > 0) {
+                $available = max(0, $safeFallback - $reserved);
+                Redis::set("stock:{$sizeVariantId}", (string) $available);
+                return $available;
             }
         } catch (\Throwable) {
             // Si Redis falla, el admin conserva el dato persistido en BD.
@@ -298,6 +311,8 @@ class AdminCatalogController extends Controller
         $materialColumn = $this->firstExistingColumn('products', ['material']);
         $careColumn = $this->firstExistingColumn('products', ['care_instructions', 'instrucciones_cuidado']);
         $collectionIdColumn = $this->firstExistingColumn('products', ['collection_id']);
+        $refundableColumn = $this->firstExistingColumn('products', ['is_refundable']);
+        $refundDaysColumn = $this->firstExistingColumn('products', ['refund_days']);
 
         $data = [
             'slug' => $this->generateUniqueProductSlug(
@@ -355,6 +370,14 @@ class AdminCatalogController extends Controller
 
         if ($collectionIdColumn) {
             $data[$collectionIdColumn] = $payload['collection_id'] ?? null;
+        }
+
+        if ($refundableColumn) {
+            $data[$refundableColumn] = $payload['is_refundable'] ? 1 : 0;
+        }
+
+        if ($refundDaysColumn) {
+            $data[$refundDaysColumn] = $payload['is_refundable'] ? $payload['refund_days'] : null;
         }
 
         return $data;
@@ -541,11 +564,21 @@ class AdminCatalogController extends Controller
             'material' => ['nullable', 'string', 'max:100'],
             'care_instructions' => ['nullable', 'string'],
             'main_image_path' => ['nullable', 'string', 'max:255'],
+            'is_refundable' => ['nullable'],
+            'refund_days' => ['nullable', 'integer', 'min:1', 'max:365'],
         ], [
             'precio.required' => 'El precio base es obligatorio.',
             'precio.regex' => 'El precio base debe ser un número entero en pesos colombianos, mayor o igual a 1.',
             'compare_price.regex' => 'El precio comparativo debe ser un número entero en pesos colombianos, mayor o igual a 1.',
         ]);
+
+        $isRefundable = $this->toBoolean($baseData['is_refundable'] ?? false, false);
+        if ($isRefundable && empty($baseData['refund_days'])) {
+            abort(response()->json([
+                'success' => false,
+                'message' => 'Debes indicar cuántos días estará vigente el reembolso.',
+            ], 422));
+        }
 
         $variants = collect($this->arrayInput($request, 'variants'))
             ->map(function ($variant, $index) {
@@ -700,6 +733,8 @@ class AdminCatalogController extends Controller
             'compare_price' => $baseComparePrice,
             'activo' => $this->toBoolean($baseData['activo'] ?? true, true),
             'is_featured' => $this->toBoolean($baseData['is_featured'] ?? false, false),
+            'is_refundable' => $isRefundable,
+            'refund_days' => $isRefundable ? (int) $baseData['refund_days'] : null,
             'main_image_path' => trim((string) ($baseData['main_image_path'] ?? '')) ?: null,
             'variants' => $variants->all(),
         ];

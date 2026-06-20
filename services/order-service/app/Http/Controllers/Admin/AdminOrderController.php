@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 /**
@@ -124,6 +125,147 @@ class AdminOrderController extends Controller
                     'pending_orders' => $pendingOrders,
                     'completed_orders' => $completedOrders,
                 ],
+            ],
+        ]);
+    }
+
+    /**
+     * Lista solicitudes de reembolso creadas por clientes y las une con
+     * la orden asociada para que el panel admin tenga un flujo trazable.
+     */
+    public function refundRequests(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => ['nullable', 'string', 'max:24'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:500'],
+        ]);
+
+        $limit = max(1, min((int) ($data['limit'] ?? 200), 500));
+        $status = $this->nullableString($data['status'] ?? null);
+        $search = $this->nullableString($data['search'] ?? null);
+
+        // Reutiliza la misma lectura doble del admin de órdenes, pero solo conserva conexiones con tabla de solicitudes.
+        $rows = $this->fetchRefundRequestRows(null, $status, $search, $limit)
+            ->concat($this->fetchRefundRequestRows(self::LEGACY_CONNECTION, $status, $search, $limit))
+            ->sortByDesc(static fn ($row) => strtotime((string) ($row->requested_at ?? $row->created_at ?? '')) ?: 0)
+            ->take($limit)
+            ->values();
+
+        $stats = [
+            'total' => $rows->count(),
+            'requested' => $rows->where('status', 'requested')->count(),
+            'in_process' => $rows->filter(static fn ($row) => in_array((string) $row->status, ['approved', 'processing'], true))->count(),
+            'completed' => $rows->where('status', 'completed')->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'rows' => $rows,
+                'stats' => $stats,
+            ],
+        ]);
+    }
+
+    /**
+     * Actualiza la solicitud de reembolso y sincroniza el estado de pago
+     * de la orden para mantener un recorrido operativo consistente.
+     */
+    public function updateRefundRequest(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate([
+            'source' => ['nullable', 'string', 'max:20'],
+            'status' => ['required', Rule::in(['approved', 'processing', 'rejected', 'completed'])],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'changed_by' => ['nullable', 'string', 'max:40'],
+            'changed_by_name' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $connection = $this->normalizeSourceConnection($data['source'] ?? null);
+        if (!$this->hasRefundRequestsTable($connection)) {
+            return response()->json(['message' => 'La sección de reembolsos no está disponible.'], 422);
+        }
+
+        $refundRequest = $this->query($connection)
+            ->table('order_refund_requests')
+            ->where('id', $id)
+            ->first();
+
+        if (!$refundRequest) {
+            return response()->json(['message' => 'Solicitud de reembolso no encontrada.'], 404);
+        }
+
+        $order = $this->query($connection)
+            ->table('orders')
+            ->where('id', (int) $refundRequest->order_id)
+            ->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Orden asociada no encontrada.'], 404);
+        }
+
+        $targetStatus = (string) $data['status'];
+        $now = now();
+        $paymentStatus = $this->paymentStatusForRefundStatus($targetStatus);
+        $paymentStatusColumn = $this->firstExistingColumn('orders', ['payment_status'], $connection);
+        $oldPaymentStatus = $paymentStatusColumn ? ($order->{$paymentStatusColumn} ?? null) : null;
+        $oldRefundStatus = (string) ($refundRequest->status ?? 'requested');
+
+        $this->query($connection)->transaction(function () use ($connection, $id, $refundRequest, $targetStatus, $now, $paymentStatusColumn, $paymentStatus, $oldPaymentStatus, $oldRefundStatus, $data): void {
+            $this->query($connection)
+                ->table('order_refund_requests')
+                ->where('id', $id)
+                ->update([
+                    'status' => $targetStatus,
+                    'resolved_at' => in_array($targetStatus, ['rejected', 'completed'], true) ? $now : null,
+                    'updated_at' => $now,
+                ]);
+
+            if ($paymentStatusColumn !== null && $paymentStatus !== null) {
+                $this->query($connection)
+                    ->table('orders')
+                    ->where('id', (int) $refundRequest->order_id)
+                    ->update([
+                        $paymentStatusColumn => $paymentStatus,
+                        'updated_at' => $now,
+                    ]);
+            }
+
+            $this->insertOrderHistory($connection, [
+                'order_id' => (int) $refundRequest->order_id,
+                'changed_by' => $this->nullableString($data['changed_by'] ?? null),
+                'changed_by_name' => $this->nullableString($data['changed_by_name'] ?? null) ?? 'Administrador',
+                'change_type' => 'refund_request',
+                'field_changed' => 'refund_status',
+                'old_value' => $oldRefundStatus,
+                'new_value' => $targetStatus,
+                'description' => $this->buildRefundHistoryDescription($targetStatus, $data['description'] ?? null),
+                'created_at' => $now,
+            ]);
+
+            if ($paymentStatusColumn !== null && $paymentStatus !== null && !$this->sameNormalizedValue($oldPaymentStatus, $paymentStatus)) {
+                $this->insertOrderHistory($connection, [
+                    'order_id' => (int) $refundRequest->order_id,
+                    'changed_by' => $this->nullableString($data['changed_by'] ?? null),
+                    'changed_by_name' => $this->nullableString($data['changed_by_name'] ?? null) ?? 'Administrador',
+                    'change_type' => 'payment_change',
+                    'field_changed' => 'payment_status',
+                    'old_value' => $oldPaymentStatus,
+                    'new_value' => $paymentStatus,
+                    'description' => 'Estado de pago sincronizado desde administración de reembolsos.',
+                    'created_at' => $now,
+                ]);
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Solicitud de reembolso actualizada.',
+            'data' => [
+                'id' => $id,
+                'status' => $targetStatus,
+                'payment_status' => $paymentStatus,
             ],
         ]);
     }
@@ -629,6 +771,170 @@ class AdminOrderController extends Controller
         } catch (Throwable) {
             // Si la conexión falla, devolvemos colección vacía
             return collect();
+        }
+    }
+
+    /**
+     * Obtiene solicitudes de reembolso desde la conexión indicada y las
+     * enriquece con datos básicos de la orden asociada.
+     */
+    private function fetchRefundRequestRows(?string $connection, ?string $status, ?string $search, int $limit): \Illuminate\Support\Collection
+    {
+        if (!$this->hasRefundRequestsTable($connection)) {
+            return collect();
+        }
+
+        try {
+            $source = $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice';
+            $likeOperator = $this->likeOperator($connection);
+            $statusCol = $this->firstExistingColumn('orders', ['status', 'order_status'], $connection);
+            $paymentStatusCol = $this->firstExistingColumn('orders', ['payment_status'], $connection);
+            $customerNameCol = $this->firstExistingColumn('orders', ['user_name', 'customer_name', 'billing_name'], $connection);
+            $customerEmailCol = $this->firstExistingColumn('orders', ['user_email', 'customer_email', 'billing_email'], $connection);
+
+            $query = $this->query($connection)
+                ->table('order_refund_requests as refunds')
+                ->leftJoin('orders', 'orders.id', '=', 'refunds.order_id')
+                ->select([
+                    'refunds.*',
+                    'orders.order_number',
+                    'orders.total',
+                    'orders.created_at as order_created_at',
+                ]);
+
+            if ($statusCol) {
+                $query->addSelect("orders.{$statusCol} as order_status");
+            }
+
+            if ($paymentStatusCol) {
+                $query->addSelect("orders.{$paymentStatusCol} as payment_status");
+            }
+
+            if ($customerNameCol) {
+                $query->addSelect("orders.{$customerNameCol} as customer_name");
+            }
+
+            if ($customerEmailCol) {
+                $query->addSelect("orders.{$customerEmailCol} as customer_email");
+            }
+
+            if ($status !== null) {
+                $query->where('refunds.status', $status);
+            }
+
+            if ($search !== null) {
+                $query->where(function ($searchQuery) use ($search, $customerNameCol, $customerEmailCol, $likeOperator): void {
+                    $searchQuery
+                        ->where('orders.order_number', $likeOperator, "%{$search}%")
+                        ->orWhere('refunds.reason', $likeOperator, "%{$search}%")
+                        ->orWhere('refunds.user_email', $likeOperator, "%{$search}%");
+
+                    if ($customerNameCol) {
+                        $searchQuery->orWhere("orders.{$customerNameCol}", $likeOperator, "%{$search}%");
+                    }
+
+                    if ($customerEmailCol) {
+                        $searchQuery->orWhere("orders.{$customerEmailCol}", $likeOperator, "%{$search}%");
+                    }
+                });
+            }
+
+            return $query
+                ->orderByDesc('refunds.requested_at')
+                ->limit($limit)
+                ->get()
+                ->map(static function ($row) use ($source) {
+                    $row->source = $source;
+                    $row->evidence_url = trim((string) ($row->evidence_path ?? ''));
+                    $row->customer_name = trim((string) ($row->customer_name ?? '')) ?: 'Cliente';
+                    $row->customer_email = trim((string) ($row->customer_email ?? $row->user_email ?? ''));
+                    $row->total = (float) ($row->total ?? 0);
+
+                    return $row;
+                })
+                ->values();
+        } catch (Throwable $exception) {
+            Log::warning('No se pudieron consultar solicitudes de reembolso admin.', [
+                'source' => $connection === self::LEGACY_CONNECTION ? 'legacy' : 'microservice',
+                'error' => $exception->getMessage(),
+            ]);
+
+            return collect();
+        }
+    }
+
+    /**
+     * Verifica si la tabla de solicitudes existe en la conexión objetivo.
+     */
+    private function hasRefundRequestsTable(?string $connection): bool
+    {
+        try {
+            return Schema::connection($this->resolveConnectionName($connection))->hasTable('order_refund_requests');
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Normaliza el origen recibido desde el frontend al nombre de conexión usado internamente.
+     */
+    private function normalizeSourceConnection(?string $source): ?string
+    {
+        return Str::lower(trim((string) $source)) === 'legacy' ? self::LEGACY_CONNECTION : null;
+    }
+
+    /**
+     * Convierte una conexión nula en el nombre real configurado para consultas Schema.
+     */
+    private function resolveConnectionName(?string $connection): string
+    {
+        return $connection ?: config('database.default');
+    }
+
+    /**
+     * Relaciona cada estado administrativo de reembolso con el estado de pago visible de la orden.
+     */
+    private function paymentStatusForRefundStatus(string $status): ?string
+    {
+        return match ($status) {
+            'approved', 'processing' => 'pending_refund',
+            'completed' => 'refunded',
+            'rejected' => 'verified',
+            default => null,
+        };
+    }
+
+    /**
+     * Construye la descripción de historial y conserva la nota del operador cuando exista.
+     */
+    private function buildRefundHistoryDescription(string $status, mixed $description): string
+    {
+        $labels = [
+            'approved' => 'Solicitud de reembolso aceptada.',
+            'processing' => 'Reembolso marcado en proceso.',
+            'rejected' => 'Solicitud de reembolso rechazada.',
+            'completed' => 'Reembolso completado.',
+        ];
+
+        $base = $labels[$status] ?? 'Solicitud de reembolso actualizada.';
+        $note = $this->nullableString($description);
+
+        return $note === null ? $base : "{$base} Nota: {$note}";
+    }
+
+    /**
+     * Inserta historial de orden sin romper el flujo si el entorno no tiene la tabla.
+     */
+    private function insertOrderHistory(?string $connection, array $payload): void
+    {
+        try {
+            if (!Schema::connection($this->resolveConnectionName($connection))->hasTable('order_status_history')) {
+                return;
+            }
+
+            $this->query($connection)->table('order_status_history')->insert($payload);
+        } catch (Throwable) {
+            // El historial no debe bloquear la operación administrativa principal.
         }
     }
 
@@ -1299,12 +1605,24 @@ class AdminOrderController extends Controller
     }
 
     /**
-     * Construye la consulta base de órdenes aplicando todos los filtros disponibles
-     * (fechas, estado, estado de pago, búsqueda textual) y resolviendo dinámicamente
-     * los nombres de columna según el esquema de cada conexión.
-     * Es la consulta principal reutilizada por fetchAdminOrdersRows() y buildAnalyticsOrdersQuery().
-     * @see self::fetchAdminOrdersRows()
-     * @see self::buildAnalyticsOrdersQuery()
+     * Compara dos textos normalizados para evitar cambios falsos por mayúsculas o espacios.
+     */
+    private function sameNormalizedValue(?string $left, ?string $right): bool
+    {
+        return Str::lower(trim((string) ($left ?? ''))) === Str::lower(trim((string) ($right ?? '')));
+    }
+
+    /**
+     * Normaliza un valor mixto a string nulleable para payloads e historial.
+     */
+    private function nullableString(mixed $value): ?string
+    {
+        $normalized = trim((string) ($value ?? ''));
+        return $normalized === '' ? null : $normalized;
+    }
+
+    /**
+     * Construye la consulta base de órdenes aplicando filtros administrativos y nombres de columnas por conexión.
      */
     private function buildOrdersQuery(?string $connection, Request $request)
     {

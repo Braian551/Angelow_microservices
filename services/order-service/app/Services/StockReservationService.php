@@ -633,6 +633,7 @@ class StockReservationService
             ->get();
 
         $updated = 0;
+        $activeReservedByKey = [];
 
         foreach ($rows as $row) {
             $reservationKey = (string) ($row->reservation_key ?? '');
@@ -642,6 +643,7 @@ class StockReservationService
             }
 
             $reservedQuantity = max(0, (int) ($row->reserved_quantity ?? 0));
+            $activeReservedByKey[$reservationKey] = $reservedQuantity;
             $redisReservedKey = $this->reservedRedisKey($reservationKey);
             $currentReserved = (int) (Redis::get($redisReservedKey) ?? 0);
 
@@ -657,6 +659,23 @@ class StockReservationService
                 Redis::set($redisReservedKey, (string) $reservedQuantity);
             }
 
+            $updated++;
+        }
+
+        // Limpia claves Redis huérfanas que ya no tienen reserva activa en la tabla.
+        foreach (array_slice(Redis::keys('reserved:*'), 0, $limit) as $redisKey) {
+            $redisReservedKey = (string) $redisKey;
+            $reservedPrefixPosition = strrpos($redisReservedKey, 'reserved:');
+            $reservationKey = $reservedPrefixPosition !== false
+                ? substr($redisReservedKey, $reservedPrefixPosition + strlen('reserved:'))
+                : '';
+
+            if ($reservationKey === '' || array_key_exists($reservationKey, $activeReservedByKey)) {
+                continue;
+            }
+
+            Redis::del($this->reservedRedisKey($reservationKey));
+            Redis::del($this->stockRedisKey($reservationKey));
             $updated++;
         }
 

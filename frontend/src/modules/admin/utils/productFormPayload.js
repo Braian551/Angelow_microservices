@@ -16,6 +16,8 @@ export function buildProductPayload({ form, validateCopPrice, validatePositiveIn
     main_image_path: form.main_image_path?.trim() || null,
     activo: Boolean(form.is_active),
     is_featured: Boolean(form.is_featured),
+    is_refundable: Boolean(form.is_refundable),
+    refund_days: form.is_refundable ? Number(form.refund_days) : null,
     variants: buildVariantPayload({ form, validateCopPrice, validatePositiveInteger }),
   }
 }

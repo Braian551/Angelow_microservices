@@ -44,6 +44,7 @@ export function useAdminProductForm() {
   const variantImageInputs = ref({})
 
   const variantModalOpen = ref(false)
+  const refundPolicyModalOpen = ref(false)
   const activeVariantKey = ref('')
   const selectedSizeId = ref('')
   const slugManuallyEdited = ref(false)
@@ -67,6 +68,8 @@ export function useAdminProductForm() {
     main_image_path: '',
     is_featured: false,
     is_active: true,
+    is_refundable: false,
+    refund_days: '',
     variants: [],
   })
 
@@ -75,6 +78,7 @@ export function useAdminProductForm() {
     price: '',
     compare_price: '',
     category_id: '',
+    refund_days: '',
     variants: '',
   })
 
@@ -385,6 +389,18 @@ export function useAdminProductForm() {
       errors.category_id = form.category_id ? '' : 'Selecciona una categoría.'
     }
 
+    if (field === 'refund_days') {
+      if (!form.is_refundable) {
+        errors.refund_days = ''
+        return
+      }
+
+      const days = Number(form.refund_days)
+      errors.refund_days = Number.isInteger(days) && days >= 1 && days <= 365
+        ? ''
+        : 'Indica un plazo de reembolso entre 1 y 365 días.'
+    }
+
     if (field === 'compare_price') {
       const compareText = String(form.compare_price ?? '').trim()
       if (!compareText) {
@@ -456,8 +472,10 @@ export function useAdminProductForm() {
     const compareText = String(form.compare_price ?? '').trim()
     const compare = compareText ? validateCopPrice(compareText) : { valid: true, value: null }
     const compareValid = compare.valid && (!compare.value || !price.valid || compare.value > price.value)
+    const refundDays = Number(form.refund_days)
+    const refundPolicyValid = !form.is_refundable || (Number.isInteger(refundDays) && refundDays >= 1 && refundDays <= 365)
 
-    if (!nameValid || !categoryValid || !price.valid || !compareValid || !form.variants.length) {
+    if (!nameValid || !categoryValid || !price.valid || !compareValid || !refundPolicyValid || !form.variants.length) {
       return false
     }
 
@@ -608,13 +626,40 @@ export function useAdminProductForm() {
     return true
   }
 
+  function requestRefundPolicyToggle() {
+    if (form.is_refundable) {
+      form.is_refundable = false
+      form.refund_days = ''
+      errors.refund_days = ''
+      return
+    }
+
+    refundPolicyModalOpen.value = true
+  }
+
+  function closeRefundPolicyModal() {
+    refundPolicyModalOpen.value = false
+    validateField('refund_days')
+  }
+
+  function confirmRefundPolicy() {
+    form.is_refundable = true
+    validateField('refund_days')
+    if (errors.refund_days) {
+      return
+    }
+
+    refundPolicyModalOpen.value = false
+  }
+
   function validateForm() {
     validateField('name')
     validateField('price')
     validateField('compare_price')
     validateField('category_id')
+    validateField('refund_days')
 
-    const generalValid = !errors.name && !errors.price && !errors.compare_price && !errors.category_id
+    const generalValid = !errors.name && !errors.price && !errors.compare_price && !errors.category_id && !errors.refund_days
     const variantsValid = validateVariants()
 
     if (!generalValid) {
@@ -729,6 +774,8 @@ export function useAdminProductForm() {
     form.care_instructions = product.care_instructions || product.instrucciones_cuidado || ''
     form.is_featured = normalizeBoolean(product.is_featured ?? product.destacado, false)
     form.is_active = normalizeBoolean(product.is_active ?? product.activo, true)
+    form.is_refundable = normalizeBoolean(product.is_refundable, false)
+    form.refund_days = form.is_refundable ? Number(product.refund_days ?? 0) || '' : ''
 
     const mainImage = productImages.find((image) => !image.color_variant_id && normalizeBoolean(image.is_primary, true))
       || productImages.find((image) => !image.color_variant_id)
@@ -813,6 +860,7 @@ export function useAdminProductForm() {
     availableSizesForActiveVariant,
     canSaveProduct,
     categories,
+    closeRefundPolicyModal,
     closeVariantModal,
     collections,
     colorHex,
@@ -833,13 +881,16 @@ export function useAdminProductForm() {
     onProductImageError,
     openVariantModal,
     removeMainImage,
+    refundPolicyModalOpen,
     removeSizeRow,
     removeVariant,
     removeVariantImageItem,
+    requestRefundPolicyToggle,
     saveProduct,
     saving,
     selectedSizeId,
     setDefaultVariant,
+    confirmRefundPolicy,
     setMainImageInputRef,
     setVariantImageInputRef,
     setVariantImagePrimary,
