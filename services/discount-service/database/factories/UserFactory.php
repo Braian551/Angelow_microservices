@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+// Comentario de mantenimiento: Esta factory genera datos de prueba coherentes con el modelo asociado.
+
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -33,7 +35,7 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Indica que el correo del modelo debe quedar sin verificar para cubrir ese escenario.
      */
     public function unverified(): static
     {

@@ -1,3 +1,7 @@
+# Archivos ignorados por Git en el audit-service
+# Excluye dependencias (vendor, node_modules), archivos de entorno,
+# cachés de editor/IDE, builds de assets y bases de datos locales.
+
 *.log
 .DS_Store
 .env

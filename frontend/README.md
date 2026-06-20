@@ -15,6 +15,7 @@ Microservicio frontend en Vue 3 + Vite conectado al ecosistema de microservicios
 ## Documentación relacionada
 
 - `frontend/docs/README.md`
+- `frontend/docs/exportaciones-admin-reutilizables.md`
 - `docs/operaciones/manual-tecnico.md`
 - `docs/README.md`
 
@@ -40,6 +41,7 @@ Configurar con base en `frontend/.env.example`.
 - Componentes reutilizables por dominio en `src/modules/*/components`.
 - Composable de sesión en `src/composables/useSession.js`.
 - Capa HTTP en `src/services/http.js` y `src/services/*Api.js`.
+- Infraestructura compartida de exportaciones admin en `src/modules/admin/components/AdminExportActions.vue` y `src/modules/admin/composables/useAdminDataExport.js`.
 
 Documentación de flujo y patrones: `frontend/docs/README.md`.
 

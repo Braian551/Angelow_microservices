@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+// Comentario de mantenimiento: Este repositorio encapsula consultas a datos para aislar a los servicios del detalle SQL.
+
 use App\Repositories\Contracts\WishlistRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -12,6 +14,9 @@ use Illuminate\Support\Facades\DB;
  */
 class QueryBuilderWishlistRepository implements WishlistRepositoryInterface
 {
+    /**
+     * Inserta la relación solicitada cuando las validaciones de existencia lo permiten.
+     */
     public function add(string $userId, int $productId): bool
     {
         // Verify that the product exists and is active
@@ -38,6 +43,10 @@ class QueryBuilderWishlistRepository implements WishlistRepositoryInterface
         return true;
     }
 
+    /**
+     * Elimina la relación solicitada sin afectar otros registros del usuario.
+     */
+
     public function remove(string $userId, int $productId): bool
     {
         $affected = DB::table('wishlist')
@@ -47,6 +56,10 @@ class QueryBuilderWishlistRepository implements WishlistRepositoryInterface
 
         return $affected > 0;
     }
+
+    /**
+     * Consulta registros asociados a un usuario y los transforma al contrato de salida.
+     */
 
     public function getByUser(string $userId): array
     {
@@ -70,6 +83,10 @@ class QueryBuilderWishlistRepository implements WishlistRepositoryInterface
             ->map(fn($i) => (array) $i)
             ->toArray();
     }
+
+    /**
+     * Verifica existencia de una relación para evitar duplicados y decisiones ambiguas.
+     */
 
     public function exists(string $userId, int $productId): bool
     {

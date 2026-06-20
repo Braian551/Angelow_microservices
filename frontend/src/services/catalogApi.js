@@ -46,6 +46,11 @@ export async function getProductBySlug(slug, params = {}) {
   return data
 }
 
+export async function getProductVariantById(variantId) {
+  const { data } = await catalogHttp.get(`/internal/variants/${variantId}`)
+  return data
+}
+
 export async function getCategories() {
   const { data } = await catalogHttp.get('/categories')
   return data

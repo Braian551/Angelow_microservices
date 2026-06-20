@@ -1,0 +1,6 @@
+/* Estilos específicos de Tallas; los comunes están en admin.css */
+@media (max-width: 768px) {
+  .admin-sizes-page .admin-entity-filters__form {
+    grid-template-columns: 1fr;
+  }
+}

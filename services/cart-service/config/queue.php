@@ -1,15 +1,30 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de colas (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define las conexiones de cola disponibles. El cart-service usa la
+| cola 'database' como predeterminada para procesar tareas en segundo
+| plano. Los recordatorios de carritos abandonados se disparan de
+| forma síncrona desde el controlador pero pueden migrarse a colas
+| para lotes grandes.
+|
+| Soporta: sync, database, beanstalkd, sqs, redis, deferred,
+| background y failover.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Queue Connection Name
+    | Conexión de cola predeterminada
     |--------------------------------------------------------------------------
     |
-    | Laravel's queue supports a variety of backends via a single, unified
-    | API, giving you convenient access to each backend using identical
-    | syntax for each. The default queue connection is defined below.
+    | Define qué conexión de cola se usará por defecto en las
+    | operaciones de encolado si no se especifica otra.
     |
     */
 

@@ -7,6 +7,8 @@
 - [Patrón 1: Template Method + Strategy](#patrón-1-template-method-strategy)
 - [Patrón 2: Composition](#patrón-2-composition)
 - [Resultado esperado](#resultado-esperado)
+- [Extensión 2026-06-07: redistribución de acciones del modal de reseñas](#extensión-2026-06-07-redistribución-de-acciones-del-modal-de-reseñas)
+  - [Patrón 3: Composition + Design System](#patrón-3-composition-design-system)
 <!-- indice:auto:end -->
 
 Fecha: 2026-05-24
@@ -50,3 +52,15 @@ Fecha: 2026-05-24
 - Reseñas y preguntas muestran gráficos reales con la librería ya integrada en el proyecto.
 - El layout prioriza primero los insights y después el buscador/filtros.
 - El lifecycle de gráficos queda centralizado en un componente reusable del módulo admin.
+
+## Extensión 2026-06-07: redistribución de acciones del modal de reseñas
+
+### Patrón 3: Composition + Design System
+
+- Referencia: https://refactoring.guru/es/design-patterns/composite
+- Problema que resuelve: la tarjeta `Acciones` del modal de detalle mostraba una pila de botones muy larga y poco balanceada, lo que debilitaba la lectura del bloque de moderación y empeoraba el reparto visual en anchos intermedios.
+- Aplicación exacta:
+  - `frontend/src/modules/admin/pages/AdminReviewsPage.vue`
+- Implementación clave:
+  - la sección se reorganiza como una cuadrícula responsiva de acciones reutilizando la misma tarjeta `AdminCard` y la semántica de comandos existente, sin crear un modal paralelo ni componentes ad hoc fuera del flujo del admin;
+  - cada acción añade una breve descripción operativa para mejorar escaneo visual y dejar más clara la intención de publicar, devolver a revisión, verificar o eliminar.

@@ -14,10 +14,19 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Controlador administrativo de notificaciones y anuncios.
+ * Gestiona el descarte (dismiss) de notificaciones sintéticas del panel
+ * y el CRUD completo de anuncios (top_bar y promo_banner) que se muestran
+ * en la tienda. Soporta doble origen de datos durante la migración.
+ */
 class AdminNotificationController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
+    /**
+     * Retorna la lista de notificaciones descartadas por el administrador.
+     */
     public function notificationDismissals(Request $request): JsonResponse
     {
         $adminId = $this->resolveAdminId($request);
@@ -39,6 +48,10 @@ class AdminNotificationController extends Controller
         return response()->json(['success' => true, 'data' => $items]);
     }
 
+    /**
+     * Persiste las notificaciones que el administrador ha descartado.
+     * Usa upsert para evitar duplicados por (admin_id, notification_key).
+     */
     public function storeNotificationDismissals(Request $request): JsonResponse
     {
         $adminId = $this->resolveAdminId($request);
@@ -80,6 +93,11 @@ class AdminNotificationController extends Controller
 
     // ── Anuncios ────────────────────────────────────────────
 
+    /**
+     * Retorna los anuncios activos para la página principal (home).
+     * Separa entre top_bar (barra superior) y promo_banner (banner promocional).
+     * Ambos se filtran por vigencia y estado activo.
+     */
     public function homeAnnouncements(): JsonResponse
     {
         $baseQuery = $this->activeAnnouncementsQuery();
@@ -117,6 +135,9 @@ class AdminNotificationController extends Controller
         ]);
     }
 
+    /**
+     * Lista todos los anuncios (activos e inactivos) para el panel de administración.
+     */
     public function announcements(): JsonResponse
     {
         $query = $this->announcementsQuery();
@@ -135,6 +156,9 @@ class AdminNotificationController extends Controller
         return response()->json(['success' => true, 'data' => $items]);
     }
 
+    /**
+     * Crea un nuevo anuncio. Solo permite hasta 2 anuncios simultáneos.
+     */
     public function storeAnnouncement(Request $request): JsonResponse
     {
         $query = $this->announcementsQuery();
@@ -154,6 +178,9 @@ class AdminNotificationController extends Controller
         return response()->json(['success' => true, 'message' => 'Anuncio creado.', 'id' => $id], 201);
     }
 
+    /**
+     * Actualiza un anuncio existente. Soporta edición parcial (solo los campos enviados).
+     */
     public function updateAnnouncement(Request $request, int $id): JsonResponse
     {
         $query = $this->announcementsQuery();
@@ -179,6 +206,9 @@ class AdminNotificationController extends Controller
         return response()->json(['success' => true, 'message' => 'Anuncio actualizado.']);
     }
 
+    /**
+     * Elimina un anuncio por ID y borra su imagen asociada del disco si existe.
+     */
     public function destroyAnnouncement(int $id): JsonResponse
     {
         $query = $this->announcementsQuery();
@@ -224,6 +254,9 @@ class AdminNotificationController extends Controller
         return null;
     }
 
+    /**
+     * Query de anuncios activos filtrados por fechas de vigencia.
+     */
     private function activeAnnouncementsQuery(): ?Builder
     {
         $query = $this->announcementsQuery();
@@ -243,6 +276,11 @@ class AdminNotificationController extends Controller
             });
     }
 
+    /**
+     * Construye el payload de datos para crear o actualizar un anuncio.
+     * Si $partial es true (edición), los campos son opcionales.
+     * Si es top_bar, elimina imagen, subtítulo y botón porque ese tipo no los soporta.
+     */
     private function buildAnnouncementPayload(Request $request, bool $partial, object|null $current = null): array
     {
         $data = $request->validate([
@@ -300,6 +338,7 @@ class AdminNotificationController extends Controller
         $resolvedType = $type ?? $this->normalizeAnnouncementType((string) ($current->type ?? 'top_bar'));
 
         if ($resolvedType === 'top_bar') {
+            // Si se subió imagen para top_bar, se descarta porque ese tipo no la usa.
             if ($uploadedImage !== null) {
                 $this->deleteStoredImage($uploadedImage);
             }
@@ -358,6 +397,10 @@ class AdminNotificationController extends Controller
         return $payload;
     }
 
+    /**
+     * Extrae y guarda la imagen subida para el anuncio en uploads/announcements.
+     * Retorna la ruta relativa del archivo guardado.
+     */
     private function extractUploadedImage(Request $request, array $data): ?string
     {
         $file = $request->file('image_file');
@@ -381,6 +424,10 @@ class AdminNotificationController extends Controller
         return 'uploads/announcements/' . $filename;
     }
 
+    /**
+     * Elimina de forma segura una imagen del disco si pertenece al directorio de anuncios.
+     * Previene eliminar archivos fuera del directorio controlado.
+     */
     private function deleteStoredImage(?string $path): void
     {
         $cleanPath = trim((string) $path);
@@ -394,6 +441,9 @@ class AdminNotificationController extends Controller
         }
     }
 
+    /**
+     * Normaliza el tipo de anuncio permitiendo alias (bar, banner).
+     */
     private function normalizeAnnouncementType(string $type): string
     {
         $normalized = Str::lower(trim($type));
@@ -405,6 +455,9 @@ class AdminNotificationController extends Controller
         };
     }
 
+    /**
+     * Normaliza la prioridad aceptando valores numéricos o nombres descriptivos.
+     */
     private function normalizeAnnouncementPriority(mixed $priority): int
     {
         if (is_numeric($priority)) {
@@ -419,6 +472,9 @@ class AdminNotificationController extends Controller
         };
     }
 
+    /**
+     * Transforma un registro de anuncio al formato estándar del contrato API.
+     */
     private function transformAnnouncement(object $item): array
     {
         $message = trim((string) ($item->message ?? ''));
@@ -450,6 +506,9 @@ class AdminNotificationController extends Controller
         ];
     }
 
+    /**
+     * Normaliza un valor a string nullable.
+     */
     private function nullableTrim(mixed $value): ?string
     {
         $clean = trim((string) $value);
@@ -457,6 +516,9 @@ class AdminNotificationController extends Controller
         return $clean === '' ? null : $clean;
     }
 
+    /**
+     * Extrae el ID del administrador desde los datos inyectados por el middleware EnsureAdmin.
+     */
     private function resolveAdminId(Request $request): ?string
     {
         $admin = $request->input('_admin_user', []);

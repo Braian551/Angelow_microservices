@@ -1,18 +1,29 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración: tabla de usuarios
+|--------------------------------------------------------------------------
+|
+| Crea la tabla `users` reflejando el esquema del sistema legacy Angelow.
+| Usa VARCHAR(20) como llave primaria para compatibilidad con los IDs
+| basados en uniqid() del monolito original.
+|
+| Columnas legacy:
+|   - trial548: columna remanente de la base original, se mantiene
+|     por compatibilidad durante la migración.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Migration: Create users table
- *
- * Mirrors the legacy Angelow users table schema.
- * Uses varchar(20) primary key for backward compatibility with the
- * monolith's uniqid()-based IDs.
- */
 return new class extends Migration
 {
+    /**
+     * Ejecuta la migración: crea la tabla users.
+     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
@@ -30,13 +41,16 @@ return new class extends Migration
             $table->datetime('token_expiry')->nullable();
             $table->char('trial548', 1)->nullable();
 
-            // Indexes
+            // Índices para búsquedas frecuentes
             $table->index('email');
             $table->index('phone');
             $table->index('role');
         });
     }
 
+    /**
+     * Revierte la migración: elimina la tabla users.
+     */
     public function down(): void
     {
         Schema::dropIfExists('users');

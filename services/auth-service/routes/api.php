@@ -12,16 +12,28 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Auth API Routes
+| Rutas de API del servicio de autenticación (auth-service)
 |--------------------------------------------------------------------------
+|
+| El prefijo /api se agrega automáticamente desde bootstrap/app.php.
+|
+| Grupos de rutas:
+|   /api/auth/*          — Endpoints públicos y protegidos de autenticación
+|   /api/auth/password-recovery/* — Flujo de recuperación de contraseña
+|   /api/admin/*          — Endpoints administrativos (requieren auth + admin)
+|   /api/internal/*       — Endpoints de servicio a servicio (token interno)
+|   /api/health           — Health check del servicio
+|
 */
 
+// Rutas públicas de autenticación
 Route::prefix('auth')->group(function () {
-    // Public routes
+    // Registro e inicio de sesión (públicos)
     Route::post('/register', RegisterController::class);
     Route::post('/login', [LoginController::class, 'login']);
     Route::post('/google', [LoginController::class, 'google']);
 
+    // Recuperación de contraseña (público, 4 pasos)
     Route::prefix('password-recovery')->group(function () {
         Route::post('/request-code', [PasswordRecoveryController::class, 'requestCode']);
         Route::post('/resend-code', [PasswordRecoveryController::class, 'resendCode']);
@@ -29,7 +41,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/reset-password', [PasswordRecoveryController::class, 'resetPassword']);
     });
 
-    // Protected routes (require Sanctum token)
+    // Rutas protegidas (requieren token Sanctum)
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [LoginController::class, 'logout']);
         Route::get('/me', [LoginController::class, 'me']);
@@ -38,7 +50,7 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-// Admin routes
+// Rutas administrativas (requieren autenticación + rol admin)
 Route::prefix('admin')->middleware(['auth:sanctum', EnsureAdmin::class])->group(function () {
     Route::get('/customers', [AdminUserController::class, 'customers']);
     Route::patch('/customers/{id}/block', [AdminUserController::class, 'toggleBlock']);
@@ -49,8 +61,10 @@ Route::prefix('admin')->middleware(['auth:sanctum', EnsureAdmin::class])->group(
     Route::get('/reports/customers', [AdminUserController::class, 'reportCustomers']);
 });
 
+// Rutas internas (comunicación entre microservicios)
 Route::prefix('internal')->group(function () {
     Route::get('/users/profiles', [UserProfileController::class, 'index']);
 });
 
+// Health check para Docker y monitoreo
 Route::get('/health', HealthController::class);

@@ -1,3 +1,7 @@
+# Configuración de Apache para el audit-service
+# Redirige todas las peticiones HTTP al front controller (index.php)
+# y pasa los encabezados de autorización al entorno PHP.
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -5,20 +9,20 @@
 
     RewriteEngine On
 
-    # Handle Authorization Header
+    # Maneja el encabezado Authorization (tokens Bearer de Sanctum)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
+    # Maneja el encabezado X-XSRF-Token (protección CSRF)
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # Redirige las rutas que terminan en / (excepto directorios reales)
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
+    # Envía todas las peticiones no coincidentes con archivos reales a index.php
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]

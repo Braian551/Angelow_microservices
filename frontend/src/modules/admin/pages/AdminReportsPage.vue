@@ -11,14 +11,14 @@
           <i class="fas fa-rotate-left"></i>
           Restablecer
         </button>
-        <button class="btn btn-secondary" type="button" @click="exportReport">
-          <i class="fas fa-file-export"></i>
-          Exportar CSV
-        </button>
-        <button class="btn btn-primary" type="button" @click="printReport">
-          <i class="fas fa-print"></i>
-          Imprimir
-        </button>
+        <AdminExportActions
+          tone="header"
+          :disabled="loading || activeReportRows.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportReport('excel')"
+          @pdf="exportReport('pdf')"
+        />
       </template>
     </AdminPageHeader>
 
@@ -370,7 +370,8 @@
     </section>
 
     <AdminModal :show="showDetailModal" :title="detailTitle" max-width="980px" @close="closeDetailModal">
-      <template v-if="detailContext && detailContext.type === 'sales'">
+      <div v-if="detailContext" class="admin-reports-page admin-reports-page--modal">
+      <template v-if="detailContext.type === 'sales'">
         <div class="admin-detail-grid">
           <AdminCard title="Resumen del período" icon="fas fa-chart-line">
             <div class="admin-surface-card">
@@ -391,7 +392,7 @@
         </div>
       </template>
 
-      <template v-else-if="detailContext && detailContext.type === 'products'">
+      <template v-else-if="detailContext.type === 'products'">
         <div class="admin-detail-grid">
           <AdminCard title="Ficha del producto" icon="fas fa-box-open">
             <div class="report-product-detail">
@@ -421,7 +422,7 @@
         </div>
       </template>
 
-      <template v-else-if="detailContext && detailContext.type === 'customers'">
+      <template v-else-if="detailContext.type === 'customers'">
         <div class="admin-detail-grid">
           <AdminCard title="Perfil del cliente" icon="fas fa-user-circle">
             <div class="report-customer-detail">
@@ -451,6 +452,7 @@
           </AdminCard>
         </div>
       </template>
+      </div>
 
       <template #footer>
         <button class="btn btn-secondary" type="button" @click="closeDetailModal">Cerrar</button>
@@ -460,29 +462,10 @@
 </template>
 
 <script setup>
-import {
-  ArcElement,
-  BarController,
-  BarElement,
-  CategoryScale,
-  Chart,
-  DoughnutController,
-  Filler,
-  Legend,
-  LineController,
-  LineElement,
-  LinearScale,
-  PointElement,
-  Tooltip,
-} from 'chart.js'
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { authHttp, catalogHttp, orderHttp } from '../../../services/http'
-import { useAlertSystem } from '../../../composables/useAlertSystem'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
-import { useAdminPagination } from '../composables/useAdminPagination'
+import { useAdminReports } from '../composables/useAdminReports'
 import AdminCard from '../components/AdminCard.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminModal from '../components/AdminModal.vue'
@@ -491,910 +474,47 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
-
-Chart.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  BarElement,
-  LineController,
-  BarController,
-  DoughnutController,
-  Filler,
-  Tooltip,
-  Legend,
-)
-
-const { showAlert } = useAlertSystem()
-const { showSnackbar } = useSnackbarSystem()
-
-const tabs = [
-  { id: 'sales', label: 'Ventas', icon: 'fas fa-chart-line', path: '/admin/informes/ventas', note: 'Se excluyen órdenes canceladas por defecto.' },
-  { id: 'products', label: 'Productos populares', icon: 'fas fa-fire', path: '/admin/informes/productos', note: 'El ranking usa ingresos y cantidad vendidos en el período.' },
-  { id: 'customers', label: 'Clientes recurrentes', icon: 'fas fa-users', path: '/admin/informes/clientes', note: 'El mínimo de órdenes se aplica sobre compras reales registradas.' },
-]
-
-const route = useRoute()
-const router = useRouter()
-
-const loading = ref(false)
-const activeTab = ref('sales')
-const showDetailModal = ref(false)
-const detailContext = ref(null)
-
-const filters = reactive({
-  sales: { search: '', from: '', to: '', status: '', groupBy: 'month' },
-  products: { search: '', from: '', to: '', limit: 50 },
-  customers: { search: '', minOrders: 2 },
-})
-
-const salesReport = ref({})
-const productRows = ref([])
-const customerRows = ref([])
-const customerStats = ref({ totalCustomers: 0, customersWithOrders: 0, returningCustomers: 0, avgOrdersPerCustomer: 0 })
-const customerDistribution = ref([])
-
-const salesEvolutionCanvas = ref(null)
-const monthlyComparisonCanvas = ref(null)
-const topProductsCanvas = ref(null)
-const categoriesCanvas = ref(null)
-const quantityProductsCanvas = ref(null)
-const customerDistributionCanvas = ref(null)
-const topCustomersCanvas = ref(null)
-
-let salesEvolutionChart = null
-let monthlyComparisonChart = null
-let topProductsChart = null
-let categoriesChart = null
-let quantityProductsChart = null
-let customerDistributionChart = null
-let topCustomersChart = null
-
-const activeTabConfig = computed(() => tabs.find((tab) => tab.id === activeTab.value) || tabs[0])
-
-const breadcrumbs = computed(() => [
-  { label: 'Dashboard', to: '/admin' },
-  { label: 'Informes', to: '/admin/informes/ventas' },
-  { label: activeTabConfig.value.label },
-])
-
-const salesRowsRaw = computed(() => {
-  const rows = salesReport.value?.rows
-  return Array.isArray(rows) ? rows : []
-})
-
-const groupedSalesRows = computed(() => {
-  const buckets = new Map()
-
-  for (const row of salesRowsRaw.value) {
-    const sourceDate = String(row.date || '')
-    const parsedDate = new Date(sourceDate)
-    if (Number.isNaN(parsedDate.getTime())) continue
-
-    const bucketKey = getBucketKey(parsedDate, filters.sales.groupBy)
-    if (!buckets.has(bucketKey)) {
-      buckets.set(bucketKey, {
-        period: bucketKey,
-        orders: 0,
-        subtotal: 0,
-        shipping: 0,
-        discount: 0,
-        revenue: 0,
-        avgOrderValueAccumulator: 0,
-      })
-    }
-
-    const bucket = buckets.get(bucketKey)
-    bucket.orders += Number(row.orders || 0)
-    bucket.subtotal += Number(row.subtotal || 0)
-    bucket.shipping += Number(row.shipping || 0)
-    bucket.discount += Number(row.discount || 0)
-    bucket.revenue += Number(row.revenue || 0)
-    bucket.avgOrderValueAccumulator += Number(row.avg_order_value || 0) * Number(row.orders || 0)
-  }
-
-  return [...buckets.values()]
-    .map((row) => ({
-      ...row,
-      avg_order_value: row.orders > 0 ? row.avgOrderValueAccumulator / row.orders : 0,
-    }))
-    .filter((row) => formatPeriodLabel(row.period, filters.sales.groupBy).toLowerCase().includes(filters.sales.search.trim().toLowerCase()))
-    .sort((a, b) => a.period.localeCompare(b.period))
-})
-
-const productCategoryBreakdown = computed(() => {
-  const totals = new Map()
-  for (const row of filteredProductsRows.value) {
-    const category = row.category_name || 'Sin categoría'
-    totals.set(category, (totals.get(category) || 0) + Number(row.total_revenue || 0))
-  }
-  return [...totals.entries()].map(([name, revenue]) => ({ name, revenue }))
-})
-
-const filteredProductsRows = computed(() => {
-  const term = filters.products.search.trim().toLowerCase()
-  return productRows.value
-    .filter((row) => {
-      if (!term) return true
-      return [row.name, row.category_name, row.slug].join(' ').toLowerCase().includes(term)
-    })
-    .sort((a, b) => Number(b.total_revenue || 0) - Number(a.total_revenue || 0))
-})
-
-const filteredCustomerRows = computed(() => {
-  const term = filters.customers.search.trim().toLowerCase()
-  return customerRows.value
-    .filter((row) => {
-      if (!term) return true
-      return [row.name, row.email, row.phone].join(' ').toLowerCase().includes(term)
-    })
-    .sort((a, b) => Number(b.total_spent || 0) - Number(a.total_spent || 0))
-})
-
-const salesPagination = useAdminPagination(groupedSalesRows, {
-  initialPageSize: 10,
-  pageSizeOptions: [10, 20, 50],
-})
-
-const productsPagination = useAdminPagination(filteredProductsRows, {
-  initialPageSize: 10,
-  pageSizeOptions: [10, 20, 50],
-})
-
-const customersPagination = useAdminPagination(filteredCustomerRows, {
-  initialPageSize: 10,
-  pageSizeOptions: [10, 20, 50],
-})
-
-const salesStats = computed(() => [
-  { key: 'revenue', label: 'Ingresos totales', value: formatCurrency(salesReport.value.total_revenue || salesReport.value.totalRevenue || 0), icon: 'fas fa-dollar-sign', color: 'success' },
-  { key: 'orders', label: 'Total órdenes', value: Number(salesReport.value.total_orders || salesReport.value.totalOrders || 0), icon: 'fas fa-shopping-cart', color: 'primary' },
-  { key: 'shipping', label: 'Costos de envío', value: formatCurrency(salesReport.value.total_shipping || salesReport.value.totalShipping || 0), icon: 'fas fa-truck', color: 'info' },
-  { key: 'discount', label: 'Descuentos', value: formatCurrency(salesReport.value.total_discount || salesReport.value.totalDiscount || 0), icon: 'fas fa-percent', color: 'warning' },
-])
-
-const productStats = computed(() => {
-  const totalRevenue = filteredProductsRows.value.reduce((acc, row) => acc + Number(row.total_revenue || 0), 0)
-  const totalQuantity = filteredProductsRows.value.reduce((acc, row) => acc + Number(row.total_quantity || 0), 0)
-  const topCategory = [...productCategoryBreakdown.value].sort((a, b) => b.revenue - a.revenue)[0]?.name || 'Sin categoría'
-
-  return [
-    { key: 'products', label: 'Productos listados', value: filteredProductsRows.value.length, icon: 'fas fa-box', color: 'primary' },
-    { key: 'units', label: 'Unidades vendidas', value: totalQuantity, icon: 'fas fa-boxes-stacked', color: 'success' },
-    { key: 'revenue', label: 'Ingresos del ranking', value: formatCurrency(totalRevenue), icon: 'fas fa-chart-line', color: 'info' },
-    { key: 'category', label: 'Categoría líder', value: topCategory, icon: 'fas fa-tags', color: 'warning' },
-  ]
-})
-
-const recurringCustomerCount = computed(() => filteredCustomerRows.value.filter((row) => Number(row.orders_count || 0) >= 2).length)
-
-const customerStatsFormatted = computed(() => [
-  { key: 'total', label: 'Total clientes', value: Number(customerStats.value.totalCustomers || 0), icon: 'fas fa-users', color: 'primary' },
-  { key: 'with-orders', label: 'Con compras', value: Number(customerStats.value.customersWithOrders || 0), icon: 'fas fa-bag-shopping', color: 'success' },
-  { key: 'returning', label: 'Recurrentes', value: recurringCustomerCount.value, icon: 'fas fa-repeat', color: 'warning' },
-  { key: 'avg', label: 'Promedio órdenes', value: customerStats.value.avgOrdersPerCustomer || 0, icon: 'fas fa-chart-bar', color: 'info' },
-])
-
-const activeStats = computed(() => {
-  if (activeTab.value === 'sales') return salesStats.value
-  if (activeTab.value === 'products') return productStats.value
-  return customerStatsFormatted.value
-})
-
-const activeSearchModel = computed({
-  get() {
-    if (activeTab.value === 'sales') return filters.sales.search
-    if (activeTab.value === 'products') return filters.products.search
-    return filters.customers.search
-  },
-  set(value) {
-    if (activeTab.value === 'sales') {
-      filters.sales.search = value
-      return
-    }
-    if (activeTab.value === 'products') {
-      filters.products.search = value
-      return
-    }
-    filters.customers.search = value
-  },
-})
-
-const searchPlaceholder = computed(() => {
-  if (activeTab.value === 'sales') return 'Buscar por período...'
-  if (activeTab.value === 'products') return 'Buscar por producto o categoría...'
-  return 'Buscar por cliente, correo o teléfono...'
-})
-
-const activeFilterCount = computed(() => {
-  if (activeTab.value === 'sales') {
-    return [filters.sales.search, filters.sales.from, filters.sales.to, filters.sales.status, filters.sales.groupBy !== 'month'].filter(Boolean).length
-  }
-  if (activeTab.value === 'products') {
-    return [filters.products.search, filters.products.from, filters.products.to, filters.products.limit !== 50].filter(Boolean).length
-  }
-  return [filters.customers.search, filters.customers.minOrders !== 2].filter(Boolean).length
-})
-
-const resultsLabel = computed(() => {
-  if (activeTab.value === 'sales') return `Mostrando ${salesPagination.visibleCount} de ${salesPagination.totalItems} períodos agrupados`
-  if (activeTab.value === 'products') return `Mostrando ${productsPagination.visibleCount} de ${productsPagination.totalItems} productos del ranking`
-  return `Mostrando ${customersPagination.visibleCount} de ${customersPagination.totalItems} clientes recurrentes`
-})
-
-const detailTitle = computed(() => {
-  if (!detailContext.value) return 'Detalle del informe'
-  if (detailContext.value.type === 'sales') return `Detalle de ${formatPeriodLabel(detailContext.value.row.period, filters.sales.groupBy)}`
-  return detailContext.value.row.name
-})
-
-const monthlyComparison = computed(() => {
-  const rows = salesRowsRaw.value
-    .map((row) => ({
-      month: getBucketKey(new Date(row.date), 'month'),
-      revenue: Number(row.revenue || 0),
-    }))
-    .reduce((acc, row) => {
-      acc[row.month] = (acc[row.month] || 0) + row.revenue
-      return acc
-    }, {})
-
-  const sorted = Object.entries(rows).sort((a, b) => a[0].localeCompare(b[0]))
-  const previous = Number(sorted[sorted.length - 2]?.[1] || 0)
-  const current = Number(sorted[sorted.length - 1]?.[1] || 0)
-  const growth = previous > 0 ? ((current - previous) / previous) * 100 : 0
-
-  return { previous, current, growth }
-})
-
-function initializeFilters() {
-  const today = new Date()
-  const salesWindowStart = new Date(today.getFullYear(), today.getMonth() - 3, 1)
-  const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate())
-
-  filters.sales.from = toInputDate(salesWindowStart)
-  filters.sales.to = toInputDate(today)
-  filters.products.from = toInputDate(threeMonthsAgo)
-  filters.products.to = toInputDate(today)
-}
-
-function destroyCharts() {
-  const charts = [salesEvolutionChart, monthlyComparisonChart, topProductsChart, categoriesChart, quantityProductsChart, customerDistributionChart, topCustomersChart]
-  charts.forEach((chart) => {
-    if (chart) chart.destroy()
-  })
-
-  salesEvolutionChart = null
-  monthlyComparisonChart = null
-  topProductsChart = null
-  categoriesChart = null
-  quantityProductsChart = null
-  customerDistributionChart = null
-  topCustomersChart = null
-}
-
-async function renderCharts() {
-  await nextTick()
-  destroyCharts()
-
-  if (activeTab.value === 'sales') {
-    if (salesEvolutionCanvas.value) {
-      salesEvolutionChart = new Chart(salesEvolutionCanvas.value, {
-        type: 'line',
-        data: {
-          labels: groupedSalesRows.value.map((row) => formatPeriodLabel(row.period, filters.sales.groupBy)),
-          datasets: [
-            {
-              label: 'Ingresos',
-              data: groupedSalesRows.value.map((row) => Number(row.revenue || 0)),
-              borderColor: '#0f7abf',
-              backgroundColor: 'rgba(15, 122, 191, 0.14)',
-              fill: true,
-              tension: 0.3,
-              yAxisID: 'y',
-            },
-            {
-              label: 'Órdenes',
-              data: groupedSalesRows.value.map((row) => Number(row.orders || 0)),
-              borderColor: '#f39c12',
-              backgroundColor: 'rgba(243, 156, 18, 0.16)',
-              fill: false,
-              tension: 0.25,
-              yAxisID: 'y1',
-            },
-          ],
-        },
-        options: {
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          scales: {
-            y: {
-              ticks: {
-                callback(value) {
-                  return formatCurrency(value)
-                },
-              },
-            },
-            y1: {
-              position: 'right',
-              grid: { drawOnChartArea: false },
-            },
-          },
-        },
-      })
-    }
-
-    if (monthlyComparisonCanvas.value) {
-      monthlyComparisonChart = new Chart(monthlyComparisonCanvas.value, {
-        type: 'bar',
-        data: {
-          labels: ['Mes anterior', 'Mes actual'],
-          datasets: [{
-            label: 'Ingresos',
-            data: [monthlyComparison.value.previous, monthlyComparison.value.current],
-            backgroundColor: ['#8fa8bf', '#0f7abf'],
-            borderRadius: 8,
-            barThickness: 42,
-          }],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-        },
-      })
-    }
-  }
-
-  if (activeTab.value === 'products') {
-    const topTen = filteredProductsRows.value.slice(0, 10)
-
-    if (topProductsCanvas.value) {
-      topProductsChart = new Chart(topProductsCanvas.value, {
-        type: 'bar',
-        data: {
-          labels: topTen.map((row) => truncateText(row.name, 24)),
-          datasets: [{
-            label: 'Ingresos',
-            data: topTen.map((row) => Number(row.total_revenue || 0)),
-            backgroundColor: '#0f7abf',
-            borderRadius: 8,
-          }],
-        },
-        options: {
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          plugins: { legend: { display: false } },
-        },
-      })
-    }
-
-    if (categoriesCanvas.value) {
-      categoriesChart = new Chart(categoriesCanvas.value, {
-        type: 'doughnut',
-        data: {
-          labels: productCategoryBreakdown.value.map((row) => row.name),
-          datasets: [{
-            data: productCategoryBreakdown.value.map((row) => Number(row.revenue || 0)),
-            backgroundColor: ['#0f7abf', '#1f9d8b', '#e67e22', '#d35454', '#7f8c8d', '#16a085'],
-            borderWidth: 0,
-          }],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { usePointStyle: true },
-            },
-          },
-        },
-      })
-    }
-
-    if (quantityProductsCanvas.value) {
-      quantityProductsChart = new Chart(quantityProductsCanvas.value, {
-        type: 'bar',
-        data: {
-          labels: topTen.map((row) => truncateText(row.name, 20)),
-          datasets: [{
-            label: 'Cantidad vendida',
-            data: topTen.map((row) => Number(row.total_quantity || 0)),
-            backgroundColor: '#1f9d8b',
-            borderRadius: 8,
-          }],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-        },
-      })
-    }
-  }
-
-  if (activeTab.value === 'customers') {
-    if (customerDistributionCanvas.value) {
-      customerDistributionChart = new Chart(customerDistributionCanvas.value, {
-        type: 'doughnut',
-        data: {
-          labels: customerDistribution.value.map((row) => row.segment),
-          datasets: [{
-            data: customerDistribution.value.map((row) => Number(row.customer_count || 0)),
-            backgroundColor: ['#0f7abf', '#f39c12', '#1f9d8b', '#d35454'],
-            borderWidth: 0,
-          }],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { usePointStyle: true },
-            },
-          },
-        },
-      })
-    }
-
-    if (topCustomersCanvas.value) {
-      topCustomersChart = new Chart(topCustomersCanvas.value, {
-        type: 'bar',
-        data: {
-          labels: filteredCustomerRows.value.slice(0, 10).map((row) => truncateText(row.name, 18)),
-          datasets: [{
-            label: 'Valor acumulado',
-            data: filteredCustomerRows.value.slice(0, 10).map((row) => Number(row.total_spent || 0)),
-            backgroundColor: '#0f7abf',
-            borderRadius: 8,
-          }],
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-        },
-      })
-    }
-  }
-}
-
-async function loadSalesReport() {
-  const params = {
-    from: filters.sales.from,
-    to: filters.sales.to,
-  }
-
-  if (filters.sales.status) params.status = filters.sales.status
-
-  const { data } = await orderHttp.get('/admin/reports/sales', { params })
-  salesReport.value = data?.data || data || {}
-}
-
-async function loadProductsReport() {
-  const params = {
-    from: filters.products.from,
-    to: filters.products.to,
-    limit: filters.products.limit,
-  }
-
-  const { data } = await orderHttp.get('/admin/reports/products', { params })
-  const rows = Array.isArray(data?.data) ? data.data : []
-  const productIds = rows.map((row) => row.product_id).filter(Boolean)
-  let productsById = new Map()
-
-  if (productIds.length) {
-    const metadataResponse = await catalogHttp.get('/admin/products', {
-      params: { ids: productIds.join(',') },
-    })
-    const metadataRows = Array.isArray(metadataResponse.data?.data) ? metadataResponse.data.data : []
-    productsById = new Map(metadataRows.map((row) => [Number(row.id), row]))
-  }
-
-  productRows.value = rows.map((row) => {
-    const metadata = productsById.get(Number(row.product_id)) || {}
-    return {
-      ...row,
-      image: metadata.primary_image || metadata.product_image || metadata.image || metadata.image_url || null,
-      slug: metadata.slug || null,
-      category_name: metadata.category_name || null,
-    }
-  })
-}
-
-async function loadCustomersReport() {
-  const [authSummaryResponse, orderCustomersResponse] = await Promise.all([
-    authHttp.get('/admin/reports/customers'),
-    orderHttp.get('/admin/reports/customers', {
-      params: { min_orders: filters.customers.minOrders },
-    }),
-  ])
-
-  const authSummary = authSummaryResponse.data?.data || {}
-  const orderPayload = orderCustomersResponse.data?.data || {}
-  const orderRows = Array.isArray(orderPayload.rows) ? orderPayload.rows : []
-  const ids = orderRows.map((row) => row.user_id).filter(Boolean)
-  let profilesById = new Map()
-
-  if (ids.length) {
-    const profilesResponse = await authHttp.get('/admin/customers', {
-      params: { ids: ids.join(',') },
-    })
-    const profiles = Array.isArray(profilesResponse.data?.data) ? profilesResponse.data.data : []
-    profilesById = new Map(profiles.map((row) => [String(row.id), row]))
-  }
-
-  customerRows.value = orderRows.map((row) => {
-    const profile = row.user_id ? profilesById.get(String(row.user_id)) : null
-    return {
-      ...row,
-      name: profile?.name || row.name,
-      email: profile?.email || row.email,
-      phone: profile?.phone || null,
-      image: profile?.image || null,
-    }
-  })
-
-  customerDistribution.value = Array.isArray(orderPayload.distribution) ? orderPayload.distribution : []
-  customerStats.value = {
-    totalCustomers: Number(authSummary.totalCustomers || 0),
-    customersWithOrders: Number(orderPayload.stats?.customers_with_orders || 0),
-    returningCustomers: Number(orderPayload.stats?.returning_customers || 0),
-    avgOrdersPerCustomer: Number(orderPayload.stats?.avg_orders_per_customer || 0),
-  }
-}
-
-async function loadCurrentReport() {
-  if (!validateFilters()) return
-
-  loading.value = true
-  try {
-    if (activeTab.value === 'sales') {
-      await loadSalesReport()
-    } else if (activeTab.value === 'products') {
-      await loadProductsReport()
-    } else {
-      await loadCustomersReport()
-    }
-
-    await renderCharts()
-  } catch (error) {
-    showSnackbar({ type: 'error', message: extractErrorMessage(error, 'No se pudo cargar el informe.') })
-  } finally {
-    loading.value = false
-  }
-}
-
-function validateFilters() {
-  if (activeTab.value === 'customers') return true
-
-  const current = activeTab.value === 'sales' ? filters.sales : filters.products
-  if (current.from && current.to && new Date(current.to) < new Date(current.from)) {
-    showAlert({
-      type: 'warning',
-      title: 'Rango inválido',
-      message: 'La fecha final debe ser posterior o igual a la fecha inicial.',
-    })
-    return false
-  }
-
-  return true
-}
-
-function resetFilters() {
-  if (activeTab.value === 'sales') {
-    const today = new Date()
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-    filters.sales.search = ''
-    filters.sales.from = toInputDate(startOfMonth)
-    filters.sales.to = toInputDate(today)
-    filters.sales.status = ''
-    filters.sales.groupBy = 'month'
-  } else if (activeTab.value === 'products') {
-    const today = new Date()
-    const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate())
-    filters.products.search = ''
-    filters.products.from = toInputDate(threeMonthsAgo)
-    filters.products.to = toInputDate(today)
-    filters.products.limit = 50
-  } else {
-    filters.customers.search = ''
-    filters.customers.minOrders = 2
-  }
-
-  loadCurrentReport()
-}
-
-function goToTab(tabId) {
-  const tab = tabs.find((item) => item.id === tabId)
-  if (!tab) return
-  router.push(tab.path)
-}
-
-function syncTabWithRoute(path) {
-  if (path.includes('/informes/productos')) {
-    activeTab.value = 'products'
-    return
-  }
-  if (path.includes('/informes/clientes')) {
-    activeTab.value = 'customers'
-    return
-  }
-  activeTab.value = 'sales'
-}
-
-function openDetailModal(type, row) {
-  detailContext.value = { type, row }
-  showDetailModal.value = true
-}
-
-function closeDetailModal() {
-  showDetailModal.value = false
-  detailContext.value = null
-}
-
-function exportReport() {
-  let filename = ''
-  let headers = []
-  let rows = []
-
-  if (activeTab.value === 'sales') {
-    filename = 'informe-ventas.csv'
-    headers = ['Periodo', 'Órdenes', 'Subtotal', 'Envío', 'Descuentos', 'Total', 'Ticket promedio']
-    rows = groupedSalesRows.value.map((row) => [formatPeriodLabel(row.period, filters.sales.groupBy), row.orders, row.subtotal, row.shipping, row.discount, row.revenue, row.avg_order_value])
-  } else if (activeTab.value === 'products') {
-    filename = 'productos-populares.csv'
-    headers = ['Producto', 'Categoría', 'Veces vendido', 'Cantidad total', 'Precio promedio', 'Ingresos']
-    rows = filteredProductsRows.value.map((row) => [row.name, row.category_name || 'Sin categoría', row.times_sold, row.total_quantity, row.avg_price, row.total_revenue])
-  } else {
-    filename = 'clientes-recurrentes.csv'
-    headers = ['Cliente', 'Email', 'Teléfono', 'Órdenes', 'Total gastado', 'Valor promedio', 'Primera compra', 'Última compra']
-    rows = filteredCustomerRows.value.map((row) => [row.name, row.email || '', row.phone || '', row.orders_count, row.total_spent, row.avg_order_value, row.first_order || '', row.last_order || ''])
-  }
-
-  if (rows.length === 0) {
-    showSnackbar({ type: 'warning', message: 'No hay datos para exportar.' })
-    return
-  }
-
-  const csv = [headers.join(','), ...rows.map((row) => row.map(csvSafe).join(','))].join('\n')
-  downloadCsv(filename, csv)
-  showSnackbar({ type: 'success', message: 'CSV generado correctamente.' })
-}
-
-function printReport() {
-  const hasData = activeTab.value === 'sales'
-    ? groupedSalesRows.value.length > 0
-    : activeTab.value === 'products'
-      ? filteredProductsRows.value.length > 0
-      : filteredCustomerRows.value.length > 0
-
-  if (!hasData) {
-    showSnackbar({ type: 'warning', message: 'No hay datos para imprimir.' })
-    return
-  }
-
-  window.print()
-}
-
-function getBucketKey(date, period) {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, '0')
-  const day = `${date.getDate()}`.padStart(2, '0')
-
-  if (period === 'day') return `${year}-${month}-${day}`
-  if (period === 'week') {
-    const firstDate = new Date(date.getFullYear(), 0, 1)
-    const dayOfYear = Math.floor((date - firstDate) / 86400000) + 1
-    const week = `${Math.ceil(dayOfYear / 7)}`.padStart(2, '0')
-    return `${year}-S${week}`
-  }
-  if (period === 'year') return String(year)
-  return `${year}-${month}`
-}
-
-function formatPeriodLabel(period, groupBy) {
-  if (!period) return 'Sin período'
-  if (groupBy === 'week') return period.replace('-S', ' / Semana ')
-  return period
-}
-
-function truncateText(value, maxLength = 30) {
-  const text = String(value || '')
-  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text
-}
-
-function toInputDate(value) {
-  return new Date(value).toISOString().slice(0, 10)
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value || 0))
-}
-
-function formatDateTime(value) {
-  if (!value) return 'Sin dato'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Sin dato'
-  return date.toLocaleString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-function extractErrorMessage(error, fallback) {
-  return error?.response?.data?.message || fallback
-}
-
-function csvSafe(value) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`
-}
-
-function downloadCsv(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-
-initializeFilters()
-
-watch(() => route.path, async (path) => {
-  syncTabWithRoute(path)
-  await loadCurrentReport()
-}, { immediate: true })
-
-watch(() => [filters.sales.search, filters.products.search, filters.customers.search], async () => {
-  await renderCharts()
-})
-
-onBeforeUnmount(() => {
-  destroyCharts()
-})
+import '../views/AdminReportsPage.css'
+
+const {
+  activeFilterCount,
+  activeReportRows,
+  activeSearchModel,
+  activeStats,
+  activeTab,
+  activeTabConfig,
+  breadcrumbs,
+  categoriesCanvas,
+  closeDetailModal,
+  customerDistributionCanvas,
+  customersPagination,
+  detailContext,
+  detailTitle,
+  exportReport,
+  exportingFormat,
+  filteredCustomerRows,
+  filteredProductsRows,
+  filters,
+  formatCurrency,
+  formatDateTime,
+  formatPeriodLabel,
+  goToTab,
+  groupedSalesRows,
+  loadCurrentReport,
+  loading,
+  monthlyComparisonCanvas,
+  openDetailModal,
+  productsPagination,
+  quantityProductsCanvas,
+  renderCharts,
+  resetFilters,
+  resultsLabel,
+  salesEvolutionCanvas,
+  salesPagination,
+  searchPlaceholder,
+  showDetailModal,
+  tabs,
+  topCustomersCanvas,
+  topProductsCanvas,
+} = useAdminReports()
 </script>
-
-<style scoped>
-.report-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  padding: 1.25rem 1.75rem;
-}
-
-.report-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.8rem;
-  border: 1px solid rgba(15, 122, 191, 0.16);
-  background: #f8fbfe;
-  color: var(--admin-text);
-  border-radius: 999px;
-  padding: 0.9rem 1.4rem;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.report-tab.active {
-  background: var(--admin-primary);
-  color: #fff;
-  border-color: var(--admin-primary);
-}
-
-.filters-row--reports {
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-}
-
-.report-section {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.report-grid {
-  display: grid;
-  gap: 1.6rem;
-}
-
-.report-grid--sales-charts,
-.report-grid--customers-charts {
-  grid-template-columns: 1.25fr 0.95fr;
-}
-
-.report-grid--products-charts {
-  grid-template-columns: 1.2fr 0.9fr 0.9fr;
-}
-
-.chart-card__body {
-  height: 32rem;
-  padding: 1.4rem;
-}
-
-.chart-card__body--compact {
-  height: 30rem;
-}
-
-.chart-card__body--large {
-  height: 34rem;
-}
-
-.reports-table th,
-.reports-table td {
-  vertical-align: middle;
-}
-
-.report-product-cell,
-.report-customer-cell,
-.report-product-detail,
-.report-customer-detail {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.report-product-cell__image,
-.report-product-detail__image {
-  width: 5.4rem;
-  height: 5.4rem;
-  border-radius: 1rem;
-  object-fit: cover;
-  background: #f3f7fb;
-  border: 1px solid rgba(15, 122, 191, 0.12);
-}
-
-.report-customer-cell__image,
-.report-customer-detail__image {
-  width: 4.8rem;
-  height: 4.8rem;
-  border-radius: 999px;
-  object-fit: cover;
-  background: #f3f7fb;
-  border: 1px solid rgba(15, 122, 191, 0.12);
-}
-
-.report-product-detail,
-.report-customer-detail {
-  align-items: stretch;
-}
-
-.report-product-detail__image {
-  width: 12rem;
-  height: 12rem;
-}
-
-.report-customer-detail__image {
-  width: 8.4rem;
-  height: 8.4rem;
-}
-
-@media (max-width: 1100px) {
-  .report-grid--sales-charts,
-  .report-grid--customers-charts,
-  .report-grid--products-charts {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 720px) {
-  .report-tabs {
-    padding: 1.2rem 1.2rem 0;
-  }
-
-  .report-tab {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .report-product-cell,
-  .report-customer-cell,
-  .report-product-detail,
-  .report-customer-detail {
-    align-items: flex-start;
-  }
-
-  .chart-card__body,
-  .chart-card__body--compact,
-  .chart-card__body--large {
-    height: 28rem;
-  }
-}
-</style>

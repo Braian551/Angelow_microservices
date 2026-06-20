@@ -11,24 +11,38 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Controlador admin para gestion de clientes y administradores.
+ * Controlador administrativo para gestión de clientes y administradores.
+ *
+ * Expone endpoints protegidos con middleware EnsureAdmin.
+ * Permite listar, buscar, bloquear clientes y CRUD completo
+ * de administradores, más reportes básicos.
  */
 class AdminUserController extends Controller
 {
+    /**
+     * Retorna el operador LIKE adecuado según el motor de BD.
+     *
+     * PostgreSQL requiere ILIKE para búsqueda case-insensitive;
+     * MySQL/MariaDB usan LIKE que ya es case-insensitive por default.
+     */
     private function likeOperator(): string
     {
         return DB::connection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
     }
 
     /**
+     * Lista clientes con filtros opcionales por IDs o búsqueda textual.
+     *
      * GET /api/admin/customers
-     * Lista todos los clientes con estadisticas basicas.
+     * Query params opcionales: ids (CSV), search (nombre o email)
+     * Límite: 200 registros.
      */
     public function customers(Request $request): JsonResponse
     {
         $query = User::query()->where('role', 'customer');
         $likeOperator = $this->likeOperator();
 
+        // Filtro por lista específica de IDs (útil para selección desde el frontend)
         if ($request->filled('ids')) {
             $rawIds = explode(',', $request->string('ids')->toString());
             $ids = collect($rawIds)
@@ -43,6 +57,7 @@ class AdminUserController extends Controller
             }
         }
 
+        // Búsqueda textual por nombre o email
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($q) use ($search, $likeOperator) {
@@ -62,8 +77,9 @@ class AdminUserController extends Controller
     }
 
     /**
+     * Bloquea o desbloquea un cliente (toggle).
+     *
      * PATCH /api/admin/customers/{id}/block
-     * Bloquea o desbloquea un cliente.
      */
     public function toggleBlock(Request $request, string $id): JsonResponse
     {
@@ -83,8 +99,9 @@ class AdminUserController extends Controller
     }
 
     /**
+     * Lista todos los administradores (admin y super_admin).
+     *
      * GET /api/admin/administrators
-     * Lista todos los administradores.
      */
     public function administrators(): JsonResponse
     {
@@ -114,8 +131,11 @@ class AdminUserController extends Controller
     }
 
     /**
-     * POST /api/admin/administrators
      * Crea un nuevo administrador.
+     *
+     * POST /api/admin/administrators
+     * Campos: name, email, password, active (booleano opcional)
+     * Genera ID aleatorio de 20 caracteres (formato legacy).
      */
     public function storeAdmin(Request $request): JsonResponse
     {
@@ -148,8 +168,10 @@ class AdminUserController extends Controller
     }
 
     /**
-     * PUT /api/admin/administrators/{id}
      * Actualiza un administrador existente.
+     *
+     * PUT /api/admin/administrators/{id}
+     * Campos opcionales: name, email, password, active
      */
     public function updateAdmin(Request $request, string $id): JsonResponse
     {
@@ -189,8 +211,10 @@ class AdminUserController extends Controller
     }
 
     /**
+     * Elimina un administrador (no puede eliminarse a sí mismo).
+     *
      * DELETE /api/admin/administrators/{id}
-     * Elimina un administrador (no puede eliminarse a si mismo).
+     * Previene que un admin se elimine a sí mismo.
      */
     public function destroyAdmin(Request $request, string $id): JsonResponse
     {
@@ -218,8 +242,15 @@ class AdminUserController extends Controller
     }
 
     /**
+     * Reporte de clientes para el panel administrativo.
+     *
      * GET /api/admin/reports/customers
-     * Reporte de clientes.
+     * Query param opcional: from (fecha ISO para filtrar nuevos clientes)
+     *
+     * Nota: orders_count y total_spent se envían en 0 por ahora
+     * para evitar dependencia cross-service con order-service.
+     * Cuando se implemente la comunicación interna, se poblarán
+     * consultando el servicio de pedidos.
      */
     public function reportCustomers(Request $request): JsonResponse
     {
@@ -243,7 +274,7 @@ class AdminUserController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    // Sin dependencia cross-service: se envian valores por defecto.
+                    // Sin dependencia cross-service: se envían valores por defecto.
                     'orders_count' => 0,
                     'total_spent' => 0,
                     'last_order_date' => $user->last_access,

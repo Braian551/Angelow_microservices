@@ -3,9 +3,18 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-20 - Coherencia de gráficas de informes](#2026-06-20---coherencia-de-gráficas-de-informes)
+- [2026-06-20 - Administración de reembolsos](#2026-06-20---administración-de-reembolsos)
+- [2026-06-10 - Formulario de producto como orquestador Vue](#2026-06-10---formulario-de-producto-como-orquestador-vue)
+- [2026-06-19 - Reembolsos de cliente y política por producto](#2026-06-19---reembolsos-de-cliente-y-política-por-producto)
+- [2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito](#2026-06-10---validaciones-numéricas-reutilizables-para-productos-inventario-y-carrito)
+- [2026-06-08 - Factura descargable desde detalle de pedido y estados unificados](#2026-06-08---factura-descargable-desde-detalle-de-pedido-y-estados-unificados)
+- [2026-06-08 - Feedback de acciones mutables en header tablas y modales](#2026-06-08---feedback-de-acciones-mutables-en-header-tablas-y-modales)
+- [2026-05-24 - Exportaciones admin reutilizables en PDF y Excel](#2026-05-24---exportaciones-admin-reutilizables-en-pdf-y-excel)
 - [2026-04-24 - Migración de CSS legacy al flujo real frontend](#2026-04-24---migración-de-css-legacy-al-flujo-real-frontend)
 - [2026-04-18 - Persistencia robusta de direcciones ante caida de legacy](#2026-04-18---persistencia-robusta-de-direcciones-ante-caida-de-legacy)
 - [2026-04-17 - Reserva temporal de stock, confirmacion diferida y anti-duplicidad en ordenes](#2026-04-17---reserva-temporal-de-stock-confirmacion-diferida-y-anti-duplicidad-en-ordenes)
+- [2026-06-19 - Reconciliacion de stock Redis para ordenes e inventario](#2026-06-19---reconciliacion-de-stock-redis-para-ordenes-e-inventario)
 - [2026-04-17 - Campaña específica en vista dedicada, tiempo relativo y avisos de órdenes](#2026-04-17---campaña-específica-en-vista-dedicada-tiempo-relativo-y-avisos-de-órdenes)
 - [2026-04-17 - Campañas de descuentos y sincronización de anuncios](#2026-04-17---campañas-de-descuentos-y-sincronización-de-anuncios)
 - [2026-04-17 - Vista previa en vivo en modales y checkbox unificado](#2026-04-17---vista-previa-en-vivo-en-modales-y-checkbox-unificado)
@@ -35,6 +44,78 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-20 - Coherencia de gráficas de informes
+
+- Patrón: Adapter + Strategy (Refactoring Guru)
+- Aplicación: separación entre tabla de clientes recurrentes y gráfica de clientes por valor, más escalas de ventas con base cero para evitar lecturas comprimidas.
+- Ubicación: `frontend/src/modules/admin/composables/useAdminReports.js`, `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`
+- Problema resuelto: informes de clientes y ventas podían verse vacíos o incorrectos cuando había compras reales pero el filtro recurrente eliminaba la tabla, o cuando una única serie deformaba la escala visual.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-informes-2026-04-05.md`
+
+## 2026-06-20 - Administración de reembolsos
+
+- Patrón: State + Facade + Adapter + Command (Refactoring Guru)
+- Aplicación: se agregó una sección admin dedicada para revisar solicitudes de reembolso, motivo, evidencia, badges/notificaciones y acciones operativas con sincronización de estado de pago.
+- Ubicación: `frontend/src/modules/admin/pages/AdminRefundsPage.vue`, `frontend/src/modules/admin/composables/useAdminRefunds.js`, `frontend/src/modules/admin/composables/useAdminNotifications.js`, `frontend/src/modules/admin/components/AdminPaymentProofModal.vue`, `frontend/src/modules/admin/views/AdminRefundsPage.css`, `services/order-service/app/Http/Controllers/Admin/AdminOrderController.php`, `services/order-service/routes/api.php`
+- Problema resuelto: el reembolso solicitado por cliente quedaba sin gestión administrativa específica y dependía de cambios manuales de pago en órdenes.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-reembolsos-2026-06-20.md`
+
+## 2026-06-19 - Reembolsos de cliente y política por producto
+
+- Patrón: State + Facade + Adapter (Refactoring Guru)
+- Aplicación: se separó la solicitud de reembolso del estado de cancelación de orden, se centralizó el endpoint de solicitud en `orderApi` y se adaptó la política de catálogo al contrato de Mis pedidos.
+- Ubicación: `frontend/src/modules/account/pages/OrdersPage.vue`, `frontend/src/services/orderApi.js`, `frontend/src/utils/orderPresentation.js`, `frontend/src/modules/admin/pages/AdminProductFormPage.vue`, `frontend/src/modules/admin/components/products/AdminProductGeneralTab.vue`, `frontend/src/modules/admin/composables/useAdminProductForm.js`, `frontend/src/modules/admin/utils/productFormPayload.js`, `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`, `services/catalog-service/app/Http/Controllers/InternalCatalogController.php`, `services/order-service/app/Http/Controllers/OrderController.php`, `services/order-service/routes/api.php`
+- Problema resuelto: impedir cancelaciones de compra desde cliente y habilitar reembolsos trazables solo para productos con política activa y ventana vigente.
+- Referencia detallada: `docs/patrones/dashboard/patrones-diseno-reembolsos-cliente-producto-2026-06-19.md`
+
+## 2026-06-19 - Reconciliacion de stock Redis para ordenes e inventario
+
+- Patron: Saga + Single Source of Truth
+- Aplicacion: el catalogo autosana snapshots de stock disponible cuando Redis queda desfasado y order-service limpia claves `reserved:*` sin reserva activa persistida.
+- Ubicacion: `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`, `services/catalog-service/app/Http/Controllers/InternalCatalogController.php`, `services/order-service/app/Services/StockReservationService.php`
+- Problema resuelto: evitar que reservas huerfanas de Redis bloqueen pedidos o muestren variantes como sin stock cuando la base fisica conserva unidades disponibles.
+- Referencia detallada: `docs/patrones/home/patrones-diseno-home-anuncios-stock-redis-2026-04-20.md`
+
+## 2026-06-10 - Formulario de producto como orquestador Vue
+
+- Patrón: Component + Facade + Builder + Strategy (Refactoring Guru)
+- Aplicación: `AdminProductFormPage.vue` quedó como orquestador y se separaron tabs, modal, composable, utilidades de slug/SKU/payload y CSS externo.
+- Ubicación: `frontend/src/modules/admin/pages/AdminProductFormPage.vue`, `frontend/src/modules/admin/components/products/AdminProductGeneralTab.vue`, `frontend/src/modules/admin/components/products/AdminProductImagePanel.vue`, `frontend/src/modules/admin/components/products/AdminProductVariantsTab.vue`, `frontend/src/modules/admin/components/products/AdminProductVariantModal.vue`, `frontend/src/modules/admin/composables/useAdminProductForm.js`, `frontend/src/modules/admin/utils/productFormPayload.js`, `frontend/src/modules/admin/utils/productSlug.js`, `frontend/src/modules/admin/utils/productSku.js`, `frontend/src/modules/admin/views/AdminProductFormPage.css`
+- Problema resuelto: reducir el componente gigante del formulario de producto sin cambiar rutas, APIs, payloads, validaciones, imágenes, variantes, tallas, stock, SKU ni flujo SPA.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`
+
+## 2026-06-10 - Validaciones numéricas reutilizables para productos, inventario y carrito
+
+- Patrón: Facade + Strategy (Refactoring Guru)
+- Aplicación: se centralizaron reglas de enteros positivos y precios COP sin centavos en frontend, y se reforzó la validación equivalente en `catalog-service` y `cart-service`.
+- Ubicación: `frontend/src/utils/numericValidation.js`, `frontend/src/modules/admin/pages/AdminProductFormPage.vue`, `frontend/src/modules/admin/pages/AdminInventoryPage.vue`, `frontend/src/modules/catalog/pages/ProductDetailPage.vue`, `frontend/src/modules/cart/pages/CartPage.vue`, `services/catalog-service/app/Http/Controllers/Admin/AdminCatalogController.php`, `services/cart-service/app/Http/Controllers/CartController.php`
+- Problema resuelto: evitar que cantidades, stock, inventario, carrito o precios COP acepten decimales, cero, negativos, campos vacíos, letras o símbolos inválidos.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
+
+## 2026-06-08 - Factura descargable desde detalle de pedido y estados unificados
+
+- Patrón: Facade + Adapter (Refactoring Guru)
+- Aplicación: el detalle de pedido del cliente consume una fachada de descarga de factura que reutiliza la generación PDF existente y adapta estados antiguos `in_review/en_revision` al estado visible único `processing`.
+- Ubicación: `services/order-service/routes/api.php`, `services/order-service/app/Http/Controllers/OrderController.php`, `services/order-service/app/Http/Controllers/Admin/AdminOrderController.php`, `frontend/src/services/orderApi.js`, `frontend/src/modules/account/pages/OrderDetailPage.vue`, `frontend/src/utils/orderPresentation.js`, `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`
+- Problema resuelto: permitir descargar la factura desde el detalle de un pedido propio y evitar duplicidad funcional entre "En revisión" y "En proceso" en el estado de orden.
+
+## 2026-06-08 - Feedback de acciones mutables en header tablas y modales
+
+- Patrón: State (Refactoring Guru)
+- Aplicación: el shell público mantiene un estado compartido para el contador de notificaciones no leídas y las acciones que mutan datos en tablas, modales y alertas pasan a un estado visible de carga mientras la petición al servidor está pendiente.
+- Ubicación: `frontend/src/composables/useAppShell.js`, `frontend/src/components/layout/SiteHeader.vue`, `frontend/src/components/layout/Header.css`, `frontend/src/components/ui/UserAlertSystem.vue`, `frontend/src/components/ui/UserAlertSystem.css`, `frontend/src/modules/admin/pages/AdminPaymentsPage.vue`, `frontend/src/modules/admin/pages/AdminOrdersPage.vue`, `frontend/src/modules/admin/pages/AdminOrderDetailPage.vue`, `frontend/src/modules/admin/styles/admin.css`, `.agents/skills/skill/SKILL.md`
+- Problema resuelto: evitar dobles envíos, clics repetidos y percepción de bloqueo cuando una acción de tabla o un guardado de modal espera respuesta del backend.
+
+## 2026-05-24 - Exportaciones admin reutilizables en PDF y Excel
+
+- Patrón: Facade + Strategy + Reuse Component (Refactoring Guru)
+- Aplicación: se creó una infraestructura compartida para exportar PDF y Excel desde el módulo admin con branding unificado, imágenes en PDF cuando aplica y botones reutilizables para todas las vistas objetivo.
+- Ubicación: `frontend/src/modules/admin/components/AdminExportActions.vue`, `frontend/src/modules/admin/composables/useAdminDataExport.js`, `frontend/src/modules/admin/pages/AdminProductsPage.vue`, `frontend/src/modules/admin/pages/AdminInventoryPage.vue`, `frontend/src/modules/admin/pages/AdminOrdersPage.vue`, `frontend/src/modules/admin/pages/AdminCustomersPage.vue`, `frontend/src/modules/admin/pages/AdminReviewsPage.vue`, `frontend/src/modules/admin/pages/AdminQuestionsPage.vue`, `frontend/src/modules/admin/pages/AdminShippingRulesPage.vue`, `frontend/src/modules/admin/pages/AdminShippingMethodsPage.vue`, `frontend/src/modules/admin/pages/AdminBulkDiscountsPage.vue`, `frontend/src/modules/admin/pages/AdminDiscountCodesPage.vue`, `frontend/src/modules/admin/pages/AdminAnnouncementsPage.vue`, `frontend/src/modules/admin/pages/AdminReportsPage.vue`
+- Problema resuelto: eliminar helpers CSV aislados por vista, habilitar Excel real con mejor formato, unificar la plantilla PDF/Excel y centralizar branding, logo y configuración.
+- Referencia detallada:
+	- `docs/patrones/admin/patrones-diseno-admin-exportaciones-reutilizables-2026-05-24.md`
+	- `frontend/docs/exportaciones-admin-reutilizables.md`
 
 ## 2026-04-24 - Migración de CSS legacy al flujo real frontend
 
@@ -72,6 +153,11 @@
 - Aplicacion: publicacion de eventos de reserva/confirmacion/liberacion sobre canales Redis pub/sub para consumo por websocket gateway y sincronizacion de UI en tiempo real.
 - Ubicacion: services/order-service/app/Services/StockReservationRealtimePublisher.php, services/order-service/app/Services/StockReservationService.php
 - Problema resuelto: propagar cambios de disponibilidad de inmediato y reducir ventanas de duplicidad por latencia de actualizacion.
+
+- Patrón: State (Refactoring Guru)
+- Aplicación: el vencimiento del TTL de reserva se trata como causa de transición y no como estado final; `ExpireStockReservationJob` libera stock, deja la orden en `cancelled`, registra historial, publica websocket con instrucciones y crea notificación para el cliente.
+- Ubicación: services/order-service/app/Jobs/ExpireStockReservationJob.php, services/order-service/app/Services/StockReservationService.php, frontend/src/utils/orderPresentation.js, docs/referencias/matriz-requerimientos-funcionales-actualizada.md
+- Problema resuelto: evitar que el estado paralelo `expired` rompa filtros, acciones administrativas, liberación de stock y comunicación al usuario.
 
 - Patron: Adapter
 - Aplicacion: endpoint interno de catalogo para commit atomico de inventario por variante, manteniendo contrato de ordenes existente y aislando la logica de descuento real de stock.

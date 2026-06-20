@@ -1,5 +1,17 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Migración del sistema de colas (jobs) de Laravel
+|--------------------------------------------------------------------------
+|
+| Crea las tablas `jobs`, `job_batches` y `failed_jobs` requeridas
+| por el driver de cola "database". El audit-service usa Redis como
+| driver principal, pero se mantienen estas tablas por compatibilidad
+| con configuraciones de cola alternativas.
+|
+*/
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -7,10 +19,15 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Ejecuta la migración: crea las tablas de colas.
      */
     public function up(): void
     {
+        /*
+         * Tabla principal de trabajos encolados.
+         * Cada fila representa un job pendiente, con su payload,
+         * número de intentos y estado de reserva.
+         */
         Schema::create('jobs', function (Blueprint $table) {
             $table->id();
             $table->string('queue')->index();
@@ -21,6 +38,11 @@ return new class extends Migration
             $table->unsignedInteger('created_at');
         });
 
+        /*
+         * Tabla de lotes de jobs (job batching).
+         * Permite agrupar múltiples trabajos y monitorear
+         * su progreso colectivo.
+         */
         Schema::create('job_batches', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('name');
@@ -34,6 +56,11 @@ return new class extends Migration
             $table->integer('finished_at')->nullable();
         });
 
+        /*
+         * Tabla de trabajos fallidos.
+         * Almacena el payload y la excepción de cada job
+         * que no pudo completarse, para debugging y reprocesamiento.
+         */
         Schema::create('failed_jobs', function (Blueprint $table) {
             $table->id();
             $table->string('uuid')->unique();
@@ -46,7 +73,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Revierte la migración: elimina las tablas de colas.
      */
     public function down(): void
     {

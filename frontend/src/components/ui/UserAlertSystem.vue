@@ -1,8 +1,8 @@
 <template>
   <Teleport to="body">
-    <div v-if="alertState.visible" class="alert-overlay active" @click.self="closeAlert()">
+    <div v-if="alertState.visible" class="alert-overlay active" @click.self="requestCloseAlert">
       <div class="alert-box" :class="alertState.type">
-        <button type="button" class="alert-close" aria-label="Cerrar alerta" @click="closeAlert()">
+        <button type="button" class="alert-close" aria-label="Cerrar alerta" :disabled="Boolean(activeActionKey)" @click="requestCloseAlert">
           <i class="fas fa-times" />
         </button>
 
@@ -23,10 +23,12 @@
             :key="`${action.text}-${index}`"
             type="button"
             class="alert-button"
-            :class="actionClass(action.style)"
-            @click="handleAction(action)"
+            :class="[actionClass(action.style), { 'is-loading': activeActionKey === actionKey(action, index) }]"
+            :disabled="Boolean(activeActionKey)"
+            @click="handleAction(action, index)"
           >
-            {{ action.text }}
+            <i v-if="activeActionKey === actionKey(action, index)" class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            <span>{{ action.text }}</span>
           </button>
         </div>
       </div>
@@ -35,11 +37,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAlertSystem } from '../../composables/useAlertSystem'
 import './UserAlertSystem.css'
 
 const { alertState, closeAlert } = useAlertSystem()
+const activeActionKey = ref('')
+
+function requestCloseAlert() {
+  if (activeActionKey.value) return
+  closeAlert()
+}
 
 const iconClass = computed(() => {
   const iconByType = {
@@ -59,13 +67,25 @@ function actionClass(style) {
   return 'primary'
 }
 
-function handleAction(action) {
-  if (typeof action?.callback === 'function') {
-    action.callback()
-  }
+function actionKey(action, index) {
+  return `${action?.text || 'accion'}-${index}`
+}
 
-  if (action?.closeOnClick !== false) {
-    closeAlert()
+async function handleAction(action, index) {
+  if (activeActionKey.value) return
+
+  activeActionKey.value = actionKey(action, index)
+
+  try {
+    if (typeof action?.callback === 'function') {
+      await action.callback()
+    }
+
+    if (action?.closeOnClick !== false) {
+      closeAlert()
+    }
+  } finally {
+    activeActionKey.value = ''
   }
 }
 </script>

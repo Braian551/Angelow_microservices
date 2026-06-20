@@ -12,10 +12,18 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
+/**
+ * Servicio central de despacho de notificaciones.
+ * Orquesta la creación de notificaciones push, el envío de correos
+ * y la verificación de preferencias del usuario antes de cada envío.
+ * Soporta múltiples orígenes de datos durante la migración (legacy/local).
+ */
 class NotificationDispatchService
 {
+    /** Conexión a la base legacy para resolución de usuarios y preferencias. */
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
+    /** Constantes para eventos conocidos del sistema. */
     public const EVENT_PRODUCT = 'product';
     public const EVENT_PROMOTION = 'promotion';
     public const EVENT_CART_REMINDER = 'cart_reminder';
@@ -48,6 +56,7 @@ class NotificationDispatchService
      */
     public function dispatchToUser(array $payload): array
     {
+        // Validación inicial de datos obligatorios.
         $userId = trim((string) ($payload['user_id'] ?? ''));
         if ($userId === '') {
             return $this->skipResult('', null, 'missing_user_id');
@@ -60,6 +69,7 @@ class NotificationDispatchService
             return $this->skipResult($userId, null, 'missing_title_or_message');
         }
 
+        // Resuelve el tipo de notificación según event_key o type_id.
         $explicitEvent = $this->normalizeEventKey($payload['event_key'] ?? null);
         $resolvedEvent = $explicitEvent;
 
@@ -74,6 +84,7 @@ class NotificationDispatchService
             }
         }
 
+        // Si no se pudo determinar el tipo, se omite el envío.
         if ($typeId === null || $typeId <= 0) {
             return $this->skipResult($userId, $resolvedEvent, 'notification_type_not_resolved');
         }
@@ -83,14 +94,17 @@ class NotificationDispatchService
             : true;
         $requestedEmail = (bool) ($payload['send_email'] ?? false);
 
+        // Verifica que el usuario tenga habilitadas las notificaciones push para este evento.
         $eventEnabled = $this->isEventEnabledForUser($userId, $resolvedEvent, $typeId);
         if (!$eventEnabled) {
             return $this->skipResult($userId, $resolvedEvent, 'preference_disabled');
         }
 
+        // Verifica si el email global está habilitado en las preferencias.
         $globalEmailEnabled = $this->isGlobalEmailEnabledForUser($userId);
         $sendEmail = $requestedEmail && $globalEmailEnabled;
 
+        // Si ningún canal está activo, se omite.
         if (!$sendPush && !$sendEmail) {
             return $this->skipResult($userId, $resolvedEvent, 'channels_disabled');
         }
@@ -102,6 +116,7 @@ class NotificationDispatchService
         $reason = 'ok';
 
         try {
+            // Canal push: persiste la notificación y encola el job de broadcast.
             if ($sendPush) {
                 $notificationId = (int) DB::table('notifications')->insertGetId([
                     'user_id' => $userId,
@@ -124,8 +139,10 @@ class NotificationDispatchService
                     'type_id' => $typeId,
                 ];
 
+                // Encola el broadcast WebSocket para notificación en tiempo real.
                 DispatchNotificationJob::dispatch($notificationId, $userId, $jobPayload);
 
+                // Registra la notificación en la cola de envío push.
                 DB::table('notification_queue')->insert([
                     'notification_id' => $notificationId,
                     'channel' => 'push',
@@ -137,6 +154,7 @@ class NotificationDispatchService
                 $notificationSent = true;
             }
 
+            // Canal email: resuelve el correo y envía el mensaje.
             if ($sendEmail) {
                 $email = $this->resolveUserEmail($userId, $payload['user_email'] ?? null);
                 if ($email !== null) {
@@ -194,6 +212,7 @@ class NotificationDispatchService
             return $this->normalizeUserIds($requestedUserIds, $max);
         }
 
+        // Fallback: primero legacy, luego local.
         $legacyUserIds = $this->resolveLegacyTargetUserIds($max);
         if ($legacyUserIds !== []) {
             return $legacyUserIds;
@@ -202,6 +221,9 @@ class NotificationDispatchService
         return $this->resolveLocalTargetUserIds($max);
     }
 
+    /**
+     * Resuelve IDs de usuarios desde la base legacy para campañas masivas.
+     */
     private function resolveLegacyTargetUserIds(int $limit): array
     {
         $max = max(1, min($limit, 1000));
@@ -238,6 +260,7 @@ class NotificationDispatchService
 
     /**
      * Fallback local cuando no hay conexión legacy disponible.
+     * Obtiene IDs desde notification_preferences y notifications locales.
      */
     private function resolveLocalTargetUserIds(int $limit): array
     {
@@ -299,6 +322,9 @@ class NotificationDispatchService
         }
     }
 
+    /**
+     * Normaliza y deduplica un array de IDs de usuario.
+     */
     private function normalizeUserIds(array $userIds, int $limit): array
     {
         $normalized = [];
@@ -319,6 +345,10 @@ class NotificationDispatchService
         return array_keys($normalized);
     }
 
+    /**
+     * Resuelve el ID del tipo de notificación a partir del event_key.
+     * Busca primero en el modelo Eloquent (legacy) y luego en la tabla local.
+     */
     private function resolveTypeIdByEvent(string $eventKey): ?int
     {
         $baseTypeName = match ($eventKey) {
@@ -364,6 +394,10 @@ class NotificationDispatchService
         return $this->resolveTypeIdByEventLocal($baseTypeName, $eventKey);
     }
 
+    /**
+     * Fallback local para resolver el ID del tipo de notificación
+     * cuando la conexión legacy no está disponible.
+     */
     private function resolveTypeIdByEventLocal(string $baseTypeName, string $eventKey): ?int
     {
         try {
@@ -411,6 +445,9 @@ class NotificationDispatchService
         }
     }
 
+    /**
+     * Descripción por defecto para un tipo de notificación según el evento.
+     */
     private function defaultTypeDescription(string $eventKey): string
     {
         return match ($eventKey) {
@@ -421,6 +458,9 @@ class NotificationDispatchService
         };
     }
 
+    /**
+     * Resuelve el event_key a partir del type_id de la notificación.
+     */
     private function resolveEventFromTypeId(int $typeId): ?string
     {
         $typeName = null;
@@ -471,6 +511,9 @@ class NotificationDispatchService
         return null;
     }
 
+    /**
+     * Normaliza el event_key permitiendo múltiples alias por idioma.
+     */
     private function normalizeEventKey(?string $eventKey): ?string
     {
         $normalized = Str::lower(trim((string) ($eventKey ?? '')));
@@ -487,6 +530,9 @@ class NotificationDispatchService
         };
     }
 
+    /**
+     * Verifica si el usuario tiene habilitadas las notificaciones push para un evento concreto.
+     */
     private function isEventEnabledForUser(string $userId, ?string $eventKey, int $typeId): bool
     {
         if ($eventKey === null) {
@@ -538,6 +584,10 @@ class NotificationDispatchService
         return (bool) ($preference->push_enabled ?? true);
     }
 
+    /**
+     * Verifica si el usuario tiene el canal email habilitado globalmente.
+     * Retorna true por defecto si no hay preferencias registradas.
+     */
     private function isGlobalEmailEnabledForUser(string $userId): bool
     {
         try {
@@ -575,6 +625,10 @@ class NotificationDispatchService
         return true;
     }
 
+    /**
+     * Resuelve el correo electrónico de un usuario.
+     * Usa el fallbackEmail si es válido, o lo busca en la base legacy.
+     */
     private function resolveUserEmail(string $userId, ?string $fallbackEmail): ?string
     {
         $candidate = trim((string) ($fallbackEmail ?? ''));
@@ -603,6 +657,9 @@ class NotificationDispatchService
         }
     }
 
+    /**
+     * Obtiene el nombre del usuario desde la base legacy.
+     */
     private function resolveUserName(string $userId): string
     {
         try {
@@ -622,6 +679,9 @@ class NotificationDispatchService
         }
     }
 
+    /**
+     * Envía el correo de notificación usando Mail::html con plantilla global.
+     */
     private function sendNotificationEmail(string $email, string $customerName, string $title, string $message, ?string $eventKey): bool
     {
         try {
@@ -644,6 +704,9 @@ class NotificationDispatchService
         }
     }
 
+    /**
+     * Construye el HTML del correo de notificación con diseño responsive y CTA.
+     */
     private function buildGlobalEmailHtml(string $customerName, string $title, string $message, ?string $eventKey): string
     {
         $safeName = e($customerName !== '' ? $customerName : 'Cliente');
@@ -713,6 +776,9 @@ class NotificationDispatchService
 HTML;
     }
 
+    /**
+     * Construye un resultado de omisión (skip) con la razón correspondiente.
+     */
     private function skipResult(string $userId, ?string $eventKey, string $reason): array
     {
         return [
@@ -726,6 +792,9 @@ HTML;
         ];
     }
 
+    /**
+     * Normaliza un valor a string nullable.
+     */
     private function nullableTrim(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));

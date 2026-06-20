@@ -1,0 +1,109 @@
+/* Estilos específicos de Métodos de envío; los comunes están en admin.css */
+.admin-shipping-methods-page .shipping-method-hero h3 {
+  font-size: 2.2rem;
+}
+
+.admin-shipping-methods-page .shipping-editor-hint {
+  margin: 0.4rem 0 0;
+  color: #5a6571;
+  font-size: 1.28rem;
+  line-height: 1.45;
+}
+
+/* Mock card: réplica del card de método en checkout */
+.admin-shipping-methods-page .shipping-method-mock-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.2rem;
+  padding: 1.2rem;
+  border-radius: 1.4rem;
+  border: 2px solid #d0d7de;
+  background: #fafbfc;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-card--active {
+  border-color: #0077b6;
+  background: #f0f8ff;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-icon {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
+  background: #e8f4fd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0077b6;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-copy h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-copy p {
+  margin: 0 0 0.45rem;
+  font-size: 1.22rem;
+  color: #5c6773;
+  line-height: 1.45;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #0077b6;
+  font-size: 1.18rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-breakdown {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.28rem;
+  font-size: 1.15rem;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-breakdown span {
+  color: #5c6773;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-breakdown__hint {
+  color: #0077b6 !important;
+  font-weight: 600;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-cost {
+  display: grid;
+  justify-items: end;
+  gap: 0.28rem;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-cost small {
+  color: #6b7280;
+  font-size: 1.02rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.admin-shipping-methods-page .shipping-method-mock-cost strong {
+  color: #0077b6;
+  font-size: 1.65rem;
+  font-weight: 700;
+}

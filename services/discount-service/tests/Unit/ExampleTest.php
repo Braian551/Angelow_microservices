@@ -2,8 +2,13 @@
 
 namespace Tests\Unit;
 
+// Comentario de mantenimiento: Esta prueba protege el comportamiento esperado del servicio.
+
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Esta prueba protege el comportamiento esperado del servicio.
+ */
 class ExampleTest extends TestCase
 {
     /**

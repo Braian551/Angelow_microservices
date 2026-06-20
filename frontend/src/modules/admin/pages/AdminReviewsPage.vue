@@ -105,10 +105,14 @@
 
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} reseñas`">
       <template #actions>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportReviews">
-          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-          Exportar
-        </button>
+        <AdminExportActions
+          tone="results"
+          :disabled="reviews.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportReviews('excel')"
+          @pdf="exportReviews('pdf')"
+        />
       </template>
     </AdminResultsBar>
 
@@ -195,7 +199,8 @@
 
     <AdminModal :show="showDetailModal" :title="selectedReview ? selectedReview.title || 'Detalle de reseña' : 'Detalle de reseña'" max-width="980px" @close="closeReviewModal">
       <template v-if="selectedReview">
-        <div class="review-detail-grid">
+        <div class="admin-reviews-page admin-reviews-page--modal">
+          <div class="review-detail-grid">
           <div>
             <AdminCard title="Contenido" icon="fas fa-message">
               <div class="review-customer review-customer--detail">
@@ -222,25 +227,54 @@
             </AdminCard>
 
             <AdminCard title="Acciones" icon="fas fa-bolt" style="margin-top: 1.2rem;">
-              <div class="modal-actions-stack">
-                <button class="btn btn-primary" type="button" @click="confirmReviewStatus(selectedReview, 'approved')">
+              <div class="modal-actions-grid">
+                <button
+                  class="modal-action-button modal-action-button--primary"
+                  type="button"
+                  @click="confirmReviewStatus(selectedReview, 'approved')"
+                >
                   <i class="fas fa-check"></i>
-                  Publicar
+                  <span class="modal-action-button__content">
+                    <strong>Publicar</strong>
+                    <small>Hace visible la reseña en el catálogo.</small>
+                  </span>
                 </button>
-                <button class="btn btn-secondary" type="button" @click="confirmReviewStatus(selectedReview, 'pending')">
+                <button
+                  class="modal-action-button modal-action-button--neutral"
+                  type="button"
+                  @click="confirmReviewStatus(selectedReview, 'pending')"
+                >
                   <i class="fas fa-rotate-left"></i>
-                  Enviar a revisión
+                  <span class="modal-action-button__content">
+                    <strong>Enviar a revisión</strong>
+                    <small>La devuelve a moderación antes de mostrarla.</small>
+                  </span>
                 </button>
-                <button class="btn btn-secondary" type="button" @click="toggleReviewVerified(selectedReview)">
+                <button
+                  class="modal-action-button modal-action-button--soft"
+                  type="button"
+                  @click="toggleReviewVerified(selectedReview)"
+                >
                   <i class="fas fa-circle-check"></i>
-                  {{ selectedReview.is_verified ? 'Quitar verificación' : 'Marcar verificada' }}
+                  <span class="modal-action-button__content">
+                    <strong>{{ selectedReview.is_verified ? 'Quitar verificación' : 'Marcar verificada' }}</strong>
+                    <small>Actualiza la compra verificada del cliente.</small>
+                  </span>
                 </button>
-                <button class="btn btn-danger" type="button" @click="deleteReview(selectedReview)">
+                <button
+                  class="modal-action-button modal-action-button--danger"
+                  type="button"
+                  @click="deleteReview(selectedReview)"
+                >
                   <i class="fas fa-trash"></i>
-                  Eliminar reseña
+                  <span class="modal-action-button__content">
+                    <strong>Eliminar reseña</strong>
+                    <small>Quita definitivamente este comentario del panel.</small>
+                  </span>
                 </button>
               </div>
             </AdminCard>
+          </div>
           </div>
         </div>
       </template>
@@ -253,16 +287,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { catalogHttp } from '../../../services/http'
-import { useAlertSystem } from '../../../composables/useAlertSystem'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import '../views/AdminReviewsPage.css'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
-import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from '../composables/useAdminCustomerProfiles'
-import { useAdminPagination } from '../composables/useAdminPagination'
+import { useAdminReviews } from '../composables/useAdminReviews'
 import AdminCard from '../components/AdminCard.vue'
 import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
@@ -271,171 +302,35 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
-const { showAlert } = useAlertSystem()
-const { showSnackbar } = useSnackbarSystem()
-
-const loading = ref(true)
-const showDetailModal = ref(false)
-const reviews = ref([])
-const customerProfiles = ref({})
-const selectedReviewId = ref(null)
-const filters = ref({
-  search: '',
-  status: 'all',
-  rating: '',
-  verified: 'all',
-})
-
-const selectedReview = computed(() => reviews.value.find((review) => review.id === selectedReviewId.value) || null)
-
-const pagination = useAdminPagination(reviews, {
-  initialPageSize: 8,
-  pageSizeOptions: [8, 16, 24],
-})
-
-const activeFilterCount = computed(() => {
-  let count = 0
-  if (filters.value.search.trim()) count++
-  if (filters.value.status !== 'all') count++
-  if (filters.value.rating) count++
-  if (filters.value.verified !== 'all') count++
-  return count
-})
-
-const ratingDistribution = computed(() => {
-  const total = reviews.value.length || 1
-  return [5, 4, 3, 2, 1].map((rating) => {
-    const count = reviews.value.filter((review) => review.rating === rating).length
-    return {
-      rating,
-      count,
-      share: reviews.value.length ? (count / total) * 100 : 0,
-    }
-  })
-})
-
-// Determina si el gráfico horizontal debe renderizarse o mostrar el estado vacío compartido.
-const hasRatingChartData = computed(() => ratingDistribution.value.some((bucket) => bucket.count > 0))
-
-// Mantiene una escala vertical estable para que la gráfica siga siendo legible incluso con pocas reseñas.
-const ratingChartMaxValue = computed(() => Math.max(2, ...ratingDistribution.value.map((bucket) => bucket.count + 1)))
-
-// Construye etiquetas humanas para reutilizar Chart.js sin duplicar formato dentro del template.
-const ratingChartLabels = computed(() => ratingDistribution.value.map((bucket) => `${bucket.rating} estrella${bucket.rating === 1 ? '' : 's'}`))
-
-// Arma el dataset del gráfico de rating con una sola fuente de verdad basada en la distribución calculada.
-const ratingChartDatasets = computed(() => ([
-  {
-    label: 'Reseñas',
-    data: ratingDistribution.value.map((bucket) => bucket.count),
-    backgroundColor: ['#0f88c2', '#2d9fd5', '#58b7e4', '#86ccee', '#b3e1f7'],
-    borderRadius: 999,
-    borderSkipped: false,
-    maxBarThickness: 22,
-  },
-]))
-
-// Reutiliza la lectura de porcentajes de la distribución para enriquecer el tooltip del gráfico.
-const ratingChartOptions = computed(() => ({
-  layout: {
-    padding: {
-      top: 8,
-      right: 10,
-      left: 6,
-      bottom: 0,
-    },
-  },
-  plugins: {
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      callbacks: {
-        label: (context) => {
-          const bucket = ratingDistribution.value[context.dataIndex]
-          return `${context.raw} reseñas (${bucket.share.toFixed(0)}%)`
-        },
-      },
-    },
-  },
-  scales: {
-    x: {
-      ticks: {
-        color: '#23314d',
-        font: {
-          size: 12,
-          weight: '600',
-        },
-      },
-      grid: {
-        display: false,
-        drawBorder: false,
-      },
-    },
-    y: {
-      beginAtZero: true,
-      suggestedMax: ratingChartMaxValue.value,
-      ticks: {
-        precision: 0,
-        color: '#6b7280',
-      },
-      grid: {
-        color: 'rgba(148, 184, 216, 0.18)',
-        drawBorder: false,
-      },
-    },
-  },
-}))
-
-const highlightReviews = computed(() => reviews.value.slice(0, 6))
-
-const reviewStats = computed(() => {
-  const total = reviews.value.length
-  const approved = reviews.value.filter((review) => review.status === 'approved').length
-  const pending = total - approved
-  const verified = reviews.value.filter((review) => review.is_verified).length
-  const average = total > 0 ? (reviews.value.reduce((sum, review) => sum + review.rating, 0) / total).toFixed(1) : '0.0'
-
-  return [
-    { key: 'pending', label: 'Pendientes', value: String(pending), icon: 'fas fa-clock', color: 'warning' },
-    { key: 'approved', label: 'Publicadas', value: String(approved), icon: 'fas fa-check-circle', color: 'success' },
-    { key: 'average', label: 'Rating promedio', value: average, icon: 'fas fa-star', color: 'info' },
-    { key: 'verified', label: 'Verificadas', value: String(verified), icon: 'fas fa-circle-check', color: 'primary' },
-    { key: 'total', label: 'Total reseñas', value: String(total), icon: 'fas fa-comments', color: 'primary' },
-  ]
-})
-
-function normalizeReviewStatus(review) {
-  if (review.status) {
-    return review.status
-  }
-
-  return review.is_approved ? 'approved' : 'pending'
-}
-
-function normalizeReview(review) {
-  const profile = resolveAdminCustomerProfile(customerProfiles.value, review.user_id)
-
-  return {
-    ...review,
-    id: Number(review.id),
-    user_id: String(review.user_id || ''),
-    rating: Number(review.rating || 0),
-    title: review.title || '',
-    comment: review.comment || review.body || '',
-    is_verified: Boolean(review.is_verified),
-    is_approved: Boolean(review.is_approved),
-    status: normalizeReviewStatus(review),
-    product_name: review.product_name || review.product?.name || 'Producto',
-    created_at: review.created_at || null,
-    customer: {
-      id: String(review.user_id || ''),
-      name: profile?.name || `Cliente ${review.user_id || ''}`,
-      email: profile?.email || '',
-      image: profile?.image || '',
-    },
-  }
-}
+const {
+  activeFilterCount,
+  clearAllFilters,
+  closeReviewModal,
+  confirmReviewStatus,
+  debouncedLoadReviews,
+  deleteReview,
+  exportReviews,
+  exportingFormat,
+  filters,
+  formatDate,
+  formatDateTime,
+  hasRatingChartData,
+  highlightReviews,
+  loadReviews,
+  loading,
+  openReviewModal,
+  pagination,
+  ratingChartDatasets,
+  ratingChartLabels,
+  ratingChartOptions,
+  renderStars,
+  reviews,
+  reviewStats,
+  reviewStatusLabel,
+  selectedReview,
+  showDetailModal,
+  toggleReviewVerified,
+} = useAdminReviews()
 
 function avatarUrl(customer) {
   return resolveMediaUrl(customer?.image, 'avatar')
@@ -444,382 +339,4 @@ function avatarUrl(customer) {
 function onAvatarError(event, originalPath) {
   handleMediaError(event, originalPath, 'avatar')
 }
-
-function reviewStatusLabel(status) {
-  return status === 'approved' ? 'Publicada' : 'Pendiente'
-}
-
-function formatDate(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es-CO')
-}
-
-function formatDateTime(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleString('es-CO')
-}
-
-function renderStars(rating) {
-  return Array.from({ length: 5 }, (_, index) => {
-    const filled = index < rating
-    return `<i class="${filled ? 'fas' : 'far'} fa-star"></i>`
-  }).join('')
-}
-
-function clearAllFilters() {
-  filters.value = {
-    search: '',
-    status: 'all',
-    rating: '',
-    verified: 'all',
-  }
-  loadReviews()
-}
-
-let debounceTimer = null
-function debouncedLoadReviews() {
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    loadReviews()
-  }, 350)
-}
-
-async function loadReviews() {
-  loading.value = true
-
-  try {
-    const params = {}
-    if (filters.value.search.trim()) params.search = filters.value.search.trim()
-    if (filters.value.status !== 'all') params.status = filters.value.status
-    if (filters.value.rating) params.rating = filters.value.rating
-    if (filters.value.verified !== 'all') params.verified = String(filters.value.verified === 'verified')
-
-    const response = await catalogHttp.get('/admin/reviews', { params })
-    const payload = response.data?.data || response.data || []
-    const rows = Array.isArray(payload) ? payload : (payload.data || [])
-    customerProfiles.value = await loadAdminCustomerProfiles(rows.map((row) => row.user_id).filter(Boolean))
-    reviews.value = rows.map(normalizeReview)
-  } catch {
-    showSnackbar({ type: 'error', message: 'Error cargando reseñas' })
-  } finally {
-    loading.value = false
-  }
-}
-
-function openReviewModal(review) {
-  selectedReviewId.value = review.id
-  showDetailModal.value = true
-}
-
-function closeReviewModal() {
-  showDetailModal.value = false
-}
-
-function confirmReviewStatus(review, status) {
-  showAlert({
-    type: 'warning',
-    title: 'Actualizar reseña',
-    message: status === 'approved'
-      ? `¿Deseas publicar la reseña de ${review.customer.name}?`
-      : `¿Deseas devolver la reseña de ${review.customer.name} a revisión?`,
-    actions: [
-      { text: 'Cancelar', style: 'secondary' },
-      {
-        text: status === 'approved' ? 'Publicar' : 'Enviar a revisión',
-        style: 'primary',
-        callback: async () => {
-          try {
-            await catalogHttp.patch(`/admin/reviews/${review.id}`, { status })
-            showSnackbar({ type: 'success', message: 'Reseña actualizada' })
-            await loadReviews()
-          } catch {
-            showSnackbar({ type: 'error', message: 'Error actualizando la reseña' })
-          }
-        },
-      },
-    ],
-  })
-}
-
-function toggleReviewVerified(review) {
-  const targetValue = !review.is_verified
-
-  showAlert({
-    type: 'warning',
-    title: targetValue ? 'Marcar compra verificada' : 'Quitar verificación',
-    message: targetValue
-      ? `¿Deseas marcar como verificada la reseña de ${review.customer.name}?`
-      : `¿Deseas quitar la verificación de la reseña de ${review.customer.name}?`,
-    actions: [
-      { text: 'Cancelar', style: 'secondary' },
-      {
-        text: targetValue ? 'Verificar' : 'Quitar',
-        style: 'primary',
-        callback: async () => {
-          try {
-            await catalogHttp.patch(`/admin/reviews/${review.id}`, { is_verified: targetValue })
-            showSnackbar({ type: 'success', message: 'Verificación actualizada' })
-            await loadReviews()
-          } catch {
-            showSnackbar({ type: 'error', message: 'Error actualizando la verificación' })
-          }
-        },
-      },
-    ],
-  })
-}
-
-function deleteReview(review) {
-  showAlert({
-    type: 'warning',
-    title: 'Eliminar reseña',
-    message: `¿Deseas eliminar la reseña de ${review.customer.name}? Esta acción no se puede deshacer.`,
-    actions: [
-      { text: 'Cancelar', style: 'secondary' },
-      {
-        text: 'Eliminar',
-        style: 'primary',
-        callback: async () => {
-          try {
-            await catalogHttp.delete(`/admin/reviews/${review.id}`)
-            showSnackbar({ type: 'success', message: 'Reseña eliminada' })
-            if (selectedReviewId.value === review.id) {
-              closeReviewModal()
-            }
-            await loadReviews()
-          } catch {
-            showSnackbar({ type: 'error', message: 'Error eliminando la reseña' })
-          }
-        },
-      },
-    ],
-  })
-}
-
-function exportReviews() {
-  if (reviews.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay reseñas para exportar' })
-    return
-  }
-
-  const rows = [['Cliente', 'Producto', 'Rating', 'Estado', 'Verificada', 'Fecha', 'Comentario']]
-  reviews.value.forEach((review) => {
-    rows.push([
-      `"${review.customer.name.replace(/"/g, '""')}"`,
-      `"${review.product_name.replace(/"/g, '""')}"`,
-      review.rating,
-      `"${reviewStatusLabel(review.status)}"`,
-      `"${review.is_verified ? 'Si' : 'No'}"`,
-      `"${formatDateTime(review.created_at)}"`,
-      `"${(review.comment || '').replace(/"/g, '""')}"`,
-    ])
-  })
-
-  const csv = rows.map((row) => row.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'resenas.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Reseñas exportadas correctamente' })
-}
-
-onMounted(loadReviews)
 </script>
-
-<style scoped>
-/* Estilos específicos de Reseñas — los comunes están en admin.css */
-
-.review-card__header,
-.review-card__footer,
-.review-customer,
-.review-badges,
-.rating-label,
-.highlight-item,
-.highlight-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.review-card__header,
-.review-card__footer,
-.highlight-item {
-  justify-content: space-between;
-}
-
-.review-card__content h3,
-.review-detail-title {
-  margin: 0;
-}
-
-.insights-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.modal-actions-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.highlights-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.highlight-item {
-  width: 100%;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-bg);
-  cursor: pointer;
-  text-align: left;
-}
-
-.highlight-item__info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.highlight-item__name {
-  color: var(--admin-text-heading);
-  font-size: 1.28rem;
-  font-weight: 700;
-}
-
-.highlight-item__product {
-  color: var(--admin-text-light);
-  font-size: 1.18rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 22rem;
-}
-
-.highlight-item span,
-.highlight-item small {
-  color: var(--admin-text-light);
-}
-
-.cards-loading {
-  padding: 1.5rem;
-}
-
-.reviews-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.1rem;
-  padding: 1.5rem;
-}
-
-.review-card--admin {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  border: 1px solid var(--admin-border-soft);
-  border-radius: var(--admin-radius-xl);
-  padding: 1.15rem;
-  background: var(--admin-bg);
-}
-
-.review-card--admin:hover {
-  box-shadow: var(--admin-shadow-hover);
-}
-
-.review-customer img {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 50%;
-  object-fit: cover;
-  background: var(--admin-bg-dark);
-}
-
-.review-customer div,
-.review-customer--detail div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.review-customer span,
-.review-card__footer small,
-.review-detail-comment {
-  color: var(--admin-text-light);
-}
-
-.review-card__content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  cursor: pointer;
-}
-
-.review-card__content p,
-.review-detail-comment {
-  margin: 0;
-  line-height: 1.55;
-}
-
-.review-card__rating,
-.stars-inline {
-  display: inline-flex;
-  gap: 0.2rem;
-  color: var(--admin-star);
-}
-
-.review-card__rating--detail {
-  margin-top: 1rem;
-}
-
-.review-detail-grid {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 1.5rem;
-}
-
-.review-customer--detail {
-  align-items: flex-start;
-}
-
-.review-customer--detail img {
-  width: 5rem;
-  height: 5rem;
-}
-
-.review-detail-title {
-  font-size: 1.35rem;
-  font-weight: 700;
-}
-
-.detail-empty {
-  color: var(--admin-text-light);
-  padding: 0.6rem 0;
-}
-
-@media (max-width: 980px) {
-  .reviews-grid,
-  .insights-grid,
-  .review-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .review-card__header,
-  .review-card__footer,
-  .highlight-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-</style>

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+// Comentario de mantenimiento: Este servicio concentra reglas de negocio para que los controladores no dupliquen lógica.
+
 use App\Models\InventoryAlert;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -10,12 +12,19 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
+/**
+ * Agrupa reglas de negocio reutilizables para mantener controladores delgados.
+ */
 class InventoryAlertService
 {
     private const STATUS_OUT = 'out';
     private const STATUS_RESOLVED = 'resolved';
     private const EMAIL_INITIAL = 'initial';
     private const EMAIL_REMINDER = 'reminder';
+
+    /**
+     * Actualiza el estado de alerta de una variante según disponibilidad real de stock.
+     */
 
     public function syncVariantState(int $variantId, int $availableStock, bool $allowInitialEmail = true): void
     {
@@ -77,6 +86,10 @@ class InventoryAlertService
         $alert->save();
     }
 
+    /**
+     * Explica la intención de reconcileCurrentInventory dentro del flujo del servicio.
+     */
+
     public function reconcileCurrentInventory(bool $allowInitialEmails = true): array
     {
         if (!Schema::hasTable('product_size_variants')) {
@@ -121,6 +134,10 @@ class InventoryAlertService
             'out_of_stock' => $outOfStock,
         ];
     }
+
+    /**
+     * Explica la intención de dispatchReminderEmails dentro del flujo del servicio.
+     */
 
     public function dispatchReminderEmails(bool $dryRun = false): array
     {
@@ -188,6 +205,10 @@ class InventoryAlertService
         ];
     }
 
+    /**
+     * Explica la intención de fillAlertSnapshot dentro del flujo del servicio.
+     */
+
     private function fillAlertSnapshot(InventoryAlert $alert, array $context, int $stock): void
     {
         $alert->fill([
@@ -199,6 +220,10 @@ class InventoryAlertService
             'stock' => $stock,
         ]);
     }
+
+    /**
+     * Carga datos de producto y variante necesarios para mensajes de inventario.
+     */
 
     private function resolveVariantContext(int $variantId): ?array
     {
@@ -258,6 +283,10 @@ class InventoryAlertService
         ];
     }
 
+    /**
+     * Resuelve la primera columna disponible entre candidatos para soportar esquemas migrados o parciales.
+     */
+
     private function firstExistingColumn(string $table, array $candidates): ?string
     {
         if (!Schema::hasTable($table)) {
@@ -273,16 +302,28 @@ class InventoryAlertService
         return null;
     }
 
+    /**
+     * Explica la intención de normalizeNullableString dentro del flujo del servicio.
+     */
+
     private function normalizeNullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));
         return $normalized !== '' ? $normalized : null;
     }
 
+    /**
+     * Explica la intención de shouldSendInitialEmail dentro del flujo del servicio.
+     */
+
     private function shouldSendInitialEmail(): bool
     {
         return (bool) config('inventory.send_initial_email', true);
     }
+
+    /**
+     * Explica la intención de sendAlertEmail dentro del flujo del servicio.
+     */
 
     private function sendAlertEmail(InventoryAlert $alert, string $type): bool
     {
@@ -315,6 +356,10 @@ class InventoryAlertService
             return false;
         }
     }
+
+    /**
+     * Explica la intención de buildEmailViewData dentro del flujo del servicio.
+     */
 
     private function buildEmailViewData(InventoryAlert $alert, string $type): array
     {
@@ -359,6 +404,10 @@ class InventoryAlertService
         ];
     }
 
+    /**
+     * Explica la intención de formatVariantLabel dentro del flujo del servicio.
+     */
+
     private function formatVariantLabel(InventoryAlert $alert): string
     {
         $parts = array_values(array_filter([
@@ -372,6 +421,10 @@ class InventoryAlertService
         return $sku !== '' ? "{$base} · SKU {$sku}" : $base;
     }
 
+    /**
+     * Explica la intención de formatBogotaDate dentro del flujo del servicio.
+     */
+
     private function formatBogotaDate(?Carbon $date): string
     {
         if ($date === null) {
@@ -380,6 +433,10 @@ class InventoryAlertService
 
         return $date->translatedFormat('d/m/Y h:i A');
     }
+
+    /**
+     * Explica la intención de resolveRecipients dentro del flujo del servicio.
+     */
 
     private function resolveRecipients(): array
     {
@@ -397,6 +454,10 @@ class InventoryAlertService
 
         return array_values($emails);
     }
+
+    /**
+     * Explica la intención de inventoryAdminUrl dentro del flujo del servicio.
+     */
 
     private function inventoryAdminUrl(): string
     {

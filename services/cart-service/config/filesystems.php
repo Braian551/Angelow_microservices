@@ -1,15 +1,26 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de sistemas de archivos (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define los discos de almacenamiento: local (privado), public
+| (accesible vía web) y S3 (cloud). El cart-service no almacena
+| archivos directamente; los datos de productos e imágenes se
+| obtienen del catalog-service bajo demanda.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Filesystem Disk
+    | Disco predeterminado
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default filesystem disk that should be used
-    | by the framework. The "local" disk, as well as a variety of cloud
-    | based disks are available to your application for file storage.
+    | Define el disco que se usará por defecto en las operaciones de
+    | almacenamiento si no se especifica otro explícitamente.
     |
     */
 

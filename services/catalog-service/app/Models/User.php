@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+// Comentario de mantenimiento: Este modelo define la relación del dominio con su tabla y sus campos persistibles.
+
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Este modelo define la relación del dominio con su tabla y sus campos persistibles.
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */

@@ -34,6 +34,7 @@ import AdminCustomersPage from '../modules/admin/pages/AdminCustomersPage.vue'
 import AdminReviewsPage from '../modules/admin/pages/AdminReviewsPage.vue'
 import AdminQuestionsPage from '../modules/admin/pages/AdminQuestionsPage.vue'
 import AdminPaymentsPage from '../modules/admin/pages/AdminPaymentsPage.vue'
+import AdminRefundsPage from '../modules/admin/pages/AdminRefundsPage.vue'
 import AdminInvoicesPage from '../modules/admin/pages/AdminInvoicesPage.vue'
 import AdminShippingRulesPage from '../modules/admin/pages/AdminShippingRulesPage.vue'
 import AdminShippingMethodsPage from '../modules/admin/pages/AdminShippingMethodsPage.vue'
@@ -136,6 +137,7 @@ const router = createRouter({
         { path: 'preguntas', name: 'admin-questions', component: AdminQuestionsPage },
         // Pagos
         { path: 'pagos', name: 'admin-payments', component: AdminPaymentsPage },
+        { path: 'reembolsos', name: 'admin-refunds', component: AdminRefundsPage },
         { path: 'facturas', name: 'admin-invoices', component: AdminInvoicesPage },
         // Envios
         { path: 'envios/reglas', name: 'admin-shipping-rules', component: AdminShippingRulesPage },

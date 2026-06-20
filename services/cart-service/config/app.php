@@ -1,17 +1,20 @@
 <?php
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Configuración general de la aplicación (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define nombre, entorno, zona horaria, locale y clave de cifrado
+| del servicio de carrito de compras. Los valores se obtienen de .env
+| y pueden sobrescribirse por entorno (local, staging, producción).
+|
+| El cart-service opera como API y se comunica con catalog-service
+| para obtener datos de productos y variantes bajo demanda.
+|
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Application Name
-    |--------------------------------------------------------------------------
-    |
-    | This value is the name of your application, which will be used when the
-    | framework needs to place the application's name in a notification or
-    | other UI elements where an application name needs to be displayed.
-    |
-    */
+return [
 
     'name' => env('APP_NAME', 'Laravel'),
 

@@ -2,7 +2,7 @@
     "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Servicio de auditoría de Angelow Microservicios. Registra y expone eventos de las tablas audit_login, audit_products, audit_orders, audit_customers, audit_reviews. Solo lectura (GET) desde los microservicios. Usa Laravel 12 con PostgreSQL y Redis.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

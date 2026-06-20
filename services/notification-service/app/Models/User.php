@@ -7,13 +7,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Modelo de usuario para el servicio de notificaciones.
+ * Extiende Authenticatable para soporte de autenticación local si es necesario,
+ * aunque la autenticación real se delega al auth-service.
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
+     * Atributos asignables masivamente.
      *
      * @var list<string>
      */
@@ -24,7 +29,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * Atributos ocultos en serialización.
      *
      * @var list<string>
      */
@@ -34,7 +39,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * Castings de atributos a tipos nativos.
      *
      * @return array<string, string>
      */

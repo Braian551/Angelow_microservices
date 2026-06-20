@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+// Comentario de mantenimiento: Este controlador expone endpoints HTTP y delega la lógica de negocio al dominio correspondiente.
+
 use App\Services\WishlistService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,10 @@ use Throwable;
 class WishlistController extends Controller
 {
     private const LEGACY_CONNECTION = 'legacy_mysql';
+
+    /**
+     * Explica la intención de __construct dentro del flujo del servicio.
+     */
 
     public function __construct(
         private readonly WishlistService $wishlistService,
@@ -173,6 +179,10 @@ class WishlistController extends Controller
             return null;
         }
     }
+
+    /**
+     * Normaliza valores opcionales a cadenas limpias o null.
+     */
 
     private function nullableString(mixed $value): ?string
     {

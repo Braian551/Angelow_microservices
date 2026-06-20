@@ -5,15 +5,27 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Valida la entrada para restablecer contraseña con token de recuperación.
+ * Valida la entrada para restablecer la contraseña.
+ *
+ * Recibe session_token (emitido tras verificar el código),
+ * password y password_confirmation. La validación de fortaleza
+ * de contraseña (8-64 caracteres) se hace tanto aquí como en
+ * el servicio para doble seguridad.
  */
 class PasswordRecoveryResetRequest extends FormRequest
 {
+    /**
+     * Autoriza la petición (pública, pero requiere session_token válido).
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Reglas: session_token obligatorio (mín 32 chars),
+     * password entre 8 y 64 caracteres con confirmación.
+     */
     public function rules(): array
     {
         return [
@@ -22,6 +34,9 @@ class PasswordRecoveryResetRequest extends FormRequest
         ];
     }
 
+    /**
+     * Mensajes de error personalizados en español.
+     */
     public function messages(): array
     {
         return [

@@ -206,8 +206,8 @@
 
                     <input
                       :value="entry.item.quantity"
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputmode="numeric"
                       :max="entry.availability.maxQuantity"
                       class="cart-quantity-input"
                       :disabled="isItemBusy(entry.itemId) || entry.availability.soldOut"
@@ -314,9 +314,11 @@ import CheckoutValidationAlert from '../../../modules/checkout/components/Checko
 import CheckoutShimmer from '../../../modules/checkout/components/CheckoutShimmer.vue'
 import { useAppShell } from '../../../composables/useAppShell'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { useStockRealtime } from '../../../composables/useStockRealtime'
 import { useSession } from '../../../composables/useSession'
 import { getCart, removeCartItem, updateCartItem } from '../../../services/cartApi'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+import { numericValidationMessages, validatePositiveInteger } from '../../../utils/numericValidation'
 import {
   buildCartSelectionSummary,
   resolveCartItemAvailability,
@@ -348,8 +350,13 @@ const busyItemIds = ref({})
 const inlineFeedback = ref({})
 
 const inlineFeedbackTimers = new Map()
+let realtimeCartSyncTimerId = null
+let realtimeCartSyncInFlight = false
 
 const rawCartItems = computed(() => (Array.isArray(cart.value?.items) ? cart.value.items : []))
+const cartVariantIds = computed(() => rawCartItems.value
+  .map((item) => Number(item?.size_variant_id || item?.variant_id || 0))
+  .filter((variantId) => Number.isFinite(variantId) && variantId > 0))
 const selectionState = computed(() => buildCartSelectionSummary(rawCartItems.value, selectionMap.value))
 const cartEntries = computed(() => selectionState.value.entries)
 const selectedSubtotal = computed(() => selectionState.value.selectedSubtotal)
@@ -406,7 +413,15 @@ async function loadCart() {
 
 async function onQuantityChange(item) {
   const itemId = Number(item?.item_id || 0)
-  const nextQuantity = Math.max(1, Math.min(Number.parseInt(item.quantity, 10) || 1, maxQuantityForItem(item)))
+  if (isItemBusy(itemId)) return
+
+  const quantityResult = validatePositiveInteger(item.quantity)
+  if (!quantityResult.valid) {
+    showInlineFeedback(itemId, numericValidationMessages.positiveInteger, { tone: 'danger' })
+    return
+  }
+
+  const nextQuantity = Math.max(1, Math.min(quantityResult.value, maxQuantityForItem(item)))
   item.quantity = nextQuantity
   setBusyState(itemId, true)
 
@@ -437,8 +452,13 @@ function onQuantityInput(item, event) {
   }
 
   const currentQuantity = Math.max(1, Number(item?.quantity || 1))
-  const parsedQuantity = Number.parseInt(event?.target?.value, 10)
-  const desiredQuantity = Number.isFinite(parsedQuantity) ? parsedQuantity : currentQuantity
+  const quantityResult = validatePositiveInteger(event?.target?.value)
+  if (!quantityResult.valid) {
+    showInlineFeedback(itemId, numericValidationMessages.positiveInteger, { tone: 'danger' })
+    return
+  }
+
+  const desiredQuantity = quantityResult.value
   const normalizedQuantity = Math.max(1, Math.min(desiredQuantity, maxQuantityForItem(item)))
 
   if (desiredQuantity > maxQuantityForItem(item)) {
@@ -722,8 +742,46 @@ function extractErrorMessage(error, fallback) {
   return fallback
 }
 
+function scheduleRealtimeCartSync() {
+  if (realtimeCartSyncTimerId) {
+    window.clearTimeout(realtimeCartSyncTimerId)
+  }
+
+  realtimeCartSyncTimerId = window.setTimeout(async () => {
+    realtimeCartSyncTimerId = null
+
+    if (realtimeCartSyncInFlight) {
+      scheduleRealtimeCartSync()
+      return
+    }
+
+    realtimeCartSyncInFlight = true
+
+    try {
+      await syncCartState()
+    } catch {
+      errorMessage.value = 'No se pudo sincronizar el carrito en tiempo real.'
+    } finally {
+      realtimeCartSyncInFlight = false
+    }
+  }, 260)
+}
+
+useStockRealtime((message) => {
+  const hasRelevantVariant = message.variantIds.some((variantId) => cartVariantIds.value.includes(variantId))
+  if (!hasRelevantVariant) {
+    return
+  }
+
+  scheduleRealtimeCartSync()
+})
+
 onMounted(loadCart)
 onUnmounted(() => {
+  if (realtimeCartSyncTimerId) {
+    window.clearTimeout(realtimeCartSyncTimerId)
+  }
+
   for (const timeoutId of inlineFeedbackTimers.values()) {
     window.clearTimeout(timeoutId)
   }
@@ -1686,17 +1744,25 @@ onUnmounted(() => {
   }
 
   .cart-page-steps {
-    gap: 0.5rem;
+    gap: 0.35rem;
+    width: 100%;
   }
 
   .cart-page-step p {
     font-size: 1.05rem;
+    text-align: center;
+    line-height: 1.2;
   }
 
   .cart-selection-toolbar,
   .cart-order-box {
     padding-left: 1.2rem;
     padding-right: 1.2rem;
+  }
+
+  .cart-selection-toolbar {
+    padding-top: 1.3rem;
+    padding-bottom: 1.3rem;
   }
 
   /* Layout ML-style: [checkbox] [imagen+info] [eliminar] en la misma fila */
@@ -1739,13 +1805,30 @@ onUnmounted(() => {
     margin-bottom: 0.5rem;
   }
 
+  .cart-item-copy {
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .cart-item-variants,
+  .cart-item-stock-badges {
+    gap: 0.55rem;
+  }
+
   /* Ocultar etiquetas data-label en móvil para diseño más limpio */
   .cart-data-cell::before {
     display: none;
   }
 
+  .cart-data-cell {
+    padding: 0.95rem 1rem;
+    border-radius: 1.2rem;
+    background: #f8fbff;
+  }
+
   .cart-item-price {
     text-align: left;
+    padding-top: 0.1rem;
     font-size: 1.3rem;
     font-weight: 500;
     color: #666666;
@@ -1763,6 +1846,11 @@ onUnmounted(() => {
   }
 
   /* Controles de cantidad más compactos en móvil */
+  .cart-quantity-box {
+    width: min(100%, 15rem);
+    justify-content: space-between;
+  }
+
   .cart-quantity-btn {
     width: 3rem;
     height: 3rem;
@@ -1781,6 +1869,7 @@ onUnmounted(() => {
 
   .cart-order-row {
     font-size: 1.4rem;
+    align-items: center;
   }
 
   .cart-order-row--total {

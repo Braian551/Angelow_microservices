@@ -2,17 +2,30 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de bases de datos del servicio de carrito
+|--------------------------------------------------------------------------
+|
+| Define las conexiones disponibles: PostgreSQL (principal), MySQL,
+| MariaDB, SQLite y SQL Server. La conexión activa se define en .env
+| mediante DB_CONNECTION. También incluye configuración de Redis para
+| caché y colas.
+|
+| El cart-service usa PostgreSQL como base principal (angelow_cart)
+| con las tablas de dominio carts y cart_items.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Database Connection Name
+    | Conexión de base de datos predeterminada
     |--------------------------------------------------------------------------
     |
-    | Here you may specify which of the database connections below you wish
-    | to use as your default connection for database operations. This is
-    | the connection which will be utilized unless another connection
-    | is explicitly specified when you execute a query / statement.
+    | Define qué conexión se usará por defecto en las operaciones de
+    | base de datos si no se especifica otra explícitamente.
     |
     */
 

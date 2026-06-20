@@ -1,17 +1,21 @@
 <?php
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Configuración de autenticación (cart-service)
+|--------------------------------------------------------------------------
+|
+| Define guards y providers para autenticación. El cart-service no
+| gestiona autenticación directamente; los usuarios se identifican
+| por user_id (string) recibido desde el frontend, que previamente
+| fue autenticado por auth-service.
+|
+| El modelo User se sincroniza con la misma estructura que auth-service
+| para mantener compatibilidad en relaciones.
+|
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication Defaults
-    |--------------------------------------------------------------------------
-    |
-    | This option defines the default authentication "guard" and password
-    | reset "broker" for your application. You may change these values
-    | as required, but they're a perfect start for most applications.
-    |
-    */
+return [
 
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),

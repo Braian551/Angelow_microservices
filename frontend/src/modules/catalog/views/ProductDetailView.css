@@ -627,6 +627,11 @@
   -moz-appearance: textfield;
 }
 
+.product-detail-page #product-quantity.is-invalid {
+  border-color: var(--error-color);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
 .product-detail-page #product-quantity::-webkit-outer-spin-button,
 .product-detail-page #product-quantity::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -722,6 +727,10 @@
   font-size: 1.4rem;
   font-weight: 600;
   color: var(--primary-color);
+}
+
+.product-detail-page .status-message--error {
+  color: var(--error-color);
 }
 
 .product-detail-page .shipping-info {
@@ -1121,8 +1130,35 @@
 }
 
 @media (max-width: 768px) {
+  /* Reduce gutters y estabiliza la composición para que la galería no empuje el resto del contenido. */
   .product-detail-page .section-container {
-    padding: 0 1.5rem 2rem;
+    padding: 0 1rem 1.8rem;
+  }
+
+  .product-detail-page .product-main-section {
+    gap: 2rem;
+  }
+
+  .product-detail-page .gallery-main {
+    aspect-ratio: 1 / 1.12;
+  }
+
+  .product-detail-page .gallery-main img {
+    object-fit: contain;
+    background: #ffffff;
+  }
+
+  .product-detail-page .thumbnails-track {
+    gap: 0.8rem;
+    padding: 0.2rem 0.1rem 0.5rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .product-detail-page .thumb-item {
+    width: 74px;
+    height: 74px;
+    flex: 0 0 74px;
+    scroll-snap-align: start;
   }
 
   .product-detail-page .product-detail-shimmer__button,
@@ -1137,34 +1173,79 @@
   }
 
   .product-detail-page .back-button {
-    width: 100%;
+    width: auto;
+    min-width: 14rem;
+    padding-inline: 2rem;
   }
 
+  .product-detail-page .product-actions {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .product-detail-page .quantity-selector {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  /* Reparte mejor CTA principal, compra inmediata y favorito sin dejar una fila rota. */
   .product-detail-page .action-buttons {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: stretch;
   }
 
+  .product-detail-page .btn-primary {
+    grid-column: 1 / -1;
+  }
+
   .product-detail-page .btn-primary,
-  .product-detail-page .btn-secondary,
-  .product-detail-page .wishlist-btn {
+  .product-detail-page .btn-secondary {
     width: 100%;
-    min-width: 100%;
+    min-width: 0;
+    min-height: 4.8rem;
     height: auto;
+  }
+
+  .product-detail-page .wishlist-btn {
+    width: 4.8rem;
+    min-width: 4.8rem;
+    height: 4.8rem;
+    padding: 0;
   }
 
   .product-detail-page .product-description h3 {
     font-size: 2.2rem;
   }
 
+  .product-detail-page .detail-tabs-header {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.9rem;
+    scrollbar-width: thin;
+  }
+
   .product-detail-page .detail-tab-btn {
     font-size: 1.4rem;
     padding: 0.9rem 1.2rem;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    border-radius: 999px;
   }
 
   .product-detail-page .detail-spec-item {
     grid-template-columns: 1fr;
     gap: 0.5rem;
+  }
+
+  .product-detail-page .questions-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .product-detail-page .tab-action-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .product-detail-page .detail-review-head,
@@ -1176,6 +1257,47 @@
 
   .product-detail-page .detail-image-modal {
     padding: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-detail-page .section-container {
+    padding: 0 0.85rem 1.5rem;
+  }
+
+  .product-detail-page .back-button-container {
+    margin: 1rem 0 1.3rem !important;
+  }
+
+  .product-detail-page .back-button {
+    min-height: 4.2rem;
+    min-width: 0;
+    font-size: 1.35rem;
+  }
+
+  .product-detail-page .product-title {
+    font-size: 2.15rem;
+  }
+
+  .product-detail-page .current-price {
+    font-size: 2.8rem;
+  }
+
+  .product-detail-page .quantity-selector {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .product-detail-page .action-buttons {
+    grid-template-columns: 1fr 4.8rem;
+  }
+
+  .product-detail-page .detail-tabs-content,
+  .product-detail-page .review-card,
+  .product-detail-page .question-item,
+  .product-detail-page .answer-item {
+    padding-left: 1.2rem;
+    padding-right: 1.2rem;
   }
 }
 

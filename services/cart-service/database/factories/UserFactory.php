@@ -7,17 +7,21 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
+ * Fábrica de usuarios para pruebas del cart-service.
+ * Genera instancias del modelo User con datos realistas para
+ * entornos de desarrollo y pruebas automatizadas.
+ *
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
  */
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * Contraseña compartida entre todas las instancias de la fábrica.
      */
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
+     * Define los valores por defecto para un nuevo usuario.
      *
      * @return array<string, mixed>
      */
@@ -33,7 +37,7 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Marca el email del usuario como no verificado.
      */
     public function unverified(): static
     {

@@ -1,0 +1,10 @@
+/* Estilos específicos de Colecciones; los comunes están en admin.css */
+@media (max-width: 768px) {
+  .admin-collections-page .admin-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-collections-page .admin-entity-filters__form {
+    grid-template-columns: 1fr;
+  }
+}

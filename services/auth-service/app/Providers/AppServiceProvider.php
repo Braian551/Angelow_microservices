@@ -4,10 +4,17 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Proveedor de servicios principal del auth-service.
+ *
+ * Aquí se registran binding y bootstrapping general del contenedor
+ * de Laravel. Actualmente no requiere lógica personalizada adicional
+ * porque los bindings de repositorios están en RepositoryServiceProvider.
+ */
 class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Registra servicios en el contenedor de la aplicación.
      */
     public function register(): void
     {
@@ -15,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Bootstrap any application services.
+     * Bootstrapping posterior al registro de todos los proveedores.
      */
     public function boot(): void
     {

@@ -44,4 +44,8 @@ return [
         'base_url' => env('NOTIFICATION_SERVICE_URL', 'http://notification-service:8000/api'),
     ],
 
+    'stock_realtime' => [
+        'ws_channel' => env('STOCK_WS_CHANNEL', 'ws:orders:stock'),
+    ],
+
 ];

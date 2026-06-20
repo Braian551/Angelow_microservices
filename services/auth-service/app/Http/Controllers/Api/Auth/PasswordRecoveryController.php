@@ -11,7 +11,11 @@ use App\Services\PasswordRecoveryService;
 use Illuminate\Http\JsonResponse;
 
 /**
- * Controlador de recuperación de contraseña.
+ * Controlador del flujo de recuperación de contraseña.
+ *
+ * Expone 4 endpoints públicos que orquestan el ciclo completo:
+ * solicitar código, reenviar, verificar y restablecer contraseña.
+ * Centraliza el manejo de errores AuthException via handleAction().
  */
 class PasswordRecoveryController extends Controller
 {
@@ -20,7 +24,10 @@ class PasswordRecoveryController extends Controller
     ) {}
 
     /**
+     * Solicita un código de recuperación para el correo/teléfono dado.
+     *
      * POST /api/auth/password-recovery/request-code
+     * Recibe: identifier (email o teléfono)
      */
     public function requestCode(PasswordRecoveryCodeRequest $request): JsonResponse
     {
@@ -39,7 +46,10 @@ class PasswordRecoveryController extends Controller
     }
 
     /**
+     * Reenvía un nuevo código de recuperación (con cooldown anti-spam).
+     *
      * POST /api/auth/password-recovery/resend-code
+     * Recibe: identifier (email o teléfono)
      */
     public function resendCode(PasswordRecoveryCodeRequest $request): JsonResponse
     {
@@ -58,7 +68,11 @@ class PasswordRecoveryController extends Controller
     }
 
     /**
+     * Verifica el código ingresado y emite un session_token temporal.
+     *
      * POST /api/auth/password-recovery/verify-code
+     * Recibe: identifier, code (4 dígitos)
+     * Retorna: session_token para el paso de restablecimiento
      */
     public function verifyCode(PasswordRecoveryVerifyCodeRequest $request): JsonResponse
     {
@@ -77,7 +91,10 @@ class PasswordRecoveryController extends Controller
     }
 
     /**
+     * Restablece la contraseña usando el session_token emitido tras verificar el código.
+     *
      * POST /api/auth/password-recovery/reset-password
+     * Recibe: session_token, password, password_confirmation
      */
     public function resetPassword(PasswordRecoveryResetRequest $request): JsonResponse
     {
@@ -98,6 +115,9 @@ class PasswordRecoveryController extends Controller
 
     /**
      * Centraliza manejo de AuthException para respuestas consistentes.
+     *
+     * Evita repetir try/catch en cada método del controlador.
+     * Usa el código HTTP de la excepción o 400 como fallback.
      */
     private function handleAction(\Closure $callback): JsonResponse
     {

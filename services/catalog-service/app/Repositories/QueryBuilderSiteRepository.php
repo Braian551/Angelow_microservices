@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+// Comentario de mantenimiento: Este repositorio encapsula consultas a datos para aislar a los servicios del detalle SQL.
+
 use App\Repositories\Contracts\SiteRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -108,6 +110,10 @@ class QueryBuilderSiteRepository implements SiteRepositoryInterface
 
         return DB::table('announcements');
     }
+
+    /**
+     * Verifica si la tabla de anuncios existe en la fuente de respaldo antes de consultarla.
+     */
 
     private function legacyAnnouncementsAvailable(): bool
     {

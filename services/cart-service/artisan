@@ -1,15 +1,26 @@
 #!/usr/bin/env php
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Punto de entrada para comandos Artisan del cart-service
+|--------------------------------------------------------------------------
+|
+| Carga el autoloader de Composer, inicializa la aplicación Laravel
+| y ejecuta el comando Artisan solicitado. Este script se usa para
+| migraciones, pruebas y tareas de mantenimiento del servicio.
+|
+*/
+
 use Illuminate\Foundation\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 
 define('LARAVEL_START', microtime(true));
 
-// Register the Composer autoloader...
+// Carga el autoloader de Composer...
 require __DIR__.'/vendor/autoload.php';
 
-// Bootstrap Laravel and handle the command...
+// Inicializa Laravel y ejecuta el comando...
 /** @var Application $app */
 $app = require_once __DIR__.'/bootstrap/app.php';
 

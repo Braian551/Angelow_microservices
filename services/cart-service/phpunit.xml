@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Configuración de PHPUnit para el cart-service
+     Define las suites de prueba Unit y Feature, la fuente de código
+     a cubrir (app/) y las variables de entorno para el entorno de
+     pruebas (SQLite en memoria, caché array, cola sync, etc.).
+     Ejecutar con: vendor/bin/phpunit -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"

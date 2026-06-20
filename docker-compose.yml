@@ -213,6 +213,7 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
       NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      STOCK_WS_CHANNEL: ws:orders:stock
       FRONTEND_URL: http://localhost:5173
       INVENTORY_ALERT_EMAILS: angelow2025sen@gmail.com
       INVENTORY_ALERT_SEND_INITIAL_EMAIL: "true"
@@ -668,6 +669,7 @@ services:
       VITE_DISCOUNT_API_URL: http://localhost:8006/api
       VITE_SHIPPING_API_URL: http://localhost:8007/api
       VITE_NOTIFICATION_API_URL: http://localhost:8008/api
+      VITE_STOCK_WS_URL: ws://localhost:8090
       VITE_FIREBASE_API_KEY: AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k
       VITE_FIREBASE_AUTH_DOMAIN: angelow-4e5fe.firebaseapp.com
       VITE_FIREBASE_PROJECT_ID: angelow-4e5fe
@@ -675,6 +677,24 @@ services:
       VITE_FIREBASE_MESSAGING_SENDER_ID: "77139939464"
       VITE_FIREBASE_APP_ID: 1:77139939464:web:b5a6e06b7c89fd510fcf3d
       VITE_FIREBASE_MEASUREMENT_ID: G-NFE4E4F0BF
+    networks:
+      - angelow_network
+
+  realtime-gateway:
+    build:
+      context: ./services/realtime-gateway
+      dockerfile: Dockerfile
+    container_name: angelow_realtime_gateway
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    environment:
+      PORT: 8080
+      REDIS_URL: redis://redis:6379
+      STOCK_WS_CHANNEL: ws:orders:stock
+      STOCK_WS_PATTERN: ws:orders:stock*
+    depends_on:
+      - redis
     networks:
       - angelow_network
 

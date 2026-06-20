@@ -1,18 +1,23 @@
 <?php
 
-return [
+/*
+|--------------------------------------------------------------------------
+| Servicios externos del cart-service
+|--------------------------------------------------------------------------
+|
+| Configuración de servicios que consume el cart-service:
+| - notifications: URL y token del notification-service para recordatorios
+| - frontend: URL de la tienda para enlaces en mensajes de carrito
+|
+| El catalog-service se configura vía CATALOG_API_URL en .env
+| y se usa directamente en CartService para consultar productos.
+|
+| @see CartService::catalogBaseUrl()
+| @see CartService::dispatchAbandonedCartReminders()
+|
+*/
 
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
+return [
 
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
@@ -36,11 +41,14 @@ return [
     ],
 
     'notifications' => [
+        // URL base usada para disparar recordatorios de carritos abandonados.
         'base_url' => env('NOTIFICATION_SERVICE_URL', 'http://notification-service:8000/api'),
+        // Token interno compartido para proteger llamadas entre microservicios.
         'internal_token' => env('AUTH_INTERNAL_TOKEN', env('INTERNAL_API_TOKEN', '')),
     ],
 
     'frontend' => [
+        // URL pública de la tienda usada para construir enlaces de retorno al carrito.
         'store_url' => env('FRONTEND_URL', 'http://localhost:5173'),
     ],
 

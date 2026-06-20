@@ -9,10 +9,19 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
+/**
+ * Pruebas de integración para la API de notificaciones.
+ * Verifica la creación, listado, marcado como leído y persistencia
+ * de descartes de notificaciones administrativas.
+ */
 class NotificationApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Verifica que al crear una notificación se encola el job de broadcast
+     * y se registra el registro en la cola de notificaciones.
+     */
     public function test_store_dispatches_job_and_creates_queue_record(): void
     {
         Queue::fake();
@@ -55,6 +64,10 @@ class NotificationApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Verifica que se puedan listar notificaciones por usuario
+     * y marcarlas individualmente como leídas.
+     */
     public function test_can_list_and_mark_notification_as_read(): void
     {
         $typeId = DB::table('notification_types')->insertGetId([
@@ -98,6 +111,10 @@ class NotificationApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Verifica que el administrador pueda persistir y recuperar
+     * el descarte (dismiss) de notificaciones sintéticas del panel.
+     */
     public function test_admin_can_persist_notification_dismissals(): void
     {
         Http::fake([

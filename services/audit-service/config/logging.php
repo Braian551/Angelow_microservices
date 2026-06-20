@@ -1,5 +1,19 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de logging del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define los canales de log: archivo local (single/daily), Slack,
+| Papertrail, syslog, stderr y null. El canal activo se define
+| en .env mediante LOG_CHANNEL.
+|
+| Los registros de auditoría pueden enviarse a un canal separado
+| si se requiere persistencia adicional además de la BD.
+|
+*/
+
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;

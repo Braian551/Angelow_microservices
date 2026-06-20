@@ -7,44 +7,62 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Support\Str;
 
+/**
+ * Helper que genera adjuntos PDF para campañas de descuento.
+ * Construye un documento imprimible con la información del código,
+ * valor, vigencia y términos y condiciones asociados.
+ * Es llamado desde campañas de notificaciones internas que requieren adjuntar
+ * el detalle del descuento en un archivo PDF.
+ */
 class DiscountPdfAttachmentHelper
 {
     /**
      * Genera un adjunto PDF en memoria para campañas de descuento.
+     * Retorna un array con content (binario), filename y mime type,
+     * o null si la generación falla.
      */
     public static function build(array $discountCode): ?array
     {
         try {
+            // Configura opciones de Dompdf: fuente Unicode y deshabilita recursos remotos.
             $options = new Options();
             $options->set('defaultFont', 'DejaVu Sans');
             $options->set('isRemoteEnabled', false);
 
+            // Genera el PDF a partir del HTML construido con los datos del descuento.
             $pdf = new Dompdf($options);
             $pdf->loadHtml(self::buildHtml($discountCode), 'UTF-8');
             $pdf->setPaper('letter');
             $pdf->render();
 
+            // Genera un nombre de archivo seguro a partir del código de descuento.
             $code = trim((string) ($discountCode['code'] ?? 'PROMO'));
             $filenameToken = preg_replace('/[^A-Za-z0-9_-]/', '', Str::upper($code)) ?: 'PROMO';
 
             return [
-                'content' => $pdf->output(),
-                'filename' => 'codigo_descuento_' . $filenameToken . '.pdf',
-                'mime' => 'application/pdf',
+                'content' => $pdf->output(),                              // Contenido binario del PDF
+                'filename' => 'codigo_descuento_' . $filenameToken . '.pdf', // Nombre amigable para el adjunto
+                'mime' => 'application/pdf',                               // Tipo MIME estándar
             ];
         } catch (\Throwable) {
+            // Si falla la generación del PDF, retorna null sin interrumpir el flujo.
             return null;
         }
     }
 
+    /**
+     * Construye el HTML del PDF con la información del descuento,
+     * incluyendo código, valor, fechas, usos máximos y términos.
+     */
     private static function buildHtml(array $discountCode): string
     {
+        // Escapa y formatea cada campo para prevenir inyección HTML en el PDF.
         $code = self::escape($discountCode['code'] ?? 'PROMO');
         $discountValue = self::escape(self::formatDiscountValue($discountCode));
         $startDate = self::escape(self::formatDate($discountCode['start_date'] ?? null, true));
         $endDate = self::escape(self::formatDate($discountCode['end_date'] ?? null, true));
         $maxUses = (int) ($discountCode['max_uses'] ?? 0);
-        $maxUsesLabel = $maxUses > 0 ? (string) $maxUses : 'Ilimitados';
+        $maxUsesLabel = $maxUses > 0 ? (string) $maxUses : 'Ilimitados'; // Si es 0, muestra "Ilimitados"
         $singleUseLabel = !empty($discountCode['is_single_use']) ? 'Sí' : 'No';
 
         return <<<HTML
@@ -123,21 +141,32 @@ class DiscountPdfAttachmentHelper
 HTML;
     }
 
+    /**
+     * Formatea el valor del descuento para el PDF.
+     * Ejemplos: "$10.000 de descuento", "15% de descuento".
+     */
     private static function formatDiscountValue(array $discountCode): string
     {
         $value = (float) ($discountCode['discount_value'] ?? $discountCode['value'] ?? 0);
         $type = Str::lower((string) ($discountCode['type'] ?? 'percent'));
 
+        // Descuento fijo: muestra como "$10.000 de descuento" con separador de miles.
         if ($type === 'fixed') {
             return '$' . number_format($value, 0, ',', '.') . ' de descuento';
         }
 
+        // Descuento porcentual: elimina decimales innecesarios (15.00% -> 15%).
         $normalized = rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
         return $normalized . '% de descuento';
     }
 
+    /**
+     * Formatea una fecha para mostrarla en el PDF.
+     * Si $withTime es true, incluye hora; si no hay fecha, retorna texto por defecto.
+     */
     private static function formatDate(mixed $value, bool $withTime = false): string
     {
+        // Sin fecha disponible: retorna texto por defecto según si espera hora o no.
         if ($value === null || $value === '') {
             return $withTime ? 'Sin fecha de expiración' : 'Sin fecha';
         }
@@ -145,12 +174,17 @@ HTML;
         try {
             return Carbon::parse($value)->format($withTime ? 'd/m/Y H:i' : 'd/m/Y');
         } catch (\Throwable) {
+            // Si la fecha no es parseable, retorna texto genérico.
             return $withTime ? 'Sin fecha de expiración' : 'Sin fecha';
         }
     }
 
+    /**
+     * Escapa caracteres HTML para evitar inyección en el contenido del PDF.
+     */
     private static function escape(mixed $value): string
     {
+        // Convierte caracteres especiales HTML a entidades para evitar inyección en el PDF.
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     }
 }

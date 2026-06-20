@@ -57,10 +57,14 @@
     <!-- Barra de resultados -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} clientes`">
       <template #actions>
-        <button class="results-action-btn results-action-btn--neutral" type="button" @click="exportCustomers">
-          <span class="results-action-btn__icon"><i class="fas fa-file-export"></i></span>
-          <span>Exportar CSV</span>
-        </button>
+        <AdminExportActions
+          tone="results"
+          :disabled="customers.length === 0"
+          :excel-loading="exportingFormat === 'excel'"
+          :pdf-loading="exportingFormat === 'pdf'"
+          @excel="exportCustomers('excel')"
+          @pdf="exportCustomers('pdf')"
+        />
       </template>
     </AdminResultsBar>
 
@@ -145,7 +149,7 @@
     />
 
     <AdminModal :show="showDetailModal" :title="selectedCustomer ? selectedCustomer.name : 'Detalle de cliente'" max-width="1080px" @close="closeCustomerModal">
-      <template v-if="selectedCustomer">
+      <div v-if="selectedCustomer" class="admin-customers-page admin-customers-page--modal">
         <div class="customer-detail-grid">
           <div>
             <AdminCard title="Perfil del cliente" icon="fas fa-id-card">
@@ -213,7 +217,7 @@
             </AdminCard>
           </div>
         </div>
-      </template>
+      </div>
 
       <template #footer>
         <button
@@ -233,15 +237,11 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { authHttp, orderHttp } from '../../../services/http'
-import { useAlertSystem } from '../../../composables/useAlertSystem'
-import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
-import { useAdminPagination } from '../composables/useAdminPagination'
+import { useAdminCustomers } from '../composables/useAdminCustomers'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
+import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPagination from '../components/AdminPagination.vue'
@@ -249,193 +249,34 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import '../views/AdminCustomersPage.css'
 
-const { showAlert } = useAlertSystem()
-const { showSnackbar } = useSnackbarSystem()
-const route = useRoute()
-
-const loading = ref(true)
-const showDetailModal = ref(false)
-const orderRowsLoaded = ref(false)
-const rawCustomers = ref([])
-const rawOrders = ref([])
-const selectedCustomerId = ref(null)
-
-const filters = reactive({
-  search: '',
-  state: 'all',
-  segment: 'all',
-})
-
-const customerMetricsMap = computed(() => {
-  const metrics = new Map()
-
-  rawOrders.value.forEach((order) => {
-    const emailKey = normalizeEmail(order.user_email || order.customer_email)
-    const idKey = normalizeIdentity(order.user_id)
-    const keys = [emailKey ? `email:${emailKey}` : null, idKey ? `id:${idKey}` : null].filter(Boolean)
-
-    if (keys.length === 0) {
-      return
-    }
-
-    keys.forEach((key) => {
-      if (!metrics.has(key)) {
-        metrics.set(key, [])
-      }
-      metrics.get(key).push(order)
-    })
-  })
-
-  return metrics
-})
-
-const enrichedCustomers = computed(() => rawCustomers.value.map(enrichCustomer))
-
-const customers = computed(() => enrichedCustomers.value.filter((customer) => {
-  if (filters.state === 'active' && customer.is_blocked) {
-    return false
-  }
-
-  if (filters.state === 'blocked' && !customer.is_blocked) {
-    return false
-  }
-
-  if (filters.segment === 'repeat' && customer.orders_count <= 1) {
-    return false
-  }
-
-  if (filters.segment === 'new' && !isWithinLastDays(customer.created_at, 30)) {
-    return false
-  }
-
-  if (filters.segment === 'without-orders' && customer.orders_count > 0) {
-    return false
-  }
-
-  return true
-}))
-
-const pagination = useAdminPagination(customers, {
-  initialPageSize: 10,
-  pageSizeOptions: [10, 20, 50],
-})
-
-const selectedCustomer = computed(() => customers.value.find((customer) => customer.id === selectedCustomerId.value)
-  || enrichedCustomers.value.find((customer) => customer.id === selectedCustomerId.value)
-  || null)
-
-const activeFilterCount = computed(() => {
-  let count = 0
-  if (filters.search.trim()) count++
-  if (filters.state !== 'all') count++
-  if (filters.segment !== 'all') count++
-  return count
-})
-
-const hubStatsFormatted = computed(() => {
-  const visibleCustomers = customers.value
-  const buyers = visibleCustomers.filter((customer) => customer.orders_count > 0)
-  const repeatCustomers = buyers.filter((customer) => customer.orders_count > 1)
-  const repeatRate = buyers.length > 0 ? Math.round((repeatCustomers.length / buyers.length) * 100) : 0
-  const ltvAverage = buyers.length > 0
-    ? buyers.reduce((sum, customer) => sum + customer.total_spent, 0) / buyers.length
-    : 0
-
-  return [
-    { key: 'total', label: 'Total clientes', value: String(visibleCustomers.length), icon: 'fas fa-users', color: 'primary' },
-    { key: 'new', label: 'Nuevos (30 días)', value: String(visibleCustomers.filter((customer) => isWithinLastDays(customer.created_at, 30)).length), icon: 'fas fa-user-plus', color: 'info' },
-    { key: 'repeat', label: 'Tasa de recompra', value: `${repeatRate}%`, icon: 'fas fa-arrows-rotate', color: 'warning' },
-    { key: 'ltv', label: 'LTV promedio', value: formatCurrency(ltvAverage), icon: 'fas fa-sack-dollar', color: 'success' },
-    { key: 'active', label: 'Activos', value: String(visibleCustomers.filter((customer) => !customer.is_blocked).length), icon: 'fas fa-user-check', color: 'primary' },
-  ]
-})
-
-function normalizeIdentity(value) {
-  const normalized = String(value || '').trim()
-  return normalized || null
-}
-
-function readRouteQueryValue(key) {
-  return typeof route.query?.[key] === 'string' ? route.query[key].trim() : ''
-}
-
-function syncFiltersFromRoute() {
-  filters.search = readRouteQueryValue('search')
-}
-
-function normalizeEmail(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  return normalized || null
-}
-
-function normalizeCustomer(customer) {
-  return {
-    ...customer,
-    id: String(customer.id),
-    name: customer.name || 'Cliente',
-    email: customer.email || 'Sin email',
-    phone: customer.phone || '',
-    image: customer.image || '',
-    is_blocked: Boolean(customer.is_blocked),
-    created_at: customer.created_at || null,
-    last_access: customer.last_access || null,
-  }
-}
-
-function normalizeOrder(order) {
-  return {
-    ...order,
-    id: Number(order.id),
-    user_id: normalizeIdentity(order.user_id),
-    user_email: order.user_email || order.customer_email || order.billing_email || '',
-    order_number: order.order_number || `#${order.id}`,
-    total: Number(order.total || 0),
-    status: order.status || order.order_status || 'pending',
-    payment_status: order.payment_status || 'pending',
-    created_at: order.created_at || null,
-  }
-}
-
-function enrichCustomer(customer) {
-  const emailKey = normalizeEmail(customer.email)
-  const idKey = normalizeIdentity(customer.id)
-  const candidates = [
-    emailKey ? `email:${emailKey}` : null,
-    idKey ? `id:${idKey}` : null,
-  ].filter(Boolean)
-
-  const mergedOrders = []
-  const seenOrderIds = new Set()
-
-  candidates.forEach((key) => {
-    const orders = customerMetricsMap.value.get(key) || []
-    orders.forEach((order) => {
-      if (seenOrderIds.has(order.id)) {
-        return
-      }
-      seenOrderIds.add(order.id)
-      mergedOrders.push(order)
-    })
-  })
-
-  mergedOrders.sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0))
-
-  const totalSpent = mergedOrders.reduce((sum, order) => sum + Number(order.total || 0), 0)
-  const completedOrders = mergedOrders.filter((order) => ['delivered', 'completed'].includes(order.status)).length
-  const pendingOrders = mergedOrders.filter((order) => ['pending', 'processing', 'shipped'].includes(order.status)).length
-
-  return {
-    ...customer,
-    orders_count: mergedOrders.length,
-    total_spent: totalSpent,
-    completed_orders: completedOrders,
-    pending_orders: pendingOrders,
-    average_ticket: mergedOrders.length > 0 ? totalSpent / mergedOrders.length : 0,
-    last_order_date: mergedOrders[0]?.created_at || null,
-    recent_orders: mergedOrders.slice(0, 5),
-  }
-}
+const {
+  activeFilterCount,
+  clearAllFilters,
+  closeCustomerModal,
+  customerSegmentLabel,
+  customers,
+  debouncedLoadCustomers,
+  exportCustomers,
+  exportingFormat,
+  filters,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  hubStatsFormatted,
+  loadCustomers,
+  loading,
+  openCustomerModal,
+  pagination,
+  paymentBadgeClass,
+  paymentLabel,
+  selectedCustomer,
+  showDetailModal,
+  statusBadgeClass,
+  statusLabel,
+  toggleCustomerBlock,
+} = useAdminCustomers()
 
 function avatarUrl(customer) {
   return resolveMediaUrl(customer.image, 'avatar')
@@ -444,287 +285,4 @@ function avatarUrl(customer) {
 function onAvatarError(event, originalPath) {
   handleMediaError(event, originalPath, 'avatar')
 }
-
-function formatCurrency(value) {
-  return `$ ${Number(value || 0).toLocaleString('es-CO')}`
-}
-
-function formatDate(value) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es-CO')
-}
-
-function formatDateTime(value) {
-  if (!value) return 'Sin registro'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'Sin registro' : date.toLocaleString('es-CO')
-}
-
-function statusLabel(status) {
-  const labels = {
-    pending: 'Pendiente',
-    processing: 'En proceso',
-    shipped: 'Enviado',
-    delivered: 'Entregado',
-    cancelled: 'Cancelado',
-    refunded: 'Reembolsado',
-    completed: 'Completado',
-  }
-  return labels[status] || 'Pendiente'
-}
-
-function paymentLabel(status) {
-  const labels = {
-    pending: 'Pendiente',
-    paid: 'Pagado',
-    verified: 'Verificado',
-    failed: 'Fallido',
-    refunded: 'Reembolsado',
-    rejected: 'Rechazado',
-  }
-  return labels[status] || 'Pendiente'
-}
-
-function statusBadgeClass(status) {
-  if (['delivered', 'completed'].includes(status)) return 'active'
-  if (['cancelled', 'refunded'].includes(status)) return 'cancelled'
-  return 'pending'
-}
-
-function paymentBadgeClass(status) {
-  if (['paid', 'verified'].includes(status)) return 'active'
-  if (['failed', 'refunded', 'rejected'].includes(status)) return 'cancelled'
-  return 'pending'
-}
-
-function isWithinLastDays(value, days) {
-  if (!value) {
-    return false
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return false
-  }
-
-  const threshold = new Date()
-  threshold.setDate(threshold.getDate() - days)
-  return date >= threshold
-}
-
-function customerSegmentLabel(customer) {
-  if (customer.orders_count > 1) return 'Recurrente'
-  if (isWithinLastDays(customer.created_at, 30)) return 'Nuevo'
-  if (customer.orders_count === 0) return 'Prospecto'
-  return 'Ocasional'
-}
-
-function clearAllFilters() {
-  filters.search = ''
-  filters.state = 'all'
-  filters.segment = 'all'
-  loadCustomers()
-}
-
-let debounceTimer = null
-function debouncedLoadCustomers() {
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    loadCustomers()
-  }, 450)
-}
-
-async function loadCustomers(refreshOrders = false) {
-  loading.value = true
-
-  try {
-    const customerRequest = authHttp.get('/admin/customers', {
-      params: { search: filters.search.trim() || undefined },
-    })
-
-    const orderRequest = refreshOrders || !orderRowsLoaded.value
-      ? orderHttp.get('/admin/orders', { params: { limit: 500 } })
-      : Promise.resolve({ data: { data: { rows: rawOrders.value } } })
-
-    const [customerResponse, orderResponse] = await Promise.all([customerRequest, orderRequest])
-
-    const customerRows = customerResponse.data?.data || customerResponse.data || []
-    rawCustomers.value = (Array.isArray(customerRows) ? customerRows : customerRows.data || []).map(normalizeCustomer)
-
-    if (refreshOrders || !orderRowsLoaded.value) {
-      const orderPayload = orderResponse.data?.data || {}
-      const orderRows = Array.isArray(orderPayload) ? orderPayload : (orderPayload.rows || [])
-      rawOrders.value = orderRows.map(normalizeOrder)
-      orderRowsLoaded.value = true
-    }
-  } catch {
-    showSnackbar({ type: 'error', message: 'Error cargando clientes' })
-  } finally {
-    loading.value = false
-  }
-}
-
-function openCustomerModal(customer) {
-  selectedCustomerId.value = customer.id
-  showDetailModal.value = true
-}
-
-function closeCustomerModal() {
-  showDetailModal.value = false
-}
-
-function syncSelectedCustomer() {
-  if (!selectedCustomerId.value) {
-    return
-  }
-
-  const match = enrichedCustomers.value.find((customer) => customer.id === selectedCustomerId.value)
-  if (!match) {
-    selectedCustomerId.value = null
-    showDetailModal.value = false
-  }
-}
-
-function toggleCustomerBlock(customer) {
-  const actionLabel = customer.is_blocked ? 'desbloquear' : 'bloquear'
-
-  showAlert({
-    type: 'warning',
-    title: `${customer.is_blocked ? 'Desbloquear' : 'Bloquear'} cliente`,
-    message: `¿Deseas ${actionLabel} a ${customer.name}?`,
-    actions: [
-      { text: 'Cancelar', style: 'secondary' },
-      {
-        text: customer.is_blocked ? 'Desbloquear' : 'Bloquear',
-        style: 'primary',
-        callback: async () => {
-          try {
-            await authHttp.patch(`/admin/customers/${customer.id}/block`)
-            showSnackbar({ type: 'success', message: `Cliente ${customer.is_blocked ? 'desbloqueado' : 'bloqueado'} correctamente` })
-            await loadCustomers()
-            syncSelectedCustomer()
-          } catch {
-            showSnackbar({ type: 'error', message: 'Error actualizando el estado del cliente' })
-          }
-        },
-      },
-    ],
-  })
-}
-
-function exportCustomers() {
-  if (customers.value.length === 0) {
-    showSnackbar({ type: 'info', message: 'No hay clientes para exportar' })
-    return
-  }
-
-  const rows = [['Cliente', 'Email', 'Teléfono', 'Registro', 'Pedidos', 'Valor acumulado', 'Estado']]
-  customers.value.forEach((customer) => {
-    rows.push([
-      `"${customer.name.replace(/"/g, '""')}"`,
-      `"${customer.email.replace(/"/g, '""')}"`,
-      `"${(customer.phone || '').replace(/"/g, '""')}"`,
-      `"${formatDate(customer.created_at)}"`,
-      customer.orders_count,
-      customer.total_spent,
-      `"${customer.is_blocked ? 'Bloqueado' : 'Activo'}"`,
-    ])
-  })
-
-  const csv = rows.map((row) => row.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'clientes.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-  showSnackbar({ type: 'success', message: 'Clientes exportados correctamente' })
-}
-
-async function applyRouteState() {
-  // Permite llegar desde el buscador con el perfil correcto ya enfocado.
-  syncFiltersFromRoute()
-
-  const focusedCustomerId = readRouteQueryValue('customer')
-  await loadCustomers(Boolean(focusedCustomerId) || !orderRowsLoaded.value)
-
-  if (!focusedCustomerId) {
-    if (showDetailModal.value) {
-      closeCustomerModal()
-    }
-    return
-  }
-
-  const targetCustomer = enrichedCustomers.value.find((customer) => customer.id === focusedCustomerId)
-  if (!targetCustomer) {
-    return
-  }
-
-  if (showDetailModal.value && selectedCustomerId.value === targetCustomer.id) {
-    return
-  }
-
-  selectedCustomerId.value = targetCustomer.id
-  showDetailModal.value = true
-}
-
-watch(() => route.fullPath, async () => {
-  await applyRouteState()
-}, { immediate: true })
 </script>
-
-<style scoped>
-/* Estilos específicos de Clientes — los comunes están en admin.css */
-
-/* Celda de cliente con avatar + texto */
-.customer-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* Perfil dentro del modal de detalle */
-.customer-profile {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.customer-profile__body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.customer-profile__body h3 {
-  margin: 0;
-}
-
-.customer-profile__body p {
-  color: var(--admin-text-light);
-  font-size: 1.2rem;
-  margin: 0;
-}
-
-/* Grid del modal de detalle de cliente (2 columnas) */
-.customer-detail-grid {
-  display: grid;
-  grid-template-columns: 1.8fr 1fr;
-  gap: 1.6rem;
-}
-
-/* Celda vacía en detalle de pedidos */
-.detail-empty {
-  padding: 1.6rem;
-  color: var(--admin-text-light);
-}
-
-@media (max-width: 900px) {
-  .customer-detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

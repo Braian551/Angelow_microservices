@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ExpireStockReservationJob;
+use App\Services\StockReservationRealtimePublisher;
+use App\Services\StockReservationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use Tests\TestCase;
 
 class OrderApiTest extends TestCase
@@ -171,5 +175,67 @@ class OrderApiTest extends TestCase
 
         $currentStatus = DB::table('orders')->where('id', $orderId)->value('status');
         $this->assertSame('cancelled', $currentStatus);
+    }
+
+    public function test_expired_stock_reservation_cancels_order_and_notifies_customer(): void
+    {
+        Http::fake([
+            '*' => Http::response(['message' => 'Notificación creada y encolada'], 201),
+        ]);
+
+        $orderId = (int) DB::table('orders')->insertGetId([
+            'order_number' => 'ORD-RES-TTL',
+            'user_id' => '77',
+            'status' => 'pending',
+            'subtotal' => 41000,
+            'total' => 41000,
+            'payment_status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $reservationService = Mockery::mock(StockReservationService::class);
+        $reservationService
+            ->shouldReceive('expireReservation')
+            ->once()
+            ->with($orderId)
+            ->andReturn(['ok' => true, 'released' => 1]);
+
+        $realtimePublisher = Mockery::mock(StockReservationRealtimePublisher::class);
+        $realtimePublisher
+            ->shouldReceive('publish')
+            ->once()
+            ->with('order.stock_reservation.auto_cancelled', Mockery::on(function (array $payload) use ($orderId): bool {
+                return (int) ($payload['order_id'] ?? 0) === $orderId
+                    && ($payload['new_status'] ?? null) === 'cancelled'
+                    && ($payload['reason'] ?? null) === 'reservation_ttl_expired'
+                    && str_contains((string) ($payload['user_instruction'] ?? ''), 'crear un nuevo pedido');
+            }));
+
+        // Reutiliza el job real para asegurar que TTL no vuelva a escribir el estado `expired`.
+        (new ExpireStockReservationJob($orderId))->handle($reservationService, $realtimePublisher);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $orderId,
+            'status' => 'cancelled',
+        ]);
+
+        $this->assertDatabaseHas('order_status_history', [
+            'order_id' => $orderId,
+            'field_changed' => 'status',
+            'new_value' => 'cancelled',
+        ]);
+
+        $this->assertDatabaseMissing('order_status_history', [
+            'order_id' => $orderId,
+            'new_value' => 'expired',
+        ]);
+
+        Http::assertSent(function ($request) use ($orderId): bool {
+            return str_contains($request->url(), '/notifications')
+                && (string) ($request['user_id'] ?? '') === '77'
+                && (int) ($request['related_entity_id'] ?? 0) === $orderId
+                && str_contains((string) ($request['message'] ?? ''), 'crear un nuevo pedido');
+        });
     }
 }

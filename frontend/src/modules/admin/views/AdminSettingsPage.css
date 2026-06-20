@@ -1,0 +1,552 @@
+/* Layout principal */
+.admin-settings-page .settings-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Pestañas de navegación */
+.admin-settings-page .settings-tabs {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.4rem;
+  background: var(--admin-bg-soft);
+  border-radius: var(--admin-radius-lg);
+  border: 1px solid var(--admin-border-light);
+}
+
+.admin-settings-page .settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--admin-radius-md);
+  border: none;
+  background: transparent;
+  color: var(--admin-text-soft);
+  font-size: 1.35rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  white-space: nowrap;
+}
+
+.admin-settings-page .settings-tab i {
+  font-size: 1.3rem;
+}
+
+.admin-settings-page .settings-tab:hover {
+  background: var(--admin-bg-highlight);
+  color: var(--admin-text-primary);
+}
+
+.admin-settings-page .settings-tab.is-active {
+  background: white;
+  color: var(--admin-primary);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+.admin-settings-page .settings-tab.has-errors {
+  color: var(--admin-error);
+}
+
+.admin-settings-page .settings-tab.is-active.has-errors {
+  color: var(--admin-error);
+  background: rgba(220, 53, 69, 0.07);
+}
+
+.admin-settings-page .settings-tab__errorcount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  padding: 0 0.45rem;
+  background: var(--admin-error);
+  color: white;
+  border-radius: 99px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Área de contenido de sección */
+.admin-settings-page .settings-section-body {
+  min-height: 20rem;
+}
+
+/* Transición de cambio de sección */
+.admin-settings-page .settings-section-enter-active,
+.admin-settings-page .settings-section-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.admin-settings-page .settings-section-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.admin-settings-page .settings-section-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Sección Marca: grid de 2 columnas */
+.admin-settings-page .settings-brand-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.8rem;
+  align-items: start;
+}
+
+.admin-settings-page .settings-fields-grid {
+  display: grid;
+  gap: 1.4rem;
+}
+
+/* Galería de imágenes de identidad visual */
+.admin-settings-page .settings-image-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-settings-page .settings-image-gallery__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.admin-settings-page .settings-image-gallery__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--admin-text-secondary);
+  margin: 0;
+}
+
+.admin-settings-page .settings-image-upload--compact {
+  padding: 1.4rem 1.2rem;
+  min-height: unset;
+}
+
+.admin-settings-page .settings-image-card--compact .settings-image-card__visual img {
+  max-height: 10rem;
+}
+
+/* Sección Redes sociales */
+.admin-settings-page .settings-social-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.admin-settings-page .settings-social-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.4rem;
+  padding: 1.4rem 0;
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-settings-page .settings-social-row:last-child {
+  border-bottom: none;
+}
+
+.admin-settings-page .settings-social-icon {
+  width: 4.6rem;
+  height: 4.6rem;
+  min-width: 4.6rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+  color: white;
+  margin-top: 0.2rem;
+  background: #888;
+}
+
+.admin-settings-page .settings-social-icon--instagram { background: #E1306C; }
+.admin-settings-page .settings-social-icon--facebook  { background: #1877F2; }
+.admin-settings-page .settings-social-icon--tiktok    { background: #010101; }
+.admin-settings-page .settings-social-icon--whatsapp  { background: #25D366; }
+.admin-settings-page .settings-social-icon--twitter   { background: #1DA1F2; }
+.admin-settings-page .settings-social-icon--youtube   { background: #FF0000; }
+.admin-settings-page .settings-social-icon--default   { background: var(--admin-primary); }
+
+.admin-settings-page .settings-social-input {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.admin-settings-page .settings-social-input label {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--admin-text-secondary);
+}
+
+/* Sección Operaciones: tarjetas métricas */
+.admin-settings-page .settings-operations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(28rem, 1fr));
+  gap: 1.5rem;
+}
+
+.admin-settings-page .settings-op-row {
+  display: flex;
+  gap: 1.4rem;
+  align-items: flex-start;
+}
+
+.admin-settings-page .settings-op-icon {
+  width: 4.8rem;
+  height: 4.8rem;
+  min-width: 4.8rem;
+  background: var(--admin-primary-soft);
+  border-radius: var(--admin-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--admin-primary);
+}
+
+.admin-settings-page .settings-op-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.admin-settings-page .settings-op-label {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--admin-text-primary);
+  margin-bottom: 0;
+}
+
+.admin-settings-page .settings-op-hint {
+  font-size: 1.25rem;
+  color: var(--admin-text-light);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.admin-settings-page .settings-op-input {
+  max-width: 12rem;
+}
+
+/* Sección genérica: grid de 2 columnas */
+.admin-settings-page .settings-generic-2col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: 1.6rem;
+}
+
+/* Esqueleto de carga */
+.admin-settings-page .settings-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-settings-page .settings-skeleton__tabs {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Label con badge de tipo */
+.admin-settings-page .settings-field-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-settings-page .settings-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--admin-primary);
+  background: var(--admin-primary-soft);
+  border-radius: var(--admin-radius-pill);
+  padding: 0.1rem 0.6rem;
+  line-height: 1.6;
+}
+
+/* Badge de cambios sin guardar */
+.admin-settings-page .settings-dirty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: #8a6d00;
+  background: rgba(255, 204, 0, 0.14);
+  border: 1px solid rgba(255, 204, 0, 0.38);
+  border-radius: var(--admin-radius-pill);
+  padding: 0.4rem 1rem;
+  white-space: nowrap;
+}
+
+.admin-settings-page .settings-dirty-badge i {
+  font-size: 0.75rem;
+  color: #c09500;
+}
+
+/* Campo imagen */
+.admin-settings-page .settings-image-field {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-settings-page .settings-image-upload {
+  border: 2px dashed rgba(0, 119, 182, 0.3);
+  border-radius: var(--admin-radius-lg);
+  padding: 2rem 1.6rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--admin-bg-soft);
+  display: grid;
+  gap: 0.35rem;
+  transition: var(--admin-transition-fast);
+}
+
+.admin-settings-page .settings-image-upload:hover {
+  border-color: var(--admin-primary);
+  background: var(--admin-bg-highlight);
+}
+
+.admin-settings-page .settings-image-upload i {
+  font-size: 2.2rem;
+  color: var(--admin-primary);
+}
+
+.admin-settings-page .settings-image-upload span {
+  font-size: 1.35rem;
+  color: var(--admin-text-soft);
+  font-weight: 500;
+}
+
+.admin-settings-page .settings-image-upload small {
+  font-size: 1.15rem;
+  color: var(--admin-text-light);
+}
+
+/* Card de imagen activa */
+.admin-settings-page .settings-image-card {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.admin-settings-page .settings-image-card__visual {
+  position: relative;
+  border-radius: var(--admin-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--admin-border-light);
+  background: var(--admin-bg-soft);
+  max-height: 15rem;
+}
+
+.admin-settings-page .settings-image-card__visual img {
+  width: 100%;
+  max-height: 15rem;
+  object-fit: contain;
+  display: block;
+  transition: filter 0.25s ease;
+}
+
+.admin-settings-page .settings-image-card__visual:hover img {
+  filter: brightness(0.72);
+}
+
+/* Overlay de acciones sobre la imagen */
+.admin-settings-page .settings-image-card__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.admin-settings-page .settings-image-card__visual:hover .settings-image-card__overlay {
+  opacity: 1;
+}
+
+.admin-settings-page .settings-image-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.8rem;
+  height: 3.8rem;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 1.35rem;
+  transition: var(--admin-transition-fast);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+}
+
+.admin-settings-page .settings-image-action--edit {
+  background: white;
+  color: var(--admin-primary);
+}
+
+.admin-settings-page .settings-image-action--edit:hover {
+  background: var(--admin-primary);
+  color: white;
+}
+
+.admin-settings-page .settings-image-action--remove {
+  background: white;
+  color: var(--admin-error);
+}
+
+.admin-settings-page .settings-image-action--remove:hover {
+  background: var(--admin-error);
+  color: white;
+}
+
+/* Píldora de confirmación de nuevo archivo */
+.admin-settings-page .settings-image-file-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  color: var(--admin-success);
+  background: rgba(75, 181, 67, 0.1);
+  border: 1px solid rgba(75, 181, 67, 0.25);
+  border-radius: var(--admin-radius-pill);
+  padding: 0.3rem 0.9rem;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bool toggle */
+.admin-settings-page .settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 0;
+}
+
+.admin-settings-page .settings-toggle-text {
+  font-size: 1.35rem;
+  color: var(--admin-text-light);
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.admin-settings-page .settings-toggle-text.is-on {
+  color: var(--admin-success);
+}
+
+/* Color */
+.admin-settings-page .color-input-group {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.admin-settings-page .settings-color-swatch {
+  width: 4rem;
+  min-width: 4rem;
+  height: 4rem;
+  border-radius: var(--admin-radius-md);
+  border: 2px solid var(--admin-border);
+  cursor: pointer;
+  transition: var(--admin-transition-fast);
+  flex-shrink: 0;
+}
+
+.admin-settings-page .settings-color-swatch:hover {
+  border-color: var(--admin-primary);
+  transform: scale(1.06);
+}
+
+.admin-settings-page .settings-color-picker-hidden {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Contador de caracteres */
+.admin-settings-page .settings-char-counter {
+  font-size: 1.15rem;
+  color: var(--admin-text-light);
+  text-align: right;
+  margin-top: 0.2rem;
+  transition: color 0.2s;
+}
+
+.admin-settings-page .settings-char-counter.is-warn {
+  color: #8a6d00;
+  font-weight: 500;
+}
+
+/* Transición de fade */
+.admin-settings-page .settings-fade-enter-active,
+.admin-settings-page .settings-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.admin-settings-page .settings-fade-enter-from,
+.admin-settings-page .settings-fade-leave-to {
+  opacity: 0;
+}
+
+.admin-settings-page .form-hint {
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .admin-settings-page .settings-brand-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-settings-page .settings-tabs {
+    padding: 0.3rem;
+  }
+
+  .admin-settings-page .settings-tab {
+    padding: 0.6rem 1.1rem;
+    font-size: 1.25rem;
+  }
+
+  .admin-settings-page .settings-operations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-page .settings-generic-2col {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-settings-page .color-input-group {
+    align-items: stretch;
+  }
+
+  .admin-settings-page .settings-color-swatch {
+    min-width: 3.6rem;
+    height: 3.6rem;
+  }
+}

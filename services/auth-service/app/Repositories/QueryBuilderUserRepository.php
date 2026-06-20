@@ -7,16 +7,26 @@ use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Query Builder implementation of the User repository.
+ * Implementación del repositorio de usuarios con Query Builder.
  *
- * Uses Laravel's DB facade instead of Eloquent ORM.
+ * Usa la fachada DB de Laravel en lugar de Eloquent ORM.
+ * Se eligió Query Builder porque durante la migración legacy se
+ * necesita control explícito sobre las consultas y el hasheo
+ * de contraseñas (el cast "hashed" de Eloquent se omite).
+ *
+ * Nota: El método hydrate() convierte registros stdClass a modelos
+ * Eloquent porque Sanctum (createToken) y las relaciones requieren
+ * una instancia de Model.
  */
 class QueryBuilderUserRepository implements UserRepositoryInterface
 {
     /**
-     * Hydrate a generic database record into a User model.
-     * This is required because Laravel Sanctum (`createToken`) 
-     * and relationships require an Eloquent Model instance.
+     * Hidrata un registro genérico de BD en un modelo User de Eloquent.
+     *
+     * Necesario porque Sanctum (createToken) y las relaciones requieren
+     * una instancia de Model de Eloquent, no un stdClass.
+     * Marca el modelo como "exists" para que Eloquent sepa que ya
+     * está persistido y asigna explícitamente el ID.
      */
     private function hydrate(?object $record): ?User
     {
@@ -25,19 +35,25 @@ class QueryBuilderUserRepository implements UserRepositoryInterface
         }
 
         $user = new User((array) $record);
-        $user->exists = true; // Tell Eloquent this model exists in DB
-        $user->id = $record->id; // Ensure the ID is explicitly set
+        $user->exists = true; // Indica a Eloquent que este modelo existe en BD
+        $user->id = $record->id; // Asigna el ID explícitamente
         return $user;
     }
 
+    /**
+     * Crea un nuevo usuario en la tabla users.
+     *
+     * Como se usa Query Builder (no Eloquent), el hash de la contraseña
+     * y los timestamps se manejan manualmente.
+     */
     public function create(array $data): User
     {
-        // Hash the password if provided, since we bypass Eloquent model casts
+        // Hashea la contraseña manualmente porque se omite el cast de Eloquent
         if (isset($data['password']) && !password_get_info($data['password'])['algo']) {
             $data['password'] = bcrypt($data['password']);
         }
-        
-        // created_at / updated_at are not auto-filled by Query Builder by default
+
+        // Query Builder no asigna created_at/updated_at automáticamente
         $data['created_at'] = now();
         $data['updated_at'] = now();
 
@@ -58,6 +74,9 @@ class QueryBuilderUserRepository implements UserRepositoryInterface
         return $this->hydrate($record);
     }
 
+    /**
+     * Busca usuario por email o teléfono según el formato de la credencial.
+     */
     public function findByCredential(string $credential): ?User
     {
         $isEmail = filter_var($credential, FILTER_VALIDATE_EMAIL) !== false;
@@ -81,12 +100,15 @@ class QueryBuilderUserRepository implements UserRepositoryInterface
         return $this->hydrate($record);
     }
 
+    /**
+     * Actualiza el timestamp de último acceso del usuario.
+     */
     public function updateLastAccess(User $user): void
     {
         DB::table('users')
             ->where('id', $user->id)
             ->update(['last_access' => now()]);
-            
+
         $user->last_access = now();
     }
 

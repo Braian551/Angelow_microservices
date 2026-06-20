@@ -7,17 +7,27 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
+ * Fábrica de modelos User para el servicio de auditoría.
+ *
+ * Genera instancias falsas de User útiles en entornos de
+ * desarrollo y pruebas unitarias/de integración.
+ *
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
  */
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * Contraseña actual usada por la fábrica.
+     * Se mantiene estática para reutilizar el mismo hash
+     * en todas las instancias generadas durante una misma ejecución.
      */
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
+     * Define el estado por defecto del modelo.
+     *
+     * Genera nombre y email aleatorios, marca el email como verificado,
+     * asigna una contraseña hasheada y crea un token de remember aleatorio.
      *
      * @return array<string, mixed>
      */
@@ -33,7 +43,10 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Indica que el email del modelo no debe estar verificado.
+     *
+     * Útil para probar flujos donde se requiere verificación
+     * de correo electrónico antes de permitir ciertas acciones.
      */
     public function unverified(): static
     {

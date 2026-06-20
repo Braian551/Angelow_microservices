@@ -1,5 +1,20 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de bases de datos del servicio de auditoría
+|--------------------------------------------------------------------------
+|
+| Define las conexiones disponibles: PostgreSQL (principal), MySQL,
+| MariaDB, SQLite y SQL Server. La conexión activa se define en .env
+| mediante DB_CONNECTION. También incluye configuración de Redis para
+| caché y colas.
+|
+| El audit-service usa PostgreSQL como base principal (angelow_audit),
+| pero mantiene soporte para otros motores por compatibilidad.
+|
+*/
+
 use Illuminate\Support\Str;
 
 return [

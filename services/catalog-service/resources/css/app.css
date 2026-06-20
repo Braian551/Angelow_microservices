@@ -1,3 +1,4 @@
+/* Comentario de mantenimiento: Este archivo concentra estilos propios del servicio. */
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';

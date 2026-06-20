@@ -72,10 +72,14 @@
         </form>
       </div>
 
-      <!-- Iconos de cuenta / favoritos / carrito -->
+      <!-- Iconos de cuenta / notificaciones / favoritos / carrito -->
       <div class="header-icons">
         <RouterLink :to="accountRoute" aria-label="Mi cuenta">
           <i class="fas fa-user" />
+        </RouterLink>
+        <RouterLink :to="notificationsRoute" aria-label="Notificaciones">
+          <i class="fas fa-bell" />
+          <span v-if="notificationCount > 0" class="header-count-badge">{{ notificationBadge }}</span>
         </RouterLink>
         <RouterLink :to="favoritesRoute" aria-label="Favoritos">
           <i class="fas fa-heart" />
@@ -217,6 +221,11 @@
             <i class="fas fa-heart"></i>
             Favoritos
           </RouterLink>
+          <RouterLink :to="notificationsRoute" class="mobile-drawer__footer-btn">
+            <i class="fas fa-bell"></i>
+            Notificaciones
+            <span v-if="notificationCount > 0" class="mobile-drawer__count-badge">{{ notificationBadge }}</span>
+          </RouterLink>
           <RouterLink to="/carrito" class="mobile-drawer__footer-btn mobile-drawer__footer-btn--cart">
             <i class="fas fa-shopping-cart"></i>
             Carrito
@@ -242,6 +251,10 @@ const props = defineProps({
     default: () => ({}),
   },
   cartCount: {
+    type: Number,
+    default: 0,
+  },
+  notificationCount: {
     type: Number,
     default: 0,
   },
@@ -365,6 +378,14 @@ const favoritesRoute = computed(() => (
     ? { name: 'account-wishlist' }
     : { name: 'login', query: { redirect: '/favoritos' } }
 ))
+
+const notificationsRoute = computed(() => (
+  isLoggedIn.value
+    ? { name: 'account-notifications' }
+    : { name: 'login', query: { redirect: '/mi-cuenta/notificaciones' } }
+))
+
+const notificationBadge = computed(() => (props.notificationCount > 99 ? '99+' : props.notificationCount))
 
 const featuredSuggestion = computed(() => searchSuggestions.value[0] || null)
 

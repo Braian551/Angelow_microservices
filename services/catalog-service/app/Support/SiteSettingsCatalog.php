@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+// Comentario de mantenimiento: Este soporte agrupa utilidades compartidas por varias rutas del dominio.
+
 class SiteSettingsCatalog
 {
     public static function definitions(): array

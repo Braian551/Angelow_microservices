@@ -7,13 +7,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Modelo de usuario para el servicio de auditoría.
+ *
+ * Hereda de Authenticatable para compatibilidad con el sistema
+ * de autenticación de Laravel (Sanctum/sessions). Aunque el
+ * audit-service es principalmente de consulta, el modelo permite
+ * que la base de usuarios compartida pueda autenticarse si
+ * se requiere acceso administrativo al servicio.
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
+     * Atributos asignables masivamente (mass assignment).
      *
      * @var list<string>
      */
@@ -24,7 +33,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * Atributos ocultos en serialización (JSON).
      *
      * @var list<string>
      */
@@ -34,7 +43,10 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * Define los casts de tipos para los atributos del modelo.
+     *
+     * Convierte automáticamente `email_verified_at` a Carbon y
+     * mantiene `password` siempre hasheado al asignarlo.
      *
      * @return array<string, string>
      */

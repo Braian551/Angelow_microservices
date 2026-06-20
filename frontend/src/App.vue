@@ -5,6 +5,7 @@
     :settings="settings"
     :shell-loading="shellLoading"
     :cart-count="cartCount"
+    :notification-count="notificationCount"
     :initial-search="initialSearch"
   />
   <RouterView />
@@ -26,7 +27,7 @@ import { useAppShell } from './composables/useAppShell'
 import { getFallbackMediaUrl, resolveMediaUrl } from './utils/media'
 
 const route = useRoute()
-const { settings, topBar, cartCount, shellLoading, refreshShellData, refreshShellSettings } = useAppShell()
+const { settings, topBar, cartCount, notificationCount, shellLoading, refreshShellData, refreshShellSettings } = useAppShell()
 
 const isAuthLayout = computed(() => route.meta?.layout === 'auth')
 const isAdminLayout = computed(() => route.meta?.layout === 'admin' || String(route.path || '').startsWith('/admin'))
