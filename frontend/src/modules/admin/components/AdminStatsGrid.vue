@@ -36,6 +36,14 @@
 <script setup>
 import AdminShimmer from './AdminShimmer.vue'
 
+/**
+ * Grid reutilizable de tarjetas de estadísticas del admin.
+ * Muestra una cuadrícula de tarjetas con icono, valor, etiqueta
+ * y metadatos auxiliares (cambio porcentual, pills, etc.).
+ * En estado de carga muestra shimmer de admin con la estructura
+ * correspondiente para evitar saltos de contenido.
+ * Patrón: Template Method — estructura fija con datos variables.
+ */
 defineProps({
   /** Array de stats: { key?, label, value, icon, color?, meta?, pills? } */
   stats: { type: Array, default: () => [] },

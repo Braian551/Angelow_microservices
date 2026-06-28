@@ -19,12 +19,15 @@ Migración del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, 
 
 - [Manual técnico](docs/operaciones/manual-tecnico.md)
 - [Índice general de documentación](docs/README.md)
+- [Ficha actual del proyecto](docs/proyecto/FICHA_PROYECTO_ANGELOW.md)
 - [Documentación por microservicio](docs/microservicios/README.md)
 - [Guía de testing compartido](docs/testing/README.md)
 - [Matriz de requerimientos funcionales actualizada](docs/referencias/matriz-requerimientos-funcionales-actualizada.md)
 - [Guía del frontend](frontend/README.md)
 - [Guía de exportaciones admin reutilizables](frontend/docs/exportaciones-admin-reutilizables.md)
 - [Validaciones numéricas de productos, inventario y carrito](docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md)
+- [Verificación de seguridad en autenticación nativa](docs/patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md)
+- [Código compartido para registro y recuperación](docs/patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md)
 
 ## Servicios y puertos
 
@@ -67,6 +70,8 @@ WHERE table_schema = 'public';
 ```
 
 ## Levantar todo con Docker
+
+Antes de levantar `auth-service` en entornos protegidos, define `TURNSTILE_SECRET_KEY` como variable externa del entorno o secreto de despliegue. El frontend recibe la llave pública con `VITE_TURNSTILE_SITE_KEY`; la llave secreta nunca debe ir en Vue ni en archivos versionados.
 
 ```bash
 docker compose up -d --build
@@ -111,10 +116,13 @@ docker compose exec -T audit-service php artisan test
 
 - [Manual técnico](docs/operaciones/manual-tecnico.md)
 - [Índice general de documentación](docs/README.md)
+- [Ficha actual del proyecto](docs/proyecto/FICHA_PROYECTO_ANGELOW.md)
 - [Mapa de tablas por microservicio](docs/datos/migracion-tablas.md)
 - [Importación de datos](docs/datos/importacion-datos.md)
 - [Registro de patrones](docs/patrones/README.md)
 - [Validaciones numéricas de productos, inventario y carrito](docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md)
+- [Verificación de seguridad en autenticación nativa](docs/patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md)
+- [Código compartido para registro y recuperación](docs/patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md)
 - [Registro de librerías y dependencias](docs/referencias/librerias-y-composer-uso.md)
 - [Matriz de requerimientos funcionales actualizada](docs/referencias/matriz-requerimientos-funcionales-actualizada.md)
 - [Guía de exportaciones admin reutilizables](frontend/docs/exportaciones-admin-reutilizables.md)

@@ -2,17 +2,31 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Conexiones de base de datos para shipping-service
+|--------------------------------------------------------------------------
+|
+| Este microservicio usa dos conexiones principales:
+| 1. La conexión predeterminada (shipping-db) para datos del microservicio.
+| 2. La conexión 'legacy_mysql' para consultar la base original de Angelow PHP
+|    durante la migración. Esta conexión se usa para fallback cuando los datos
+|    aún no se han migrado completamente a shipping-db.
+|
+| La conexión legacy tiene strict=false para tolerar variaciones en el esquema
+| original de Angelow.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Database Connection Name
+    | Conexión predeterminada
     |--------------------------------------------------------------------------
     |
-    | Here you may specify which of the database connections below you wish
-    | to use as your default connection for database operations. This is
-    | the connection which will be utilized unless another connection
-    | is explicitly specified when you execute a query / statement.
+    | Define qué conexión se usa por defecto para las operaciones de base de datos.
+    | En el entorno Docker, suele configurarse como 'mysql' apuntando a shipping-db.
     |
     */
 
@@ -20,12 +34,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Database Connections
+    | Conexiones de base de datos
     |--------------------------------------------------------------------------
     |
-    | Below are all of the database connections defined for your application.
-    | An example configuration is provided for each database system which
-    | is supported by Laravel. You're free to add / remove connections.
+    | Configuración de cada conexión soportada por la aplicación.
     |
     */
 
@@ -82,6 +94,21 @@ return [
                 (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Conexión legacy (base de datos original de Angelow PHP)
+        |--------------------------------------------------------------------------
+        |
+        | Usada durante la migración para consultar datos que aún no se han
+        | trasladado a shipping-db. Apunta a la base MySQL del sistema legacy.
+        | Strict mode desactivado (strict: false) para tolerar diferencias
+        | en el esquema original.
+        |
+        | Variables de entorno esperadas: LEGACY_DB_HOST, LEGACY_DB_PORT,
+        | LEGACY_DB_DATABASE, LEGACY_DB_USERNAME, LEGACY_DB_PASSWORD.
+        |
+        */
 
         'legacy_mysql' => [
             'driver' => 'mysql',

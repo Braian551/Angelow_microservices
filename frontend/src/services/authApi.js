@@ -58,3 +58,18 @@ export async function resetRecoveryPassword(payload) {
   const { data } = await authHttp.post('/auth/password-recovery/reset-password', payload)
   return data
 }
+
+export async function requestRegistrationCode(payload) {
+  const { data } = await authHttp.post('/auth/registration-verification/request-code', payload)
+  return data
+}
+
+export async function resendRegistrationCode(payload) {
+  const { data } = await authHttp.post('/auth/registration-verification/resend-code', payload)
+  return data
+}
+
+export async function verifyRegistrationCode(payload) {
+  const { data } = await authHttp.post('/auth/registration-verification/verify-code', payload)
+  return data
+}

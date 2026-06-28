@@ -6,6 +6,11 @@ import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from './useAdm
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de preguntas de clientes sobre productos.
+ * Administra listado, filtros, respuesta a preguntas, perfiles de clientes
+ * y exportación. Reutiliza useAdminPagination y useAdminDataExport.
+ */
 export function useAdminQuestions() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()

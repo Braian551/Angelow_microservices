@@ -1,3 +1,31 @@
+<!--
+  AdminOrdersPage.vue
+  ===================
+  Página principal de gestión de órdenes dentro del módulo administrativo.
+
+  Propósito:
+  - Listar todas las órdenes del sistema con paginación, filtros avanzados
+    (estado de orden, estado de pago, rango de fechas) y búsqueda por texto.
+  - Permitir al administrador ver un resumen rápido (stats), exportar datos
+    a Excel / PDF, aplicar acciones masivas sobre múltiples órdenes y
+    gestionar el estado individual de cada orden (estado, pago, completar,
+    desactivar).
+  - Mostrar un modal de vista previa con items, historial, resumen y datos
+    del cliente sin salir de la lista.
+
+  Funcionalidades principales:
+  • Tabla paginada con selección múltiple (checkbox).
+  • Filtros de búsqueda: número de orden, cliente, email, estado, pago y fechas.
+  • Exportación a Excel y PDF.
+  • Modal de detalle rápido (vista previa de orden).
+  • Modal de cambio de estado de orden.
+  • Modal de cambio de estado de pago.
+  • Modal de acciones masivas (cambiar estado, pago o desactivar en lote).
+  • Acciones de completar y desactivar orden con confirmación.
+
+  Composable utilizado: useAdminOrders() — centraliza toda la lógica de estado,
+  filtros, paginación, modales, formularios, validaciones y llamadas a la API.
+-->
 <template>
   <div class="admin-orders-page">
     <AdminPageHeader
@@ -436,14 +464,34 @@
   </div>
 </template>
 
+<!--
+  Sección <script setup>
+  ======================
+  Responsabilidades de este bloque:
+  - Importar las dependencias necesarias: enrutador, constantes de presentación
+    de órdenes, el composable useAdminOrders y todos los componentes compartidos
+    del panel administrativo.
+  - Consumir el composable useAdminOrders() para obtener el estado reactivo
+    completo (filtros, paginación, órdenes, modales, formularios, validaciones,
+    funciones de formato y handlers de eventos).
+  - No contiene lógica adicional; toda la lógica de negocio reside en el
+    composable. Solo se realizan las importaciones y la desestructuración.
+-->
 <script setup>
+// ── Imports de vue-router ──────────────────────────────────────────
 import { RouterLink } from 'vue-router'
+
+// ── Imports de utilidades y constantes de presentación ─────────────
 import {
   ADMIN_EDITABLE_ORDER_STATUSES,
   ADMIN_ORDER_FILTER_STATUSES,
   translateHistoryValue,
 } from '../utils/orderPresentation'
+
+// ── Imports del composable de órdenes ──────────────────────────────
 import { useAdminOrders } from '../composables/useAdminOrders'
+
+// ── Imports de componentes compartidos del panel administrativo ─────
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminExportActions from '../components/AdminExportActions.vue'
@@ -455,71 +503,75 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+
+// ── Imports de estilos ─────────────────────────────────────────────
 import '../views/AdminOrdersPage.css'
 
+// ── Desestructuración del composable useAdminOrders ────────────────
+// Todas las propiedades y funciones que controlan la página de órdenes.
 const {
-  activeFilterCount,
-  allSelected,
-  applyFilters,
-  buildOrderDetailRoute,
-  bulkErrors,
-  bulkForm,
-  bulkSaving,
-  clearAllFilters,
-  closeBulkModal,
-  closeDetailModal,
-  closePaymentStatusModal,
-  closeStatusModal,
-  canCompleteOrder,
-  confirmCompleteOrder,
-  confirmDeactivateOrder,
-  debouncedLoad,
-  detailLoading,
-  detailOrder,
-  exportingFormat,
-  exportOrders,
-  filters,
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  goToOrderDetail,
-  isOrderActionLoading,
-  isOrderSelected,
-  loading,
-  openBulkActionsModal,
-  openDetailModal,
-  openPaymentStatusModal,
-  openStatusModal,
-  orders,
-  pagination,
-  paymentBadgeClass,
-  paymentErrors,
-  paymentForm,
-  paymentLabel,
-  savingOrderActionKey,
-  savingPaymentStatusChange,
-  savingStatusChange,
-  selectedOrder,
-  selectedOrdersCount,
-  selectedOrdersPreview,
-  showBulkModal,
-  showDetailModal,
-  showPaymentStatusModal,
-  showStatusModal,
-  stats,
-  statusBadgeClass,
-  statusErrors,
-  statusForm,
-  statusLabel,
-  submitBulkAction,
-  submitPaymentStatusChange,
-  submitStatusChange,
-  toggleOrderSelection,
-  toggleSelectAll,
-  validateBulkField,
-  validateDateRangeAndApply,
-  validatePaymentField,
-  validateStatusField,
+  activeFilterCount,          // Número de filtros actualmente activos
+  allSelected,                // Boolean: true si todas las órdenes visibles están seleccionadas
+  applyFilters,               // Función que aplica los filtros activos y recarga la lista
+  buildOrderDetailRoute,      // Función que genera la ruta al detalle completo de una orden
+  bulkErrors,                 // Objeto con errores de validación del formulario de acciones masivas
+  bulkForm,                   // Objeto reactivo del formulario de acciones masivas
+  bulkSaving,                 // Boolean: true mientras se está procesando una acción masiva
+  clearAllFilters,            // Función que limpia todos los filtros y recarga la lista
+  closeBulkModal,             // Función que cierra el modal de acciones masivas
+  closeDetailModal,           // Función que cierra el modal de vista previa de orden
+  closePaymentStatusModal,    // Función que cierra el modal de cambio de estado de pago
+  closeStatusModal,           // Función que cierra el modal de cambio de estado de orden
+  canCompleteOrder,           // Función que verifica si una orden puede marcarse como completada
+  confirmCompleteOrder,       // Función que muestra confirmación antes de completar una orden
+  confirmDeactivateOrder,     // Función que muestra confirmación antes de desactivar una orden
+  debouncedLoad,              // Función con debounce que recarga órdenes al cambiar el texto de búsqueda
+  detailLoading,              // Boolean: true mientras se cargan los datos del detalle en el modal
+  detailOrder,                // Objeto con los datos completos de la orden seleccionada (items, historial, etc.)
+  exportingFormat,            // String con el formato de exportación en curso ('excel', 'pdf') o null
+  exportOrders,               // Función que exporta las órdenes filtradas a Excel o PDF
+  filters,                    // Objeto reactivo que contiene los valores de todos los filtros de búsqueda
+  formatCurrency,             // Función que formatea un número como moneda local (ej: $1.234,56)
+  formatDate,                 // Función que formatea una fecha ISO a formato legible (dd/mm/aaaa)
+  formatDateTime,             // Función que formatea una fecha ISO con hora (dd/mm/aaaa hh:mm)
+  goToOrderDetail,            // Función que navega al detalle completo de una orden
+  isOrderActionLoading,       // Función que verifica si una acción específica está en curso para una orden
+  isOrderSelected,            // Función que verifica si una orden está en la lista de seleccionadas
+  loading,                    // Boolean: true mientras se cargan las órdenes desde la API
+  openBulkActionsModal,       // Función que abre el modal de acciones masivas
+  openDetailModal,            // Función que abre el modal de vista previa con el detalle de una orden
+  openPaymentStatusModal,     // Función que abre el modal de cambio de estado de pago
+  openStatusModal,            // Función que abre el modal de cambio de estado de orden
+  orders,                     // Array con todas las órdenes cargadas de la API (antes de paginación)
+  pagination,                 // Objeto reactivo de paginación (página actual, total, items por página, etc.)
+  paymentBadgeClass,          // Función que retorna la clase CSS del badge según el estado de pago
+  paymentErrors,              // Objeto con errores de validación del formulario de estado de pago
+  paymentForm,                // Objeto reactivo del formulario de cambio de estado de pago
+  paymentLabel,               // Función que retorna la etiqueta legible de un estado de pago
+  savingOrderActionKey,       // String con la clave de la acción en curso para bloquear otras acciones
+  savingPaymentStatusChange,  // Boolean: true mientras se guarda un cambio de estado de pago
+  savingStatusChange,         // Boolean: true mientras se guarda un cambio de estado de orden
+  selectedOrder,              // Objeto de la orden actualmente seleccionada para ver/editar
+  selectedOrdersCount,        // Número total de órdenes seleccionadas por el usuario
+  selectedOrdersPreview,      // Array con las primeras órdenes seleccionadas (para vista previa en el modal)
+  showBulkModal,              // Boolean: controla la visibilidad del modal de acciones masivas
+  showDetailModal,            // Boolean: controla la visibilidad del modal de vista previa
+  showPaymentStatusModal,     // Boolean: controla la visibilidad del modal de cambio de pago
+  showStatusModal,            // Boolean: controla la visibilidad del modal de cambio de estado
+  stats,                      // Array con las estadísticas resumidas (total órdenes, ingresos, etc.)
+  statusBadgeClass,           // Función que retorna la clase CSS del badge según el estado de la orden
+  statusErrors,               // Objeto con errores de validación del formulario de estado de orden
+  statusForm,                 // Objeto reactivo del formulario de cambio de estado de orden
+  statusLabel,                // Función que retorna la etiqueta legible de un estado de orden
+  submitBulkAction,           // Función que envía la acción masiva seleccionada a la API
+  submitPaymentStatusChange,  // Función que envía el cambio de estado de pago a la API
+  submitStatusChange,         // Función que envía el cambio de estado de orden a la API
+  toggleOrderSelection,       // Función que alterna la selección de una orden individual
+  toggleSelectAll,            // Función que selecciona o deselecciona todas las órdenes visibles
+  validateBulkField,          // Función que valida un campo específico del formulario de acciones masivas
+  validateDateRangeAndApply,  // Función que valida que la fecha desde sea menor que la fecha hasta
+  validatePaymentField,       // Función que valida un campo del formulario de estado de pago
+  validateStatusField,        // Función que valida un campo del formulario de estado de orden
 } = useAdminOrders()
 </script>
 

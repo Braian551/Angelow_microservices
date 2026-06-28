@@ -59,6 +59,14 @@
 <script setup>
 import AdminToggleSwitch from '../AdminToggleSwitch.vue'
 
+/**
+ * Panel lateral del formulario de producto que contiene:
+ * 1. Sección de imagen principal con previsualización, carga y eliminación.
+ * 2. Sección de visibilidad con toggles de producto activo y destacado.
+ * Reutiliza AdminToggleSwitch para los interruptores de estado.
+ * El input de archivo real se encapsula y se expone vía evento
+ * para que la página padre conserve la referencia operativa.
+ */
 defineProps({
   form: { type: Object, required: true },
   mainImagePreview: { type: String, default: '' },
@@ -72,7 +80,12 @@ const emit = defineEmits([
   'set-main-image-input',
 ])
 
-// El input real queda encapsulado para que la página conserve solo la referencia operativa.
+/**
+ * Captura la referencia del input de archivo de imagen principal
+ * y la reenvía a la página padre para que pueda activar
+ * la selección de archivo programáticamente.
+ * Reutiliza el patrón de exposición de refs del AdminProductVariantsTab.
+ */
 function setMainImageInput(element) {
   emit('set-main-image-input', element)
 }

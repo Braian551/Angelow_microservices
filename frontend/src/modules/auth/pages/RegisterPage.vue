@@ -25,10 +25,14 @@
         </div>
         <div class="step" :class="{ active: step === 3, completed: step > 3 }" data-step="3">
           <div class="step-number">3</div>
+          <div class="step-title">Código</div>
+        </div>
+        <div class="step" :class="{ active: step === 4, completed: step > 4 }" data-step="4">
+          <div class="step-number">4</div>
           <div class="step-title">Tel&eacute;fono</div>
         </div>
-        <div class="step" :class="{ active: step === 4 }" data-step="4">
-          <div class="step-number">4</div>
+        <div class="step" :class="{ active: step === 5 }" data-step="5">
+          <div class="step-number">5</div>
           <div class="step-title">Contrase&ntilde;a</div>
         </div>
         <div class="progress-bar">
@@ -76,17 +80,61 @@
             <div class="form-hint">Usaremos este correo para contactarte</div>
             <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
           </div>
+          <TurnstileWidget
+            v-if="step === 2"
+            ref="turnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
           <div class="step-buttons">
             <button type="button" class="btn-outline" :disabled="submitting || googleSubmitting" @click="prevStep">
               Atrás
             </button>
-            <button type="button" class="btn-primary" :disabled="submitting || googleSubmitting" @click="nextStep">
-              Continuar
+            <button type="button" class="btn-primary" :disabled="submitting || googleSubmitting || emailCodeLoading" @click="submitEmailCode(false)">
+              {{ emailCodeLoading ? 'Enviando...' : 'Enviar c&oacute;digo' }}
             </button>
           </div>
         </div>
 
         <div class="form-step" :class="{ active: step === 3 }" data-step="3">
+          <AuthCodeVerification
+            v-model:code="form.emailCode"
+            input-id="register-email-code"
+            :info="emailCodeInfo"
+            :status="emailCodeStatus"
+            :timer-label="emailTimerLabel"
+            :error="errors.emailCode"
+            :resend-text="emailResendButtonText"
+            :resend-disabled="emailResendCooldown > 0 || emailCodeLoading"
+            @input="onEmailCodeInput"
+            @blur="onEmailCodeBlur"
+            @resend="submitEmailCode(true)"
+          />
+          <TurnstileWidget
+            v-if="step === 3"
+            ref="resendTurnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
+          <div class="step-buttons">
+            <button type="button" class="btn-outline" :disabled="submitting || googleSubmitting || emailCodeLoading" @click="prevStep">
+              Atr&aacute;s
+            </button>
+            <button type="button" class="btn-primary" :disabled="submitting || googleSubmitting || emailVerifyLoading" @click="submitVerifyEmailCode">
+              {{ emailVerifyLoading ? 'Validando...' : 'Validar c&oacute;digo' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="form-step" :class="{ active: step === 4 }" data-step="4">
           <div class="form-group">
             <label for="register-phone">Tel&eacute;fono (opcional)</label>
             <input
@@ -112,7 +160,7 @@
           </div>
         </div>
 
-        <div class="form-step" :class="{ active: step === 4 }" data-step="4">
+        <div class="form-step" :class="{ active: step === 5 }" data-step="5">
           <div class="form-group password-group">
             <label for="register-password">Contrase&ntilde;a</label>
             <div class="password-input-container">
@@ -171,6 +219,16 @@
           </div>
           <div v-if="errors.terms" class="error-message">{{ errors.terms }}</div>
 
+          <TurnstileWidget
+            ref="turnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
+
           <div class="step-buttons">
             <button type="button" class="btn-outline" :disabled="submitting || googleSubmitting" @click="prevStep">
               Atrás
@@ -208,10 +266,12 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { signInWithPopup } from 'firebase/auth'
-import { loginWithGoogle, registerUser } from '../../../services/authApi'
+import AuthCodeVerification from '../components/AuthCodeVerification.vue'
+import TurnstileWidget from '../../../components/security/TurnstileWidget.vue'
+import { loginWithGoogle, registerUser, requestRegistrationCode, resendRegistrationCode, verifyRegistrationCode } from '../../../services/authApi'
 import { useSession } from '../../../composables/useSession'
 import { firebaseAuth, googleProvider, isFirebaseReady } from '../../../services/firebase'
 import '../views/RegisterView.css'
@@ -223,12 +283,28 @@ const { saveSession } = useSession()
 const step = ref(1)
 const submitting = ref(false)
 const googleSubmitting = ref(false)
+const emailCodeLoading = ref(false)
+const emailVerifyLoading = ref(false)
 const showPassword = ref(false)
 const showPasswordConfirmation = ref(false)
+const turnstileToken = ref('')
+const turnstileResetKey = ref(0)
+const turnstileRef = ref(null)
+const resendTurnstileRef = ref(null)
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
+const emailCodeInfo = ref('Revisa tu bandeja de entrada y escribe el código que te enviamos.')
+const emailCodeStatus = ref('pending')
+const emailCodeExpiresIn = ref(0)
+const emailResendCooldown = ref(0)
+const registrationToken = ref('')
+
+let emailTimerIntervalId = null
+let emailResendIntervalId = null
 
 const form = reactive({
   name: '',
   email: '',
+  emailCode: '',
   phone: '',
   password: '',
   passwordConfirmation: '',
@@ -238,16 +314,19 @@ const form = reactive({
 const errors = reactive({
   name: '',
   email: '',
+  emailCode: '',
   phone: '',
   password: '',
   passwordConfirmation: '',
   terms: '',
+  turnstile: '',
   global: '',
 })
 
 const touched = reactive({
   name: false,
   email: false,
+  emailCode: false,
   phone: false,
   password: false,
   passwordConfirmation: false,
@@ -256,9 +335,18 @@ const touched = reactive({
 
 const progressWidth = computed(() => {
   if (step.value <= 1) return '0%'
-  if (step.value === 2) return '33%'
-  if (step.value === 3) return '66%'
+  if (step.value === 2) return '25%'
+  if (step.value === 3) return '50%'
+  if (step.value === 4) return '75%'
   return '100%'
+})
+
+const emailTimerLabel = computed(() => formatSeconds(emailCodeExpiresIn.value))
+
+const emailResendButtonText = computed(() => {
+  if (emailCodeLoading.value) return 'Reenviando...'
+  if (emailResendCooldown.value > 0) return `Reenviar código (${emailResendCooldown.value}s)`
+  return 'Reenviar código'
 })
 
 const passwordStrengthClass = computed(() => {
@@ -294,21 +382,96 @@ function sanitizePhone(value) {
 function resetFieldErrors() {
   errors.name = ''
   errors.email = ''
+  errors.emailCode = ''
   errors.phone = ''
   errors.password = ''
   errors.passwordConfirmation = ''
   errors.terms = ''
+  errors.turnstile = ''
 }
 
 function clearStepErrors(stepNumber) {
   if (stepNumber === 1) errors.name = ''
   if (stepNumber === 2) errors.email = ''
-  if (stepNumber === 3) errors.phone = ''
-  if (stepNumber === 4) {
+  if (stepNumber === 3) {
+    errors.emailCode = ''
+    errors.turnstile = ''
+  }
+  if (stepNumber === 4) errors.phone = ''
+  if (stepNumber === 5) {
     errors.password = ''
     errors.passwordConfirmation = ''
     errors.terms = ''
+    errors.turnstile = ''
   }
+}
+
+function resetTurnstile() {
+  turnstileToken.value = ''
+  turnstileResetKey.value += 1
+}
+
+function formatSeconds(totalSeconds) {
+  const safeValue = Math.max(0, Number(totalSeconds) || 0)
+  const minutes = String(Math.floor(safeValue / 60)).padStart(2, '0')
+  const seconds = String(safeValue % 60).padStart(2, '0')
+  return `${minutes}:${seconds}`
+}
+
+function stopEmailTimers() {
+  if (emailTimerIntervalId) {
+    clearInterval(emailTimerIntervalId)
+    emailTimerIntervalId = null
+  }
+
+  if (emailResendIntervalId) {
+    clearInterval(emailResendIntervalId)
+    emailResendIntervalId = null
+  }
+}
+
+function startEmailTimers(expiresIn, cooldown) {
+  stopEmailTimers()
+  emailCodeExpiresIn.value = Math.max(0, Number(expiresIn) || 900)
+  emailResendCooldown.value = Math.max(0, Number(cooldown) || 60)
+  emailCodeStatus.value = 'pending'
+
+  emailTimerIntervalId = setInterval(() => {
+    if (emailCodeExpiresIn.value <= 1) {
+      emailCodeExpiresIn.value = 0
+      emailCodeStatus.value = 'expired'
+      clearInterval(emailTimerIntervalId)
+      emailTimerIntervalId = null
+      return
+    }
+
+    emailCodeExpiresIn.value -= 1
+  }, 1000)
+
+  emailResendIntervalId = setInterval(() => {
+    if (emailResendCooldown.value <= 1) {
+      emailResendCooldown.value = 0
+      clearInterval(emailResendIntervalId)
+      emailResendIntervalId = null
+      return
+    }
+
+    emailResendCooldown.value -= 1
+  }, 1000)
+}
+
+function onTurnstileVerified(token) {
+  turnstileToken.value = token
+  errors.turnstile = ''
+}
+
+function onTurnstileExpired() {
+  turnstileToken.value = ''
+}
+
+function onTurnstileError() {
+  turnstileToken.value = ''
+  errors.turnstile = 'No pudimos cargar la verificación de seguridad. Inténtalo de nuevo.'
 }
 
 function applyValidationErrors(validationErrors) {
@@ -325,6 +488,7 @@ function applyValidationErrors(validationErrors) {
 
   const nameError = first('name')
   const emailError = first('email')
+  const registrationTokenError = first('registration_token')
   const phoneError = first('phone')
   const passwordError = first('password')
   const termsError = first('terms')
@@ -341,21 +505,27 @@ function applyValidationErrors(validationErrors) {
     assigned = true
   }
 
+  if (registrationTokenError) {
+    errors.emailCode = registrationTokenError
+    step.value = 3
+    assigned = true
+  }
+
   if (phoneError) {
     errors.phone = phoneError
-    step.value = 3
+    step.value = 4
     assigned = true
   }
 
   if (passwordError) {
     errors.password = passwordError
-    step.value = 4
+    step.value = 5
     assigned = true
   }
 
   if (termsError) {
     errors.terms = termsError
-    step.value = 4
+    step.value = 5
     assigned = true
   }
 
@@ -388,6 +558,10 @@ function validateCurrentStep() {
   }
 
   if (step.value === 3) {
+    return validateEmailCode(true)
+  }
+
+  if (step.value === 4) {
     return validatePhone(true)
   }
 
@@ -399,7 +573,7 @@ function validateCurrentStep() {
 
 function nextStep() {
   if (!validateCurrentStep()) return
-  step.value = Math.min(step.value + 1, 4)
+  step.value = Math.min(step.value + 1, 5)
 }
 
 function prevStep() {
@@ -423,6 +597,16 @@ function validateEmail(force = false) {
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
   errors.email = isValidEmail ? '' : 'Ingresa un correo electrónico válido.'
   return !errors.email
+}
+
+function validateEmailCode(force = false) {
+  if (!force && !touched.emailCode) return true
+
+  form.emailCode = String(form.emailCode || '').replace(/\D+/g, '').slice(0, 4)
+  errors.emailCode = /^[0-9]{4}$/.test(form.emailCode)
+    ? ''
+    : 'El código debe tener 4 dígitos.'
+  return !errors.emailCode
 }
 
 function validatePhone(force = false) {
@@ -476,12 +660,26 @@ function onNameBlur() {
 function onEmailInput() {
   touched.email = true
   errors.global = ''
+  registrationToken.value = ''
+  form.emailCode = ''
+  emailCodeStatus.value = 'pending'
   validateEmail()
 }
 
 function onEmailBlur() {
   touched.email = true
   validateEmail(true)
+}
+
+function onEmailCodeInput() {
+  touched.emailCode = true
+  errors.global = ''
+  validateEmailCode()
+}
+
+function onEmailCodeBlur() {
+  touched.emailCode = true
+  validateEmailCode(true)
 }
 
 function onPhoneInput() {
@@ -547,11 +745,96 @@ function applySessionAndRedirect(response) {
   router.push({ name: 'home' })
 }
 
+function parseCodeError(error, fallback) {
+  const validationErrors = error?.response?.data?.errors
+  if (validationErrors && typeof validationErrors === 'object') {
+    const firstError = Object.values(validationErrors).flat().find(Boolean)
+    if (firstError) return String(firstError)
+  }
+
+  return error?.response?.data?.message || fallback
+}
+
+async function submitEmailCode(isResend) {
+  errors.email = ''
+  errors.emailCode = ''
+  errors.turnstile = ''
+  errors.global = ''
+
+  if (!validateEmail(true)) return
+  if (!turnstileToken.value) {
+    errors.turnstile = 'Completa la verificación de seguridad para continuar.'
+    return
+  }
+
+  emailCodeLoading.value = true
+  try {
+    const action = isResend ? resendRegistrationCode : requestRegistrationCode
+    const response = await action({
+      email: form.email,
+      turnstile_token: turnstileToken.value,
+    })
+    const data = response?.data || {}
+
+    form.emailCode = ''
+    registrationToken.value = ''
+    emailCodeInfo.value = `Enviamos un código a ${data.identifier || 'tu correo'}. Revisa tu bandeja principal y spam.`
+    startEmailTimers(data.expires_in, data.resend_cooldown)
+    step.value = 3
+    resetTurnstile()
+  } catch (error) {
+    const message = parseCodeError(error, 'No pudimos enviar el código en este momento.')
+    if (step.value === 2) {
+      errors.email = message
+    } else {
+      errors.emailCode = message
+    }
+    resetTurnstile()
+  } finally {
+    emailCodeLoading.value = false
+  }
+}
+
+async function submitVerifyEmailCode() {
+  errors.emailCode = ''
+  errors.global = ''
+
+  if (!validateEmail(true) || !validateEmailCode(true)) return
+
+  emailVerifyLoading.value = true
+  try {
+    const response = await verifyRegistrationCode({
+      email: form.email,
+      code: form.emailCode,
+    })
+    registrationToken.value = String(response?.data?.registration_token || '')
+    if (!registrationToken.value) {
+      throw new Error('No se pudo validar el correo electrónico.')
+    }
+
+    emailCodeStatus.value = 'valid'
+    step.value = 4
+  } catch (error) {
+    errors.emailCode = parseCodeError(error, 'El código ingresado no es válido.')
+  } finally {
+    emailVerifyLoading.value = false
+  }
+}
+
 async function submitRegister() {
   resetFieldErrors()
   errors.global = ''
 
   if (!validateCurrentStep()) return
+  if (!registrationToken.value) {
+    errors.emailCode = 'Verifica tu correo electrónico antes de crear la cuenta.'
+    step.value = 3
+    return
+  }
+  if (!turnstileToken.value) {
+    errors.turnstile = 'Completa la verificación de seguridad para continuar.'
+    return
+  }
 
   submitting.value = true
 
@@ -564,12 +847,15 @@ async function submitRegister() {
       password: form.password,
       password_confirmation: form.passwordConfirmation,
       terms: form.terms,
+      turnstile_token: turnstileToken.value,
+      registration_token: registrationToken.value,
     })
 
     applySessionAndRedirect(response)
   } catch (error) {
     const message = readErrorMessage(error, 'No se pudo completar el registro.')
     if (message) errors.global = message
+    resetTurnstile()
   } finally {
     submitting.value = false
   }
@@ -600,11 +886,25 @@ async function submitGoogle() {
 }
 
 function onFormSubmit() {
-  if (step.value < 4) {
+  if (step.value === 2) {
+    submitEmailCode(false)
+    return
+  }
+
+  if (step.value === 3) {
+    submitVerifyEmailCode()
+    return
+  }
+
+  if (step.value < 5) {
     nextStep()
     return
   }
 
   submitRegister()
 }
+
+onBeforeUnmount(() => {
+  stopEmailTimers()
+})
 </script>

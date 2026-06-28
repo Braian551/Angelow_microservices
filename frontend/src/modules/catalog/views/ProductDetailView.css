@@ -825,14 +825,18 @@
 .product-detail-page .detail-description-images {
   margin-top: 2.2rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 520px));
+  justify-content: center;
+  align-items: start;
   gap: 1.4rem;
 }
 
 .product-detail-page .detail-description-images img {
   width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
+  max-height: min(56vh, 520px);
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #fff;
   border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   cursor: zoom-in;

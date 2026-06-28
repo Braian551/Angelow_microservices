@@ -1,3 +1,10 @@
+<!--
+  AdminInventoryPage.vue
+  Componente principal del módulo de inventario del panel administrativo.
+  Muestra el resumen de stock general, listado de productos con su nivel de inventario,
+  permite buscar y filtrar por estado (todo, bajo stock, sin stock), exportar datos a Excel/PDF,
+  y gestionar el stock de cada variante mediante ajustes y transferencias desde un modal de detalle.
+-->
 <template>
   <div class="admin-entity-page inventory-page admin-inventory-page">
     <AdminPageHeader
@@ -307,7 +314,17 @@
 </template>
 
 <script setup>
+/**
+ * Script del componente AdminInventoryPage.
+ * Orquesta la vista de inventario: carga de datos, filtrado, paginación,
+ * exportación, y modales de detalle, ajuste de stock y transferencia entre variantes.
+ * Toda la lógica de negocio está delegada en el composable useAdminInventory.
+ */
+
+/* Composable principal de inventario — encapsula toda la lógica del módulo */
 import { useAdminInventory } from '../composables/useAdminInventory'
+
+/* Componentes compartidos del panel administrativo */
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminExportActions from '../components/AdminExportActions.vue'
@@ -320,55 +337,57 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+
+/* Estilos específicos de la vista de inventario */
 import '../views/AdminInventoryPage.css'
 
 const {
-  activeTab,
-  adjustErrors,
-  adjustForm,
-  buildHistoryVariantLabel,
-  buildVariantLabel,
-  closeAdjustModal,
-  closeDetailModal,
-  closeTransferModal,
-  detailLoading,
-  detailModalTitle,
-  exportInventory,
-  exportingFormat,
-  filteredProducts,
-  formatDateTime,
-  formatOperation,
-  historyLoading,
-  inventoryStats,
-  inventorySummaryAlert,
-  loading,
-  openAdjustModal,
-  openDetail,
-  openTransferModal,
-  pagination,
-  productStatusLabel,
-  productStockTextClass,
-  reloadDetailHistory,
-  search,
-  selectedProductDetail,
-  selectedProductHistory,
-  selectedVariantLabel,
-  showAdjustModal,
-  showDetailModal,
-  showTransferModal,
-  statusClass,
-  statusLabel,
-  stockStatus,
-  stockSubmitting,
-  stockTextClass,
-  submitAdjust,
-  submitTransfer,
-  transferErrors,
-  transferForm,
-  transferSourceLabel,
-  transferTargets,
-  validateAdjustField,
-  validateTransferField,
+  activeTab,                // Pestaña activa del filtro: 'all' | 'low' | 'out'
+  adjustErrors,             // Errores de validación del formulario de ajuste de stock
+  adjustForm,               // Datos del formulario de ajuste (acción, cantidad, motivo)
+  buildHistoryVariantLabel, // Función que construye la etiqueta descriptiva de una variante en el historial
+  buildVariantLabel,        // Función que construye la etiqueta descriptiva de una variante (color, talla, SKU)
+  closeAdjustModal,         // Cierra el modal de ajuste de stock y resetea su estado
+  closeDetailModal,         // Cierra el modal de detalle del producto seleccionado
+  closeTransferModal,       // Cierra el modal de transferencia de stock
+  detailLoading,            // Indica si el detalle del producto se está cargando
+  detailModalTitle,         // Título dinámico del modal de detalle del producto
+  exportInventory,          // Dispara la exportación de inventario a Excel o PDF
+  exportingFormat,          // Formato de exportación en curso ('excel' | 'pdf' | null)
+  filteredProducts,         // Lista de productos filtrados según la pestaña y búsqueda activa
+  formatDateTime,           // Formatea una fecha ISO a string legible en español
+  formatOperation,          // Convierte el código de operación (add/subtract/transfer) a su etiqueta en español
+  historyLoading,           // Indica si el historial de movimientos del producto se está cargando
+  inventoryStats,           // Arreglo de estadísticas resumen mostradas en el grid superior
+  inventorySummaryAlert,    // Función que genera un texto de alerta según el estado de stock del producto
+  loading,                  // Estado general de carga de la página (listado y estadísticas)
+  openAdjustModal,          // Abre el modal de ajuste de stock para una variante específica
+  openDetail,               // Abre el modal de detalle de inventario para un producto seleccionado
+  openTransferModal,        // Abre el modal de transferencia de stock para una variante específica
+  pagination,               // Objeto de paginación con página actual, ítems por página, total y opciones
+  productStatusLabel,       // Función que retorna la etiqueta de estado del producto (activo, inactivo, etc.)
+  productStockTextClass,    // Función que retorna la clase CSS del texto de stock según su nivel
+  reloadDetailHistory,      // Recarga el historial de movimientos del producto en el modal de detalle
+  search,                   // Texto de búsqueda del filtro de inventario (v-model)
+  selectedProductDetail,    // Detalle completo del producto seleccionado (variantes, stock, resumen)
+  selectedProductHistory,   // Historial de movimientos del producto actualmente seleccionado
+  selectedVariantLabel,     // Etiqueta formateada de la variante seleccionada para ajuste o transferencia
+  showAdjustModal,          // Controla la visibilidad del modal de ajuste de stock
+  showDetailModal,          // Controla la visibilidad del modal de detalle de inventario
+  showTransferModal,        // Controla la visibilidad del modal de transferencia de stock
+  statusClass,              // Función que retorna la clase CSS de un badge de estado dado
+  statusLabel,              // Función que retorna la etiqueta legible de un estado dado
+  stockStatus,              // Función que determina el estado de stock ('normal' | 'low' | 'out') según cantidad
+  stockSubmitting,          // Indica si un envío de ajuste o transferencia está en curso (doble-envío)
+  stockTextClass,           // Función que retorna la clase CSS del texto de stock de una variante
+  submitAdjust,             // Envía el formulario de ajuste de stock al servidor
+  submitTransfer,           // Envía el formulario de transferencia de stock al servidor
+  transferErrors,           // Errores de validación del formulario de transferencia de stock
+  transferForm,             // Datos del formulario de transferencia (variante destino, cantidad, motivo)
+  transferSourceLabel,      // Etiqueta formateada de la variante origen para la transferencia
+  transferTargets,          // Lista de variantes destino candidatas para la transferencia
+  validateAdjustField,      // Valida un campo específico del formulario de ajuste en tiempo real
+  validateTransferField,    // Valida un campo específico del formulario de transferencia en tiempo real
 } = useAdminInventory()
 </script>
 

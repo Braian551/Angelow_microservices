@@ -82,6 +82,17 @@
             <RouterLink :to="{ name: 'forgot-password' }" class="forgot-password">¿Olvidaste tu contraseña?</RouterLink>
           </div>
 
+          <TurnstileWidget
+            v-if="captchaRequired"
+            ref="turnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
+
           <div class="step-buttons">
             <button type="button" class="btn-outline" :disabled="submitting || googleSubmitting" @click="goToCredentialStep">
               Atrás
@@ -122,6 +133,7 @@
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { signInWithPopup } from 'firebase/auth'
+import TurnstileWidget from '../../../components/security/TurnstileWidget.vue'
 import { loginUser, loginWithGoogle } from '../../../services/authApi'
 import { useSession } from '../../../composables/useSession'
 import { firebaseAuth, googleProvider, isFirebaseReady } from '../../../services/firebase'
@@ -135,6 +147,11 @@ const step = ref(1)
 const submitting = ref(false)
 const googleSubmitting = ref(false)
 const showPassword = ref(false)
+const captchaRequired = ref(false)
+const turnstileToken = ref('')
+const turnstileResetKey = ref(0)
+const turnstileRef = ref(null)
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 
 const form = reactive({
   credential: '',
@@ -145,6 +162,7 @@ const form = reactive({
 const errors = reactive({
   credential: '',
   password: '',
+  turnstile: '',
   global: '',
 })
 
@@ -171,7 +189,27 @@ function resolveRedirect() {
 function clearErrors() {
   errors.credential = ''
   errors.password = ''
+  errors.turnstile = ''
   errors.global = ''
+}
+
+function resetTurnstile() {
+  turnstileToken.value = ''
+  turnstileResetKey.value += 1
+}
+
+function onTurnstileVerified(token) {
+  turnstileToken.value = token
+  errors.turnstile = ''
+}
+
+function onTurnstileExpired() {
+  turnstileToken.value = ''
+}
+
+function onTurnstileError() {
+  turnstileToken.value = ''
+  errors.turnstile = 'No pudimos cargar la verificación de seguridad. Inténtalo de nuevo.'
 }
 
 function normalizeCredential(value) {
@@ -314,22 +352,40 @@ async function submitLogin() {
   const isCredentialValid = validateCredential()
   const isPasswordValid = validatePassword()
   if (!isCredentialValid || !isPasswordValid) return
+  if (captchaRequired.value && !turnstileToken.value) {
+    errors.turnstile = 'Completa la verificación de seguridad para continuar.'
+    return
+  }
 
   submitting.value = true
   try {
-    const response = await loginUser({
+    const payload = {
       credential: form.credential,
       password: form.password,
       remember: form.remember,
-    })
+    }
+
+    if (captchaRequired.value) {
+      payload.turnstile_token = turnstileToken.value
+    }
+
+    const response = await loginUser(payload)
 
     applySessionAndRedirect(response)
   } catch (error) {
+    if (error?.response?.data?.captcha_required) {
+      captchaRequired.value = true
+    }
+
     const message = readErrorMessage(error, 'No se pudo iniciar sesión.')
     if (message.toLowerCase().includes('credencial') || message.toLowerCase().includes('contrase')) {
       errors.password = message
     } else {
       errors.global = message
+    }
+
+    if (captchaRequired.value) {
+      resetTurnstile()
     }
   } finally {
     submitting.value = false

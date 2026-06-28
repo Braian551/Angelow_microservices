@@ -34,6 +34,7 @@ class LoginRequest extends FormRequest
             'credential' => ['required', 'string'],
             'password'   => ['required', 'string'],
             'remember'   => ['sometimes', 'boolean'],
+            'turnstile_token' => ['sometimes', 'nullable', 'string', 'max:4096'],
         ];
     }
 

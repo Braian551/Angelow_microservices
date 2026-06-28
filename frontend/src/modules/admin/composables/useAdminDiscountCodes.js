@@ -6,6 +6,11 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de códigos de descuento.
+ * Administra CRUD, campañas masivas y específicas, validación y exportación.
+ * Reutiliza useAdminPagination y useAdminDataExport para paginación y exportación.
+ */
 export function useAdminDiscountCodes() {
   // =====================================================
   // Dependencias y composables reutilizados

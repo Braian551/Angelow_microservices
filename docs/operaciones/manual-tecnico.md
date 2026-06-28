@@ -10,6 +10,8 @@
 - [Servicios y puertos operativos](#servicios-y-puertos-operativos)
 - [Migraciones e importación de datos](#migraciones-e-importación-de-datos)
 - [Flujo técnico de frontend](#flujo-técnico-de-frontend)
+- [Verificación de seguridad en autenticación](#verificación-de-seguridad-en-autenticación)
+- [Verificación de correo en registro](#verificación-de-correo-en-registro)
 - [Validaciones numéricas de formularios](#validaciones-numéricas-de-formularios)
 - [Pruebas y validación técnica](#pruebas-y-validación-técnica)
 - [Mantenimiento de documentación](#mantenimiento-de-documentación)
@@ -99,6 +101,43 @@ docker compose exec frontend sh -c "npm run build"
 
 Después del reinicio, validar la ruta impactada en navegador y forzar recarga dura si el cambio no aparece de inmediato.
 Si la tarea toca exportaciones administrativas PDF o Excel, validar además una descarga PDF y una descarga Excel sobre alguna vista intervenida y revisar la guía `frontend/docs/exportaciones-admin-reutilizables.md`.
+
+## Verificación de seguridad en autenticación
+
+Los flujos nativos de registro, inicio de sesión condicionado y recuperación de contraseña usan Cloudflare Turnstile. El frontend consume `VITE_TURNSTILE_SITE_KEY` y `auth-service` consume `TURNSTILE_SECRET_KEY` desde el entorno del contenedor o del despliegue.
+
+Variables operativas:
+
+```bash
+TURNSTILE_SECRET_KEY=
+TURNSTILE_VERIFY_URL=https://challenges.cloudflare.com/turnstile/v0/siteverify
+AUTH_LOGIN_CAPTCHA_AFTER_ATTEMPTS=3
+AUTH_LOGIN_TEMP_BLOCK_AFTER_ATTEMPTS=8
+AUTH_LOGIN_TEMP_BLOCK_MINUTES=15
+VITE_TURNSTILE_SITE_KEY=
+```
+
+La llave secreta no debe escribirse en Vue, HTML público, documentación ni archivos versionados. Para Docker local, exporta `TURNSTILE_SECRET_KEY` antes de reconstruir `auth-service` o configúrala en el `.env` raíz ignorado por Git. Si todos los formularios con verificación responden `503`, primero valida que `auth-service` tenga la variable cargada antes de revisar el widget del frontend.
+
+Documento relacionado: `docs/patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md`.
+
+## Verificación de correo en registro
+
+El registro nativo confirma el correo antes del paso de teléfono. `auth-service` expone `/api/auth/registration-verification/request-code`, `/resend-code` y `/verify-code`; la creación de cuenta consume `registration_token` junto con el formulario final.
+
+Variables operativas:
+
+```bash
+REGISTRATION_VERIFICATION_CODE_TTL=900
+REGISTRATION_VERIFICATION_RESEND_COOLDOWN=60
+PHPMAILER_HOST=smtp.gmail.com
+PHPMAILER_PORT=587
+PHPMAILER_USERNAME=
+PHPMAILER_PASSWORD=
+PHPMAILER_ENCRYPTION=tls
+```
+
+Documento relacionado: `docs/patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md`.
 
 ## Validaciones numéricas de formularios
 

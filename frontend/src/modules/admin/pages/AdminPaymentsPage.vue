@@ -1,3 +1,10 @@
+<!--
+  AdminPaymentsPage.vue
+  Página administrativa para la gestión de pagos.
+  Permite visualizar el listado de pagos, filtrar por estado y método,
+  verificar o rechazar comprobantes de transferencia, y configurar la
+  cuenta bancaria que se muestra al cliente al momento de registrar un pago.
+-->
 <template>
   <div class="admin-entity-page admin-payments-page">
     <AdminPageHeader
@@ -316,9 +323,19 @@
   </div>
 </template>
 
+<!--
+  Script del componente AdminPaymentsPage.
+  Responsabilidades:
+  - Importar componentes de interfaz y el composable de pagos del administrador.
+  - Desestructurar las propiedades y métodos proporcionados por useAdminPayments
+    para gestionar el estado, filtros, paginación, modales y acciones sobre pagos.
+-->
 <script setup>
+// Importaciones del módulo de pagos; se mantienen como comentarios JS válidos dentro de script.
 import { RouterLink } from 'vue-router'
+
 import PaymentAccountSummaryCard from '../../../components/payments/PaymentAccountSummaryCard.vue'
+
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
@@ -330,41 +347,43 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+
 import { useAdminPayments } from '../composables/useAdminPayments'
+
 import '../views/AdminPaymentsPage.css'
 
 const {
-  accountBanks,
-  accountErrors,
-  accountForm,
-  accountPreview,
-  activeFilterCount,
-  clearFilters,
-  closeAccountModal,
-  closeProofModal,
-  filtered,
-  formatCurrency,
-  isPaymentActionLoading,
-  loading,
-  loadingAccountConfig,
-  methodFilter,
-  methodLabel,
-  openAccountModal,
-  openProofModal,
-  pagination,
-  paymentStats,
-  savingAccountConfig,
-  search,
-  selectedProofPayment,
-  showAccountModal,
-  showProofModal,
-  statusBadgeClass,
-  statusFilter,
-  statusLabel,
-  submitAccountConfig,
-  syncingPaymentId,
-  updatePayment,
-  validateAccountField,
+  accountBanks,        // Lista de bancos disponibles para la configuración de cuenta
+  accountErrors,       // Objeto con los errores de validación de los campos de cuenta
+  accountForm,         // Formulario reactivo con los datos de la cuenta bancaria
+  accountPreview,      // Vista previa de la cuenta configurada para mostrar al cliente
+  activeFilterCount,   // Cantidad de filtros actualmente activos
+  clearFilters,        // Función que restablece todos los filtros de búsqueda a su valor por defecto
+  closeAccountModal,   // Función que cierra el modal de configuración de cuenta bancaria
+  closeProofModal,     // Función que cierra el modal de visualización de comprobante
+  filtered,            // Lista de pagos filtrados según los criterios de búsqueda y filtros aplicados
+  formatCurrency,      // Función de utilidad que formatea un valor numérico como moneda local
+  isPaymentActionLoading, // Función que verifica si una acción específica está en curso para un pago dado
+  loading,             // Indicador booleano que muestra si los datos se están cargando
+  loadingAccountConfig, // Indicador booleano que muestra si la configuración de cuenta se está cargando
+  methodFilter,        // Filtro reactivo para el método de pago (transferencia, efectivo, tarjeta)
+  methodLabel,         // Función que convierte el código del método de pago en su etiqueta legible
+  openAccountModal,    // Función que abre el modal de configuración de cuenta bancaria
+  openProofModal,      // Función que abre el modal de visualización del comprobante de un pago
+  pagination,          // Objeto de paginación con página actual, tamaño de página, elementos totales y opciones
+  paymentStats,        // Arreglo de estadísticas resumidas de pagos para mostrar en la cuadrícula de métricas
+  savingAccountConfig, // Indicador booleano que muestra si la configuración de cuenta se está guardando
+  search,              // Término de búsqueda reactivo para filtrar pagos por orden, cliente o referencia
+  selectedProofPayment, // Pago seleccionado cuyo comprobante se está visualizando en el modal
+  showAccountModal,    // Estado reactivo que controla la visibilidad del modal de cuenta bancaria
+  showProofModal,      // Estado reactivo que controla la visibilidad del modal de comprobante
+  statusBadgeClass,    // Función que retorna la clase CSS correspondiente al estado del pago para el badge
+  statusFilter,        // Filtro reactivo para el estado del pago (pendiente, verificado, rechazado)
+  statusLabel,         // Función que convierte el código del estado del pago en su etiqueta legible
+  submitAccountConfig, // Función que envía y guarda la configuración de cuenta bancaria en el servidor
+  syncingPaymentId,    // ID del pago que se está sincronizando actualmente, o null si no hay ninguna
+  updatePayment,       // Función que cambia el estado de un pago (aprobar o rechazar)
+  validateAccountField, // Función que valida un campo individual del formulario de cuenta
 } = useAdminPayments()
 </script>
 

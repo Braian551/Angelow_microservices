@@ -1,6 +1,14 @@
 <template>
+  <!--
+    Página principal del Dashboard de Administración (AdminDashboardPage).
+    Responsabilidad: Vista de resumen ejecutivo con KPIs, gráficos, órdenes recientes,
+    alertas de inventario, top productos y actividad del sistema.
+    Orquesta datos desde useAdminDashboard() y renderiza usando componentes compartidos:
+    AdminPageHeader, AdminStatsGrid, AdminCard, AdminEmptyState, AdminTableShimmer, AdminTableImage.
+    Incluye gráficos Chart.js (barras+línea para ventas, doughnut para estados de órdenes).
+  -->
   <div class="admin-dashboard-page">
-    <!-- Cabecera: usa el componente global AdminPageHeader -->
+    <!-- Cabecera de página: título, bienvenida, breadcrumbs y acciones rápidas (Órdenes, Productos, Actualizar) -->
     <AdminPageHeader icon="fas fa-chart-line" :title="dashboardWelcome"
       :subtitle="`${dashboardStoreName} · Ventas, órdenes, clientes e inventario en tiempo real.`"
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Resumen' }]">
@@ -17,10 +25,10 @@
       </template>
     </AdminPageHeader>
 
-    <!-- Tarjetas de estadísticas: componente compartido AdminStatsGrid -->
+    <!-- Tarjetas de estadísticas principales (KPIs): ventas, órdenes, clientes, productos -->
     <AdminStatsGrid :stats="stats" :loading="loading" :count="4" />
 
-    <!-- Métricas secundarias: componente AdminCard reutilizable -->
+    <!-- Métricas secundarias en grid: tickets promedio, conversión, etc. -->
     <AdminCard :flush="false" class="dashboard-metrics-card">
       <div class="dashboard-metrics-grid">
         <div v-for="metric in metrics" :key="metric.key" class="dashboard-metric">
@@ -35,8 +43,9 @@
       </div>
     </AdminCard>
 
-    <!-- Gráficos -->
+    <!-- Sección de gráficos: ventas (barras+línea) y estados de órdenes (doughnut) -->
     <section class="dashboard-charts-row">
+      <!-- Gráfico principal: rendimiento de ventas (ingresos + órdenes) con selector de rango 7/14/30 días -->
       <AdminCard :flush="false" class="dashboard-chart-main">
         <div class="dashboard-chart-header">
           <div>
@@ -56,6 +65,7 @@
         </div>
       </AdminCard>
 
+      <!-- Gráfico lateral: distribución de estados de órdenes (doughnut) con leyenda y barras de porcentaje -->
       <AdminCard :flush="false" class="dashboard-chart-side">
         <div class="dashboard-chart-header">
           <div>
@@ -72,6 +82,7 @@
           <AdminEmptyState v-else icon="fas fa-circle-notch" title="Aún no hay datos"
             description="Todavía no hay estados de órdenes para este período." class="dashboard-chart-empty-state" />
         </div>
+        <!-- Lista de estados con conteo, porcentaje y barra visual -->
         <div v-if="orderStatuses.length" class="dashboard-status-list">
           <div v-for="s in orderStatuses" :key="s.label" class="dashboard-status-row">
             <div class="dashboard-status-info">
@@ -91,7 +102,7 @@
       </AdminCard>
     </section>
 
-    <!-- Últimas órdenes -->
+    <!-- Tabla de últimas órdenes con shimmer de carga y filas navegables (click/enter/space) -->
     <AdminCard :flush="true">
       <template #header>
         <div class="dashboard-section-head">
@@ -141,9 +152,9 @@
       </div>
     </AdminCard>
 
-    <!-- Fila inferior: inventario + top productos + actividad -->
+    <!-- Fila inferior de 3 tarjetas: inventario en riesgo, top productos, actividad reciente -->
     <div class="dashboard-bottom-row">
-      <!-- Inventario en riesgo -->
+      <!-- Tarjeta: Inventario en riesgo (resumen + lista de variantes con stock crítico/agotado) -->
       <AdminCard :flush="false" class="dashboard-bottom-card">
         <template #header>
           <div class="dashboard-section-head">
@@ -155,6 +166,7 @@
           </div>
         </template>
 
+        <!-- Píldoras de resumen: total variantes, bajo stock, sin stock -->
         <div class="dashboard-inventory-pills">
           <div class="dashboard-inventory-pill">
             <p>Total de variantes</p>
@@ -186,7 +198,7 @@
         </div>
       </AdminCard>
 
-      <!-- Top productos -->
+      <!-- Tarjeta: Top productos (más vendidos en 30 días) con ranking, unidades e ingresos -->
       <AdminCard :flush="false" class="dashboard-bottom-card">
         <template #header>
           <div class="dashboard-section-head">
@@ -213,7 +225,7 @@
         </div>
       </AdminCard>
 
-      <!-- Actividad reciente -->
+      <!-- Tarjeta: Actividad reciente (eventos del sistema con icono, título, descripción, tiempo) -->
       <AdminCard :flush="false" class="dashboard-bottom-card">
         <template #header>
           <div class="dashboard-section-head">
@@ -243,6 +255,20 @@
 </template>
 
 <script setup>
+/**
+ * AdminDashboardPage - Lógica del Dashboard de Administración
+ * 
+ * Este archivo orquesta la vista principal del dashboard administrativo.
+ * Responsabilidades:
+ * - Registrar componentes Chart.js necesarios para gráficos de ventas y estados.
+ * - Exponer refs para los elementos <canvas> de los gráficos.
+ * - Consumir el composable useAdminDashboard() que centraliza toda la lógica de datos,
+ *   carga, formateo y navegación del dashboard.
+ * - Renderizar y destruir instancias de Chart.js reactivamente ante cambios de datos/rango.
+ * - Limpiar recursos al desmontar el componente.
+ */
+
+// Módulos de Chart.js: registramos solo controladores, escalas, elementos y plugins que usamos
 import {
   ArcElement,
   BarController,
@@ -260,15 +286,22 @@ import {
 } from 'chart.js'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+
+// Composable principal del dashboard: expone estado reactivo, cargas, formateo y navegación
 import { useAdminDashboard } from '../composables/useAdminDashboard'
+
+// Componentes compartidos del módulo admin (reutilizables, no duplicar)
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminTableImage from '../components/AdminTableImage.vue'
+
+// Estilos propios de esta vista (scoped via CSS Modules o clase única)
 import '../views/AdminDashboardPage.css'
 
+// Registro global de componentes Chart.js que usaremos (bar, line, doughnut)
 Chart.register(
   CategoryScale,
   LinearScale,
@@ -284,77 +317,112 @@ Chart.register(
   Legend,
 )
 
-const salesChartRef = ref(null)
-const statusChartRef = ref(null)
+// Refs a los elementos <canvas> del template para instanciar Chart.js
+const salesChartRef = ref(null)      // Canvas del gráfico de ventas (barras + línea)
+const statusChartRef = ref(null)     // Canvas del gráfico de estados (doughnut)
 
+// Instancias de Chart.js (se guardan en variables mutables para poder destruirlas y recrearlas)
 let salesChartInstance = null
 let statusChartInstance = null
 
 // =====================================================
-// Lógica principal del dashboard
+// Estado reactivo y API del dashboard (desde useAdminDashboard)
 // =====================================================
+// Desestructuramos todo lo que expone el composable para uso directo en template y script
 const {
-  activities,
-  dashboardStoreName,
-  dashboardWelcome,
-  hasSalesChartData,
-  hasStatusChartData,
-  inventoryAlerts,
-  inventoryLow,
-  inventoryTotal,
-  inventoryZero,
-  loadDashboard,
-  loading,
-  metrics,
-  openDashboardActivity,
-  openInventoryAlert,
-  openRecentOrder,
-  openTopProduct,
-  orderStatuses,
-  recentOrders,
-  salesChartRange,
-  salesSeries,
-  stats,
-  statusChartRange,
-  statusPercentage,
-  topProducts,
+  // Listas de datos para renderizado
+  activities,              // Actividad reciente del sistema (eventos)
+  inventoryAlerts,         // Variantes con stock crítico o agotado
+  orderStatuses,           // Estados de órdenes agregados para el doughnut
+  recentOrders,            // Últimas órdenes para la tabla
+  salesSeries,             // Serie temporal de ventas (ingresos + órdenes por período)
+  topProducts,             // Productos más vendidos (ranking)
+  // Métricas y KPIs
+  stats,                   // 4 tarjetas principales: ventas, órdenes, clientes, productos
+  metrics,                 // Métricas secundarias (ticket medio, conversión, etc.)
+  inventoryTotal,          // Total de variantes
+  inventoryLow,            // Variantes con bajo stock
+  inventoryZero,           // Variantes sin stock
+  // Texto y labels
+  dashboardStoreName,      // Nombre de la tienda para subtitle
+  dashboardWelcome,        // Saludo personalizado para el header
+  // Flags de estado vacío para gráficos
+  hasSalesChartData,       // true si hay datos para el gráfico de ventas
+  hasStatusChartData,      // true si hay datos para el doughnut de estados
+  // Funciones de carga y navegación
+  loadDashboard,           // Recarga completa de datos del dashboard
+  openDashboardActivity,   // Navega a detalle de actividad
+  openInventoryAlert,      // Navega a ficha de inventario en alerta
+  openRecentOrder,         // Navega a detalle de orden reciente
+  openTopProduct,          // Navega a ficha de producto top
+  // Formateo y helpers
+  statusPercentage,        // Calcula % de un conteo sobre total de órdenes
+  formatCurrency,          // (disponible via composable, usado en template)
+  // Estado de UI
+  loading,                 // true mientras se cargan datos iniciales
+  // Rangos de fecha para gráficos (reactivos, disparan watch)
+  salesChartRange,         // 7, 14 o 30 días para gráfico de ventas
+  statusChartRange,        // 7, 14 o 30 días para gráfico de estados
 } = useAdminDashboard()
 
+// =====================================================
+// Gestión de instancias Chart.js (ciclo de vida)
+// =====================================================
+
+/**
+ * Destruye ambas instancias de gráficos para liberar memoria y evitar duplicados.
+ * Se llama al cambiar rango, al recibir datos vacíos, y al desmontar el componente.
+ */
 function destroyCharts() {
-  // Se destruyen ambas instancias para evitar gráficos duplicados al cambiar período o estado vacío.
   destroySalesChart()
   destroyStatusChart()
 }
 
+/**
+ * Destruye la instancia del gráfico de ventas si existe.
+ * Limpia la referencia para permitir nueva creación en renderSalesChart().
+ */
 function destroySalesChart() {
-  // La instancia del gráfico de ventas se recicla cada vez que cambian los datos del reporte.
   if (!salesChartInstance) {
     return
   }
-
   salesChartInstance.destroy()
   salesChartInstance = null
 }
 
+/**
+ * Destruye la instancia del gráfico de estados (doughnut) si existe.
+ * Limpia la referencia para permitir nueva creación en renderStatusChart().
+ */
 function destroyStatusChart() {
-  // La instancia del doughnut se recicla cuando cambia el rango o entra/sale del estado vacío.
   if (!statusChartInstance) {
     return
   }
-
   statusChartInstance.destroy()
   statusChartInstance = null
 }
 
+// =====================================================
+// Renderizado del gráfico de ventas (barras + línea dual-axis)
+// =====================================================
+/**
+ * Construye/actualiza el gráfico combinado de ingresos (línea) y órdenes (barras).
+ * - Usa dos ejes Y: izquierdo para ingresos ($), derecho para órdenes (conteo).
+ * - Formatea etiquetas de fecha en locale es-CO (ej: "15 ene").
+ * - Si no hay datos o canvas no listo, destruye instancia y muestra empty state.
+ * - Se destruye y recrea en cada render para simplicidad y evitar mutaciones complejas.
+ */
 function renderSalesChart() {
-  // Si no hay datos o el canvas no está montado, se limpia el gráfico y se deja ver el empty state.
+  // Validación: canvas montado y datos disponibles
   if (!salesChartRef.value || !hasSalesChartData.value) {
     destroySalesChart()
     return
   }
 
+  // Limpieza previa por si hubo render anterior
   destroySalesChart()
 
+  // Etiquetas del eje X: fechas formateadas en español (día + mes corto)
   const labels = salesSeries.value.map((item) => {
     const source = item.date || item.period || ''
     if (!source) return '-'
@@ -363,9 +431,11 @@ function renderSalesChart() {
     return parsed.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
   })
 
+  // Datasets: ingresos (línea) y órdenes (barras)
   const revenueDataset = salesSeries.value.map((item) => Number(item.revenue || 0))
   const ordersDataset = salesSeries.value.map((item) => Number(item.orders || 0))
 
+  // Instancia Chart.js: tipo 'bar' base + dataset mixto 'line' para ingresos
   salesChartInstance = new Chart(salesChartRef.value, {
     type: 'bar',
     data: {
@@ -396,13 +466,13 @@ function renderSalesChart() {
       ],
     },
     options: {
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      maintainAspectRatio: false,           // Respeta contenedor CSS
+      interaction: { mode: 'index', intersect: false }, // Tooltip compartido por índice
       plugins: {
-        legend: { position: 'bottom' },
+        legend: { position: 'bottom' },     // Leyenda inferior
       },
       scales: {
-        y: {
+        y: {                                // Eje Y izquierdo: ingresos en COP
           position: 'left',
           ticks: {
             callback(value) {
@@ -410,17 +480,26 @@ function renderSalesChart() {
             },
           },
         },
-        y1: {
+        y1: {                               // Eje Y derecho: conteo de órdenes
           position: 'right',
-          grid: { drawOnChartArea: false },
+          grid: { drawOnChartArea: false }, // Sin grid duplicado
         },
       },
     },
   })
 }
 
+// =====================================================
+// Renderizado del gráfico de estados (doughnut)
+// =====================================================
+/**
+ * Construye/actualiza el gráfico doughnut de distribución de estados de órdenes.
+ * - Sin leyenda (se usa lista lateral con barras de porcentaje).
+ * - Colores y labels vienen de orderStatuses (reactivo del composable).
+ * - cutout 62% para estilo anillo delgado.
+ * - Si no hay datos, destruye instancia y muestra empty state.
+ */
 function renderStatusChart() {
-  // Si no hay estados agregados para el período actual, se limpia el doughnut y se muestra el estado vacío.
   if (!statusChartRef.value || !hasStatusChartData.value) {
     destroyStatusChart()
     return
@@ -450,20 +529,30 @@ function renderStatusChart() {
   })
 }
 
+/**
+ * Orquesta el render de ambos gráficos de forma independiente.
+ * Permite que uno esté vacío y el otro con datos sin bloquearse mutuamente.
+ */
 function renderCharts() {
-  // Cada gráfico se dibuja de forma independiente para soportar vacíos parciales sin bloquear al otro.
   renderSalesChart()
   renderStatusChart()
 }
 
 // =====================================================
-// Integración con gráficas
+// Reactividad: re-render automático ante cambios de datos/rango
 // =====================================================
+// Observa salesSeries (cambia al cargar datos o cambiar salesChartRange)
+// y orderStatuses (cambia al cargar datos o cambiar statusChartRange).
+// Usa nextTick para asegurar que el DOM (canvas) esté listo tras cambio de rango.
 watch([salesSeries, orderStatuses], async () => {
   await nextTick()
   renderCharts()
 })
 
+// =====================================================
+// Limpieza al desmontar
+// =====================================================
+// Destruye instancias Chart.js para evitar memory leaks al salir del dashboard.
 onBeforeUnmount(() => {
   destroyCharts()
 })

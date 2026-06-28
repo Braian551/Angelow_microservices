@@ -1,3 +1,9 @@
+/* =============================================
+   SISTEMA DE ALERTAS DE USUARIO - UserAlertSystem
+   Estilos para el componente modal de alertas
+   ============================================= */
+
+/* Capa superpuesta (overlay) que cubre toda la pantalla cuando se muestra una alerta */
 .alert-overlay {
   position: fixed;
   inset: 0;
@@ -7,17 +13,22 @@
   align-items: center;
   z-index: 9999;
   backdrop-filter: blur(3px);
+  /* Estado inicial oculto: opacidad cero y sin visibilidad */
   opacity: 0;
   visibility: hidden;
+  /* Transición suave al mostrar/ocultar el overlay */
   transition: all 0.3s ease;
 }
 
+/* Estado activo del overlay: se vuelve visible con opacidad completa */
 .alert-overlay.active {
   opacity: 1;
   visibility: visible;
 }
 
+/* Caja principal del cuadro de alerta (modal) */
 .alert-box {
+  /* Variable CSS con fallback para el fondo claro */
   background-color: var(--bg-light, #fff);
   padding: 3rem;
   border-radius: 12px;
@@ -25,17 +36,21 @@
   max-width: 450px;
   width: 90%;
   text-align: center;
+  /* Desplazamiento inicial hacia abajo para la animación de entrada */
   transform: translateY(20px);
+  /* Transición para transform y opacidad al mostrar el modal */
   transition: transform 0.4s ease, opacity 0.4s ease;
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border-color, #e0e0e0);
 }
 
+/* Cuando el overlay está activo, la caja se desplaza a su posición final (sin translateY) */
 .alert-overlay.active .alert-box {
   transform: translateY(0);
 }
 
+/* Barra de color superior decorativa con gradiente que aparece en la parte superior del modal */
 .alert-box::before {
   content: '';
   position: absolute;
@@ -43,9 +58,11 @@
   left: 0;
   width: 100%;
   height: 5px;
+  /* Gradiente que usa las variables CSS de color primario y acento */
   background: linear-gradient(90deg, var(--primary-color, #0077b6), var(--accent-color, #00b4d8));
 }
 
+/* Contenedor circular que alberga el icono de la alerta (ícono de éxito, error o advertencia) */
 .alert-icon-container {
   width: 80px;
   height: 80px;
@@ -55,11 +72,14 @@
   justify-content: center;
   margin: 0 auto 2rem;
   position: relative;
+  /* Animación de rebote al aparecer el icono */
   animation: bounce 0.6s ease;
+  /* Borde semitransparente con color primario */
   border: 2px solid rgba(0, 119, 182, 0.3);
   background-color: rgba(0, 119, 182, 0.08);
 }
 
+/* Icono de la alerta (emoji o ícono interior) */
 .alert-icon {
   font-size: 5.2rem;
   color: var(--primary-color, #0077b6);
@@ -68,6 +88,7 @@
   justify-content: center;
 }
 
+/* Título principal del cuadro de alerta */
 .alert-title {
   font-size: 2.2rem;
   color: var(--text-dark, #111);
@@ -75,6 +96,7 @@
   line-height: 1.3;
 }
 
+/* Mensaje descriptivo de la alerta */
 .alert-message {
   margin: 0 0 2rem;
   font-size: 1.6rem;
@@ -82,16 +104,19 @@
   line-height: 1.6;
 }
 
+/* Texto del temporizador de cuenta regresiva antes de cerrar la alerta automáticamente */
 .alert-countdown {
   font-size: 1.4rem;
   color: var(--text-light, #777);
   margin-bottom: 1.6rem;
 }
 
+/* Número del countdown resaltado en color primario */
 .alert-countdown strong {
   color: var(--primary-color, #0077b6);
 }
 
+/* Contenedor de botones de acción de la alerta (alineados en fila) */
 .alert-buttons {
   display: flex;
   justify-content: center;
@@ -99,6 +124,7 @@
   flex-wrap: wrap;
 }
 
+/* Botón genérico de la alerta con estilos base */
 .alert-button {
   border: none;
   padding: 1.2rem 2.5rem;
@@ -106,7 +132,9 @@
   cursor: pointer;
   font-weight: 600;
   font-size: 1.5rem;
+  /* Transición para efectos hover y de estado */
   transition: all 0.3s ease;
+  /* Los botones crecen para llenar el espacio disponible */
   flex: 1;
   max-width: 180px;
   display: inline-flex;
@@ -116,6 +144,7 @@
   min-height: 4.6rem;
 }
 
+/* Estado deshabilitado o en carga del botón: cursor no permitido, opacidad reducida */
 .alert-button:disabled,
 .alert-button.is-loading {
   cursor: not-allowed;
@@ -123,29 +152,34 @@
   transform: none;
 }
 
+/* Hover deshabilitado: sin efecto de elevación ni sombra */
 .alert-button:disabled:hover,
 .alert-button.is-loading:hover {
   transform: none;
   box-shadow: none;
 }
 
+/* Botón primario de color sólido (aceptar, confirmar) */
 .alert-button.primary {
   background-color: var(--primary-color, #0077b6);
   color: #fff;
 }
 
+/* Hover del botón primario: oscurece ligeramente y se eleva */
 .alert-button.primary:hover {
   background-color: var(--primary-dark, #6a96cf);
   transform: translateY(-2px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Botón outline (transparente con borde) para acciones secundarias */
 .alert-button.outline {
   background-color: transparent;
   border: 1px solid var(--border-color, #e0e0e0);
   color: var(--text-dark, #111);
 }
 
+/* Hover del botón outline: cambia a color primario con fondo sólido */
 .alert-button.outline:hover {
   background-color: var(--primary-dark, #6a96cf);
   color: #fff;
@@ -153,16 +187,19 @@
   transform: translateY(-2px);
 }
 
+/* Botón de peligro (eliminar, acción destructiva) con color de error */
 .alert-button.danger {
   background-color: var(--error-color, #ff3333);
   color: #fff;
 }
 
+/* Hover del botón de peligro: tono más oscuro */
 .alert-button.danger:hover {
   background-color: #d62828;
   transform: translateY(-2px);
 }
 
+/* Botón de cerrar (X) posicionado en la esquina superior derecha del modal */
 .alert-close {
   position: absolute;
   top: 1.2rem;
@@ -181,50 +218,65 @@
   transition: all 0.3s ease;
 }
 
+/* Hover del botón de cerrar: cambia a color de error para indicar acción de cierre */
 .alert-close:hover {
   color: var(--error-color, #ff3333);
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* Barra superior de color para alerta de ÉXITO */
 .alert-box.success::before {
   background: var(--success-color, #4bb543);
 }
 
+/* Barra superior de color para alerta de ERROR */
 .alert-box.error::before {
   background: var(--error-color, #ff3333);
 }
 
+/* Barra superior de color para alerta de ADVERTENCIA */
 .alert-box.warning::before {
   background: var(--warning-color, #ffcc00);
 }
 
+/* Contenedor del icono con colores específicos para alerta de ÉXITO */
 .alert-box.success .alert-icon-container {
   border-color: rgba(75, 181, 67, 0.3);
   background-color: rgba(75, 181, 67, 0.1);
 }
 
+/* Contenedor del icono con colores específicos para alerta de ERROR */
 .alert-box.error .alert-icon-container {
   border-color: rgba(255, 51, 51, 0.3);
   background-color: rgba(255, 51, 51, 0.1);
 }
 
+/* Contenedor del icono con colores específicos para alerta de ADVERTENCIA */
 .alert-box.warning .alert-icon-container {
   border-color: rgba(255, 204, 0, 0.3);
   background-color: rgba(255, 204, 0, 0.1);
 }
 
+/* Color del icono para alerta de ÉXITO */
 .alert-box.success .alert-icon {
   color: var(--success-color, #4bb543);
 }
 
+/* Color del icono para alerta de ERROR */
 .alert-box.error .alert-icon {
   color: var(--error-color, #ff3333);
 }
 
+/* Color del icono para alerta de ADVERTENCIA */
 .alert-box.warning .alert-icon {
   color: var(--warning-color, #ffcc00);
 }
 
+/* =============================================
+   ANIMACIONES
+   ============================================= */
+
+/* Animación de rebote aplicada al contenedor del icono al aparecer la alerta */
 @keyframes bounce {
   0%,
   20%,
@@ -243,15 +295,23 @@
   }
 }
 
+/* =============================================
+   MEDIA QUERIES - Diseño responsive
+   ============================================= */
+
+/* Ajustes para dispositivos con pantalla pequeña (móviles, máx. 640px) */
 @media (max-width: 640px) {
+  /* Reducir el padding del modal en pantallas pequeñas */
   .alert-box {
     padding: 2.2rem 1.8rem;
   }
 
+  /* Los botones se apilan verticalmente en lugar de fila horizontal */
   .alert-buttons {
     flex-direction: column;
   }
 
+  /* Los botones ocupan el 100% del ancho disponible en móvil */
   .alert-button {
     max-width: none;
     width: 100%;

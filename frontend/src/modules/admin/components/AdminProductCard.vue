@@ -78,11 +78,18 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
+/**
+ * Tarjeta de producto reutilizable para la vista de listado del admin.
+ * Muestra imagen, estado, categoría, variantes, stock, precio
+ * y acciones de editar/activar/desactivar.
+ */
 const props = defineProps({
+  /** Objeto de producto con datos del catálogo. */
   product: {
     type: Object,
     required: true,
   },
+  /** Indica si la tarjeta está seleccionada (modo selección múltiple). */
   selected: {
     type: Boolean,
     default: false,
@@ -91,6 +98,11 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle-select', 'quick-view', 'toggle-status', 'image-error'])
 
+/**
+ * Calcula la etiqueta de precio formateada en pesos colombianos.
+ * Si el precio mínimo y máximo son iguales, muestra un solo valor;
+ * de lo contrario muestra el rango de precios de las variantes.
+ */
 const priceLabel = computed(() => {
   const min = Number(props.product.min_price || props.product.price || 0)
   const max = Number(props.product.max_price || props.product.price || 0)

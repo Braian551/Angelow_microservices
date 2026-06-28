@@ -44,11 +44,24 @@
               placeholder="Ej: maria@email.com o 3001234567"
               :class="{ error: !!errors.identifier }"
               autocomplete="username"
+              @input="onIdentifierInput"
+              @blur="onIdentifierBlur"
               required
             />
             <div class="form-hint">Enviaremos un código de 4 dígitos al dato que ingreses.</div>
             <div v-if="errors.identifier" class="error-message">{{ errors.identifier }}</div>
           </div>
+
+          <TurnstileWidget
+            v-if="step === 1"
+            ref="turnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
 
           <button
             type="button"
@@ -62,27 +75,19 @@
         </div>
 
         <div class="form-step" :class="{ active: step === 2 }" data-step="2">
-          <div class="code-meta">
-            <p>{{ codeInfo }}</p>
-            <span class="code-status-pill" :class="codeStatusClass">{{ codeStatusText }}</span>
-          </div>
-
-          <div class="form-group">
-            <label for="recovery-code">Código de verificación</label>
-            <input
-              id="recovery-code"
-              v-model.trim="form.code"
-              type="text"
-              inputmode="numeric"
-              maxlength="4"
-              placeholder="0000"
-              :class="{ error: !!errors.code }"
-              autocomplete="one-time-code"
-              required
-            />
-            <div class="form-hint">El código vence en {{ timerLabel }}</div>
-            <div v-if="errors.code" class="error-message">{{ errors.code }}</div>
-          </div>
+          <AuthCodeVerification
+            v-model:code="form.code"
+            input-id="recovery-code"
+            :info="codeInfo"
+            :status="codeStatus"
+            :timer-label="timerLabel"
+            :error="errors.code"
+            :resend-text="resendButtonText"
+            :resend-disabled="resendCooldown > 0 || loading.resendCode"
+            @input="onCodeInput"
+            @blur="onCodeBlur"
+            @resend="submitRequestCode(true)"
+          />
 
           <div class="step-buttons">
             <button type="button" class="btn-outline" :disabled="loading.verifyCode" @click="goBackToIdentifier">
@@ -94,17 +99,16 @@
             </button>
           </div>
 
-          <div class="resend-wrapper">
-            <span>¿No llegó el correo?</span>
-            <button
-              type="button"
-              class="link-button"
-              :disabled="resendCooldown > 0 || loading.resendCode"
-              @click="submitRequestCode(true)"
-            >
-              {{ resendButtonText }}
-            </button>
-          </div>
+          <TurnstileWidget
+            v-if="step === 2"
+            ref="resendTurnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
         </div>
 
         <div class="form-step" :class="{ active: step === 3 }" data-step="3">
@@ -118,6 +122,8 @@
                 placeholder="Mínimo 8 caracteres"
                 autocomplete="new-password"
                 :class="{ error: !!errors.password }"
+                @input="onPasswordInput"
+                @blur="onPasswordBlur"
                 required
               />
               <button type="button" class="toggle-password" aria-label="Mostrar contraseña" @click="showPassword = !showPassword">
@@ -138,6 +144,8 @@
                 placeholder="Repite tu contraseña"
                 autocomplete="new-password"
                 :class="{ error: !!errors.passwordConfirmation }"
+                @input="onPasswordConfirmationInput"
+                @blur="onPasswordConfirmationBlur"
                 required
               />
               <button type="button" class="toggle-password" aria-label="Mostrar confirmación" @click="showPasswordConfirmation = !showPasswordConfirmation">
@@ -177,6 +185,8 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import AuthCodeVerification from '../components/AuthCodeVerification.vue'
+import TurnstileWidget from '../../../components/security/TurnstileWidget.vue'
 import {
   requestRecoveryCode,
   resendRecoveryCode,
@@ -199,6 +209,11 @@ const codeExpiresIn = ref(0)
 const resendCooldown = ref(0)
 const requestCooldown = ref(0)
 const sessionToken = ref('')
+const turnstileToken = ref('')
+const turnstileResetKey = ref(0)
+const turnstileRef = ref(null)
+const resendTurnstileRef = ref(null)
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 
 let timerIntervalId = null
 let resendIntervalId = null
@@ -209,6 +224,7 @@ const form = reactive({
   code: '',
   password: '',
   passwordConfirmation: '',
+  turnstile: '',
 })
 
 const loading = reactive({
@@ -262,6 +278,26 @@ function clearFieldErrors() {
   errors.code = ''
   errors.password = ''
   errors.passwordConfirmation = ''
+  errors.turnstile = ''
+}
+
+function resetTurnstile() {
+  turnstileToken.value = ''
+  turnstileResetKey.value += 1
+}
+
+function onTurnstileVerified(token) {
+  turnstileToken.value = token
+  errors.turnstile = ''
+}
+
+function onTurnstileExpired() {
+  turnstileToken.value = ''
+}
+
+function onTurnstileError() {
+  turnstileToken.value = ''
+  errors.turnstile = 'No pudimos cargar la verificación de seguridad. Inténtalo de nuevo.'
 }
 
 function clearMessages() {
@@ -359,6 +395,15 @@ function validateIdentifier() {
   return normalized
 }
 
+function onIdentifierInput() {
+  clearMessages()
+  validateIdentifier()
+}
+
+function onIdentifierBlur() {
+  validateIdentifier()
+}
+
 function validateCode() {
   if (!/^[0-9]{4}$/.test(form.code)) {
     errors.code = 'El código debe tener 4 dígitos.'
@@ -367,6 +412,15 @@ function validateCode() {
 
   errors.code = ''
   return true
+}
+
+function onCodeInput() {
+  clearMessages()
+  validateCode()
+}
+
+function onCodeBlur() {
+  validateCode()
 }
 
 function validatePasswords() {
@@ -390,6 +444,24 @@ function validatePasswords() {
   }
 
   return valid
+}
+
+function onPasswordInput() {
+  clearMessages()
+  validatePasswords()
+}
+
+function onPasswordBlur() {
+  validatePasswords()
+}
+
+function onPasswordConfirmationInput() {
+  clearMessages()
+  validatePasswords()
+}
+
+function onPasswordConfirmationBlur() {
+  validatePasswords()
 }
 
 function stopTimers() {
@@ -454,6 +526,10 @@ async function submitRequestCode(isResend) {
 
   const identifier = validateIdentifier()
   if (!identifier) return
+  if (!turnstileToken.value) {
+    errors.turnstile = 'Completa la verificación de seguridad para continuar.'
+    return
+  }
 
   if (!isResend && requestCooldown.value > 0) {
     setIdentifierCooldownMessage(requestCooldown.value)
@@ -468,7 +544,10 @@ async function submitRequestCode(isResend) {
 
   try {
     const action = isResend ? resendRecoveryCode : requestRecoveryCode
-    const response = await action({ identifier })
+    const response = await action({
+      identifier,
+      turnstile_token: turnstileToken.value,
+    })
     const data = response?.data || {}
 
     requestCooldown.value = 0
@@ -485,6 +564,7 @@ async function submitRequestCode(isResend) {
     step.value = 2
     codeStatus.value = 'pending'
     successMessage.value = response?.message || 'Código enviado.'
+    resetTurnstile()
   } catch (error) {
     const message = parseApiError(error, 'No pudimos enviar el código en este momento.')
     const cooldownSeconds = extractCooldownSeconds(error)
@@ -500,6 +580,7 @@ async function submitRequestCode(isResend) {
     } else {
       globalError.value = message
     }
+    resetTurnstile()
   } finally {
     loading.requestCode = false
     loading.resendCode = false

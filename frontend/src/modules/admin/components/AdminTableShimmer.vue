@@ -12,6 +12,14 @@
 <script setup>
 import AdminShimmer from './AdminShimmer.vue'
 
+/**
+ * Shimmer de tabla reutilizable del admin.
+ * Simula la estructura de una tabla con filas y columnas de carga
+ * mientras se obtienen los datos reales del servidor.
+ * Cada columna puede ser un string (tipo shimmer simple) o un objeto
+ * con tipo, ancho y alto personalizados para mayor precisión visual.
+ * Reutiliza AdminShimmer como bloque base de cada celda.
+ */
 defineProps({
   /** Numero de filas simuladas */
   rows: { type: Number, default: 5 },

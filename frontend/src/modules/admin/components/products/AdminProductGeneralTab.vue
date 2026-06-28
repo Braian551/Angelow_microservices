@@ -189,6 +189,13 @@
 import AdminInfoTooltip from '../AdminInfoTooltip.vue'
 import AdminProductImagePanel from './AdminProductImagePanel.vue'
 
+/**
+ * Pestaña de información general del formulario de producto.
+ * Contiene las secciones de identificación, clasificación, precios,
+ * descripción y el panel lateral de imagen principal/visibilidad.
+ * Actúa como contenedor que delega la lógica de negocio a la página padre
+ * mediante eventos y props, manteniendo el componente presentacional.
+ */
 defineProps({
   categories: { type: Array, default: () => [] },
   collections: { type: Array, default: () => [] },

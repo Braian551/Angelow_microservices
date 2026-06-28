@@ -1,4 +1,5 @@
 <template>
+  <!-- Página administrativa de preguntas: permite visualizar, filtrar, responder y eliminar preguntas de clientes sobre productos, con panel de estadísticas, gráficos de estado y vista detallada en modal. -->
   <div class="admin-questions-page">
     <AdminPageHeader
       icon="fas fa-circle-question"
@@ -245,9 +246,23 @@
 </template>
 
 <script setup>
+/**
+ * Script de la página administrativa de preguntas.
+ * Responsabilidades: cargar preguntas del catálogo, gestionar filtros y paginación,
+ * mostrar estadísticas y gráficos de estado, permitir respuesta y eliminación de preguntas,
+ * y exportar datos a Excel/PDF.
+ */
+
+// Importaciones de estilos
 import '../views/AdminQuestionsPage.css'
+
+// Importaciones de utilidades
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+
+// Importaciones de composables
 import { useAdminQuestions } from '../composables/useAdminQuestions'
+
+// Importaciones de componentes reutilizables del admin
 import AdminCard from '../components/AdminCard.vue'
 import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'

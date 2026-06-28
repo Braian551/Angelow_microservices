@@ -7,6 +7,8 @@ use App\Exceptions\AuthException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Services\AuthService;
+use App\Services\RegistrationVerificationService;
+use App\Services\TurnstileVerificationService;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -20,6 +22,8 @@ class RegisterController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly TurnstileVerificationService $turnstileVerificationService,
+        private readonly RegistrationVerificationService $registrationVerificationService,
     ) {}
 
     /**
@@ -33,6 +37,18 @@ class RegisterController extends Controller
     public function __invoke(RegisterRequest $request): JsonResponse
     {
         try {
+            // Verifica el formulario nativo antes de crear el usuario.
+            $this->turnstileVerificationService->verify(
+                $request->string('turnstile_token')->toString(),
+                $request->ip()
+            );
+
+            // Consume el token emitido por el paso de verificación de correo.
+            $this->registrationVerificationService->consumeVerifiedEmail(
+                $request->string('email')->toString(),
+                $request->string('registration_token')->toString()
+            );
+
             // Convierte los datos validados en un DTO inmutable
             $dto = RegisterUserDTO::fromArray($request->validated());
             $result = $this->authService->register($dto);

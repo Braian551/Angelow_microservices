@@ -14,6 +14,12 @@ import {
   normalizeAdminOrderStatus,
 } from '../utils/orderPresentation'
 
+/**
+ * Composable para la gestión de pedidos del panel administrativo.
+ * Administra listado, filtros, detalle, cambio de estados (pedido y pago),
+ * acciones masivas, exportación y paginación.
+ * Reutiliza useAdminPagination y useAdminDataExport.
+ */
 export function useAdminOrders() {
   const router = useRouter()
   const { showAlert } = useAlertSystem()

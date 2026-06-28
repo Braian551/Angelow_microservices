@@ -1,3 +1,4 @@
+{{-- Vista de bienvenida de shipping-service. Es la página predeterminada de Laravel, útil para verificar que el servicio responde en navegador. --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>

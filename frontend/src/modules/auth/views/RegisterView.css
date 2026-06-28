@@ -244,6 +244,66 @@
   background-color: #4bb543;
 }
 
+.register-page .code-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.register-page .code-meta p {
+  color: #334155;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.register-page .code-status-pill {
+  align-self: flex-start;
+  padding: 0.25rem 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.register-page .code-status-pill.pending {
+  background: rgba(11, 107, 189, 0.08);
+  color: #0b6bbd;
+}
+
+.register-page .code-status-pill.valid {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.register-page .code-status-pill.expired {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+}
+
+.register-page .resend-wrapper {
+  margin: 1.5rem 0;
+  font-size: 1.3rem;
+  color: #64748b;
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.register-page .link-button {
+  border: none;
+  background: transparent;
+  color: #0b6bbd;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.register-page .link-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .register-page .terms-container {
   display: flex;
   align-items: flex-start;

@@ -1,4 +1,5 @@
 /* ===== PROMO BANNER ===== */
+/* Contenedor principal del banner promocional, establece el fondo azul, centrado de texto y permite desbordamiento oculto para elementos absolutos */
 .promo-banner {
     background-color: #6a96cf;
     padding: 6rem 2rem;
@@ -7,12 +8,14 @@
     overflow: hidden;
 }
 
+/* Variante del banner cuando tiene imagen de fondo: ajusta la imagen para cubrir todo el contenedor */
 .promo-banner.has-image {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
 }
 
+/* Superposición semitransparente sobre la imagen de fondo para mejorar legibilidad del texto */
 .promo-image-overlay {
     position: absolute;
     top: 0;
@@ -23,6 +26,7 @@
     z-index: 0;
 }
 
+/* Contenedor del contenido del banner, posicionado encima de la superposición con z-index mayor */
 .promo-content {
     position: relative;
     z-index: 1;
@@ -30,11 +34,13 @@
     margin: 0 auto;
 }
 
+/* Estilos para el ícono FontAwesome dentro del banner */
 .promo-content .fas {
     color: white;
     margin-bottom: 1.5rem;
 }
 
+/* Título del banner con animación de entrada */
 .promo-content h2 {
     font-size: 2.8rem;
     color: white;
@@ -42,12 +48,14 @@
     animation: fadeIn 1s ease;
 }
 
+/* Párrafo descriptivo del banner promocional */
 .promo-content p {
     font-size: 1.6rem;
     color: white;
     margin-bottom: 2rem;
 }
 
+/* Botón de llamada a la acción dentro del banner */
 .promo-content .btn {
     display: inline-block;
     background-color: #0077b6;
@@ -60,6 +68,7 @@
     transition: all 0.3s ease;
 }
 
+/* Efecto hover del botón: invierte colores y eleva ligeramente el botón */
 .promo-content .btn:hover {
     background-color: white;
     color: #0077b6;

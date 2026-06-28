@@ -5,6 +5,11 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de descuentos por volumen (bulk discounts).
+ * Permite crear reglas de descuento basadas en rangos de cantidad de productos.
+ * Incluye CRUD, validación, paginación y exportación de reglas.
+ */
 export function useAdminBulkDiscounts() {
   // =====================================================
   // Dependencias y composables reutilizados
@@ -78,6 +83,7 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   const previewQuantityLabel = computed(() => quantityLabel(form))
 
+  /** Genera una etiqueta legible del rango de cantidad (ej: "Desde 5 unidades"). */
   function quantityLabel(rule) {
     const min = Number(rule.min_quantity || 0)
 
@@ -86,6 +92,7 @@ export function useAdminBulkDiscounts() {
     return `${min} a ${Number(rule.max_quantity)} unidades`
   }
 
+  /** Genera una descripción narrativa de la regla de descuento por cantidad. */
   function quantityNarrative(rule) {
     return `Durante la compra se aplicará ${Number(rule.discount_percent || rule.discount_percentage || 0)}% al llegar a ${quantityLabel(rule).toLowerCase()}.`
   }
@@ -93,6 +100,7 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   // Tipo y valor
   // =====================================================
+  /** Valida un campo específico del formulario de descuentos por volumen. */
   function validateField(field) {
     switch (field) {
       case 'min_quantity':
@@ -122,6 +130,7 @@ export function useAdminBulkDiscounts() {
     }
   }
 
+  /** Valida todos los campos del formulario. Retorna true si son válidos. */
   function validateForm() {
     validateField('min_quantity')
     validateField('max_quantity')
@@ -142,6 +151,7 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   // Fechas y prioridad
   // =====================================================
+  /** Restablece el formulario a valores por defecto y limpia errores. */
   function resetForm() {
     form.min_quantity = 2
     form.max_quantity = null
@@ -150,17 +160,20 @@ export function useAdminBulkDiscounts() {
     clearErrors()
   }
 
+  /** Limpia todos los errores de validación del formulario. */
   function clearErrors() {
     Object.keys(formErrors).forEach((key) => {
       formErrors[key] = ''
     })
   }
 
+  /** Restablece los filtros de búsqueda y estado a valores iniciales. */
   function clearFilters() {
     filters.search = ''
     filters.state = 'all'
   }
 
+  /** Extrae el mensaje de error de una respuesta HTTP con valor por defecto. */
   function extractErrorMessage(error, fallback) {
     return error?.response?.data?.message || fallback
   }
@@ -168,6 +181,7 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   // Carga y actualización de datos
   // =====================================================
+  /** Obtiene todas las reglas de descuento por volumen desde el backend. */
   async function loadRules() {
     loading.value = true
     try {
@@ -184,6 +198,7 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   // Acciones CRUD
   // =====================================================
+  /** Valida y guarda una regla de descuento (creación o actualización). */
   async function saveRule() {
     if (saving.value) return
 
@@ -218,6 +233,7 @@ export function useAdminBulkDiscounts() {
     }
   }
 
+  /** Muestra confirmación y elimina una regla de descuento por su ID. */
   function confirmDeleteRule(rule) {
     showAlert({
       type: 'warning',
@@ -246,12 +262,14 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   // Gestión de modales
   // =====================================================
+  /** Abre el modal de creación con formulario limpio. */
   function openCreateModal() {
     editingRuleId.value = null
     resetForm()
     showEditorModal.value = true
   }
 
+  /** Carga los datos de una regla existente en el formulario para edición. */
   function openEditModal(rule) {
     editingRuleId.value = rule.id
     clearErrors()
@@ -262,22 +280,26 @@ export function useAdminBulkDiscounts() {
     showEditorModal.value = true
   }
 
+  /** Cierra el modal del editor y reinicia el formulario. */
   function closeEditorModal() {
     showEditorModal.value = false
     editingRuleId.value = null
     resetForm()
   }
 
+  /** Abre el modal de detalle con la información de la regla seleccionada. */
   function openDetailModal(rule) {
     selectedRule.value = rule
     showDetailModal.value = true
   }
 
+  /** Cierra el modal de detalle y limpia la selección. */
   function closeDetailModal() {
     selectedRule.value = null
     showDetailModal.value = false
   }
 
+  /** Transiciona del modal de detalle al de edición con la regla actual. */
   function openEditFromDetail() {
     if (!selectedRule.value) return
     const currentRule = selectedRule.value
@@ -288,6 +310,7 @@ export function useAdminBulkDiscounts() {
   // =====================================================
   // Exportación
   // =====================================================
+  /** Define las columnas de exportación Excel/PDF de las reglas de descuento. */
   function buildBulkDiscountExportColumns() {
     return [
       { header: 'Escala', value: (rule) => quantityLabel(rule), width: 18 },
@@ -297,6 +320,7 @@ export function useAdminBulkDiscounts() {
     ]
   }
 
+  /** Exporta las reglas filtradas en el formato indicado (excel o pdf). */
   function exportRules(format) {
     return exportData({
       format,

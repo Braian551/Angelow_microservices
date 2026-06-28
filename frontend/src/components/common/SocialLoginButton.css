@@ -1,3 +1,7 @@
+/* ============================================
+   Contenedor principal de los botones de login social
+   Organiza los elementos en columna vertical con espacio uniforme
+   ============================================ */
 .social-login {
     display: flex;
     flex-direction: column;
@@ -5,6 +9,10 @@
     gap: 1.2rem;
 }
 
+/* ============================================
+   Texto separador ("o continúa con")
+   Se centra verticalmente y ocupa todo el ancho disponible
+   ============================================ */
 .social-text {
     display: flex;
     align-items: center;
@@ -13,6 +21,11 @@
     width: 100%;
 }
 
+/* ============================================
+   Pseudo-elementos ::before y ::after del texto separador
+   Crean las líneas horizontales a ambos lados del texto,
+   formando el patrón clásico "── texto ──"
+   ============================================ */
 .social-text::before,
 .social-text::after {
     content: '';
@@ -21,14 +34,21 @@
     background: var(--gray-200);
 }
 
+/* Línea izquierda: separa el texto del borde izquierdo con margen derecho */
 .social-text::before {
     margin-right: 1.2rem;
 }
 
+/* Línea derecha: separa el texto del borde derecho con margen izquierdo */
 .social-text::after {
     margin-left: 1.2rem;
 }
 
+/* ============================================
+   Botón de login social (Google, GitHub, etc.)
+   Estilo base con diseño limpio y bordes redondeados.
+   Usa variables CSS para consistencia de colores y tipografía.
+   ============================================ */
 .social-btn {
     display: flex;
     align-items: center;
@@ -46,6 +66,11 @@
     cursor: pointer;
 }
 
+/* ============================================
+   Estado hover del botón (cuando NO está deshabilitado)
+   Eleva ligeramente el botón y oscurece el borde para dar feedback visual.
+   El selector :not(:disabled) evita aplicar hover a botones bloqueados.
+   ============================================ */
 .social-btn:not(:disabled):hover {
     background-color: var(--gray-50);
     border-color: var(--gray-300);
@@ -53,15 +78,29 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* ============================================
+   Estado activo (click) del botón
+   Devuelve el botón a su posición original sin elevación,
+   simulando la sensación de presión al hacer clic.
+   ============================================ */
 .social-btn:not(:disabled):active {
     transform: translateY(0);
 }
 
+/* ============================================
+   Estado deshabilitado del botón
+   Reduce opacidad y cambia el cursor para indicar
+   que la acción no está disponible (por ejemplo, durante carga).
+   ============================================ */
 .social-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
+/* ============================================
+   Contenedor del ícono de Google
+   Centra el ícono SVG dentro de un área fija de 20x20 px
+   ============================================ */
 .google-icon {
     display: inline-flex;
     align-items: center;
@@ -70,6 +109,8 @@
     height: 20px;
 }
 
+/* Tamaño exacto del SVG del ícono de Google,
+   ligeramente menor que su contenedor para un espaciado visual */
 .google-icon svg {
     width: 18px;
     height: 18px;

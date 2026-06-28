@@ -10,15 +10,33 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
+/**
+ * Controlador principal del módulo de pagos.
+ * Gestiona transacciones de pago, validación de comprobantes,
+ * listado de bancos colombianos y consulta de cuenta de pago.
+ * Soporta doble origen de datos (microservicio y legacy) durante la migración.
+ */
 class PaymentController extends Controller
 {
+    /**
+     * Nombre de la conexión a la base de datos legacy para fallback durante migración.
+     */
     private const LEGACY_CONNECTION = 'legacy_mysql';
+
+    /**
+     * Endpoints externos de la API de bancos de Colombia (intentos en orden de prioridad).
+     * Se prueba cada uno secuencialmente hasta obtener respuesta exitosa.
+     */
     private const COLOMBIA_BANKS_ENDPOINTS = [
         'https://api-colombia.com/api/v1/Bank',
         'https://api-colombia.com/api/v1/bank',
         'https://api-colombia.com/api/v1/banks',
     ];
 
+    /**
+     * Lista las transacciones de pago recientes con filtro opcional por estado.
+     * Retorna hasta 100 registros ordenados por fecha de creación descendente.
+     */
     public function index(Request $request): JsonResponse
     {
         $query = DB::table('payment_transactions')->orderByDesc('created_at');
@@ -32,6 +50,11 @@ class PaymentController extends Controller
         ]);
     }
 
+    /**
+     * Crea una nueva transacción de pago en el sistema.
+     * Valida los datos de entrada, procesa el comprobante de pago si se adjunta
+     * y persiste el registro en la tabla payment_transactions.
+     */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -73,6 +96,11 @@ class PaymentController extends Controller
         ], 201);
     }
 
+    /**
+     * Resuelve la ruta del comprobante de pago desde el request.
+     * Si viene como archivo, lo almacena; si viene como string, lo usa directamente.
+     * Retorna la ruta relativa del archivo o null si no hay comprobante.
+     */
     private function resolvePaymentProofInput(Request $request, ?string $userId): ?string
     {
         if ($request->hasFile('payment_proof')) {
@@ -92,6 +120,11 @@ class PaymentController extends Controller
         return $proofPath !== '' ? $proofPath : null;
     }
 
+    /**
+     * Almacena el archivo del comprobante de pago en el directorio público.
+     * Genera un nombre seguro basado en userId y timestamp para evitar colisiones.
+     * Valida que la extensión sea aceptada (jpg, jpeg, png, pdf, webp) y limita a 5MB.
+     */
     private function storePaymentProof(UploadedFile $file, ?string $userId): string
     {
         $directory = public_path('uploads/payment_proofs');
@@ -109,6 +142,11 @@ class PaymentController extends Controller
         return 'uploads/payment_proofs/' . $fileName;
     }
 
+    /**
+     * Verifica y actualiza el estado de una transacción de pago.
+     * Permite aprobar (approved), rechazar (rejected) o dejar en pendiente (pending).
+     * Registra notas del administrador y usuario que realiza la verificación.
+     */
     public function verify(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
@@ -136,6 +174,12 @@ class PaymentController extends Controller
         ]);
     }
 
+    /**
+     * Retorna el listado de bancos colombianos activos para el checkout.
+     * Estrategia de carga: 1) intenta tabla local, 2) hidrata desde API externa,
+     * 3) fallback a legacy, 4) usa catálogo predefinido como último recurso.
+     * Este flujo evita dejar al usuario sin opciones de pago.
+     */
     public function banks(): JsonResponse
     {
         $banks = $this->resolveActiveBanks();
@@ -161,6 +205,10 @@ class PaymentController extends Controller
         return response()->json(['data' => $banks]);
     }
 
+    /**
+     * Consulta los bancos activos desde una conexión específica.
+     * Retorna colección vacía si la tabla no existe o hay error de conexión.
+     */
     private function resolveActiveBanks(?string $connection = null)
     {
         try {
@@ -177,6 +225,11 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Hidrata el catálogo de bancos desde la API externa de bancos de Colombia.
+     * Intenta los endpoints configurados secuencialmente hasta tener éxito.
+     * Inserta o actualiza los bancos en la tabla local usando upsert.
+     */
     private function hydrateBanksCatalogFromApi(): void
     {
         if (!Schema::hasTable('colombian_banks')) {
@@ -206,6 +259,12 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Normaliza el payload de la API externa al formato interno del sistema.
+     * Maneja variaciones en los nombres de campos (bank_name, name, nombre)
+     * y genera códigos sintéticos si la API no los provee.
+     * Limpia caracteres no válidos del código bancario.
+     */
     private function normalizeBanksApiPayload(mixed $payload): array
     {
         if (!is_array($payload)) {
@@ -255,6 +314,11 @@ class PaymentController extends Controller
         return array_values($rows);
     }
 
+    /**
+     * Inserta el catálogo de fallback de bancos colombianos.
+     * Se usa cuando no hay datos locales ni respuesta de API externa.
+     * Incluye bancos tradicionales y billeteras digitales (Nequi, Daviplata, Movii).
+     */
     private function seedFallbackBankCatalog(): void
     {
         if (!Schema::hasTable('colombian_banks')) {
@@ -264,6 +328,11 @@ class PaymentController extends Controller
         DB::table('colombian_banks')->upsert($this->fallbackBankCatalog(), ['bank_code'], ['bank_name', 'is_active', 'trial551']);
     }
 
+    /**
+     * Retorna el catálogo de fallback de bancos colombianos.
+     * Se usa cuando no hay datos locales ni respuesta de API externa.
+     * Incluye bancos tradicionales y billeteras digitales (Nequi, Daviplata, Movii).
+     */
     private function fallbackBankCatalog(): array
     {
         return [
@@ -297,6 +366,12 @@ class PaymentController extends Controller
         ];
     }
 
+    /**
+     * Retorna la cuenta de pago activa para el checkout.
+     * Consulta primero la tabla local del microservicio;
+     * si no hay datos, intenta desde legacy como respaldo.
+     * Resuelve el nombre del banco asociado.
+     */
     public function paymentAccount(): JsonResponse
     {
         $account = null;
@@ -314,6 +389,11 @@ class PaymentController extends Controller
         ]);
     }
 
+    /**
+     * Consulta la cuenta de pago activa desde una conexión específica.
+     * Realiza join con la tabla de bancos para obtener el nombre del banco.
+     * Agrega una marca 'source' para indicar si los datos vienen de microservicio o legacy.
+     */
     private function resolveActivePaymentAccount(?string $connection = null): ?object
     {
         try {
@@ -355,6 +435,10 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Verifica si la conexión a la base de datos legacy está disponible.
+     * Se usa para decidir si se puede hacer fallback a datos heredados.
+     */
     private function canUseLegacyConnection(): bool
     {
         try {
@@ -366,6 +450,10 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Transforma el registro de cuenta de pago al formato de respuesta JSON.
+     * Agrega etiquetas legibles para tipo de cuenta y tipo de identificación.
+     */
     private function transformPaymentAccount(?object $account): ?array
     {
         if (!$account) {
@@ -380,6 +468,10 @@ class PaymentController extends Controller
         ];
     }
 
+    /**
+     * Retorna la etiqueta legible para el tipo de cuenta bancaria.
+     * Ejemplos: 'corriente' -> 'Cuenta corriente', 'ahorros' -> 'Cuenta de ahorros'.
+     */
     private function accountTypeLabel(?string $accountType): string
     {
         return match (strtolower((string) $accountType)) {
@@ -389,6 +481,10 @@ class PaymentController extends Controller
         };
     }
 
+    /**
+     * Retorna la etiqueta legible para el tipo de identificación.
+     * Ejemplos: 'cc' -> 'Cédula', 'ce' -> 'Cédula de extranjería', 'nit' -> 'NIT'.
+     */
     private function identificationTypeLabel(?string $identificationType): string
     {
         return match (strtolower((string) $identificationType)) {

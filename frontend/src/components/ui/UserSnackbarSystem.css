@@ -1,13 +1,21 @@
+/* ========================================
+   Contenedor principal del snackbar/notificación
+   Se posiciona fija en la esquina superior derecha
+   Usa grid para distribuir ícono, contenido y botón cerrar
+   ======================================== */
 .snackbar {
   position: fixed;
   right: 20px;
   top: 20px;
   z-index: 3200;
   min-width: 320px;
+  /* Ancho máximo responsive: 560px o el ancho del viewport menos 32px */
   max-width: min(560px, calc(100vw - 32px));
   border-radius: 12px;
   color: #fff;
+  /* Sombra suave para dar profundidad al snackbar */
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+  /* Grid de 3 columnas: ícono | contenido | botón cerrar */
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -15,26 +23,35 @@
   padding: 0.85rem 0.95rem;
 }
 
+/* Variante de éxito: fondo verde */
 .snackbar-success {
   background: #16a34a;
 }
 
+/* Variante de error: fondo rojo */
 .snackbar-error {
   background: #dc2626;
 }
 
+/* Variante de advertencia: fondo naranja */
 .snackbar-warning {
   background: #d97706;
 }
 
+/* Variante informativa: fondo azul */
 .snackbar-info {
   background: #0284c7;
 }
 
+/* ========================================
+   Contenedor circular del ícono del snackbar
+   Fondo semitransparente blanco para contraste
+   ======================================== */
 .snackbar-icon {
   width: 34px;
   height: 34px;
   border-radius: 50%;
+  /* Blanco con opacidad para contraste sutil sobre el fondo de color */
   background: rgba(255, 255, 255, 0.18);
   display: inline-flex;
   align-items: center;
@@ -42,10 +59,15 @@
   font-size: 1.5rem;
 }
 
+/* ========================================
+   Contenedor del contenido de texto del snackbar
+   min-width: 0 evita desbordamiento en grids
+   ======================================== */
 .snackbar-content {
   min-width: 0;
 }
 
+/* Título del snackbar: texto principal en negrita */
 .snackbar-title {
   display: block;
   margin-bottom: 0.1rem;
@@ -53,12 +75,17 @@
   line-height: 1.2;
 }
 
+/* Mensaje/descripción del snackbar: texto secundario */
 .snackbar-message {
   margin: 0;
   font-size: 1.22rem;
   line-height: 1.35;
 }
 
+/* ========================================
+   Botón de cerrar snackbar
+   Circulario con fondo semitransparente
+   ======================================== */
 .snackbar-close {
   border: 0;
   background: rgba(255, 255, 255, 0.16);
@@ -71,27 +98,44 @@
   justify-content: center;
 }
 
+/* Estado hover del botón cerrar: aumento de opacidad */
 .snackbar-close:hover {
   background: rgba(255, 255, 255, 0.26);
 }
 
+/* ========================================
+   Animaciones de entrada y salida del snackbar
+   Clases generadas por Vue Transition (transitionName="snackbar-slide")
+   Se aplican opacidad y transformación para efecto de deslizamiento
+   ======================================== */
+
+/* Estado activo durante la transición de entrada y salida */
 .snackbar-slide-enter-active,
 .snackbar-slide-leave-active {
+  /* Transición suave de opacidad y posición */
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
+/* Estado inicial de entrada y estado final de salida */
 .snackbar-slide-enter-from,
 .snackbar-slide-leave-to {
   opacity: 0;
+  /* Desplazamiento vertical de -10px para efecto de deslizamiento desde arriba */
   transform: translateY(-10px);
 }
 
+/* ========================================
+   Media query para dispositivos móviles (pantallas <= 768px)
+   Reposiciona el snackbar en la parte inferior de la pantalla
+   ======================================== */
 @media (max-width: 768px) {
   .snackbar {
     top: auto;
+    /* Se posiciona en la parte inferior en móvil */
     bottom: 14px;
     right: 8px;
     left: 8px;
+    /* Ocupa todo el ancho disponible en móvil */
     min-width: 0;
     max-width: none;
   }

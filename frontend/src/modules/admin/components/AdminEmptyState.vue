@@ -12,6 +12,12 @@
 </template>
 
 <script setup>
+/**
+ * Componente de estado vacío reutilizable del admin.
+ * Se muestra cuando no hay datos disponibles para una vista o sección.
+ * Permite personalizar icono, título, descripción y acciones
+ * mediante props y slot por defecto para botones o enlaces.
+ */
 defineProps({
   /** Icono FontAwesome */
   icon: { type: String, default: 'fas fa-inbox' },

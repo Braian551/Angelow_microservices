@@ -4,13 +4,25 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Migración estándar de Laravel para la tabla de trabajos en cola (jobs).
+ *
+ * Crea tres tablas necesarias para el sistema de colas de Laravel:
+ * - jobs: almacena los trabajos pendientes y en ejecución.
+ * - job_batches: agrupa trabajos en lotes (batch processing).
+ * - failed_jobs: registra trabajos fallidos para depuración.
+ *
+ * Estas tablas son usadas cuando el driver de cola está configurado
+ * como 'database' (config/queue.php).
+ */
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Ejecuta la migración creando las tablas de colas.
      */
     public function up(): void
     {
+        // Tabla principal de trabajos en cola
         Schema::create('jobs', function (Blueprint $table) {
             $table->id();
             $table->string('queue')->index();
@@ -21,6 +33,7 @@ return new class extends Migration
             $table->unsignedInteger('created_at');
         });
 
+        // Tabla de lotes de trabajos
         Schema::create('job_batches', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('name');
@@ -34,6 +47,7 @@ return new class extends Migration
             $table->integer('finished_at')->nullable();
         });
 
+        // Tabla de trabajos fallidos con registro de errores
         Schema::create('failed_jobs', function (Blueprint $table) {
             $table->id();
             $table->string('uuid')->unique();
@@ -46,7 +60,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Revierte la migración eliminando las tablas de colas.
      */
     public function down(): void
     {

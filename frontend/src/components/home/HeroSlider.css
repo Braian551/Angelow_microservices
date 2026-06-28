@@ -1,4 +1,8 @@
 /* ===== HERO BANNER ===== */
+/* Contenedor principal del banner hero. Ocupa la mayor parte de la pantalla
+   con altura relativa (70vh) y mínimo fijo para evitar que se vea demasiado
+   pequeño en pantallas grandes. El overflow:hidden recorta contenido
+   desbordado como imágenes o animaciones. */
 .hero-banner {
     position: relative;
     height: 70vh;
@@ -8,18 +12,28 @@
 }
 
 /* ── Slider contenedor ── */
+/* Wrapper interno que gestiona la pila de slides.
+   Usa position:relative para que las slides hijas
+   se posicionen de forma absoluta dentro de él. */
 .hero-slider {
     position: relative;
     width: 100%;
     height: 100%;
 }
 
+/* Contenedor del estado de carga del slider.
+   Muestra un efecto shimmer (brillo deslizante) mientras
+   se cargan las imágenes de los slides. */
 .hero-slider-loading {
     position: relative;
     width: 100%;
     height: 100%;
 }
 
+/* Capa de fondo con efecto shimmer para simular carga.
+   El gradiente lineal crea un "brillo" que se desplaza
+   horizontalmente gracias a la animación heroShimmerSweep.
+   background-size: 220% permite el movimiento del gradiente. */
 .hero-slider-loading__media {
     position: absolute;
     inset: 0;
@@ -28,6 +42,10 @@
     animation: heroShimmerSweep 1.35s ease-in-out infinite;
 }
 
+/* Contenedor del contenido de carga (texto placeholder).
+   Centrado verticalmente con transform:translateY(-50%)
+   y alineado a la izquierda con left:7%.
+   z-index:2 para estar sobre la capa shimmer. */
 .hero-slider-loading__content {
     position: absolute;
     top: 50%;
@@ -40,6 +58,10 @@
     z-index: 2;
 }
 
+/* Línea placeholder individual durante la carga.
+   Cada línea simula un elemento de texto (título, subtítulo, etc.)
+   con border-radius alto para forma redondeada y el mismo
+   efecto shimmer que el fondo. */
 .hero-slider-loading__line {
     display: block;
     border-radius: 999px;
@@ -48,27 +70,36 @@
     animation: heroShimmerSweep 1.35s ease-in-out infinite;
 }
 
+/* Línea placeholder para la etiqueta/categoría del slide */
 .hero-slider-loading__line--tag {
     width: 8.5rem;
     height: 2.2rem;
 }
 
+/* Línea placeholder para el título principal del slide */
 .hero-slider-loading__line--title {
     width: min(32rem, 70vw);
     height: 4.4rem;
 }
 
+/* Línea placeholder para el subtítulo del slide */
 .hero-slider-loading__line--subtitle {
     width: min(27rem, 64vw);
     height: 2.2rem;
 }
 
+/* Línea placeholder para el botón CTA (Call to Action) */
 .hero-slider-loading__line--cta {
     width: 14.2rem;
     height: 4rem;
 }
 
 /* ── Cada slide ── */
+/* Slide individual del carrusel.
+   Ocupa todo el espacio del contenedor padre (inset:0).
+   opacity:0 y visibility:hidden la ocultan por defecto.
+   La transición crea el efecto de disolución (crossfade)
+   al cambiar entre slides. */
 .hero-slide {
     position: absolute;
     inset: 0;
@@ -77,16 +108,28 @@
     transition: opacity 0.9s ease, visibility 0.9s ease;
 }
 
+/* Estado activo del slide: completamente visible.
+   is-active se agrega dinámicamente por JavaScript
+   para mostrar el slide actual. */
 .hero-slide.is-active {
     opacity: 1;
     visibility: visible;
 }
 
+/* Contenedor de la imagen del slide.
+   Cubre todo el espacio del slide padre. */
 .hero-slide-media {
     position: absolute;
     inset: 0;
 }
 
+/* Imagen del slide.
+   object-fit:cover asegura que la imagen cubra todo el espacio
+   sin distorsionarse, recortando si es necesario.
+   object-position:center 30% enfoca en la zona superior
+   de la imagen (donde suele estar el sujeto principal).
+   opacity inicial 0 con transición para efecto de fade-in
+   al cargar la imagen. */
 .hero-slide img {
     width: 100%;
     height: 100%;
@@ -97,10 +140,15 @@
     transition: opacity 0.28s ease;
 }
 
+/* Clase aplicada cuando la imagen termina de cargar.
+   Activa la opacidad completa para mostrar la imagen. */
 .hero-slide img.is-loaded {
     opacity: 1;
 }
 
+/* Efecto shimmer sobre cada slide mientras carga su imagen.
+   Mismo patrón que el shimmer del contenedor de carga,
+   pero aplicado individualmente a cada slide. */
 .hero-slide-shimmer {
     position: absolute;
     inset: 0;
@@ -111,6 +159,12 @@
 }
 
 /* ── Capa de gradiente sutil — sin efecto de caja, mantiene legibilidad ── */
+/* Overlay de gradiente sobre la imagen del slide.
+   Combina dos gradientes:
+   1. Gradiente horizontal (izquierda a derecha): oscurece la zona izquierda
+      donde se ubica el texto, asegurando legibilidad sobre cualquier imagen.
+   2. Gradiente vertical (vignette inferior): agrega profundidad visual.
+   z-index:1 para estar sobre la imagen pero bajo el contenido. */
 .hero-gradient-overlay {
     position: absolute;
     inset: 0;
@@ -133,6 +187,11 @@
 }
 
 /* ── Contenido textual del slider ── */
+/* Contenedor principal del contenido de texto del slide.
+   Centrado verticalmente y alineado a la izquierda.
+   z-index:2 para estar sobre el gradiente overlay.
+   opacity:0 por defecto; se muestra con .is-visible
+   para sincronizar la aparición del texto con el slide. */
 .hero-content {
     position: absolute;
     top: 50%;
@@ -152,7 +211,9 @@
     box-shadow: none;
 }
 
-/* Refuerzo para mantener el contenido sin caja visual adicional */
+/* Refuerzo para mantener el contenido sin caja visual adicional.
+   Selector de alta especificidad para anular cualquier estilo
+   que pudiera agregar un marco o fondo no deseado al contenido. */
 .hero-banner .hero-slider .hero-slide .hero-content.hero-content-clean {
     background: transparent !important;
     border: 0 !important;
@@ -162,12 +223,19 @@
     box-shadow: none !important;
 }
 
+/* Estado visible del contenido: opacidad completa y eventos activos.
+   pointer-events:auto permite que el usuario interactúe
+   con los elementos del contenido (botones, enlaces). */
 .hero-content.is-visible {
     opacity: 1;
     pointer-events: auto;
 }
 
-/* Tag/categoría del slide */
+/* Tag/categoría del slide.
+   Etiqueta pequeña que indica la categoría o tipo de contenido.
+   Usa backdrop-filter:blur para efecto de vidrio esmerilado
+   sobre la imagen. opacity:0 y transform iniciales para
+   animación de entrada escalonada. */
 .hero-tag {
     display: inline-block;
     font-size: 1.1rem;
@@ -185,11 +253,16 @@
     transform: translateY(10px);
 }
 
+/* Animación de entrada del tag cuando el contenido se vuelve visible.
+   0.05s de delay para crear efecto escalonado con otros elementos. */
 .hero-content.is-visible .hero-tag {
     animation: heroSlideUp 0.5s ease 0.05s both;
 }
 
-/* Título principal */
+/* Título principal del slide.
+   Usa clamp() para tipografía fluida que se adapta al viewport.
+   text-shadow mejora la legibilidad sobre imágenes claras.
+   opacity:0 y transform iniciales para animación de entrada. */
 .hero-title {
     font-size: clamp(3.2rem, 5vw, 5.4rem);
     font-weight: 800;
@@ -202,11 +275,15 @@
     transform: translateY(16px);
 }
 
+/* Animación de entrada del título con ligero delay para efecto cascada */
 .hero-content.is-visible .hero-title {
     animation: heroSlideUp 0.55s ease 0.1s both;
 }
 
-/* Subtítulo */
+/* Subtítulo del slide.
+   Tipografía más ligera que el título para crear jerarquía visual.
+   max-width:44ch limita el ancho para mantener legibilidad
+   (aproximadamente 2 líneas en desktop). */
 .hero-subtitle {
     font-size: clamp(1.5rem, 2vw, 1.9rem);
     font-weight: 400;
@@ -219,11 +296,16 @@
     transform: translateY(14px);
 }
 
+/* Animación de entrada del subtítulo con delay intermedio */
 .hero-content.is-visible .hero-subtitle {
     animation: heroSlideUp 0.55s ease 0.18s both;
 }
 
-/* Botón CTA */
+/* Botón CTA (Call to Action).
+   Botón principal que invita al usuario a realizar una acción.
+   background:#0077b6 (azul corporativo) con sombra azulada.
+   border-radius:99px crea forma de "pastilla" completamente redondeada.
+   Las transiciones suavizan el cambio al hacer hover. */
 .hero-cta {
     display: inline-flex;
     align-items: center;
@@ -241,10 +323,14 @@
     transform: translateY(12px);
 }
 
+/* Animación de entrada del botón CTA, último en la secuencia escalonada */
 .hero-content.is-visible .hero-cta {
     animation: heroSlideUp 0.55s ease 0.26s both;
 }
 
+/* Efecto hover del botón CTA: oscurece el fondo, eleva ligeramente
+   el botón (translateY negativo) y aumenta la sombra para
+   sensación de profundidad. */
 .hero-cta:hover {
     background: #005f8e;
     transform: translateY(-2px);
@@ -253,16 +339,25 @@
     text-decoration: none;
 }
 
+/* Icono dentro del botón CTA.
+   Transición suave para el efecto de desplazamiento
+   horizontal al hacer hover. */
 .hero-cta i {
     font-size: 1.3rem;
     transition: transform 0.2s ease;
 }
 
+/* Efecto hover del icono: se desplaza 3px a la derecha
+   para sugerir movimiento o acción. */
 .hero-cta:hover i {
     transform: translateX(3px);
 }
 
 /* ── Barra de progreso del autoplay ── */
+/* Barra de progreso visual que indica el tiempo restante
+   antes de pasar al siguiente slide automáticamente.
+   Comienza en 0% de ancho y crece hasta 100% durante
+   la duración del intervalo (5 segundos). */
 .hero-progress {
     position: absolute;
     bottom: 0;
@@ -274,17 +369,26 @@
     animation: heroProgress 5s linear forwards;
 }
 
+/* Animación de la barra de progreso: de 0% a 100% de ancho
+   de forma lineal (velocidad constante). */
 @keyframes heroProgress {
     from { width: 0%; }
     to   { width: 100%; }
 }
 
+/* Animación de efecto shimmer (brillo deslizante).
+   Desplaza el background-position horizontalmente para
+   crear el efecto de un brillo que se mueve de derecha
+   a izquierda sobre el gradiente. */
 @keyframes heroShimmerSweep {
     0% { background-position: 100% 0; }
     100% { background-position: -100% 0; }
 }
 
 /* ── Dots de navegación ── */
+/* Indicadores de posición del slider (puntos/dots).
+   Centrados horizontalmente en la parte inferior del banner.
+   Cada punto representa un slide disponible. */
 .hero-dots {
     position: absolute;
     bottom: 2.4rem;
@@ -295,6 +399,10 @@
     z-index: 5;
 }
 
+/* Punto individual de navegación.
+   Forma circular pequeña por defecto.
+   La transición suaviza el cambio de tamaño al activarse.
+   cursor:pointer indica que es clickeable. */
 .hero-dot {
     display: block;
     height: 0.7rem;
@@ -307,12 +415,18 @@
     transition: width 0.3s ease, background 0.3s ease;
 }
 
+/* Punto activo: se alarga horizontalmente para indicar
+   el slide actual visible. El cambio de ancho crea
+   una animación suave de expansión. */
 .hero-dot.is-active {
     width: 2.4rem;
     background: #fff;
 }
 
 /* ── Contador de slides ── */
+/* Indicador numérico de la posición actual del slider.
+   Muestra "X / Y" donde X es el slide actual y Y el total.
+   Ubicado en la esquina inferior derecha. */
 .hero-counter {
     position: absolute;
     bottom: 2rem;
@@ -327,18 +441,27 @@
     letter-spacing: 0.04em;
 }
 
+/* Número del slide actual: más grande y blanco para
+   crear contraste con el separador y el total. */
 .hero-counter__current {
     font-size: 1.8rem;
     color: #fff;
     font-weight: 700;
 }
 
+/* Separador "/" entre el slide actual y el total.
+   Color más tenue para no competir visualmente
+   con los números. */
 .hero-counter__sep {
     font-size: 1.3rem;
     color: rgba(255, 255, 255, 0.45);
 }
 
 /* ── Botones prev/next ── */
+/* Botones de navegación anterior/siguiente.
+   Circulares con fondo semitransparente y backdrop-filter
+   para efecto de vidrio sobre la imagen.
+   Centrados verticalmente en los costados del banner. */
 .hero-nav {
     position: absolute;
     top: 50%;
@@ -359,15 +482,24 @@
     transition: background 0.22s ease, transform 0.22s ease;
 }
 
+/* Efecto hover de los botones de navegación:
+   Aumenta la opacidad del fondo y agranda ligeramente
+   el botón (scale) para feedback visual. */
 .hero-nav:hover {
     background: rgba(255, 255, 255, 0.26);
     transform: translateY(-50%) scale(1.08);
 }
 
+/* Botón de navegación "anterior": posicionado a la izquierda */
 .hero-nav--prev { left: 2rem; }
+/* Botón de navegación "siguiente": posicionado a la derecha */
 .hero-nav--next { right: 2rem; }
 
 /* ── Animación de entrada del contenido ── */
+/* Animación reutilizable para el efecto de entrada del contenido.
+   Desplaza el elemento desde 20px abajo hasta su posición final
+   mientras aumenta la opacidad de 0 a 1.
+   Se usa con animation-delay para crear un efecto escalonado. */
 @keyframes heroSlideUp {
     from {
         opacity: 0;
@@ -380,6 +512,9 @@
 }
 
 /* ── Responsive tablet ── */
+/* Media query para pantallas con ancho máximo de 900px (tablets).
+   Reduce la altura del banner y el tamaño de los botones
+   de navegación para adaptarse a pantallas más pequeñas. */
 @media (max-width: 900px) {
     .hero-banner {
         height: 56vh;
@@ -402,6 +537,12 @@
 }
 
 /* ── Responsive móvil ── */
+/* Media query para pantallas con ancho máximo de 600px (móviles).
+   Ajustes significativos: el contenido se mueve a la parte inferior
+   del banner (bottom:5rem) para mejor legibilidad en pantallas
+   pequeñas. El gradiente overlay cambia a vertical para
+   oscurecer la zona inferior donde estará el texto.
+   Se ocultan el contador de slides por falta de espacio. */
 @media (max-width: 600px) {
     .hero-banner {
         height: 52vh;

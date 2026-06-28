@@ -39,6 +39,14 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * Botones de exportación reutilizables del admin (Excel y PDF).
+ * Soporta dos tonos visuales: 'header' (estilo btn-secondary)
+ * y 'results' (estilo results-action-btn de la barra de resultados).
+ * Incluye estados de carga individuales con spinner por botón
+ * y bloqueo de doble envío mientras la exportación está en curso.
+ * Patrón: Strategy — cambia la presentación según el tono configurado.
+ */
 const props = defineProps({
   tone: {
     type: String,

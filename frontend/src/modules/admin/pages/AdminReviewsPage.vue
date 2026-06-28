@@ -1,3 +1,10 @@
+<!--
+  AdminReviewsPage.vue
+  Componente de administración para la gestión y moderación de reseñas de clientes.
+  Permite visualizar estadísticas, distribución de ratings, filtrar, paginar,
+  exportar y realizar acciones de moderación (aprobar, rechazar, verificar, eliminar)
+  sobre las reseñas del catálogo de productos.
+-->
 <template>
   <div class="admin-reviews-page">
     <AdminPageHeader
@@ -286,10 +293,17 @@
   </div>
 </template>
 
+<!--
+  Script del componente AdminReviewsPage.
+  Gestiona la lógica de moderación de reseñas: carga de datos, filtros,
+  paginación, exportación, y acciones sobre reseñas (aprobar, verificar, eliminar).
+  Utiliza el composable useAdminReviews para encapsular toda la lógica reactiva.
+-->
 <script setup>
+// Script de reseñas administrativas: reutiliza el composable del módulo y componentes compartidos.
 import '../views/AdminReviewsPage.css'
-import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { useAdminReviews } from '../composables/useAdminReviews'
+import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import AdminCard from '../components/AdminCard.vue'
 import AdminChartPanel from '../components/AdminChartPanel.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
@@ -303,39 +317,41 @@ import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 
 const {
-  activeFilterCount,
-  clearAllFilters,
-  closeReviewModal,
-  confirmReviewStatus,
-  debouncedLoadReviews,
-  deleteReview,
-  exportReviews,
-  exportingFormat,
-  filters,
-  formatDate,
-  formatDateTime,
-  hasRatingChartData,
-  highlightReviews,
-  loadReviews,
-  loading,
-  openReviewModal,
-  pagination,
-  ratingChartDatasets,
-  ratingChartLabels,
-  ratingChartOptions,
-  renderStars,
-  reviews,
-  reviewStats,
-  reviewStatusLabel,
-  selectedReview,
-  showDetailModal,
-  toggleReviewVerified,
+  activeFilterCount,      // Número total de filtros actualmente activos
+  clearAllFilters,        // Función para restablecer todos los filtros a sus valores predeterminados
+  closeReviewModal,       // Función para cerrar el modal de detalle de reseña
+  confirmReviewStatus,    // Función para cambiar el estado de una reseña (aprobar, pendiente, etc.)
+  debouncedLoadReviews,   // Función con debounce para recargar reseñas tras cambios en filtros
+  deleteReview,           // Función para eliminar permanentemente una reseña
+  exportReviews,          // Función para exportar reseñas en formato Excel o PDF
+  exportingFormat,        // Formato de exportación actualmente en progreso (excel, pdf o nulo)
+  filters,                // Objeto reactivo que contiene los filtros de búsqueda y moderación
+  formatDate,             // Función para formatear una fecha en formato legible (sin hora)
+  formatDateTime,         // Función para formatear una fecha con hora incluida
+  hasRatingChartData,     // Indicador booleano si existen datos suficientes para el gráfico de ratings
+  highlightReviews,       // Lista de las reseñas más recientes para la sección de destacadas
+  loadReviews,            // Función para cargar o recargar la lista de reseñas desde la API
+  loading,                // Estado booleano que indica si se están cargando los datos
+  openReviewModal,        // Función para abrir el modal de detalle con una reseña específica
+  pagination,             // Objeto con estado de paginación (página actual, total, elementos por página)
+  ratingChartDatasets,    // Conjuntos de datos para el gráfico de distribución de ratings
+  ratingChartLabels,      // Etiquetas del eje X para el gráfico de distribución de ratings
+  ratingChartOptions,     // Opciones de configuración del gráfico de distribución de ratings
+  renderStars,            // Función que renderiza las estrellas de calificación como HTML
+  reviews,                // Lista completa de reseñas cargadas desde la API
+  reviewStats,            // Estadísticas resumen de reseñas para el componente AdminStatsGrid
+  reviewStatusLabel,      // Función que retorna la etiqueta legible de un estado de reseña
+  selectedReview,         // Referencia a la reseña actualmente seleccionada para ver detalle
+  showDetailModal,        // Estado booleano que controla la visibilidad del modal de detalle
+  toggleReviewVerified,   // Función para alternar el estado de verificación de compra de una reseña
 } = useAdminReviews()
 
+// Obtiene la URL del avatar del cliente, con valor por defecto si no existe imagen
 function avatarUrl(customer) {
   return resolveMediaUrl(customer?.image, 'avatar')
 }
 
+// Maneja el error de carga de imagen de avatar, aplicando una imagen de respaldo
 function onAvatarError(event, originalPath) {
   handleMediaError(event, originalPath, 'avatar')
 }

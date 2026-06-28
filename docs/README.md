@@ -18,6 +18,7 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 
 - `operaciones/manual-tecnico.md`: manual técnico central del repositorio.
 - `microservicios/README.md`: navegación hacia documentación específica por servicio.
+- `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
 - `../frontend/docs/exportaciones-admin-reutilizables.md`: arquitectura compartida para exportaciones administrativas PDF y Excel.
 
@@ -51,6 +52,8 @@ flowchart LR
 - `datos/`: importación, trazabilidad y migración de datos.
   - `datos/importacion-datos.md`
   - `datos/migracion-tablas.md`
+- `proyecto/`: ficha de seguimiento académico y técnico del proyecto.
+  - `proyecto/FICHA_PROYECTO_ANGELOW.md`
 - `operaciones/`: despliegue, operación y mantenimiento de infraestructura compartida.
   - `operaciones/manual-tecnico.md`
   - `operaciones/DESPLIEGUE_SERVIDOR_NGINX.md`
@@ -65,12 +68,16 @@ flowchart LR
   - `investigacion/reservas-stock-ecommerce-2026-06-08.md`
 - `patrones/`: documentación de patrones de diseño organizada por módulo o contexto.
   - `patrones/README.md`
+  - `patrones/auth/`
+    - `patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md`
+    - `patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md`
   - `patrones/admin/`
     - `patrones/admin/patrones-diseno-admin-reembolsos-2026-06-20.md`
     - `patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`
     - `patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
   - `patrones/checkout/`
   - `patrones/dashboard/`
+    - `patrones/dashboard/patrones-diseno-cuenta-configuracion-preferencias-2026-06-22.md`
     - `patrones/dashboard/patrones-diseno-dashboard-pedidos-realtime-2026-06-16.md`
   - `patrones/home/`
   - `patrones/tienda/`

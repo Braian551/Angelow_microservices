@@ -3,6 +3,10 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-22 - Configuración de cuenta y preferencias](#2026-06-22---configuración-de-cuenta-y-preferencias)
+- [2026-06-22 - Código compartido para registro y recuperación](#2026-06-22---código-compartido-para-registro-y-recuperación)
+- [2026-06-21 - Verificación de seguridad en autenticación nativa](#2026-06-21---verificación-de-seguridad-en-autenticación-nativa)
+- [2026-06-20 - Comprobantes admin y progreso realtime de pedidos](#2026-06-20---comprobantes-admin-y-progreso-realtime-de-pedidos)
 - [2026-06-20 - Coherencia de gráficas de informes](#2026-06-20---coherencia-de-gráficas-de-informes)
 - [2026-06-20 - Administración de reembolsos](#2026-06-20---administración-de-reembolsos)
 - [2026-06-10 - Formulario de producto como orquestador Vue](#2026-06-10---formulario-de-producto-como-orquestador-vue)
@@ -44,6 +48,38 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-22 - Configuración de cuenta y preferencias
+
+- Patrón: State + Adapter + Reusable Component (Refactoring Guru)
+- Aplicación: retiro del flujo visible de cambio de correo en cliente, validación de pestañas disponibles, corrección del switch de preferencias y centrado del logo en recuperación de contraseña.
+- Ubicación: `frontend/src/modules/account/pages/SettingsPage.vue`, `frontend/src/modules/account/views/SettingsView.css`, `frontend/src/modules/auth/views/ForgotPasswordView.css`, `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`
+- Problema resuelto: evitar diferencias entre navegación visible y funcionalidad vigente, restaurar dimensiones correctas en preferencias de notificación y mantener consistencia visual en recuperación.
+- Referencia detallada: `docs/patrones/dashboard/patrones-diseno-cuenta-configuracion-preferencias-2026-06-22.md`
+
+## 2026-06-22 - Código compartido para registro y recuperación
+
+- Patrón: Facade + State + Reusable Component (Refactoring Guru)
+- Aplicación: verificación de correo previa al teléfono en registro, componente único para ingreso/reenvío de código y endpoints dedicados de pre-registro.
+- Ubicación: `frontend/src/modules/auth/components/AuthCodeVerification.vue`, `frontend/src/modules/auth/pages/RegisterPage.vue`, `frontend/src/modules/auth/pages/ForgotPasswordPage.vue`, `frontend/src/services/authApi.js`, `services/auth-service/app/Services/RegistrationVerificationService.php`, `services/auth-service/app/Http/Controllers/Api/Auth/RegistrationVerificationController.php`, `services/auth-service/routes/api.php`
+- Problema resuelto: evitar divergencias visuales entre registro y recuperación, y bloquear la creación de cuentas con correos no verificados.
+- Referencia detallada: `docs/patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md`
+
+## 2026-06-21 - Verificación de seguridad en autenticación nativa
+
+- Patrón: Facade + State + Reusable Component (Refactoring Guru)
+- Aplicación: validación centralizada de Cloudflare Turnstile en `auth-service`, control de intentos fallidos por credencial/IP y widget Vue reutilizable para formularios nativos.
+- Ubicación: `services/auth-service/app/Services/TurnstileVerificationService.php`, `services/auth-service/app/Services/LoginAttemptProtectionService.php`, `frontend/src/components/security/TurnstileWidget.vue`, `frontend/src/modules/auth/pages/LoginPage.vue`, `frontend/src/modules/auth/pages/RegisterPage.vue`, `frontend/src/modules/auth/pages/ForgotPasswordPage.vue`, `frontend/src/modules/admin/pages/AdminForgotPasswordPage.vue`
+- Problema resuelto: proteger registro, login condicionado y recuperación de contraseña sin afectar Google/Firebase ni exponer secretos en la SPA.
+- Referencia detallada: `docs/patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md`
+
+## 2026-06-20 - Comprobantes admin y progreso realtime de pedidos
+
+- Patrón: Adapter + Observer + State (Refactoring Guru)
+- Aplicación: resolución pública de comprobantes contra `payment-service`, normalización tolerante de eventos websocket de pedidos y flujo de progreso coherente en `Mis pedidos`.
+- Ubicación: `frontend/src/modules/admin/utils/paymentProofs.js`, `frontend/src/modules/admin/components/AdminPaymentProofModal.vue`, `frontend/src/modules/admin/composables/useAdminPayments.js`, `frontend/src/modules/admin/composables/useAdminOrderDetail.js`, `frontend/src/composables/useOrderRealtime.js`, `frontend/src/modules/account/pages/OrdersPage.vue`
+- Problema resuelto: los comprobantes se rompían al resolverse contra Vite y el progreso del pedido podía quedarse desactualizado cuando el payload realtime cambiaba de forma o entraba un estado de reembolso.
+- Referencia detallada: `docs/patrones/admin/patrones-diseno-admin-comprobantes-pedidos-realtime-2026-06-20.md`
 
 ## 2026-06-20 - Coherencia de gráficas de informes
 
@@ -736,3 +772,4 @@
 - Aplicación: el dropdown del buscador se divide en bloques explícitos de sugerencia destacada y lista de términos, cada uno con layout propio basado en grid para estabilizar imagen, icono y texto.
 - Ubicación: frontend/src/components/layout/SiteHeader.vue, frontend/src/components/layout/Header.css
 - Problema resuelto: el contenido del dropdown podía solaparse en móvil al mezclar producto destacado e historial en una misma superficie sin una composición estructural rígida.
+- [Detalle de producto responsive y orden admin con navegación estable](admin/patrones-diseno-producto-detalle-orden-navegacion-2026-06-20.md)

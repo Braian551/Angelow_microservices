@@ -6,6 +6,12 @@ import { loadAdminCustomerProfiles, resolveAdminCustomerProfile } from './useAdm
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de reseñas de productos.
+ * Administra listado, aprobación/rechazo, filtros por estado/estrella/verificación,
+ * perfiles de clientes y exportación.
+ * Reutiliza useAdminPagination y useAdminDataExport.
+ */
 export function useAdminReviews() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
