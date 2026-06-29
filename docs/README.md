@@ -21,6 +21,7 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 - `arquitectura/diagramas-clases-microservicios-plantuml.md`: índice de diagramas de clases PlantUML separados por microservicio.
 - `arquitectura/modelos-relacionales-bases-datos-plantuml.md`: índice de modelos relacionales PlantUML separados por microservicio.
 - `arquitectura/modelo-relacional-completo-plantuml.md`: mapa maestro con todas las tablas de negocio y sus relaciones.
+- `datos/estructura-unificada-microservicios.sql`: estructura SQL de referencia para una base de datos unificada con relaciones entre microservicios.
 - `referencias/historias-usuario-angelow.md`: historias de usuario en lenguaje funcional, entendible para cliente.
 - `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
 - `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
@@ -64,6 +65,7 @@ flowchart LR
 - `datos/`: importación, trazabilidad y migración de datos.
   - `datos/importacion-datos.md`
   - `datos/migracion-tablas.md`
+  - `datos/estructura-unificada-microservicios.sql`
 - `proyecto/`: ficha de seguimiento académico y técnico del proyecto.
   - `proyecto/FICHA_PROYECTO_ANGELOW.md`
 - `operaciones/`: despliegue, operación y mantenimiento de infraestructura compartida.

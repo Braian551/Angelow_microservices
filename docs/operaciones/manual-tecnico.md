@@ -85,6 +85,7 @@ Documentos relacionados:
 
 - `docs/datos/importacion-datos.md`
 - `docs/datos/migracion-tablas.md`
+- `docs/datos/estructura-unificada-microservicios.sql`
 
 ## Flujo técnico de frontend
 
@@ -184,6 +185,7 @@ Validaciones mínimas de cierre:
 - `docs/arquitectura/diagramas-clases-microservicios-plantuml.md`: índice de diagramas de clases separados por microservicio, sin capas frontend mezcladas.
 - `docs/arquitectura/modelos-relacionales-bases-datos-plantuml.md`: índice de modelos relacionales separados por base de datos y microservicio.
 - `docs/arquitectura/modelo-relacional-completo-plantuml.md`: mapa maestro con todas las tablas de negocio y relaciones internas o lógicas.
+- `docs/datos/estructura-unificada-microservicios.sql`: estructura SQL de referencia para visualizar cómo quedaría una única base de datos con tablas y relaciones de todos los microservicios.
 - `docs/microservicios/README.md`: acceso a documentación por servicio.
 - `docs/referencias/historias-usuario-angelow.md`: historias de usuario completas por épica, actor y criterios en lenguaje funcional.
 - `docs/referencias/casos-uso-angelow.md`: casos de uso completos del sistema en lenguaje entendible para cliente.

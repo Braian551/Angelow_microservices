@@ -63,7 +63,7 @@ Desde la experiencia administrativa, Angelow incorpora un panel para gestionar c
 
 El desafío principal del proyecto consiste en consolidar una plataforma funcional, segura y escalable, capaz de mantener la experiencia visual de Angelow, distribuir responsabilidades por dominio, evitar sobreventas mediante reservas de stock, controlar pagos manuales con comprobantes y ofrecer información actualizada a clientes y administradores.
 
-Esta ficha se alinea con la documentación técnica actual del repositorio: [manual técnico](../operaciones/manual-tecnico.md), [arquitectura web](../arquitectura/arquitectura-web-plantuml.md), [modelo relacional completo](../arquitectura/modelo-relacional-completo-plantuml.md), [historias de usuario](../referencias/historias-usuario-angelow.md), [casos de uso](../referencias/casos-uso-angelow.md) y [matriz de requerimientos funcionales](../referencias/matriz-requerimientos-funcionales-actualizada.md).
+Esta ficha se alinea con la documentación técnica actual del repositorio: [manual técnico](../operaciones/manual-tecnico.md), [arquitectura web](../arquitectura/arquitectura-web-plantuml.md), [modelo relacional completo](../arquitectura/modelo-relacional-completo-plantuml.md), [estructura SQL unificada de microservicios](../datos/estructura-unificada-microservicios.sql), [historias de usuario](../referencias/historias-usuario-angelow.md), [casos de uso](../referencias/casos-uso-angelow.md) y [matriz de requerimientos funcionales](../referencias/matriz-requerimientos-funcionales-actualizada.md).
 
 ---
 
