@@ -18,6 +18,11 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 
 - `operaciones/manual-tecnico.md`: manual técnico central del repositorio.
 - `microservicios/README.md`: navegación hacia documentación específica por servicio.
+- `arquitectura/diagramas-clases-microservicios-plantuml.md`: índice de diagramas de clases PlantUML separados por microservicio.
+- `arquitectura/modelos-relacionales-bases-datos-plantuml.md`: índice de modelos relacionales PlantUML separados por microservicio.
+- `arquitectura/modelo-relacional-completo-plantuml.md`: mapa maestro con todas las tablas de negocio y sus relaciones.
+- `referencias/historias-usuario-angelow.md`: historias de usuario en lenguaje funcional, entendible para cliente.
+- `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
 - `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
 - `../frontend/docs/exportaciones-admin-reutilizables.md`: arquitectura compartida para exportaciones administrativas PDF y Excel.
@@ -39,16 +44,23 @@ flowchart LR
   ORD --> NOTI[notification-service]
   ORD --> AUD[audit-service]
 
+  FE --> GW[realtime-gateway]
   NOTI --> REDIS[(Redis)]
   ORD --> REDIS
+  CAT --> REDIS
+  REDIS --> GW
 ```
 
 ## Índice por categoría
 
 - `arquitectura/`: diagramas y mapas estructurales del sistema.
   - `arquitectura/arquitectura-web-plantuml.md`
+  - `arquitectura/diagramas-clases-microservicios-plantuml.md`
+  - `arquitectura/diagramas-clases-microservicios/`
   - `arquitectura/mapas-navegacion-sistema-plantuml.md`
+  - `arquitectura/modelo-relacional-completo-plantuml.md`
   - `arquitectura/modelos-relacionales-bases-datos-plantuml.md`
+  - `arquitectura/modelos-relacionales-bases-datos/`
 - `datos/`: importación, trazabilidad y migración de datos.
   - `datos/importacion-datos.md`
   - `datos/migracion-tablas.md`
@@ -58,6 +70,8 @@ flowchart LR
   - `operaciones/manual-tecnico.md`
   - `operaciones/DESPLIEGUE_SERVIDOR_NGINX.md`
 - `referencias/`: catálogos de dependencias y referencias compartidas del repositorio.
+  - `referencias/historias-usuario-angelow.md`
+  - `referencias/casos-uso-angelow.md`
   - `referencias/librerias-y-composer-uso.md`
   - `referencias/matriz-requerimientos-funcionales-actualizada.md`
 - `investigacion/`: cronogramas, informes y material de apoyo académico o de seguimiento.

@@ -20,6 +20,11 @@ Migración del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, 
 - [Manual técnico](docs/operaciones/manual-tecnico.md)
 - [Índice general de documentación](docs/README.md)
 - [Ficha actual del proyecto](docs/proyecto/FICHA_PROYECTO_ANGELOW.md)
+- [Diagramas de clases por microservicio](docs/arquitectura/diagramas-clases-microservicios-plantuml.md)
+- [Modelos relacionales por microservicio](docs/arquitectura/modelos-relacionales-bases-datos-plantuml.md)
+- [Modelo relacional completo](docs/arquitectura/modelo-relacional-completo-plantuml.md)
+- [Historias de usuario](docs/referencias/historias-usuario-angelow.md)
+- [Casos de uso del sistema](docs/referencias/casos-uso-angelow.md)
 - [Documentación por microservicio](docs/microservicios/README.md)
 - [Guía de testing compartido](docs/testing/README.md)
 - [Matriz de requerimientos funcionales actualizada](docs/referencias/matriz-requerimientos-funcionales-actualizada.md)
@@ -42,6 +47,7 @@ Migración del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, 
 | `shipping-service` | 8007 | `angelow_shipping` |
 | `notification-service` | 8008 | `angelow_notifications` |
 | `audit-service` | 8009 | `angelow_audit` |
+| `realtime-gateway` | 8090 | n/a |
 | `frontend` | 5173 | n/a |
 
 ## PostgreSQL en pgAdmin (evitar confusión)
@@ -117,6 +123,11 @@ docker compose exec -T audit-service php artisan test
 - [Manual técnico](docs/operaciones/manual-tecnico.md)
 - [Índice general de documentación](docs/README.md)
 - [Ficha actual del proyecto](docs/proyecto/FICHA_PROYECTO_ANGELOW.md)
+- [Diagramas de clases por microservicio](docs/arquitectura/diagramas-clases-microservicios-plantuml.md)
+- [Modelos relacionales por microservicio](docs/arquitectura/modelos-relacionales-bases-datos-plantuml.md)
+- [Modelo relacional completo](docs/arquitectura/modelo-relacional-completo-plantuml.md)
+- [Historias de usuario](docs/referencias/historias-usuario-angelow.md)
+- [Casos de uso del sistema](docs/referencias/casos-uso-angelow.md)
 - [Mapa de tablas por microservicio](docs/datos/migracion-tablas.md)
 - [Importación de datos](docs/datos/importacion-datos.md)
 - [Registro de patrones](docs/patrones/README.md)

@@ -7,6 +7,7 @@
 - [Patrones aplicados](#patrones-aplicados)
 - [Archivos intervenidos](#archivos-intervenidos)
 - [Resultado funcional](#resultado-funcional)
+- [Corrección 2026-06-28](#corrección-2026-06-28)
 - [Documentos relacionados](#documentos-relacionados)
 <!-- indice:auto:end -->
 
@@ -48,6 +49,12 @@ El administrador puede abrir `/admin/reembolsos`, filtrar solicitudes, revisar m
 Cada cambio administrativo de reembolso publica eventos WebSocket de orden/reembolso, refresca las notificaciones del admin sin esperar el intervalo de polling y crea una notificación para el cliente con correo HTML mediante `notification-service`. En `Mis pedidos` y en el detalle del pedido, el progreso de reembolso reconoce `refund_requested`, `pending_refund` y `refunded`, además de `refund_request_status` devuelto por la API.
 
 Las notificaciones, badges, motivos y detalles muestran texto operativo en español, incluyendo `refund_requested` como "Reembolso solicitado" y `producto_defectuoso` como "Producto defectuoso".
+
+## Corrección 2026-06-28
+
+- **Facade + State**: `frontend/src/modules/admin/composables/useAdminRefunds.js` mantiene encapsulada la lógica de carga, filtros, modales y acciones de reembolso, y ahora importa explícitamente `computed`, `onMounted`, `reactive` y `ref` desde Vue para que el estado reactivo se inicialice sin depender de importaciones implícitas.
+- **Archivo aplicado**: `frontend/src/modules/admin/composables/useAdminRefunds.js`.
+- **Problema resuelto**: la ruta `/admin/reembolsos` fallaba durante `setup()` con `ReferenceError: ref is not defined`, dejando la vista administrativa sin renderizar aunque el endpoint existiera.
 
 ## Documentos relacionados
 

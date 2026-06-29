@@ -3,6 +3,7 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-28 - Corrección de carga admin de reembolsos](#2026-06-28---corrección-de-carga-admin-de-reembolsos)
 - [2026-06-22 - Configuración de cuenta y preferencias](#2026-06-22---configuración-de-cuenta-y-preferencias)
 - [2026-06-22 - Código compartido para registro y recuperación](#2026-06-22---código-compartido-para-registro-y-recuperación)
 - [2026-06-21 - Verificación de seguridad en autenticación nativa](#2026-06-21---verificación-de-seguridad-en-autenticación-nativa)
@@ -48,6 +49,14 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-28 - Corrección de carga admin de reembolsos
+
+- Patrón: Facade + State (Refactoring Guru)
+- Aplicación: el composable administrativo de reembolsos conserva la lógica de estado y acciones fuera de la página Vue, e importa explícitamente las primitivas reactivas de Vue para inicializar la vista sin errores de `setup()`.
+- Ubicación: `frontend/src/modules/admin/composables/useAdminRefunds.js`
+- Problema resuelto: `/admin/reembolsos` no renderizaba por `ReferenceError: ref is not defined`.
+- Referencia detallada: `admin/patrones-diseno-admin-reembolsos-2026-06-20.md`
 
 ## 2026-06-22 - Configuración de cuenta y preferencias
 
