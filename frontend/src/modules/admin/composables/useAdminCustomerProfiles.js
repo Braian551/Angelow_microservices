@@ -1,5 +1,12 @@
 import { authHttp } from '../../../services/http'
 
+/**
+ * Composable para la carga y resolución de perfiles de clientes.
+ * Se usa como helper compartido para completar datos faltantes
+ * de clientes desde el endpoint de autenticación.
+ */
+
+/** Normaliza los datos de un perfil del backend a un formato consistente. */
 function normalizeProfile(profile) {
   return {
     id: String(profile.id || ''),
@@ -9,6 +16,10 @@ function normalizeProfile(profile) {
   }
 }
 
+/**
+ * Carga los perfiles de clientes por sus IDs (máximo 200).
+ * Retorna un mapa { id: { id, name, email, image } }.
+ */
 export async function loadAdminCustomerProfiles(userIds = []) {
   const ids = [...new Set(userIds.map((value) => String(value || '').trim()).filter(Boolean))].slice(0, 200)
 
@@ -38,6 +49,7 @@ export async function loadAdminCustomerProfiles(userIds = []) {
   }
 }
 
+/** Busca y retorna el perfil de un cliente por su ID en el mapa de perfiles. */
 export function resolveAdminCustomerProfile(profiles, userId) {
   const normalizedId = String(userId || '').trim()
 

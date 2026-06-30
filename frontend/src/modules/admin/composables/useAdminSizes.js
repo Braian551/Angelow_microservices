@@ -4,6 +4,11 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de tallas de productos.
+ * Administra CRUD, filtros por estado, ordenamiento y paginación.
+ * Reutiliza useAdminPagination para paginación.
+ */
 export function useAdminSizes() {
   // =====================================================
   // Dependencias y composables reutilizados

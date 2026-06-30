@@ -5,6 +5,11 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de reglas de envío.
+ * Administra reglas basadas en peso, precio o zona geográfica con CRUD,
+ * filtros y exportación. Reutiliza useAdminPagination y useAdminDataExport.
+ */
 export function useAdminShippingRules() {
   // =====================================================
   // Dependencias y composables reutilizados

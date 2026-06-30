@@ -1,8 +1,20 @@
+/* =============================================
+   WISHLIST VIEW - ESTILOS DE LA VISTA DE LISTA DE DESEOS
+   Archivo: WishlistView.css
+   Descripción: Estilos para la página de lista de deseos del usuario,
+   incluyendo controles, estadísticas y estado vacío.
+   ============================================= */
+
+/* Contenedor principal de la página de lista de deseos.
+   Ocupa el 100% del ancho disponible y añade espacio vertical interno. */
 .wishlist-page-container {
   width: 100%;
   padding: 1rem 0;
 }
 
+/* Encabezado de la lista de deseos.
+   Centra el texto, añade margen inferior y posición relativa
+   para el pseudo-elemento decorativo inferior. */
 .wishlist-header {
   margin-bottom: 2.4rem;
   text-align: center;
@@ -10,6 +22,10 @@
   padding-bottom: 1.6rem;
 }
 
+/* Línea decorativa gradiente debajo del encabezado.
+   Elemento pseudo-elemento que crea una barra horizontal con degradado
+   de rosa a rojo, posicionada en la parte inferior del encabezado.
+   Sirve como separador visual elegante. */
 .wishlist-header::after {
   content: '';
   position: absolute;
@@ -22,6 +38,9 @@
   border-radius: 2px;
 }
 
+/* Título principal h1 de la vista.
+   Fuente grande (3.6rem), color oscuro, alineado inline-flex
+   para alinear ícono y texto horizontalmente con espacio entre ellos. */
 .wishlist-header h1 {
   margin: 0 0 0.8rem;
   font-size: 3.6rem;
@@ -31,16 +50,23 @@
   gap: 1rem;
 }
 
+/* Ícono dentro del título h1 (ej: corazón, estrella).
+   Color rosa para resaltar visualmente el ícono temático. */
 .wishlist-header h1 i {
   color: #f25c6d;
 }
 
+/* Subtítulo descriptivo bajo el título principal.
+   Color gris suave para no competir con el título. */
 .wishlist-header p {
   margin: 0;
   font-size: 1.8rem;
   color: #6b7280;
 }
 
+/* Contenedor de controles superiores (acciones + estadísticas).
+   Layout flex horizontal con separación entre elementos.
+   Se apila verticalmente en pantallas pequeñas mediante media query. */
 .wishlist-controls {
   display: flex;
   gap: 1.4rem;
@@ -48,6 +74,9 @@
   align-items: stretch;
 }
 
+/* Barra de acciones: muestra contador de productos y botón "limpiar todo".
+   Fondo blanco, bordes redondeados, sombra sutil con borde gris claro.
+   Distribuye sus hijos con space-between para separar izquierda y derecha. */
 .wishlist-actions {
   flex: 1;
   display: flex;
@@ -60,12 +89,17 @@
   padding: 1.2rem 1.6rem;
 }
 
+/* Texto del contador total de productos en la lista de deseos.
+   Color gris oscuro para legibilidad. */
 .total-products p {
   margin: 0;
   font-size: 1.5rem;
   color: #334155;
 }
 
+/* Botón "Limpiar todo" - eliminar todos los productos de la lista.
+   Fondo degradado rojo, texto blanco, bordes redondeados,
+   estilo inline-flex con ícono al lado. Cursor pointer para indicar clickeable. */
 .clear-all-btn {
   border: 0;
   border-radius: 10px;
@@ -80,15 +114,23 @@
   cursor: pointer;
 }
 
+/* Estado deshabilitado del botón "Limpiar todo".
+   Se reduce la opacidad y se cambia el cursor para indicar
+   que no es clickeable (cuando la lista está vacía). */
 .clear-all-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
+/* Contenedor de estadísticas de la lista de deseos.
+   Ancho fijo de 320px en desktop, se expande en mobile. */
 .wishlist-stats {
   width: 320px;
 }
 
+/* Tarjeta individual de estadística.
+   Fondo blanco, bordes redondeados, layout flex para alinear
+   ícono y contenido horizontalmente. Altura 100% para igualar altura. */
 .stat-card {
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -100,6 +142,9 @@
   height: 100%;
 }
 
+/* Contenedor circular del ícono de estadística.
+   Fondo rosa semitransparente, color rosa, centrado,
+   tamaño fijo 52x52px con bordes completamente redondeados (50%). */
 .stat-icon {
   width: 52px;
   height: 52px;
@@ -112,11 +157,16 @@
   font-size: 2.2rem;
 }
 
+/* Contenedor del contenido de texto de la estadística (valor + etiqueta).
+   Layout flex vertical para apilar valor encima de la etiqueta. */
 .stat-content {
   display: flex;
   flex-direction: column;
 }
 
+/* Valor numérico de la estadística (ej: "5 productos").
+   Fuente grande y en negrita, color rosa, sin espacio entre líneas
+   para un aspecto compacto y llamativo. */
 .stat-value {
   font-size: 2.6rem;
   font-weight: 800;
@@ -124,11 +174,20 @@
   line-height: 1;
 }
 
+/* Etiqueta descriptiva de la estadística (ej: "Productos guardados").
+   Fuente pequeña, color gris para no competir con el valor. */
 .stat-label {
   font-size: 1.2rem;
   color: #64748b;
 }
 
+/* =============================================
+   ESTADO VACÍO - SE MUESTRA CUANDO NO HAY PRODUCTOS EN LA LISTA
+   ============================================= */
+
+/* Contenedor del mensaje de lista vacía.
+   Centrado, con amplio espaciado vertical, fondo blanco,
+   bordes redondeados más grandes (16px) para destacar. */
 .empty-wishlist {
   text-align: center;
   padding: 5rem 2rem;
@@ -137,24 +196,33 @@
   border-radius: 16px;
 }
 
+/* Ícono grande del estado vacío (ej: corazón vacío, carrito).
+   Tamaño 5rem, color rosa, margen inferior para separar del título. */
 .empty-wishlist i {
   font-size: 5rem;
   color: #f25c6d;
   margin-bottom: 1rem;
 }
 
+/* Título del mensaje de lista vacía (ej: "Tu lista está vacía").
+   Fuente grande, color casi negro, margen inferior para el párrafo. */
 .empty-wishlist h2 {
   margin: 0 0 0.8rem;
   font-size: 2.8rem;
   color: #111827;
 }
 
+/* Párrafo descriptivo del estado vacío.
+   Texto explicativo en gris, margen inferior para el botón. */
 .empty-wishlist p {
   margin: 0 0 1.4rem;
   font-size: 1.7rem;
   color: #6b7280;
 }
 
+/* Botón CTA (Call to Action) del estado vacío.
+   Fondo azul, texto blanco, forma de pastilla (border-radius: 999px),
+   inline-flex para alinear ícono con el texto del botón. */
 .empty-wishlist .btn {
   display: inline-flex;
   align-items: center;
@@ -168,6 +236,13 @@
   font-weight: 700;
 }
 
+/* =============================================
+   MEDIA QUERIES - DISEÑO RESPONSIVO
+   ============================================= */
+
+/* Breakpoint 1200px: tablets y pantallas medianas.
+   Los controles se apilan verticalmente (flex-direction: column)
+   y las estadísticas se expanden al 100% del ancho. */
 @media (max-width: 1200px) {
   .wishlist-controls {
     flex-direction: column;

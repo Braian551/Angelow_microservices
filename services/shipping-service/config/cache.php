@@ -2,16 +2,31 @@
 
 use Illuminate\Support\Str;
 
+/*
+|--------------------------------------------------------------------------
+| Caché para shipping-service
+|--------------------------------------------------------------------------
+|
+| Configura los almacenes de caché disponibles. El servicio usa caché
+| principalmente para:
+| - Almacenar datos de autenticación de admin (middleware EnsureAdmin)
+|   con TTL de 5 minutos para reducir la carga sobre auth-service.
+| - Operaciones repetitivas de consulta de métodos de envío (futuro).
+|
+| El driver predeterminado es 'database' porque no depende de servicios
+| externos como Redis, funcionando bien en entornos Docker sin requisitos
+| adicionales de infraestructura.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Cache Store
+    | Almacén de caché predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option controls the default cache store that will be used by the
-    | framework. This connection is utilized if another isn't explicitly
-    | specified when running a cache operation inside the application.
+    | Define qué driver de caché se usa por defecto para las operaciones.
     |
     */
 

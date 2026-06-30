@@ -1,3 +1,12 @@
+<!--
+  Componente: AdminCollectionsPage
+  Descripción: Página administrativa para gestionar colecciones de productos (temporadas,
+  lanzamientos o agrupaciones temáticas). Permite crear, editar, activar/desactivar y
+  eliminar colecciones. Incluye barra de búsqueda con filtros, tabla con paginación,
+  y un modal de edición con campos de nombre, slug, fecha de lanzamiento, descripción
+  e imagen de portada. La lógica de negocio se encuentra en el composable
+  useAdminCollections().
+-->
 <template>
   <div class="admin-entity-page admin-collections-page">
     <AdminPageHeader
@@ -245,32 +254,32 @@ import { useAdminCollections } from '../composables/useAdminCollections'
 // Orquestación de la lógica de colecciones
 // =====================================================
 const {
-  activeFilterCount,
-  clearFilters,
-  clearSelectedImage,
-  closeModal,
-  confirmDelete,
-  editing,
-  errors,
-  excerpt,
-  filteredCollections,
-  form,
-  formatDate,
-  imageInputRef,
-  imagePreviewUrl,
-  loading,
-  onImageSelected,
-  onNameInput,
-  onSlugInput,
-  openImagePicker,
-  openModal,
-  pagination,
-  resolveCollectionImage,
-  saveCollection,
-  search,
-  showModal,
-  stats,
-  statusFilter,
-  toggleStatus,
+  activeFilterCount,   // Conteo de filtros actualmente activos
+  clearFilters,        // Función que restablece todos los filtros de búsqueda
+  clearSelectedImage,  // Función que elimina la imagen seleccionada del formulario
+  closeModal,          // Función que cierra el modal de creación/edición
+  confirmDelete,       // Función que muestra el diálogo de confirmación para eliminar
+  editing,             // Referencia reactiva que indica si se está editando una colección existente
+  errors,              // Objeto reactivo con los errores de validación del formulario
+  excerpt,             // Función auxiliar que recorta un texto a cierta cantidad de caracteres
+  filteredCollections, // Lista reactiva de colecciones filtradas según búsqueda y estado
+  form,                // Objeto reactivo del formulario con los campos de la colección
+  formatDate,          // Función que formatea una fecha para mostrarla en la tabla
+  imageInputRef,       // Referencia al input de tipo file para la imagen de portada
+  imagePreviewUrl,     // URL de la imagen seleccionada para previsualización
+  loading,             // Booleano reactivo que indica si se están cargando datos
+  onImageSelected,     // Handler que procesa la imagen elegida por el usuario
+  onNameInput,         // Handler que ejecuta acciones al escribir en el campo nombre
+  onSlugInput,         // Handler que ejecuta acciones al escribir en el campo slug
+  openImagePicker,     // Función que abre el selector de archivos de imagen
+  openModal,           // Función que abre el modal, recibe una colección opcional para editar
+  pagination,          // Objeto con el estado de paginación (página actual, items, etc.)
+  resolveCollectionImage, // Función que resuelve la URL de la imagen de una colección
+  saveCollection,      // Función que valida y guarda la colección (crea o actualiza)
+  search,              // Referencia reactiva con el texto de búsqueda
+  showModal,           // Booleano reactivo que controla la visibilidad del modal
+  stats,               // Array con las estadísticas mostradas en la cuadrícula superior
+  statusFilter,        // Referencia reactiva con el filtro de estado seleccionado
+  toggleStatus,        // Función que alterna el estado activo/inactivo de una colección
 } = useAdminCollections()
 </script>

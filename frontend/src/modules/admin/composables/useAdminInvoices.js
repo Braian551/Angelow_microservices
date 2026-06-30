@@ -13,6 +13,12 @@ import {
   getPaymentStatusLabel,
 } from '../utils/orderPresentation'
 
+/**
+ * Composable para la gestión de facturas del panel administrativo.
+ * Carga lista de facturas con filtros, estadísticas, detalle de pedido asociado,
+ * reenvío de facturas por email y descarga de PDF.
+ * Reutiliza useAdminPagination para paginación.
+ */
 export function useAdminInvoices() {
   // =====================================================
   // Dependencias y composables reutilizados

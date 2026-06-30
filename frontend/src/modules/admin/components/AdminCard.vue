@@ -21,6 +21,13 @@
 </template>
 
 <script setup>
+/**
+ * Tarjeta contenedor reutilizable del admin.
+ * Estructura flexible con encabezado (título + icono + acciones),
+ * cuerpo con slot principal y pie de página opcional.
+ * El prop 'flush' permite eliminar el padding del body para tablas full-width.
+ * Patrón: Composite — encapsula header/body/footer en una unidad coherente.
+ */
 defineProps({
   /** Titulo opcional de la card */
   title: { type: String, default: null },

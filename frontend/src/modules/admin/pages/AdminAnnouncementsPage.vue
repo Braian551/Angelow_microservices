@@ -1,5 +1,6 @@
 <template>
   <div class="admin-announcements-page">
+    <!-- Encabezado administrativo con exportación y creación de anuncios. -->
     <AdminPageHeader
       icon="fas fa-bullhorn"
       title="Anuncios"
@@ -22,8 +23,10 @@
       </template>
     </AdminPageHeader>
 
+    <!-- Métricas rápidas del módulo: totales, estados y capacidad restante. -->
     <AdminStatsGrid :loading="loading" :count="4" :stats="announcementStats" />
 
+    <!-- Filtros de búsqueda, estado y tipo que alimentan la lista paginada. -->
     <AdminFilterCard
       icon="fas fa-filter"
       title="Búsqueda y estado"
@@ -68,6 +71,7 @@
       </template>
     </AdminFilterCard>
 
+    <!-- Resumen de resultados y aviso del límite operativo de anuncios. -->
     <AdminResultsBar :text="`Mostrando ${pagination.visibleCount} de ${pagination.totalItems} anuncios`">
       <template #actions>
         <span class="results-note" :class="{ 'results-note--warning': !canCreateAnnouncement }">
@@ -76,6 +80,7 @@
       </template>
     </AdminResultsBar>
 
+    <!-- Bandeja principal con shimmer, estado vacío y tabla de anuncios. -->
     <AdminCard title="Bandeja de anuncios" icon="fas fa-bullhorn" :flush="true">
       <AdminTableShimmer v-if="loading" :rows="4" :columns="['thumb', 'line', 'line', 'line', 'pill', 'pill', 'btn']" />
       <AdminEmptyState
@@ -98,6 +103,7 @@
             </tr>
           </thead>
           <tbody>
+            <!-- Cada fila resume vista previa, metadatos, estado y acciones del anuncio. -->
             <tr v-for="announcement in pagination.paginatedItems" :key="announcement.id">
               <td>
                 <button type="button" class="announcement-thumb" @click="openDetailModal(announcement)">
@@ -161,10 +167,12 @@
       :page-size-options="pagination.pageSizeOptions"
     />
 
+    <!-- Modal de detalle con vista previa realista y configuración resumida. -->
     <AdminModal :show="showDetailModal" :title="selectedAnnouncement ? selectedAnnouncement.title : 'Detalle del anuncio'" max-width="1080px" @close="closeDetailModal">
       <template v-if="selectedAnnouncement">
         <div class="admin-announcements-page admin-announcements-page--modal">
           <div class="announcement-detail-grid admin-detail-grid admin-detail-grid--featured">
+            <!-- Vista previa del anuncio seleccionado según su tipo y recursos visuales. -->
             <div class="announcement-preview-card">
               <div class="announcement-preview-card__visual" :style="previewCardStyle(selectedAnnouncement)">
                 <img
@@ -191,6 +199,7 @@
             </div>
 
             <div>
+              <!-- Datos operativos del anuncio: estado, prioridad y vigencia. -->
               <AdminCard title="Configuración" icon="fas fa-cogs">
                 <div class="admin-detail-summary">
                   <div class="admin-detail-summary__row"><span>Estado</span><strong>{{ announcementStatusLabel(selectedAnnouncement) }}</strong></div>
@@ -202,6 +211,7 @@
                 </div>
               </AdminCard>
 
+              <!-- Copia completa del anuncio para revisión antes de editar. -->
               <AdminCard title="Mensaje completo" icon="fas fa-align-left" style="margin-top: 1.2rem;">
                 <div class="detail-copy-block">
                   <p>{{ selectedAnnouncement.message || 'Sin mensaje.' }}</p>
@@ -221,10 +231,12 @@
       </template>
     </AdminModal>
 
+    <!-- Modal de creación/edición; reutiliza el mismo formulario y validaciones del composable. -->
     <AdminModal :show="showEditorModal" :title="editingAnnouncementId ? 'Editar anuncio' : 'Nuevo anuncio'" max-width="920px" @close="closeEditorModal">
       <div class="admin-announcements-page admin-announcements-page--modal">
         <div class="editor-grid admin-editor-grid">
           <div>
+            <!-- Tipo del anuncio: define campos visibles y componente de vista previa. -->
             <div class="form-group">
               <label for="announcement-type-editor">
                 Tipo *
@@ -237,6 +249,7 @@
               <p v-if="formErrors.type" class="form-error">{{ formErrors.type }}</p>
             </div>
 
+            <!-- Título del anuncio: primer texto visible en la tienda. -->
             <div class="form-group">
               <label for="announcement-title">
                 Título *
@@ -246,6 +259,7 @@
               <p v-if="formErrors.title" class="form-error">{{ formErrors.title }}</p>
             </div>
 
+            <!-- Mensaje principal que acompaña el título del anuncio. -->
             <div class="form-group">
               <label for="announcement-message">
                 Mensaje *
@@ -255,6 +269,7 @@
               <p v-if="formErrors.message" class="form-error">{{ formErrors.message }}</p>
             </div>
 
+            <!-- Subtítulo opcional exclusivo de banners promocionales. -->
             <div v-if="isPromoBannerType" class="form-group">
               <label for="announcement-subtitle">
                 Subtítulo
@@ -263,6 +278,7 @@
               <input id="announcement-subtitle" v-model.trim="form.subtitle" type="text" class="form-control" @input="validateField('subtitle')">
             </div>
 
+            <!-- Botón y destino del banner, visibles solo cuando el anuncio actúa como CTA. -->
             <div v-if="isPromoBannerType" class="form-row">
               <div class="form-group" style="flex: 1;">
                 <label for="announcement-button-text">
@@ -302,6 +318,7 @@
           </div>
 
           <div>
+            <!-- Configuración visual, prioridad y ventana de publicación. -->
             <div class="form-row">
               <div class="form-group" style="flex: 1;">
                 <label for="announcement-icon">
@@ -388,6 +405,7 @@
               </div>
             </div>
 
+            <!-- Carga opcional de imagen solo para banners promocionales. -->
             <div v-if="isPromoBannerType" class="form-group">
               <label>
                 Imagen
@@ -407,6 +425,7 @@
               </div>
             </div>
 
+            <!-- Control de publicación inmediata del anuncio. -->
             <div class="form-group">
               <AdminToggleSwitch
                 id="announcement-active"
@@ -418,6 +437,7 @@
           </div>
         </div>
 
+        <!-- Vista previa en vivo usando los mismos componentes que verá la tienda. -->
         <div class="editor-live-preview">
           <p class="editor-live-preview__label">
             <i class="fas fa-eye"></i>
@@ -469,6 +489,7 @@ import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 
+// La vista actúa como orquestador visual; la lógica de datos, validación y exportación vive en useAdminAnnouncements.
 const {
   CUSTOM_STORE_LINK_VALUE,
   TEXT_COLOR_OPTIONS,

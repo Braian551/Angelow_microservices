@@ -38,6 +38,10 @@ class RegisterRequest extends FormRequest
             'phone'    => ['nullable', 'string', 'regex:/^[0-9]{10,15}$/'],
             'password' => ['required', 'string', 'min:6', 'max:20', 'confirmed'],
             'terms'    => ['required', 'accepted'],
+            'turnstile_token' => ['required', 'string', 'max:4096'],
+            'registration_token' => ['required', 'string', 'max:128'],
+            'registration_token' => ['required', 'string', 'max:128'],
+            'registration_token' => ['required', 'string', 'max:128'],
         ];
     }
 
@@ -59,6 +63,10 @@ class RegisterRequest extends FormRequest
             'password.confirmed' => 'Las contraseñas no coinciden',
             'terms.required'     => 'Debes aceptar los términos y condiciones',
             'terms.accepted'     => 'Debes aceptar los términos y condiciones',
+            'turnstile_token.required' => 'Completa la verificación de seguridad para continuar.',
+            'registration_token.required' => 'Verifica tu correo electrónico antes de crear la cuenta.',
+            'registration_token.required' => 'Verifica tu correo electrónico antes de crear la cuenta.',
+            'registration_token.required' => 'Verifica tu correo electrónico antes de crear la cuenta.',
         ];
     }
 }

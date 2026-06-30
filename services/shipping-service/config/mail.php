@@ -1,16 +1,28 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Correo electrónico para shipping-service
+|--------------------------------------------------------------------------
+|
+| Configuración de los mailers disponibles. Actualmente shipping-service
+| no envía correos directamente (eso lo hace order-service o auth-service),
+| pero se mantiene la configuración estándar para:
+| - Log de correos en desarrollo (driver 'log').
+| - Preparación para futuras notificaciones de envío.
+| - Compatibilidad con el framework Laravel.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Mailer
+    | Mailer predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option controls the default mailer that is used to send all email
-    | messages unless another mailer is explicitly specified when sending
-    | the message. All additional mailers can be configured within the
-    | "mailers" array. Examples of each type of mailer are provided.
+    | Define qué mailer se usa por defecto. 'log' es ideal para desarrollo
+    | porque escribe los correos en el archivo de log en lugar de enviarlos.
     |
     */
 

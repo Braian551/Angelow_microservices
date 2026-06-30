@@ -4,6 +4,11 @@ import { discountHttp } from '../../../services/http'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de campañas de descuento específicas (por cliente).
+ * Permite seleccionar clientes individuales para enviar códigos de descuento.
+ * Encapsula carga de códigos, selección de destinatarios y envío de notificaciones.
+ */
 export function useAdminDiscountSpecificCampaign() {
   // =====================================================
   // Dependencias y composables reutilizados

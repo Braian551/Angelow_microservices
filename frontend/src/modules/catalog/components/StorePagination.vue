@@ -1,4 +1,5 @@
 <template>
+  <!-- Paginación pública de tienda; se oculta cuando solo existe una página. -->
   <section v-if="totalPages > 1" class="store-pagination" aria-label="Paginación de productos">
     <button
       type="button"
@@ -38,6 +39,7 @@
 <script setup>
 import { computed } from 'vue'
 
+// Página actual y total de páginas calculado por la vista contenedora.
 const props = defineProps({
   page: {
     type: Number,
@@ -51,6 +53,7 @@ const props = defineProps({
 
 const emit = defineEmits(['change'])
 
+// Construye una lista compacta de páginas con puntos suspensivos para rangos largos.
 const paginationItems = computed(() => {
   const current = Number(props.page || 1)
   const last = Number(props.totalPages || 1)
@@ -89,6 +92,7 @@ const paginationItems = computed(() => {
   return rangeWithDots
 })
 
+// Emite cambios solo cuando el destino es una página válida y distinta.
 function emitPage(nextPage) {
   const targetPage = Number(nextPage)
 

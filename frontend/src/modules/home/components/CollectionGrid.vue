@@ -1,4 +1,5 @@
 <template>
+  <!-- Grid reutilizable de colecciones para la portada pública. -->
   <section class="featured-collections">
     <h2 class="section-title">Nuestras colecciones</h2>
     <div class="collections-grid">
@@ -26,6 +27,7 @@
 import { RouterLink } from 'vue-router'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 
+// Colecciones ya cargadas por la página contenedora.
 defineProps({
   collections: {
     type: Array,
@@ -33,6 +35,7 @@ defineProps({
   },
 })
 
+// Usa el fallback compartido para evitar imágenes rotas en la portada.
 function onImageError(event, originalPath) {
   handleMediaError(event, originalPath, 'collection')
 }

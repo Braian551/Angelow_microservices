@@ -28,6 +28,7 @@ class PasswordRecoveryCodeRequest extends FormRequest
     {
         return [
             'identifier' => ['required', 'string', 'max:150'],
+            'turnstile_token' => ['required', 'string', 'max:4096'],
         ];
     }
 
@@ -38,7 +39,7 @@ class PasswordRecoveryCodeRequest extends FormRequest
     {
         return [
             'identifier.required' => 'Debes ingresar el correo o teléfono asociado a tu cuenta.',
+            'turnstile_token.required' => 'Completa la verificación de seguridad para continuar.',
         ];
     }
 }
-

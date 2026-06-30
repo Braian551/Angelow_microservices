@@ -1,9 +1,16 @@
 /* ===== CATEGORIES ===== */
+
+/* Contenedor principal de la sección de categorías destacadas.
+   Espaciado generoso vertical (6rem) para separar de otras secciones.
+   Color de fondo gris claro para crear contraste visual con el resto de la página. */
 .featured-categories {
     padding: 6rem 2rem;
     background-color: #f8f9fa;
 }
 
+/* Título de la sección de categorías.
+   Tamaño grande para jerarquía visual, centrado horizontalmente.
+   position: relative permite colocar la línea decorativa pseudo-elemento. */
 .section-title {
     font-size: 2.8rem;
     margin-bottom: 3rem;
@@ -12,6 +19,9 @@
     text-align: center;
 }
 
+/* Línea decorativa bajo el título creada con pseudo-elemento ::after.
+   Sirve como separador visual entre el título y las tarjetas de categorías.
+   Color azul (#0077b6) consistente con la paleta de la marca. */
 .section-title::after {
     content: '';
     display: block;
@@ -21,6 +31,11 @@
     margin: 1rem auto 0;
 }
 
+/* Grid responsivo de categorías usando CSS Grid.
+   auto-fit con minmax(250px, 1fr) crea columnas que se adaptan automáticamente
+   al ancho disponible: mínimo 250px por columna, máximo flexible.
+   gap de 2rem separa las tarjetas uniformemente.
+   max-width limita el ancho máximo del grid a 1200px para legibilidad. */
 .categories-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -29,6 +44,11 @@
     margin: 0 auto;
 }
 
+/* Tarjeta individual de cada categoría.
+   position: relative permite posicionar el título (h3) encima de la imagen.
+   overflow: hidden recorta la imagen en los bordes redondeados.
+   transition en todas las propiedades crea animación suave al pasar el cursor.
+   text-decoration: none elimina el subrayado del enlace. */
 .category-card {
     position: relative;
     border-radius: 8px;
@@ -38,11 +58,20 @@
     text-decoration: none;
 }
 
+/* Estado hover de la tarjeta: efecto de elevación.
+   translateY(-5px) eleva ligeramente la tarjeta para dar sensación de profundidad.
+   Sombra más intensa refuerza el efecto de elevación.
+   Animación controlada por la transición definida en .category-card (0.3s ease). */
 .category-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Imagen dentro de cada tarjeta de categoría.
+   width: 100% y height: 300px crean un tamaño fijo vertical con ancho flexible.
+   object-fit: cover asegura que la imagen cubra todo el espacio sin deformarse,
+   recortando si es necesario manteniendo la proporción.
+   Transición para el efecto de zoom en hover. */
 .category-card img {
     width: 100%;
     height: 300px;
@@ -50,10 +79,18 @@
     transition: all 0.3s ease;
 }
 
+/* Efecto zoom en la imagen al pasar el cursor sobre la tarjeta.
+   scale(1.05) amplía la imagen un 5% creando un efecto de acercamiento sutil.
+   Combinado con la elevación de la tarjeta, genera una interacción dinámica. */
 .category-card:hover img {
     transform: scale(1.05);
 }
 
+/* Título de la categoría superpuesto sobre la imagen.
+   position: absolute con bottom: 0 lo posiciona en la parte inferior de la tarjeta.
+   background con gradiente lineal de negro semitransparente a transparente crea
+   un efecto de degradado que mejora la legibilidad del texto sobre cualquier imagen.
+   padding generoso para que el texto no quede pegado a los bordes. */
 .category-card h3 {
     position: absolute;
     bottom: 0;

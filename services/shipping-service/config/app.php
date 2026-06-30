@@ -69,12 +69,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Application Locale Configuration
+    | Configuración de locale
     |--------------------------------------------------------------------------
     |
-    | The application locale determines the default locale that will be used
-    | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
+    | Define el idioma predeterminado y de respaldo de la aplicación.
+    | Se configura en español ('es') para que las respuestas de validación
+    | y mensajes del sistema se muestren en español cuando sea posible.
     |
     */
 

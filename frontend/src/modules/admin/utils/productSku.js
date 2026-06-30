@@ -13,6 +13,7 @@ const GENDER_SKU_CODES = {
   nino: 'BOY',
 }
 
+// Reduce palabras a una firma comparable para evitar repetir marca, categoría o género en el SKU.
 function buildWordSignature(value) {
   const normalized = extractMeaningfulWords(value).join('').replace(/-/g, '')
 
@@ -27,10 +28,12 @@ function buildWordSignature(value) {
   return normalized
 }
 
+// Traduce el género normalizado al segmento corto usado por el SKU automático.
 function genderSkuCode(value) {
   return GENDER_SKU_CODES[normalizeGenderKey(value)] || 'UNI'
 }
 
+// Construye segmentos alfanuméricos de longitud fija a partir de palabras significativas.
 function buildCodeSegment(value, length, fallback) {
   const words = extractMeaningfulWords(value)
 
@@ -55,6 +58,7 @@ function buildCodeSegment(value, length, fallback) {
   return compact.substring(0, length).toUpperCase().padEnd(length, compact.charAt(0).toUpperCase())
 }
 
+// Filtra del nombre las palabras ya representadas por marca, categoría o género.
 function buildStyleSource({ brand, categorySource, gender, name }) {
   const excludedSignatures = new Set([
     ...extractMeaningfulWords(brand),
@@ -68,6 +72,7 @@ function buildStyleSource({ brand, categorySource, gender, name }) {
   return styleWords.join(' ') || name
 }
 
+// Normaliza un SKU escrito manualmente para mantener mayúsculas y separadores consistentes.
 export function normalizeSkuValue(value) {
   return normalizePlainText(value)
     .toUpperCase()
@@ -76,11 +81,13 @@ export function normalizeSkuValue(value) {
     .replace(/^-+|-+$/g, '')
 }
 
+// Distingue SKU manual de valores vacíos para no sobrescribir decisiones del administrador.
 export function shouldTreatExistingSkuAsManual(value) {
   const normalizedSku = normalizeSkuValue(value)
   return Boolean(normalizedSku) && normalizedSku !== '-' && normalizedSku.length > 2
 }
 
+// Genera el SKU sugerido combinando marca, categoría, género, estilo, color y talla.
 export function buildGeneratedSku({ brand, categorySource, colorName, gender, name, sizeName }) {
   if (!String(name || '').trim() || !categorySource || !colorName || !sizeName) {
     return ''

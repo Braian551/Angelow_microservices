@@ -14,11 +14,11 @@ use PDO;
 use Throwable;
 
 /**
- * Search Controller
+ * Controlador de búsqueda.
  *
  * Endpoint de sugerencias de búsqueda para el header.
  * Retorna producto sugerido con imagen + términos de búsqueda relevantes.
- * Réplica del comportamiento de angelow/ajax/busqueda/search.php
+ * Reutiliza la referencia funcional de angelow/ajax/busqueda/search.php.
  */
 class SearchController extends Controller
 {
@@ -103,7 +103,7 @@ class SearchController extends Controller
     }
 
     /**
-     * GET /api/search/suggestions?term=xxx&user_id=xxx
+     * Atiende GET /api/search/suggestions?term=xxx&user_id=xxx.
      *
      * Devuelve sugerencias de producto y términos de búsqueda.
      */
@@ -119,6 +119,14 @@ class SearchController extends Controller
             ]);
         }
 
+        $localPayload = $this->searchWithLocalFunction($term);
+        if (!empty($localPayload['suggestions']) || !empty($localPayload['terms'])) {
+            return response()->json([
+                'success' => true,
+                'data' => $localPayload,
+            ]);
+        }
+
         try {
             $legacyPayload = $this->searchWithLegacyProcedure($term, $userId);
 
@@ -129,7 +137,7 @@ class SearchController extends Controller
                 ]);
             }
         } catch (Throwable) {
-            // Fallback silencioso a consultas equivalentes si el procedimiento no existe o falla.
+            // Respaldo silencioso a consultas equivalentes si el procedimiento externo no existe o falla.
         }
 
         $suggestions = $this->findProductSuggestionsFallback($term);
@@ -145,10 +153,52 @@ class SearchController extends Controller
     }
 
     /**
-     * Busca el primer producto activo que coincida con el término.
-     * Primero intenta en BD principal, fallback a legacy.
+     * Consulta la función PostgreSQL de sugerencias para resolver productos y términos en una sola lectura.
      *
-     * @return array<int, array{name: string, slug: string, image_path: string}>
+     * @return array{suggestions: array<int, array{name: string, slug: string, image_path: string}>, terms: array<int, string>}
+     */
+    private function searchWithLocalFunction(string $term): array
+    {
+        try {
+            $db = DB::connection();
+            if ($db->getDriverName() !== 'pgsql') {
+                return ['suggestions' => [], 'terms' => []];
+            }
+
+            // Reutiliza la función PostgreSQL creada desde el patrón SearchProductsAndTerms del dump completo.
+            $rows = $db->select('SELECT * FROM catalog_search_products_and_terms(?, ?)', [$term, 5]);
+            $suggestions = [];
+            $terms = [];
+
+            foreach ($rows as $row) {
+                $item = (array) $row;
+
+                if (($item['result_type'] ?? '') === 'product') {
+                    $suggestions[] = $this->normalizeSuggestion($item);
+                    continue;
+                }
+
+                if (($item['result_type'] ?? '') === 'term' && !empty($item['search_term_result'])) {
+                    $terms[] = (string) $item['search_term_result'];
+                }
+            }
+
+            return [
+                'suggestions' => array_values(array_slice(array_filter(
+                    $suggestions,
+                    fn (array $item) => !empty($item['name']) && !empty($item['slug'])
+                ), 0, 5)),
+                'terms' => $this->normalizeTerms($terms, 6),
+            ];
+        } catch (Throwable) {
+            return ['suggestions' => [], 'terms' => []];
+        }
+    }
+
+    /**
+     * Consulta el procedimiento externo compatible cuando la fuente principal no responde resultados.
+     *
+     * @return array{suggestions: array<int, array{name: string, slug: string, image_path: string}>, terms: array<int, string>}
      */
     private function searchWithLegacyProcedure(string $term, string $userId): array
     {
@@ -177,15 +227,15 @@ class SearchController extends Controller
     }
 
     /**
-     * Explica la intención de findProductSuggestionsFallback dentro del flujo del servicio.
+     * Busca productos sugeridos con la base principal y luego con la fuente histórica.
      */
 
     private function findProductSuggestionsFallback(string $term): array
     {
-        // Intentar en BD principal (PostgreSQL)
+        // Intenta primero en BD principal para priorizar la base distribuida.
         $products = $this->queryProductSuggestions(null, $term);
 
-        // Fallback a legacy si no se encuentra
+        // Usa la fuente histórica como respaldo cuando la base principal aún no tiene coincidencias.
         if ($products === []) {
             $products = $this->queryProductSuggestions('legacy_mysql', $term);
         }
@@ -237,10 +287,7 @@ class SearchController extends Controller
     }
 
     /**
-     * Busca términos de búsqueda relevantes combinando:
-     * 1. Historial del usuario (search_history - legacy)
-     * 2. Búsquedas populares (popular_searches - legacy, tiene más datos)
-     * 3. Nombres de categorías que coincidan (BD principal)
+     * Busca términos relevantes combinando historial del usuario, búsquedas populares y categorías.
      *
      * @return array<int, string>
      */
@@ -248,21 +295,21 @@ class SearchController extends Controller
     {
         $allTerms = [];
 
-        // 1. Historial del usuario (si está logueado) — legacy_mysql
+        // Historial del usuario: reutiliza la misma intención de búsqueda guardada en ambas fuentes.
         if ($userId !== '') {
             $historyTerms = $this->queryUserSearchHistory($userId, $term);
             $allTerms = array_merge($allTerms, $historyTerms);
         }
 
-        // 2. Búsquedas populares — legacy_mysql (37 registros vs 9 en principal)
+        // Búsquedas populares: mantiene el respaldo histórico mientras se completa la distribución de datos.
         $popularTerms = $this->queryPopularSearches($term);
         $allTerms = array_merge($allTerms, $popularTerms);
 
-        // 3. Nombres de categorías que coincidan — BD principal
+        // Categorías principales: aporta términos desde el catálogo distribuido.
         $categoryTerms = $this->queryCategoryNames($term);
         $allTerms = array_merge($allTerms, $categoryTerms);
 
-        // Eliminar duplicados, filtrar vacíos, limitar a 5
+        // Elimina duplicados, filtra vacíos y limita la respuesta para el header.
         $unique = [];
         foreach ($allTerms as $t) {
             $clean = trim((string) $t);
@@ -277,7 +324,7 @@ class SearchController extends Controller
 
     /**
      * Normaliza una sugerencia al formato esperado por el header SPA.
-     * Mantiene compatibilidad con rutas legacy de uploads/productos.
+     * Mantiene compatibilidad con rutas históricas de uploads/productos.
      *
      * @param array<string, mixed> $item
      * @return array{name: string, slug: string, image_path: string}
@@ -317,7 +364,7 @@ class SearchController extends Controller
     }
 
     /**
-     * Historial de búsqueda del usuario desde legacy.
+     * Historial de búsqueda del usuario desde la base principal y la fuente histórica.
      */
     private function queryUserSearchHistory(string $userId, string $term): array
     {
@@ -374,7 +421,7 @@ class SearchController extends Controller
     }
 
     /**
-     * Búsquedas populares desde legacy (tiene más registros).
+     * Búsquedas populares desde la fuente histórica mientras se consolidan datos.
      */
     private function queryPopularSearches(string $term): array
     {

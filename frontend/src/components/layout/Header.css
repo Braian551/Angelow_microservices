@@ -1,4 +1,8 @@
 /* ===== HEADER ===== */
+
+/* Barra principal del encabezado: se mantiene fija al hacer scroll con position: sticky. 
+   isolation: isolate crea un contexto de apilamiento propio para evitar que z-indexes descendientes afecten al resto de la aplicación.
+   z-index muy alto para garantizar que siempre quede sobre otros elementos. */
 .main-header {
     background-color: #ffffff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
@@ -9,6 +13,8 @@
     overflow: visible;
 }
 
+/* Contenedor interno del header: distribuye logo, buscador e íconos en fila con justify-content: space-between.
+   gap y margin crean el espaciado lateral entre los elementos. */
 .header-container {
     display: flex;
     align-items: center;
@@ -19,12 +25,15 @@
     overflow: visible;
 }
 
+/* Contenedor del logo de la marca: alinea verticalmente el logo dentro del header. */
 .content-logo2 {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
 }
 
+/* Enlace del logo: establece un tamaño mínimo para que el área de clic sea suficiente. 
+   position: relative permite colocar el shimmer encima con position: absolute. */
 .brand-logo-link {
     position: relative;
     display: inline-flex;
@@ -34,6 +43,8 @@
     min-height: 50px;
 }
 
+/* Imagen del logo: comienza invisible (opacity: 0) y se revela cuando termina de cargar.
+   La transición de opacidad crea un efecto de aparición suave. */
 .brand-logo-image {
     width: 50px;
     margin: 6px;
@@ -41,10 +52,13 @@
     transition: opacity 0.22s ease;
 }
 
+/* Clase aplicada por JavaScript cuando la imagen del logo ya cargó, haciendo visible el logo. */
 .brand-logo-image.is-ready {
     opacity: 1;
 }
 
+/* Placeholder de carga (shimmer) del logo: se muestra mientras la imagen carga.
+   Usa un gradiente animado que simula un efecto de brillo deslizante. */
 .brand-logo-shimmer {
     position: absolute;
     width: 50px;
@@ -56,6 +70,9 @@
 }
 
 /* Botón hamburguesa con 3 barras animadas */
+/* Botón hamburguesa del menú móvil: oculto en desktop (display: none), visible en responsive.
+   Las 3 barras se animan para transformarse en una cruz al abrir el menú.
+   flex-shrink: 0 evita que el botón se comprima en la flexbox. */
 .mobile-menu-toggle {
     display: none;
     flex-direction: column;
@@ -73,10 +90,13 @@
     flex-shrink: 0;
 }
 
+/* Efecto hover en el botón hamburguesa: fondo sutil azul para feedback visual. */
 .mobile-menu-toggle:hover {
     background: rgba(0, 119, 182, 0.08);
 }
 
+/* Cada una de las 3 barras del hamburguesa: forma redondeada y transiciones suaves.
+   Las transiciones en transform y opacity permiten animar la apertura/cierre del menú. */
 .hamburger-bar {
     display: block;
     width: 22px;
@@ -87,12 +107,17 @@
 }
 
 /* Barra de búsqueda móvil (oculta en desktop) */
+/* Barra de búsqueda exclusiva para móvil: oculta en desktop, se muestra en breakpoints responsive.
+   padding más compacto que la versión de escritorio para ajustarse a pantallas pequeñas. */
 .mobile-search-bar {
     display: none;
     padding: 0.6rem 1.4rem 1rem;
 }
 
 /* ===== SEARCH BAR (desktop) ===== */
+
+/* Contenedor del buscador de escritorio: flex: 1 1 600px permite crecer hasta 600px.
+   z-index alto para que los resultados de búsqueda se muestren sobre otros elementos del header. */
 .search-bar {
     flex: 1 1 600px;
     max-width: 600px;
@@ -101,12 +126,16 @@
     z-index: 4001;
 }
 
+/* Formulario del buscador: position: relative es necesario para posicionar el botón de envío de forma absoluta. */
 .search-form {
     position: relative;
     width: 100%;
     overflow: visible;
 }
 
+/* Campo de texto del buscador (escritorio y móvil): diseño redondeado con bordes suaves.
+   padding-left amplio para dejar espacio al icono de búsqueda interno.
+   La transición en border-color y box-shadow genera el efecto de enfoque (focus). */
 .search-bar input,
 .mobile-search-bar input {
     width: 100%;
@@ -119,6 +148,8 @@
     color: #111111;
 }
 
+/* Estado de enfoque del campo de búsqueda: cambia el borde a azul y añade un halo luminoso.
+   El outline: none elimina el estilo nativo del navegador. */
 .search-bar input:focus,
 .mobile-search-bar input:focus {
     outline: none;
@@ -127,6 +158,8 @@
     box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1);
 }
 
+/* Ocultar los botones nativos de cancelar/decoración del input de búsqueda en WebKit (Chrome, Safari).
+   Se usan pseudo-elementos propios para mayor consistencia visual. */
 .search-bar input::-webkit-search-cancel-button,
 .search-bar input::-webkit-search-decoration,
 .mobile-search-bar input::-webkit-search-cancel-button,
@@ -135,6 +168,8 @@
     appearance: none;
 }
 
+/* Botón de envío de búsqueda (icono de lupa): posicionado absoluto dentro del input.
+   La posición se calcula con top: 50% y transform: translateY(-50%) para centrarlo verticalmente. */
 .search-form > button[type="submit"] {
     position: absolute;
     right: 1.6rem;
@@ -149,11 +184,16 @@
     padding: 0.4rem;
 }
 
+/* Hover del botón de búsqueda: cambia a color azul de la marca y se agranda ligeramente.
+   La combinación de scale y translateY mantiene la centración vertical. */
 .search-form > button[type="submit"]:hover {
     color: #0077b6;
     transform: translateY(-50%) scale(1.1);
 }
 
+/* Panel de resultados de búsqueda: posicionado debajo del campo de entrada.
+   z-index extremadamente alto (valor máximo de 32 bits) para cubrir todos los elementos de la interfaz.
+   La animación de fade-in crea una aparición suave al desplegarse. */
 .header-search-results {
     position: absolute;
     top: calc(100% + 8px);
@@ -171,16 +211,20 @@
     animation: headerSearchFadeIn 0.16s ease;
 }
 
+/* Contenedores de secciones dentro de los resultados de búsqueda (productos destacados y sugerencias). */
 .header-search-featured,
 .header-search-terms {
     width: 100%;
 }
 
+/* Animación de aparición del panel de resultados: fade + ligero desplazamiento vertical hacia abajo. */
 @keyframes headerSearchFadeIn {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Ítem de producto en los resultados de búsqueda: layout en cuadrícula (grid) con imagen a la izquierda
+   y datos del producto a la derecha. min-height: 8rem asegura un área de clic generosa. */
 .header-product-item {
     display: grid;
     grid-template-columns: 56px minmax(0, 1fr);
@@ -195,10 +239,13 @@
     overflow: hidden;
 }
 
+/* Hover del ítem de producto: fondo azul muy transparente para feedback visual sutil. */
 .header-product-item:hover {
     background-color: rgba(0, 180, 216, 0.05);
 }
 
+/* Imagen del producto en resultados: tamaño fijo, object-fit: cover para que la imagen cubra
+   el espacio sin deformarse, con bordes redondeados. */
 .header-product-item img {
     width: 56px;
     height: 56px;
@@ -208,11 +255,15 @@
     border: 1px solid #e0e0e0;
 }
 
+/* Contenedor de información del producto: flex: 1 para ocupar el espacio restante.
+   min-width: 0 previene desbordamiento de texto largo en flex items. */
 .header-product-info {
     flex: 1 1 auto;
     min-width: 0;
 }
 
+/* Nombre del producto dentro de los resultados: truncado con ellipsis si el texto es muy largo.
+   white-space: nowrap evita el salto de línea. */
 .header-product-info div {
     font-size: 1.42rem;
     color: #5f95d9;
@@ -223,12 +274,16 @@
     text-overflow: ellipsis;
 }
 
+/* Sección de sugerencias de búsqueda (términos): lista vertical de sugerencias. */
 .header-search-terms {
     display: flex;
     flex-direction: column;
     width: 100%;
 }
 
+/* Ítem de sugerencia de búsqueda: layout en cuadrícula con ícono a la izquierda y texto a la derecha.
+   Se usa !important en position/top/right/transform para anular estilos de posición externos
+   que podrían ser aplicados por componentes padre. */
 .search-bar .header-suggestion-item,
 .mobile-search-bar .header-suggestion-item {
     display: grid;
@@ -252,12 +307,14 @@
     transform: none !important;
 }
 
+/* Hover de sugerencia de búsqueda: fondo azul suave y texto en color azul de la marca. */
 .search-bar .header-suggestion-item:hover,
 .mobile-search-bar .header-suggestion-item:hover {
     background-color: rgba(0, 180, 216, 0.05);
     color: #0077b6;
 }
 
+/* Ícono dentro de cada sugerencia de búsqueda: tamaño fijo de 20px, centrado y gris por defecto. */
 .search-bar .header-suggestion-item i,
 .mobile-search-bar .header-suggestion-item i {
     width: 20px;
@@ -266,6 +323,7 @@
     color: #7b7b7b;
 }
 
+/* Texto de la sugerencia de búsqueda: truncado con ellipsis si es muy largo. */
 .header-suggestion-item span {
     display: block;
     min-width: 0;
@@ -275,6 +333,8 @@
     text-overflow: ellipsis;
 }
 
+/* Mensajes de "sin resultados" y "cargando" dentro del panel de búsqueda.
+   Estilo centrado con color gris neutro y tamaño de fuente reducido. */
 .header-no-results,
 .header-search-loading {
     padding: 1.6rem;
@@ -283,6 +343,8 @@
     font-size: 1.4rem;
 }
 
+/* Indicador de carga (spinner) del buscador: se genera con el pseudo-elemento ::after.
+   Usa una animación de rotación continua con borde superior azul de la marca. */
 .header-search-loading::after {
     content: "";
     display: inline-block;
@@ -294,16 +356,22 @@
     animation: searchSpin 0.8s linear infinite;
 }
 
+/* Animación de rotación del spinner de carga: gira 360 grados de forma lineal e infinita. */
 @keyframes searchSpin {
     to { transform: rotate(360deg); }
 }
 
+/* Animación del shimmer (brillo deslizante) del logo: mueve el gradiente de fondo
+   de derecha a izquierda creando un efecto de carga elegante. */
 @keyframes headerLogoShimmer {
     0% { background-position: 100% 0; }
     100% { background-position: -100% 0; }
 }
 
 /* ===== HEADER ICONS ===== */
+
+/* Contenedor de íconos de acción del header (carrito, usuario, etc.).
+   flex: 0 0 auto evita que se comprima; gap genera espacio uniforme entre íconos. */
 .header-icons {
     display: flex;
     align-items: center;
@@ -311,6 +379,8 @@
     flex: 0 0 auto;
 }
 
+/* Enlaces de los íconos del header: tamaño grande para facilitar el toque en dispositivos móviles.
+   position: relative permite posicionar el badge de cantidad encima. */
 .header-icons a {
     font-size: 2rem;
     color: #111111;
@@ -318,10 +388,14 @@
     display: flex;
 }
 
+/* Hover de los íconos del header: color azul de la marca para indicar interactividad. */
 .header-icons a:hover {
     color: #0077b6;
 }
 
+/* Badge de cantidad del carrito y badges genéricos del header.
+   Positioned absolute en la esquina superior derecha del ícono.
+   Estilo circular con fondo azul de la marca, texto blanco y bold para visibilidad. */
 .cart-count,
 .header-count-badge {
     position: absolute;
@@ -341,10 +415,15 @@
 }
 
 /* ===== NAV ESCRITORIO ===== */
+
+/* Barra de navegación principal del escritorio: separada del contenido superior por una línea superior.
+   Se oculta completamente en dispositivos móviles mediante media queries. */
 .main-nav {
     border-top: 1px solid #e0e0e0;
 }
 
+/* Lista de navegación del escritorio: distribuye los enlaces en fila centrada (flex horizontal).
+   list-style: none elimina los viñetas nativas de las listas. */
 .main-nav ul {
     display: flex;
     justify-content: center;
@@ -353,10 +432,14 @@
     padding: 0;
 }
 
+/* Cada elemento de la lista de navegación: position: relative necesario para posicionar
+   submenús desplegables (dropdowns) con position: absolute. */
 .main-nav li {
     position: relative;
 }
 
+/* Enlaces de navegación del escritorio: bloque con padding generoso para facilitar el clic.
+   font-weight: 500 para que el texto tenga un peso semi-negrita. */
 .main-nav li > a {
     display: block;
     padding: 1.5rem 2rem;
@@ -366,12 +449,18 @@
     transition: color 0.22s ease;
 }
 
+/* Estado hover y activo de los enlaces de navegación: color azul de la marca.
+   is-active se aplica por JavaScript cuando el usuario está en esa sección. */
 .main-nav li > a:hover,
 .main-nav li > a.is-active {
     color: #0077b6;
 }
 
 /* ===== DRAWER MÓVIL ===== */
+
+/* Backdrop (superposición oscura) del drawer móvil: cubre toda la pantalla con position: fixed.
+   backdrop-filter: blur(3px) desenfoca el contenido detrás para dar profundidad visual.
+   z-index alto para estar sobre el contenido de la página. */
 /* Backdrop */
 .mobile-drawer-backdrop {
     position: fixed;
@@ -381,6 +470,9 @@
     z-index: 2147483600;
 }
 
+/* Panel deslizante del drawer: se desplaza desde la izquierda de la pantalla.
+   width: min(80vw, 32rem) asegura que nunca ocupe más del 80% del ancho de la pantalla
+   ni más de 32rem en pantallas grandes. overflow-y: auto permite desplazamiento si hay mucho contenido. */
 /* Drawer panel */
 .mobile-drawer {
     position: fixed;
@@ -396,6 +488,8 @@
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
 }
 
+/* Cabecera del drawer: sticky para que el logo y el botón de cerrar se mantengan visibles
+   al desplazarse por el contenido del menú. */
 /* Cabecera del drawer */
 .mobile-drawer__header {
     display: flex;
@@ -409,6 +503,7 @@
     z-index: 1;
 }
 
+/* Contenedor del logo dentro del drawer: tamaño fijo de 44px con alineación centrada. */
 .mobile-drawer__logo-wrap {
     position: relative;
     width: 44px;
@@ -418,6 +513,7 @@
     justify-content: center;
 }
 
+/* Imagen del logo del drawer: comienza invisible para permitir la transición de carga. */
 .mobile-drawer__logo-image {
     width: 44px;
     height: 44px;
@@ -426,10 +522,12 @@
     transition: opacity 0.22s ease;
 }
 
+/* Logo del drawer visible después de cargar: misma transición que el logo del header principal. */
 .mobile-drawer__logo-image.is-ready {
     opacity: 1;
 }
 
+/* Placeholder de carga del logo del drawer: mismo estilo shimmer que el logo del header. */
 .mobile-drawer__logo-shimmer {
     position: absolute;
     inset: 0;
@@ -439,6 +537,8 @@
     animation: headerLogoShimmer 1.25s ease-in-out infinite;
 }
 
+/* Botón de cerrar el drawer: circular con fondo gris claro.
+   El hover cambia a fondo rojo pálido y color rojo para indicar acción destructiva (cerrar). */
 .mobile-drawer__close {
     width: 3.8rem;
     height: 3.8rem;
@@ -454,11 +554,14 @@
     transition: background 0.18s ease, color 0.18s ease;
 }
 
+/* Hover del botón cerrar: fondo rosa claro y color rojo para feedback de acción de cierre. */
 .mobile-drawer__close:hover {
     background: #ffe4e6;
     color: #e11d48;
 }
 
+/* Lista de navegación del drawer: ocupa todo el espacio disponible (flex: 1).
+   list-style: none elimina los viñetas nativas. padding vertical para espaciado. */
 /* Lista de navegación del drawer */
 .mobile-drawer__nav {
     list-style: none;
@@ -467,10 +570,13 @@
     flex: 1 1 auto;
 }
 
+/* Cada ítem de la lista de navegación: padding lateral para que los enlaces no toquen los bordes. */
 .mobile-drawer__nav li {
     padding: 0 1rem;
 }
 
+/* Enlaces de navegación del drawer: flex con ícono y texto, bordes redondeados para estilo moderno.
+   La transición en background y color permite efectos hover suaves. */
 .mobile-drawer__link {
     display: flex;
     align-items: center;
@@ -484,6 +590,7 @@
     transition: background 0.18s ease, color 0.18s ease;
 }
 
+/* Hover y estado activo del enlace del drawer: fondo azul claro y texto azul de la marca. */
 .mobile-drawer__link:hover,
 .mobile-drawer__link.is-active {
     background: #f0f7ff;
@@ -491,6 +598,8 @@
 }
 
 /* Ofertas usa el mismo acento azul del sitio en hover/activo */
+/* Enlace de "Ofertas" en el drawer: mismo estilo de hover que los demás enlaces
+   para mantener consistencia visual en toda la navegación. */
 .mobile-drawer__link--offers:hover,
 .mobile-drawer__link--offers.is-active {
     background: #f0f7ff;
@@ -498,6 +607,8 @@
 }
 
 /* Ícono por ítem del menú */
+/* Contenedor del ícono en cada enlace del drawer: fondo gris claro con color neutro por defecto.
+   El hover y el estado activo cambian el fondo a azul claro y el color a azul de la marca. */
 .mobile-drawer__icon {
     width: 3.4rem;
     height: 3.4rem;
@@ -512,6 +623,7 @@
     transition: background 0.18s ease, color 0.18s ease;
 }
 
+/* Hover y estado activo del ícono del drawer: fondo y color en tonos azules de la marca. */
 .mobile-drawer__link:hover .mobile-drawer__icon,
 .mobile-drawer__link.is-active .mobile-drawer__icon {
     background: #e8f4fb;
@@ -519,6 +631,8 @@
 }
 
 /* Todos los modificadores usan estilo neutro base (sin colores por categoria) */
+/* Modificadores de categorías (niña, niño, bebé, ofertas): todos comparten el mismo estilo neutro base.
+   Se mantienen con fondo gris y color neutro para no romper la consistencia visual del menú. */
 .mobile-drawer__icon--nina,
 .mobile-drawer__icon--nino,
 .mobile-drawer__icon--bebe,
@@ -528,6 +642,9 @@
 }
 
 /* Pie del drawer: acciones de usuario */
+/* Pie del drawer: contiene botones de acción del usuario (carrito, perfil, etc.).
+   flex-wrap: wrap permite que los botones pasen a la siguiente línea si no caben en una fila.
+   border-top lo separa visualmente del contenido de navegación. */
 .mobile-drawer__footer {
     border-top: 1px solid #f0f0f0;
     padding: 1.2rem 1.6rem;
@@ -536,6 +653,8 @@
     flex-wrap: wrap;
 }
 
+/* Botones de acción del pie del drawer: estilo pill (border-radius: 99px) con fondo gris.
+   La transición permite cambio de color suave en hover. */
 .mobile-drawer__footer-btn {
     display: inline-flex;
     align-items: center;
@@ -551,16 +670,21 @@
     position: relative;
 }
 
+/* Hover de los botones del pie del drawer: fondo azul claro y texto azul de la marca. */
 .mobile-drawer__footer-btn:hover {
     background: #e8f0fe;
     color: #0077b6;
 }
 
+/* Botón del carrito en el pie del drawer: estilo destacado con fondo azul claro y texto azul
+   para diferenciarlo de los demás botones de acción. */
 .mobile-drawer__footer-btn--cart {
     background: #eff6ff;
     color: #0077b6;
 }
 
+/* Badges de cantidad en el drawer (carrito y conteo genérico): mismo estilo circular azul
+   que los badges del header para mantener consistencia visual entre escritorio y móvil. */
 .mobile-drawer__cart-badge,
 .mobile-drawer__count-badge {
     display: inline-flex;
@@ -576,12 +700,18 @@
     padding: 0 0.3rem;
 }
 
+/* Transiciones del drawer (Vue transition classes) */
+
+/* Transición del backdrop: cambio de opacidad suave para que el fondo oscuro aparezca/desaparezca gradualmente.
+   Las clases -enter-active y -leave-active definen la duración, las -from/-to definen el estado inicial/final. */
 /* Transición del backdrop */
 .drawer-backdrop-enter-active,
 .drawer-backdrop-leave-active  { transition: opacity 0.26s ease; }
 .drawer-backdrop-enter-from,
 .drawer-backdrop-leave-to      { opacity: 0; }
 
+/* Transición del panel del drawer: deslizamiento horizontal desde la izquierda.
+   cubic-bezier(0.4, 0, 0.2, 1) crea una curva de movimiento natural (ease-out). */
 /* Transición del drawer */
 .drawer-slide-enter-active,
 .drawer-slide-leave-active  { transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -589,6 +719,9 @@
 .drawer-slide-leave-to      { transform: translateX(-100%); }
 
 /* ===== RESPONSIVE ===== */
+
+/* Tablet (max-width: 1024px): ajusta espaciado del header, buscaador y navegación.
+   La nav cambia a flex-wrap para que los enlaces salten a la siguiente línea si no caben. */
 @media (max-width: 1024px) {
     .header-container {
         gap: 1rem;
@@ -609,6 +742,9 @@
     }
 }
 
+/* Móvil (max-width: 768px): cambio drástico de layout.
+   Se muestra el botón hamburguesa, se oculta la navegación de escritorio y el buscador de escritorio.
+   Aparece la barra de búsqueda móvil y el logo se centra. */
 @media (max-width: 768px) {
     /* Mostrar hamburguesa, ocultar nav escritorio y buscador desktop */
     .mobile-menu-toggle {
@@ -628,6 +764,8 @@
     }
 
     /* Layout del header en móvil: hamburguesa | logo | iconos */
+    /* Layout del header en móvil: hamburguesa a la izquierda, logo centrado, iconos a la derecha.
+       flex-wrap: nowrap evita que los elementos salten de línea. */
     .header-container {
         flex-wrap: nowrap;
         justify-content: space-between;
@@ -636,70 +774,85 @@
         gap: 0.8rem;
     }
 
+    /* Contenedor del logo en móvil: flex: 1 para ocupar el espacio central y centrar el logo. */
     .content-logo2 {
         flex: 1 1 auto;
         display: flex;
         justify-content: center;
     }
 
+    /* Logo de la marca en móvil: tamaño reducido (42px) para pantallas pequeñas. */
     .brand-logo-link {
         min-width: 42px;
         min-height: 42px;
     }
 
+    /* Imagen del logo en móvil: dimensiones más compactas que en escritorio. */
     .brand-logo-image {
         width: 42px;
         height: 42px;
         margin: 4px;
     }
 
+    /* Shimmer del logo en móvil: misma reducción de tamaño para mantener proporción. */
     .brand-logo-shimmer {
         width: 42px;
         height: 42px;
     }
 
+    /* Íconos del header en móvil: gap ligeramente menor para ahorrar espacio horizontal. */
     .header-icons {
         gap: 1.2rem;
     }
 
+    /* Tamaño de fuente de los íconos en móvil: reducido proporcionalmente. */
     .header-icons a {
         font-size: 1.9rem;
     }
 }
 
+/* Móvil pequeño (max-width: 480px): ajustes finos para teléfonos con pantalla muy pequeña.
+   Se reduce aún más el tamaño del logo, los íconos y la barra de búsqueda móvil. */
 @media (max-width: 480px) {
     .header-container {
         margin: 0 1rem;
         gap: 0.6rem;
     }
 
+    /* Logo de la marca en móvil pequeño: tamaño mínimo de 38px. */
     .brand-logo-link {
         min-width: 38px;
         min-height: 38px;
     }
 
+    /* Imagen del logo en móvil pequeño: 38x38px para ajustarse a pantallas estrechas. */
     .brand-logo-image {
         width: 38px;
         height: 38px;
     }
 
+    /* Shimmer del logo en móvil pequeño: misma reducción de tamaño. */
     .brand-logo-shimmer {
         width: 38px;
         height: 38px;
     }
 
+    /* Íconos en móvil pequeño: gap mínimo para optimizar el espacio. */
     .header-icons {
         gap: 1rem;
     }
 
+    /* Tamaño de fuente de íconos en móvil pequeño: el más reducido de todos los breakpoints. */
     .header-icons a {
         font-size: 1.75rem;
     }
 
+    /* Barra de búsqueda móvil en pantallas pequeñas: padding más compacto. */
     .mobile-search-bar {
         padding: 0.4rem 1rem 0.8rem;
     }
 
+    /* Input de búsqueda en móvil pequeño: tamaño de fuente y padding reducidos para adaptarse. */
     .mobile-search-bar input {
         font-size: 1.4rem;
         padding: 1rem 4.4rem 1rem 1.5rem;

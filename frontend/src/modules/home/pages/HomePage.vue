@@ -1,5 +1,6 @@
 <template>
   <main>
+    <!-- Hero, categorías, destacados, banner y colecciones componen la portada pública. -->
     <HomeHeroSlider :slides="homeData.sliders || []" :loading="loading" />
 
     <CategoryGrid :categories="categories.slice(0, 4)" />
@@ -40,10 +41,12 @@ import { useSession } from '../../../composables/useSession'
 import { getCategories, getCollections, getHomeData, getProducts } from '../../../services/catalogApi'
 import '../views/HomeView.css'
 
+// Router y sesión permiten abrir productos y solicitar favoritos personalizados.
 const router = useRouter()
 const { user } = useSession()
 const HOME_FEATURED_PRODUCTS_LIMIT = 4
 
+// Estado de carga y datos agregados que alimentan la página inicial.
 const loading = ref(true)
 const errorMessage = ref('')
 const homeData = ref({
@@ -56,6 +59,7 @@ const products = ref([])
 const categories = ref([])
 const collections = ref([])
 
+// Carga en paralelo portada, productos destacados, categorías y colecciones.
 onMounted(async () => {
   loading.value = true
   errorMessage.value = ''
@@ -84,10 +88,12 @@ onMounted(async () => {
   }
 })
 
+// Navega al detalle cuando la tarjeta emite la acción principal.
 function openProduct(product) {
   router.push({ name: 'product', params: { slug: product.slug } })
 }
 
+// Actualiza el favorito local para que el grid refleje inmediatamente el cambio.
 function onWishlistChange(payload) {
   const productId = Number(payload?.productId)
   const favorite = Boolean(payload?.isFavorite)

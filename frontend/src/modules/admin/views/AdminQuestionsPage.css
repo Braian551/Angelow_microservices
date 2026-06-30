@@ -1,5 +1,6 @@
 /* Estilos locales de la vista AdminQuestionsPage; los comunes están en admin.css. */
 
+/* Grilla de insights superiores sobre preguntas pendientes y respondidas. */
 .admin-questions-page .insights-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7,6 +8,7 @@
   margin-bottom: 1.5rem;
 }
 
+/* Lista de preguntas destacadas o más recientes. */
 .admin-questions-page .highlights-list {
   display: flex;
   flex-direction: column;
@@ -62,6 +64,7 @@
   color: var(--admin-text-light);
 }
 
+/* Celda de cliente con avatar dentro de tabla y detalle. */
 .admin-questions-page .question-customer-cell {
   display: flex;
   align-items: center;
@@ -81,6 +84,7 @@
   height: 4.8rem;
 }
 
+/* Grilla del modal de detalle de pregunta. */
 .admin-questions-page .question-detail-grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
@@ -92,6 +96,7 @@
   line-height: 1.6;
 }
 
+/* Timeline de respuestas y actividad de la pregunta. */
 .admin-questions-page .timeline-list {
   display: flex;
   flex-direction: column;
@@ -110,6 +115,7 @@
   gap: 0.35rem;
 }
 
+/* Acciones del modal apiladas para responder o cerrar. */
 .admin-questions-page .modal-actions-stack {
   display: flex;
   flex-direction: column;
@@ -121,6 +127,7 @@
   padding: 0.6rem 0;
 }
 
+/* Tablet: insights y detalle pasan a una columna. */
 @media (max-width: 980px) {
   .admin-questions-page .insights-grid,
   .admin-questions-page .question-detail-grid {

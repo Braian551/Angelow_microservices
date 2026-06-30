@@ -113,6 +113,15 @@ import AdminInfoTooltip from '../AdminInfoTooltip.vue'
 import AdminModal from '../AdminModal.vue'
 import AdminToggleSwitch from '../AdminToggleSwitch.vue'
 
+/**
+ * Modal reutilizable para configurar tallas y precios de una variante de producto.
+ * Permite agregar/quitar filas de talla, definir precio, precio comparativo,
+ * stock, SKU, código de barras y estado de activación por talla.
+ * Reutiliza AdminModal como contenedor, AdminInfoTooltip para ayudas
+ * y AdminToggleSwitch para el interruptor de talla activa/inactiva.
+ * La lógica de negocio (validaciones, generación de SKU, etc.)
+ * se delega a la página padre mediante eventos.
+ */
 defineProps({
   activeVariant: { type: Object, default: null },
   availableSizes: { type: Array, default: () => [] },

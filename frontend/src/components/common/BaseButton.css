@@ -1,102 +1,160 @@
+/* ============================================================
+   BaseButton.css — Estilos del componente BaseButton
+   ============================================================ */
+
+/* Selector base del botón: define la apariencia y comportamiento
+   comunes a todos los botones de la aplicación.
+   Se usa display inline-flex para alinear iconos y texto dentro
+   del botón de forma flexible y centrada. */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
     border-radius: var(--radius-md);
+    /* La transición suaviza los cambios de color, sombra y
+       transformación al pasar el cursor o hacer clic */
     transition: all var(--transition-fast);
     position: relative;
+    /* overflow:hidden recorta el spinner de carga que se
+       posiciona de forma absoluta fuera del área del botón */
     overflow: hidden;
     font-family: inherit;
     cursor: pointer;
+    /* Borde transparente para evitar saltos de layout al
+       alternar entre variantes con y sin borde visible */
     border: 2px solid transparent;
     letter-spacing: 0.02em;
 }
 
-/* Variants */
+/* ==================== Variantes de color ==================== */
+
+/* Variante primaria: fondo sólido con color de marca.
+   Se usa para acciones principales como enviar, guardar, etc. */
 .btn--primary {
     background-color: var(--primary);
     color: var(--white);
 }
 
+/* Hover primario: eleva el botón visualmente con sombra y
+   pequeño desplazamiento vertical. :not(:disabled) evita el
+   efecto cuando el botón está deshabilitado */
 .btn--primary:hover:not(:disabled) {
     background-color: var(--primary-hover);
     box-shadow: var(--shadow-button);
     transform: translateY(-1px);
 }
 
+/* Estado activo (clic sostenido): el botón vuelve a su posición
+   original sin sombra para simular presión física */
 .btn--primary:active:not(:disabled) {
     transform: translateY(0);
     box-shadow: none;
 }
 
+/* Variante outline (contorno): fondo transparente con borde y
+   texto en color de marca. Se usa para acciones secundarias */
 .btn--outline {
     background-color: transparent;
     color: var(--primary);
     border-color: var(--gray-200);
 }
 
+/* Hover outline: rellena el fondo con un tono pálido del color
+   de marca y refuerza el borde para indicar interactividad */
 .btn--outline:hover:not(:disabled) {
     background-color: var(--primary-pale);
     border-color: var(--primary);
 }
 
+/* Variante ghost (fantasma): sin fondo ni borde visible.
+   Se usa para acciones menos prominentes como cancelar */
 .btn--ghost {
     background-color: transparent;
     color: var(--gray-600);
 }
 
+/* Hover ghost: muestra un fondo gris muy claro solo al
+   pasar el cursor para indicar que es clickeable */
 .btn--ghost:hover:not(:disabled) {
     background-color: var(--gray-100);
 }
 
-/* Sizes */
+/* ==================== Tamaños ==================== */
+
+/* Tamaño pequeño: para botones en formularios compactos,
+   tablas o espacios reducidos */
 .btn--sm {
     padding: 0.6rem 1.4rem;
     font-size: var(--font-size-sm);
 }
 
+/* Tamaño mediano: el tamaño por defecto, equilibrio entre
+   legibilidad y compacidad */
 .btn--md {
     padding: 1.1rem 2rem;
     font-size: var(--font-size-md);
 }
 
+/* Tamaño grande: para CTAs (llamadas a la acción) prominentes
+   en modales, landing pages o secciones destacadas */
 .btn--lg {
     padding: 1.3rem 2.4rem;
     font-size: 1.6rem;
 }
 
-/* Modifiers */
+/* ==================== Modificadores ==================== */
+
+/* Variante block: el botón ocupa el 100% del ancho disponible
+   de su contenedor. Útil para formularios en móvil */
 .btn--block {
     width: 100%;
 }
 
+/* Estado deshabilitado: reduce la opacidad y cambia el cursor
+   para indicar visualmente que no es interactuable */
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* Loading state */
+/* ==================== Estado de carga ==================== */
+
+/* Clase que se aplica al botón mientras se ejecuta una
+   operación asíncrona (envío de formulario, petición API, etc.) */
 .btn--loading {
+    /* cursor:wait indica al usuario que debe esperar */
     cursor: wait;
 }
 
+/* Spinner de carga: círculo giratorio que se posiciona
+   encima del contenido del botón. Se crea con solo bordes
+   y la animación rota el borde superior para simular giro */
 .btn-spinner {
     position: absolute;
     width: 18px;
     height: 18px;
+    /* Borde semitransparente blanco como base */
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
+    /* currentColor hereda el color del texto del botón padre,
+       haciendo que el spinner se adapte a la variante usada */
     border-top-color: currentColor;
+    /* Animación de rotación continua definida en keyframes */
     animation: spin 0.7s linear infinite;
 }
 
+/* Ajuste del spinner para variantes outline y ghost:
+   colores más oscuros ya que estos botones no tienen fondo
+   de color que contraste con un borde blanco */
 .btn--outline .btn-spinner,
 .btn--ghost .btn-spinner {
     border-color: rgba(26, 143, 196, 0.2);
     border-top-color: var(--primary);
 }
 
+/* Oculta el texto del botón cuando se muestra el spinner,
+   evitando que ambos elementos se superpongan visualmente */
 .btn-text-hidden {
     opacity: 0;
 }

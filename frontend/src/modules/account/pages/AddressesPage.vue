@@ -1,28 +1,37 @@
 
+<!-- Página de gestión de direcciones de envío del usuario. Permite listar, crear, editar, eliminar y establecer direcciones principales. -->
 <template>
+  <!-- Muestra un shimmer de carga mientras se obtienen las direcciones en modo lista -->
   <AccountShimmer v-if="loading && viewMode === 'list'" variant="addresses" />
 
+  <!-- Contenido principal cuando ya no está cargando -->
   <template v-else>
+    <!-- Encabezado del dashboard con título y descripción de la página -->
     <section class="dashboard-header">
       <h1>Mis Direcciones</h1>
       <p>Administra tus direcciones de envío para una experiencia de compra más rápida.</p>
     </section>
 
+    <!-- Sección de lista de direcciones: solo se muestra cuando viewMode es 'list' -->
     <section v-if="viewMode === 'list'" class="addresses-list-container account-card">
+      <!-- Encabezado con título y botón para crear nueva dirección -->
       <header class="addresses-header">
         <h2>
           <i class="fas fa-map-marked-alt" />
           Mis Direcciones Guardadas
         </h2>
 
+        <!-- Botón que abre el formulario para crear una nueva dirección -->
         <button type="button" class="btn-primary-small btn-add-address" @click="openCreateForm">
           <i class="fas fa-plus-circle" />
           Agregar Nueva Dirección
         </button>
       </header>
 
+      <!-- Mensaje de error si falla la carga de direcciones -->
       <p v-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
+      <!-- Estado vacío: muestra un mensaje y botón cuando no hay direcciones registradas -->
       <div v-else-if="addresses.length === 0" class="no-addresses">
         <div class="empty-state">
           <div class="empty-icon">
@@ -37,29 +46,36 @@
         </div>
       </div>
 
+      <!-- Grid de tarjetas de direcciones cuando existen direcciones guardadas -->
       <div v-else class="addresses-grid">
+        <!-- Itera sobre cada dirección y renderiza una tarjeta con sus detalles -->
         <article
           v-for="address in addresses"
           :key="address.id"
           class="address-card"
           :class="{ 'default-address': address.is_default }"
         >
+          <!-- Encabezado de la tarjeta: ícono según tipo, alias y badge si es dirección principal -->
           <header class="address-header">
             <div class="address-icon">
+              <!-- Determina el ícono CSS según el tipo de dirección (casa, apartamento, etc.) -->
               <i :class="addressTypeIcon(address.address_type)" />
             </div>
 
             <div class="address-title">
               <h3>{{ address.alias }}</h3>
+              <!-- Muestra la etiqueta legible del tipo de dirección -->
               <span class="address-type">{{ labelAddressType(address.address_type) }}</span>
             </div>
 
+            <!-- Badge de estrella que indica si esta dirección es la predeterminada -->
             <span v-if="address.is_default" class="default-badge">
               <i class="fas fa-star" />
               Principal
             </span>
           </header>
 
+          <!-- Detalles de la dirección: destinatario, dirección, barrio, etc. -->
           <div class="address-details">
             <div class="detail-item">
               <i class="fas fa-user" />
@@ -71,6 +87,7 @@
               <p class="detail-address-text">{{ address.address }}</p>
             </div>
 
+            <!-- Complemento: solo se muestra si existe (ej: torre, portería) -->
             <div v-if="address.complement" class="detail-item">
               <i class="fas fa-plus-circle" />
               <p>{{ address.complement }}</p>
@@ -81,23 +98,28 @@
               <p>{{ address.neighborhood }}</p>
             </div>
 
+            <!-- Tipo de edificación con nombre del edificio si está disponible -->
             <div class="detail-item">
               <i class="fas fa-building" />
               <p>{{ labelBuilding(address) }}</p>
             </div>
 
+            <!-- Número de apartamento: solo se muestra si está definido -->
             <div v-if="address.apartment_number" class="detail-item">
               <i class="fas fa-door-open" />
               <p>{{ address.apartment_number }}</p>
             </div>
 
+            <!-- Instrucciones de entrega: solo se muestra si existen indicaciones especiales -->
             <div v-if="address.delivery_instructions" class="detail-item">
               <i class="fas fa-info-circle" />
               <p>{{ address.delivery_instructions }}</p>
             </div>
           </div>
 
+          <!-- Acciones de la tarjeta: establecer como principal, editar, eliminar -->
           <footer class="address-actions">
+            <!-- Botón para marcar como dirección principal (solo si no lo es ya) -->
             <button
               v-if="!address.is_default"
               type="button"
@@ -109,6 +131,7 @@
               Establecer como principal
             </button>
 
+            <!-- Botón para editar la dirección actual -->
             <button
               type="button"
               class="btn-outline-small"
@@ -119,6 +142,7 @@
               Editar
             </button>
 
+            <!-- Botón para eliminar la dirección (abre confirmación) -->
             <button
               type="button"
               class="btn-outline-small btn-danger-outline"
@@ -133,20 +157,26 @@
       </div>
     </section>
 
+    <!-- Sección del formulario: se muestra cuando viewMode es 'form' -->
     <section v-else class="address-form-container account-card">
+    <!-- Encabezado del formulario: cambia título e ícono según modo (crear/editar) -->
     <header class="form-header">
       <h2>
+        <!-- Ícono dinámico: editar si es modo edición, crear si es nuevo -->
         <i :class="isEditMode ? 'fas fa-edit' : 'fas fa-plus-circle'" />
         {{ isEditMode ? 'Editar Dirección' : 'Agregar Nueva Dirección' }}
       </h2>
 
+      <!-- Botón para volver a la lista de direcciones -->
       <button type="button" class="btn-back" @click="backToList">
         <i class="fas fa-arrow-left" />
         Volver
       </button>
     </header>
 
+    <!-- Formulario de 3 pasos para crear/editar una dirección -->
     <form @submit.prevent="submitAddress">
+      <!-- Paso 1: Identificación de la dirección (alias y tipo) -->
       <div class="form-step" :class="{ active: formStep === 1 }">
         <div class="step-header">
           <div class="step-title-line">
@@ -157,6 +187,7 @@
         </div>
 
         <div class="form-row">
+          <!-- Campo alias: nombre descriptivo de la dirección -->
           <div class="form-group">
             <label for="alias">
               <i class="fas fa-tag" />
@@ -174,6 +205,7 @@
             <div v-if="fieldErrors.alias" class="field-error">{{ fieldErrors.alias }}</div>
           </div>
 
+          <!-- Campo tipo de dirección: selección del tipo de domicilio -->
           <div class="form-group">
             <label for="address_type">
               <i class="fas fa-home" />
@@ -189,6 +221,7 @@
           </div>
         </div>
 
+        <!-- Botón para avanzar al paso 2 -->
         <div class="step-actions">
           <button type="button" class="btn-primary-small" @click="goToStep(2)">
             Siguiente
@@ -196,6 +229,8 @@
           </button>
         </div>
       </div>
+
+      <!-- Paso 2: Información del destinatario (nombre y teléfono) -->
       <div class="form-step" :class="{ active: formStep === 2 }">
         <div class="step-header">
           <div class="step-title-line">
@@ -206,6 +241,7 @@
         </div>
 
         <div class="form-row">
+          <!-- Campo nombre del destinatario -->
           <div class="form-group">
             <label for="recipient_name">
               <i class="fas fa-user" />
@@ -223,6 +259,7 @@
             <div v-if="fieldErrors.recipient_name" class="field-error">{{ fieldErrors.recipient_name }}</div>
           </div>
 
+          <!-- Campo teléfono del destinatario: validado con regex (7-15 dígitos) -->
           <div class="form-group">
             <label for="recipient_phone">
               <i class="fas fa-phone" />
@@ -241,6 +278,7 @@
           </div>
         </div>
 
+        <!-- Botones de navegación entre pasos -->
         <div class="step-actions">
           <button type="button" class="btn-outline-small" @click="goToStep(1)">
             <i class="fas fa-arrow-left" />
@@ -253,7 +291,9 @@
         </div>
       </div>
 
+      <!-- Paso 3: Dirección física, barrio, tipo de edificación y detalles de entrega -->
       <div class="form-step" :class="{ active: formStep === 3 }">
+        <!-- Encabezado del paso 3 -->
         <div class="step-header">
           <div class="step-title-line">
             <span class="step-current-circle">3</span>
@@ -262,6 +302,7 @@
           <p>Completa los datos de ubicación para entregar correctamente</p>
         </div>
 
+        <!-- Botón para abrir el modal de selección GPS en mapa -->
         <div class="form-group full-width">
           <button type="button" class="btn-gps" @click="openGpsModal">
             <i class="fas fa-crosshairs" />
@@ -272,6 +313,7 @@
           </p>
         </div>
 
+        <!-- Campo dirección física (obligatorio) -->
         <div class="form-row">
           <div class="form-group full-width">
             <label for="address">
@@ -291,6 +333,7 @@
           </div>
         </div>
 
+        <!-- Campo complemento: información adicional (torre, portería, etc.) -->
         <div class="form-row">
           <div class="form-group full-width">
             <label for="complement">
@@ -307,7 +350,9 @@
           </div>
         </div>
 
+        <!-- Campos de barrio/zona y tipo de edificación -->
         <div class="form-row">
+          <!-- Campo barrio o zona (obligatorio) -->
           <div class="form-group">
             <label for="neighborhood">
               <i class="fas fa-city" />
@@ -325,6 +370,7 @@
             <div v-if="fieldErrors.neighborhood" class="field-error">{{ fieldErrors.neighborhood }}</div>
           </div>
 
+          <!-- Campo tipo de edificación (obligatorio) -->
           <div class="form-group">
             <label for="building_type">
               <i class="fas fa-building" />
@@ -340,6 +386,7 @@
           </div>
         </div>
 
+        <!-- Campos de edificio/constructora y número de apartamento -->
         <div class="form-row">
           <div class="form-group">
             <label for="building_name">
@@ -370,6 +417,7 @@
           </div>
         </div>
 
+        <!-- Campo de indicaciones especiales de entrega -->
         <div class="form-row">
           <div class="form-group full-width">
             <label for="delivery_instructions">
@@ -385,17 +433,20 @@
           </div>
         </div>
 
+        <!-- Muestra coordenadas GPS solo si son válidas -->
         <div v-if="hasGpsCoordinates" class="form-group full-width">
           <p class="form-help">
             Coordenadas GPS: {{ form.gps_latitude }}, {{ form.gps_longitude }}
           </p>
         </div>
 
+        <!-- Checkbox para marcar como dirección principal -->
         <label class="checkbox-group">
           <input v-model="form.is_default" type="checkbox" />
           Establecer como dirección principal
         </label>
 
+        <!-- Botones de navegación del paso 3: volver o enviar formulario -->
         <div class="step-actions">
           <button type="button" class="btn-outline-small" @click="goToStep(2)">
             <i class="fas fa-arrow-left" />
@@ -410,6 +461,7 @@
     </form>
     </section>
 
+    <!-- Modal para selección de ubicación GPS con mapa interactivo -->
     <AddressLocationPickerModal
       v-model="isGpsModalOpen"
       :initial-address="form.address"
@@ -423,12 +475,19 @@
 </template>
 
 <script setup>
+// Imports de Vue: herramientas reactivas y ciclo de vida
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+
+// Componentes hijos: shimmer de carga y modal de selección GPS
 import AccountShimmer from '../components/AccountShimmer.vue'
 import AddressLocationPickerModal from '../components/AddressLocationPickerModal.vue'
+
+// Composables personalizados para sesión, alertas y notificaciones
 import { useSession } from '../../../composables/useSession'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+
+// Funciones de la API de envíos para CRUD de direcciones de usuario
 import {
   createUserAddress,
   deleteUserAddress,
@@ -436,50 +495,75 @@ import {
   setDefaultUserAddress,
   updateUserAddress,
 } from '../../../services/shippingApi'
+
+// Estilos CSS de la vista de direcciones
 import '../views/AddressesView.css'
 
+// Composables de sesión y notificaciones
 const { user, isLoggedIn } = useSession()
 const { showAlert } = useAlertSystem()
 const { showSnackbar } = useSnackbarSystem()
 
+// Constantes para sincronización en tiempo real entre pestañas/navegadores
+// Evento personalizado para notificar cambios de direcciones entre ventanas
 const ADDRESS_SYNC_EVENT = 'angelow:account-addresses-updated'
+// Clave de localStorage para detectar cambios en otras pestañas
 const ADDRESS_SYNC_STORAGE_KEY = 'angelow:account-addresses-sync'
+// Intervalo de polling en milisegundos para refresco automático de direcciones
 const ADDRESS_POLL_INTERVAL_MS = 12000
 
+// Estado de la interfaz: 'list' muestra la lista, 'form' muestra el formulario
 const viewMode = ref('list')
+// Paso actual del formulario multi-paso (1, 2 o 3)
 const formStep = ref(1)
 
+// Estado de carga inicial y de guardado
 const loading = ref(true)
 const isSaving = ref(false)
+// ID de la dirección que se está guardando actualmente (para deshabilitar botones)
 const savingAddressId = ref(null)
 const errorMessage = ref('')
+// Array de direcciones del usuario obtenidas de la API
 const addresses = ref([])
 
+// Modo de edición: true = editar, false = crear nueva dirección
 const isEditMode = ref(false)
+// ID de la dirección que se está editando actualmente
 const editingId = ref(null)
 
+// Objeto reactivo que contiene todos los campos del formulario
 const form = reactive(initialFormState())
+// Objeto reactivo que contiene los mensajes de error de validación por campo
 const fieldErrors = reactive(initialFieldErrors())
 
+// Estado del modal de selección GPS
 const isGpsModalOpen = ref(false)
+// Bandera para evitar solicitudes concurrentes de sincronización
 const syncingAddresses = ref(false)
 
+// Temporizador para el polling de refresco automático de direcciones
 let addressRefreshTimer = null
 
+// Computed que verifica si las coordenadas GPS son válidas (lat/lng en rango y no cero)
 const hasGpsCoordinates = computed(() => isValidCoordinatePair(form.gps_latitude, form.gps_longitude))
 
+// Al montar el componente: carga las direcciones y activa el refresco en tiempo real
 onMounted(async () => {
   await loadAddresses()
   startAddressRealtimeRefresh()
 })
 
+// Al desmontar el componente: detiene el refresco y limpia event listeners
 onUnmounted(() => {
   stopAddressRealtimeRefresh()
 })
 
+// Carga las direcciones del usuario desde la API
+// options.silent = true evita mostrar el shimmer de carga (usado en refrescos en segundo plano)
 async function loadAddresses(options = {}) {
   const { silent = false } = options
 
+  // Solo muestra el shimmer de carga en la carga inicial, no en refrescos silenciosos
   if (!silent) {
     loading.value = true
   }
@@ -487,91 +571,125 @@ async function loadAddresses(options = {}) {
   errorMessage.value = ''
 
   try {
+    // Si el usuario no está autenticado, limpia el array y retorna
     if (!isLoggedIn.value) {
       addresses.value = []
       return
     }
 
+    // Obtiene las direcciones de la API usando ID y email del usuario actual
     const response = await getUserAddresses(currentUserId(), currentUserEmail())
+    // Valida que la respuesta tenga un array de datos válido
     const rawItems = Array.isArray(response?.data) ? response.data : []
 
+    // Normaliza cada dirección y ordena: las principales primero
     addresses.value = rawItems
       .map(normalizeAddress)
       .sort((a, b) => Number(b.is_default) - Number(a.is_default))
   } catch {
+    // Muestra error genérico si falla la carga
     errorMessage.value = 'No se pudieron cargar tus direcciones.'
   } finally {
+    // Oculta el shimmer solo si no es carga silenciosa
     if (!silent) {
       loading.value = false
     }
   }
 }
 
+// Inicia el sistema de refresco en tiempo real de direcciones
+// Registra event listeners para detectar cuando la ventana vuelve a estar visible
+// y activa un polling periódico para mantener las direcciones actualizadas
 function startAddressRealtimeRefresh() {
+  // Refresca cuando la ventana recibe foco
   window.addEventListener('focus', handleWindowFocusRefresh)
+  // Refresca cuando la pestaña cambia de estado de visibilidad
   document.addEventListener('visibilitychange', handleVisibilityRefresh)
+  // Refresca cuando localStorage cambia en otra pestaña (sincronización cross-tab)
   window.addEventListener('storage', handleAddressStorageEvent)
+  // Refresca cuando se recibe un evento de sincronización personalizado
   window.addEventListener(ADDRESS_SYNC_EVENT, handleAddressSyncEvent)
 
+  // Inicia polling periódico para refrescar direcciones automáticamente
   addressRefreshTimer = window.setInterval(() => {
     refreshAddressesInBackground()
   }, ADDRESS_POLL_INTERVAL_MS)
 }
 
+// Detiene el sistema de refresco en tiempo real
+// Remueve todos los event listeners y limpia el temporizador de polling
 function stopAddressRealtimeRefresh() {
   window.removeEventListener('focus', handleWindowFocusRefresh)
   document.removeEventListener('visibilitychange', handleVisibilityRefresh)
   window.removeEventListener('storage', handleAddressStorageEvent)
   window.removeEventListener(ADDRESS_SYNC_EVENT, handleAddressSyncEvent)
 
+  // Limpia el intervalo de polling si está activo
   if (addressRefreshTimer !== null) {
     window.clearInterval(addressRefreshTimer)
     addressRefreshTimer = null
   }
 }
 
+// Manejador: refresca direcciones cuando la ventana recibe foco del sistema
 function handleWindowFocusRefresh() {
   refreshAddressesInBackground()
 }
 
+// Manejador: refresca direcciones cuando la pestaña se hace visible
 function handleVisibilityRefresh() {
   if (document.visibilityState === 'visible') {
     refreshAddressesInBackground()
   }
 }
 
+// Manejador: refresca direcciones cuando localStorage cambia en otra pestaña
+// Solo reacciona al evento de sincronización de direcciones específico
 function handleAddressStorageEvent(event) {
   if (event?.key !== ADDRESS_SYNC_STORAGE_KEY) return
   refreshAddressesInBackground()
 }
 
+// Manejador: refresca direcciones al recibir evento de sincronización personalizado
 function handleAddressSyncEvent() {
   refreshAddressesInBackground()
 }
 
+// Refresca las direcciones en segundo plano sin mostrar spinner de carga
+// Previene solicitudes concurrentes verificando banderas de estado
 async function refreshAddressesInBackground() {
+  // Solo refresca en modo lista
   if (viewMode.value !== 'list') return
+  // No refresca si el usuario no está autenticado
   if (!isLoggedIn.value) return
+  // No refresca si ya hay una sincronización o guardado en curso
   if (syncingAddresses.value || isSaving.value || Boolean(savingAddressId.value)) return
 
   syncingAddresses.value = true
   try {
+    // Carga direcciones en modo silencioso (sin shimmer)
     await loadAddresses({ silent: true })
   } finally {
     syncingAddresses.value = false
   }
 }
 
+// Emite una señal de sincronización a otras pestañas/navegadores
+// Usa localStorage y un evento custom para notificar cambios
 function emitAddressSyncSignal() {
   try {
+    // Escribe marca de tiempo en localStorage para triggerar event 'storage' en otras pestañas
     localStorage.setItem(ADDRESS_SYNC_STORAGE_KEY, String(Date.now()))
   } catch {
     // Sincronización best-effort para navegadores con storage restringido.
   }
 
+  // Despacha evento custom para notificar a otras instancias del mismo componente
   window.dispatchEvent(new CustomEvent(ADDRESS_SYNC_EVENT))
 }
 
+// Retorna el estado inicial del formulario con valores por defecto
+// Usado al crear una nueva dirección o al resetear el formulario
 function initialFormState() {
   return {
     alias: '',
@@ -593,12 +711,14 @@ function initialFormState() {
   }
 }
 
+// Resetea el formulario a su estado inicial y limpia errores de validación
 function resetForm() {
   Object.assign(form, initialFormState())
   resetFieldErrors()
   formStep.value = 1
 }
 
+// Retorna el objeto de errores de campo inicial (todos vacíos)
 function initialFieldErrors() {
   return {
     alias: '',
@@ -611,10 +731,13 @@ function initialFieldErrors() {
   }
 }
 
+// Limpia todos los errores de validación de campos
 function resetFieldErrors() {
   Object.assign(fieldErrors, initialFieldErrors())
 }
 
+// Abre el formulario en modo creación de nueva dirección
+// Resetea el estado de edición y muestra el formulario
 function openCreateForm() {
   isEditMode.value = false
   editingId.value = null
@@ -622,10 +745,13 @@ function openCreateForm() {
   viewMode.value = 'form'
 }
 
+// Abre el formulario en modo edición con los datos de una dirección existente
+// Carga todos los campos del formulario con los valores de la dirección seleccionada
 function openEditForm(address) {
   isEditMode.value = true
   editingId.value = address.id
 
+  // Carga los datos de la dirección en el formulario reactivo
   Object.assign(form, {
     alias: address.alias,
     address_type: address.address_type,
@@ -649,6 +775,8 @@ function openEditForm(address) {
   viewMode.value = 'form'
 }
 
+// Vuelve a la lista de direcciones desde el formulario
+// No permite volver si hay un guardado en curso
 function backToList() {
   if (isSaving.value) return
 
@@ -658,17 +786,24 @@ function backToList() {
   resetForm()
 }
 
+// Navega entre pasos del formulario
+// Si retrocede, cambia directamente; si avanza, valida el paso actual primero
 function goToStep(step) {
+  // Permitir retroceder sin validación
   if (step < formStep.value) {
     formStep.value = step
     return
   }
 
+  // Solo permite avanzar si el paso actual es válido
   if (!validateStep(formStep.value)) return
   formStep.value = step
 }
 
+// Valida los campos requeridos de cada paso del formulario
+// Retorna true si todos los campos del paso son válidos, false si hay errores
 function validateStep(step) {
+  // Paso 1: validar alias y tipo de dirección
   if (step === 1) {
     const isAliasValid = validateField('alias')
     const isAddressTypeValid = validateField('address_type')
@@ -683,6 +818,7 @@ function validateStep(step) {
     return true
   }
 
+  // Paso 2: validar nombre y teléfono del destinatario
   if (step === 2) {
     const isRecipientNameValid = validateField('recipient_name')
     const isPhoneValid = validateField('recipient_phone')
@@ -699,6 +835,7 @@ function validateStep(step) {
     return true
   }
 
+  // Paso 3: validar dirección, barrio y tipo de edificación
   if (!validateField('address')) {
     showStepWarning('Debes ingresar la dirección de entrega.')
     return false
@@ -717,6 +854,7 @@ function validateStep(step) {
   return true
 }
 
+// Muestra una advertencia de validación de paso usando el sistema de snackbar
 function showStepWarning(message) {
   showSnackbar({
     type: 'warning',
@@ -725,25 +863,34 @@ function showStepWarning(message) {
   })
 }
 
+// Envía el formulario de dirección (crear o actualizar)
+// Valida el paso 3, construye el payload y realiza la llamada a la API
 async function submitAddress() {
+  // Evita envíos múltiples mientras se guarda
   if (isSaving.value) return
+  // Valida todos los campos del paso 3 antes de enviar
   if (!validateStep(3)) return
 
   isSaving.value = true
 
   try {
+    // Construye el objeto con los datos del formulario
     const payload = buildPayloadFromForm()
 
+    // Decide si crear o actualizar según el modo de edición
     if (isEditMode.value && editingId.value !== null) {
       await updateUserAddress(editingId.value, payload, currentUserId(), currentUserEmail())
     } else {
       await createUserAddress(payload, currentUserId(), currentUserEmail())
     }
 
+    // Recarga las direcciones y notifica a otras pestañas
     await loadAddresses()
     emitAddressSyncSignal()
+    // Vuelve a la lista de direcciones
     backToList()
 
+    // Muestra confirmación de éxito
     showSnackbar({
       type: 'success',
       title: 'Dirección guardada',
@@ -753,6 +900,7 @@ async function submitAddress() {
       durationMs: 3000,
     })
   } catch (error) {
+    // Muestra error con mensaje descriptivo de la API
     showSnackbar({
       type: 'error',
       title: 'No se pudo guardar',
@@ -763,13 +911,19 @@ async function submitAddress() {
   }
 }
 
+// Establece una dirección como principal (predeterminada)
+// Deshabilita el botón mientras se procesa la solicitud
 async function setAsDefault(address) {
+  // Evita acciones múltiples si ya hay una operación en curso
   if (savingAddressId.value) return
 
+  // Marca esta dirección como en proceso de guardado
   savingAddressId.value = address.id
 
   try {
+    // Llama a la API para cambiar la dirección principal
     await setDefaultUserAddress(address.id, currentUserId(), currentUserEmail())
+    // Recarga la lista y notifica el cambio
     await loadAddresses()
     emitAddressSyncSignal()
 
@@ -789,6 +943,8 @@ async function setAsDefault(address) {
   }
 }
 
+// Muestra un diálogo de confirmación antes de eliminar una dirección
+// Usa el sistema de alertas para pedir confirmación al usuario
 function confirmDelete(address) {
   showAlert({
     type: 'question',
@@ -799,6 +955,7 @@ function confirmDelete(address) {
       {
         text: 'Eliminar',
         style: 'danger',
+        // Callback asíncrono que se ejecuta solo si el usuario confirma
         callback: async () => {
           await removeAddress(address)
         },
@@ -807,13 +964,18 @@ function confirmDelete(address) {
   })
 }
 
+// Elimina una dirección de forma permanente
+// Se llama solo después de la confirmación del usuario
 async function removeAddress(address) {
+  // Evita eliminaciones múltiples
   if (savingAddressId.value) return
 
   savingAddressId.value = address.id
 
   try {
+    // Llama a la API para eliminar la dirección
     await deleteUserAddress(address.id, currentUserId(), currentUserEmail())
+    // Recarga la lista y notifica el cambio
     await loadAddresses()
     emitAddressSyncSignal()
 
@@ -833,6 +995,8 @@ async function removeAddress(address) {
   }
 }
 
+// Construye el payload (objeto) para enviar a la API a partir de los datos del formulario
+// Limpia espacios en blanco de todos los campos de texto
 function buildPayloadFromForm() {
   return {
     alias: form.alias.trim(),
@@ -853,6 +1017,9 @@ function buildPayloadFromForm() {
   }
 }
 
+// Normaliza un objeto de dirección crudo de la API a un formato consistente
+// Maneja nombres de campo alternativos (ej: address_line_1 vs address)
+// Asigna valores por defecto para campos faltantes
 function normalizeAddress(item) {
   const addressType = normalizeText(item?.address_type || 'casa').toLowerCase()
 
@@ -877,6 +1044,7 @@ function normalizeAddress(item) {
   }
 }
 
+// Convierte el tipo de dirección interno a una etiqueta legible para el usuario
 function labelAddressType(type) {
   const value = normalizeText(type).toLowerCase()
   if (value === 'apartamento') return 'Apartamento'
@@ -885,6 +1053,8 @@ function labelAddressType(type) {
   return 'Casa'
 }
 
+// Retorna la clase CSS del ícono según el tipo de dirección
+// Usado para mostrar íconos visuales en las tarjetas de dirección
 function addressTypeIcon(type) {
   const value = normalizeText(type).toLowerCase()
   if (value === 'apartamento') return 'fas fa-building'
@@ -893,6 +1063,8 @@ function addressTypeIcon(type) {
   return 'fas fa-home'
 }
 
+// Genera una etiqueta descriptiva del tipo de edificación con nombre si está disponible
+// Ejemplo: "Apartamento (Mirador del Faro)" o solo "Apartamento"
 function labelBuilding(address) {
   const buildingType = labelAddressType(address.building_type)
   if (address.building_name) {
@@ -902,28 +1074,35 @@ function labelBuilding(address) {
   return buildingType
 }
 
+// Abre el modal de selección de ubicación GPS
 function openGpsModal() {
   isGpsModalOpen.value = true
 }
 
+// Aplica la selección GPS del modal al formulario
+// Actualiza coordenadas, dirección sugerida y barrio (solo si el campo está vacío)
 function applyGpsSelection(payload) {
+  // Actualiza las coordenadas GPS en el formulario
   form.gps_latitude = toNullableNumber(payload?.gps_latitude)
   form.gps_longitude = toNullableNumber(payload?.gps_longitude)
   form.gps_accuracy = toNullableNumber(payload?.gps_accuracy)
   form.gps_address = normalizeText(payload?.gps_address || payload?.suggested_address || '')
 
+  // Auto-completa el campo dirección si se sugiere una nueva
   const suggestedAddress = normalizeText(payload?.suggested_address || '')
   if (suggestedAddress) {
     form.address = suggestedAddress
     validateField('address')
   }
 
+  // Auto-completa el campo barrio solo si estaba vacío (no sobreescribe datos del usuario)
   const suggestedNeighborhood = normalizeText(payload?.suggested_neighborhood || '')
   if (suggestedNeighborhood && !form.neighborhood.trim()) {
     form.neighborhood = suggestedNeighborhood
     validateField('neighborhood')
   }
 
+  // Confirma la aplicación de la ubicación al usuario
   showSnackbar({
     type: 'success',
     title: 'Ubicacion confirmada',
@@ -931,6 +1110,8 @@ function applyGpsSelection(payload) {
   })
 }
 
+// Extrae el mensaje de error de una respuesta de API
+// Busca en diferentes estructuras de error y retorna un mensaje de respaldo
 function extractApiMessage(error, fallbackMessage) {
   const message = String(
     error?.response?.data?.message
@@ -941,18 +1122,23 @@ function extractApiMessage(error, fallbackMessage) {
   return message || fallbackMessage
 }
 
+// Normaliza un valor a string limpio (trim), manejando null/undefined
 function normalizeText(value) {
   return String(value || '').trim()
 }
 
+// Retorna el ID del usuario actual desde la sesión
 function currentUserId() {
   return String(user.value?.id || '').trim() || undefined
 }
 
+// Retorna el email del usuario actual desde la sesión
 function currentUserEmail() {
   return String(user.value?.email || '').trim() || undefined
 }
 
+// Convierte un valor a número nullable
+// Retorna null si el valor es nulo, vacío o no es un número finito
 function toNullableNumber(value) {
   if (value === null || value === undefined) {
     return null
@@ -967,35 +1153,46 @@ function toNullableNumber(value) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+// Valida que un par de coordenadas GPS sea válido
+// Verifica que estén en rango geográfico y no sean (0,0)
 function isValidCoordinatePair(latitude, longitude) {
   const lat = toNullableNumber(latitude)
   const lng = toNullableNumber(longitude)
 
+  // Ambos deben ser números finitos
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return false
   }
 
+  // Verifica rangos geográficos válidos y que no sean cero (punto nulo)
   const isInRange = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
   const isZeroed = Math.abs(lat) < 0.000001 && Math.abs(lng) < 0.000001
   return isInRange && !isZeroed
 }
 
+// Valida un campo específico del formulario
+// Retorna true si es válido, false si tiene error
+// También actualiza el objeto fieldErrors con el mensaje correspondiente
 function validateField(fieldName) {
+  // Validación del campo alias (obligatorio)
   if (fieldName === 'alias') {
     fieldErrors.alias = form.alias.trim() ? '' : 'Debes ingresar un nombre descriptivo.'
     return !fieldErrors.alias
   }
 
+  // Validación del tipo de dirección (obligatorio)
   if (fieldName === 'address_type') {
     fieldErrors.address_type = form.address_type.trim() ? '' : 'Selecciona el tipo de domicilio.'
     return !fieldErrors.address_type
   }
 
+  // Validación del nombre del destinatario (obligatorio)
   if (fieldName === 'recipient_name') {
     fieldErrors.recipient_name = form.recipient_name.trim() ? '' : 'Debes ingresar el nombre del destinatario.'
     return !fieldErrors.recipient_name
   }
 
+  // Validación del teléfono: solo números, entre 7 y 15 dígitos
   if (fieldName === 'recipient_phone') {
     fieldErrors.recipient_phone = /^\d{7,15}$/.test(form.recipient_phone.trim())
       ? ''
@@ -1003,21 +1200,25 @@ function validateField(fieldName) {
     return !fieldErrors.recipient_phone
   }
 
+  // Validación de la dirección física (obligatorio)
   if (fieldName === 'address') {
     fieldErrors.address = form.address.trim() ? '' : 'Debes ingresar la dirección de entrega.'
     return !fieldErrors.address
   }
 
+  // Validación del barrio/zona (obligatorio)
   if (fieldName === 'neighborhood') {
     fieldErrors.neighborhood = form.neighborhood.trim() ? '' : 'Debes ingresar el barrio o zona.'
     return !fieldErrors.neighborhood
   }
 
+  // Validación del tipo de edificación (obligatorio)
   if (fieldName === 'building_type') {
     fieldErrors.building_type = form.building_type.trim() ? '' : 'Selecciona el tipo de edificación.'
     return !fieldErrors.building_type
   }
 
+  // Campo no reconocido: retorna válido por defecto
   return true
 }
 </script>

@@ -1,4 +1,5 @@
 /* Estilos específicos de Colecciones; los comunes están en admin.css */
+/* Móvil: editor y filtros de colecciones pasan a una columna. */
 @media (max-width: 768px) {
   .admin-collections-page .admin-editor-grid {
     grid-template-columns: 1fr;

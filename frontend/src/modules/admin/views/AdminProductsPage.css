@@ -1,4 +1,5 @@
 /* Estilos específicos de Productos; los comunes permanecen en admin.css. */
+/* Grilla administrativa y skeleton usado mientras carga el catálogo. */
 .admin-products-page .products-admin-grid,
 .admin-products-page .products-skeleton {
   display: grid;
@@ -19,6 +20,7 @@
   gap: 16px;
 }
 
+/* Utilidades de shimmer y anchos para simular tarjetas de producto. */
 .admin-products-page .skeleton {
   background: linear-gradient(90deg, #edf2f7 25%, #f7fafc 50%, #edf2f7 75%);
   background-size: 200% 100%;
@@ -38,6 +40,7 @@
 .admin-products-page .w-60 { width: 60%; }
 .admin-products-page .w-40 { width: 40%; }
 
+/* Paginación local de productos cuando la vista no usa el componente compartido. */
 .admin-products-page .pagination-container {
   margin-top: 1.5rem;
   display: flex;
@@ -85,6 +88,7 @@
   cursor: default;
 }
 
+/* Vista rápida del producto: carga, galería y ficha de información. */
 .admin-products-page .quick-view-loading {
   min-height: 18rem;
   display: flex;
@@ -101,6 +105,7 @@
   align-items: start;
 }
 
+/* Galería del modal de vista rápida con imagen principal y miniaturas. */
 .admin-products-page .quick-view-gallery {
   display: flex;
   flex-direction: column;
@@ -110,6 +115,7 @@
 .admin-products-page .gallery-filters,
 .admin-products-page .color-options,
 .admin-products-page .size-options,
+/* Metadatos, filtros de color e imagen principal dentro de vista rápida. */
 .admin-products-page .product-meta {
   display: flex;
   flex-wrap: wrap;
@@ -210,6 +216,7 @@
   border-color: var(--admin-primary);
 }
 
+/* Columna textual de la vista rápida: encabezado, variantes y descripción. */
 .admin-products-page .quick-view-info {
   display: flex;
   flex-direction: column;
@@ -301,6 +308,7 @@
   background: var(--admin-bg-dark);
 }
 
+/* Tabla de variantes dentro de la vista rápida. */
 .admin-products-page .variant-table {
   margin-top: 0.75rem;
   overflow-x: auto;
@@ -330,6 +338,7 @@
   color: var(--admin-text-heading);
 }
 
+/* Estado visual de variante activa o inactiva. */
 .admin-products-page .variant-status {
   display: inline-block;
   padding: 4px 8px;
@@ -348,6 +357,7 @@
   color: var(--admin-error);
 }
 
+/* Modal de zoom para imagen de producto. */
 .admin-products-page .zoom-body {
   text-align: center;
   min-height: 25rem;
@@ -366,6 +376,7 @@
 }
 
 .admin-products-page .card-fade-enter-active,
+/* Transición de salida de tarjetas de producto. */
 .admin-products-page .card-fade-leave-active {
   transition: all 0.24s ease;
 }
@@ -376,11 +387,13 @@
   transform: translateY(8px);
 }
 
+/* Animación de shimmer de los skeletons. */
 @keyframes admin-products-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
+/* Tablet: vista rápida se apila y reduce columnas. */
 @media (max-width: 900px) {
   .admin-products-page .quick-view-content {
     grid-template-columns: 1fr;
@@ -396,6 +409,7 @@
   }
 }
 
+/* Móvil: galerías y acciones se compactan. */
 @media (max-width: 600px) {
   .admin-products-page .products-admin-grid,
   .admin-products-page .products-skeleton {

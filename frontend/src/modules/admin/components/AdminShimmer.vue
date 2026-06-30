@@ -7,6 +7,13 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * Componente shimmer reutilizable del admin para estados de carga.
+ * Renderiza placeholders animados que simulan la estructura del contenido
+ * mientras se cargan datos reales. Soporta variantes: line, circle, rect,
+ * card, thumb, pill y btn, con dimensiones y radios personalizables.
+ * Reutilizado por AdminStatsGrid, AdminSidebar, AdminTableShimmer, entre otros.
+ */
 const props = defineProps({
   /** Tipo: line | circle | rect | card | thumb | pill | btn */
   type: { type: String, default: 'line' },

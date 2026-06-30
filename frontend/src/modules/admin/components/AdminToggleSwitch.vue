@@ -22,32 +22,44 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * Interruptor toggle reutilizable del admin.
+ * Soporta dos layouts: 'card' (con título y descripción) e 'inline' (solo label).
+ * Implementa v-model con 'modelValue' y emite 'change' para callbacks externos.
+ */
 const props = defineProps({
+  /** Estado actual del toggle (true = activado). Soporta v-model. */
   modelValue: {
     type: Boolean,
     default: false,
   },
+  /** ID personalizado para el input. Si no se provee, se genera uno automático. */
   id: {
     type: String,
     default: '',
   },
+  /** Modo de presentación: 'card' para configuraciones, 'inline' para opciones de fila. */
   layout: {
     type: String,
     default: 'card',
     validator: (value) => ['card', 'inline'].includes(value),
   },
+  /** Título descriptivo del toggle (visible en layout 'card'). */
   title: {
     type: String,
     default: '',
   },
+  /** Descripción auxiliar debajo del título (solo layout 'card'). */
   description: {
     type: String,
     default: '',
   },
+  /** Etiqueta junto al interruptor (solo layout 'inline'). */
   label: {
     type: String,
     default: '',
   },
+  /** Deshabilita el toggle impidiendo interacción del usuario. */
   disabled: {
     type: Boolean,
     default: false,
@@ -56,15 +68,22 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'change'])
 
-const fallbackId = `admin-toggle-${Math.random().toString(36).slice(2, 10)}`
+/** ID generado aleatoriamente cuando no se provee un ID externo. */
+const fallbackId = `admin-toggle-${Math.random().toString(36).slice(2, 10)}`;
 
+/** ID resuelto: usa el ID externo si existe, de lo contrario usa el generado. */
 const resolvedId = computed(() => props.id || fallbackId)
 
+/** Clase CSS dinámica según el layout seleccionado (card o inline). */
 const wrapperClass = computed(() => [
   'admin-toggle-switch',
   props.layout === 'inline' ? 'admin-toggle-switch--inline' : 'admin-toggle-switch--card',
 ])
 
+/**
+ * Maneja el cambio del checkbox: extrae el nuevo valor booleano
+ * y emite tanto 'update:modelValue' (para v-model) como 'change' (para callbacks).
+ */
 function onChange(event) {
   const nextValue = Boolean(event.target?.checked)
   emit('update:modelValue', nextValue)

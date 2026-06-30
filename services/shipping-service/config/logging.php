@@ -5,16 +5,30 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
 
+/*
+|--------------------------------------------------------------------------
+| Registro de logs para shipping-service
+|--------------------------------------------------------------------------
+|
+| Configura los canales de logging del servicio. Los logs son importantes
+| para monitorear:
+| - Fallos de conexión a la base legacy (advertencias).
+| - Errores de autenticación en endpoints admin.
+| - Operaciones CRUD de direcciones y métodos de envío.
+|
+| En entorno Docker, se recomienda 'daily' para rotación diaria
+| o 'stderr' para que Docker capture los logs automáticamente.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Log Channel
+    | Canal de log predeterminado
     |--------------------------------------------------------------------------
     |
-    | This option defines the default log channel that is utilized to write
-    | messages to your logs. The value provided here should match one of
-    | the channels present in the list of "channels" configured below.
+    | Define el canal usado por defecto para escribir logs.
     |
     */
 

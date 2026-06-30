@@ -1,9 +1,17 @@
 /* ===== COLLECTIONS ===== */
+
+/* Contenedor principal de la sección de colecciones destacadas.
+   Define el espaciado vertical generoso y el fondo claro para
+   separar visualmente esta sección del resto de la página. */
 .featured-collections {
     padding: 6rem 2rem;
     background-color: #f8f9fa;
 }
 
+/* Grid responsivo que muestra las tarjetas de colección en formato de cuadrícula.
+   Usa repeat(auto-fit) para que las columnas se ajusten automáticamente según
+   el ancho disponible, con un mínimo de 300px por columna. max-width centra el
+   contenido en pantallas grandes para mantener la legibilidad. */
 .collections-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -12,6 +20,11 @@
     margin: 0 auto;
 }
 
+/* Tarjeta individual de cada colección.
+   Se posiciona como referencia para los elementos absolutos hijos.
+   overflow: hidden recorta la imagen redondeada. La sombra suave da
+   sensación de elevación. La transición suaviza los cambios al hacer hover.
+   Altura fija de 350px para mantener uniformidad visual. */
 .collection-card {
     position: relative;
     border-radius: 8px;
@@ -22,11 +35,17 @@
     height: 350px;
 }
 
+/* Efecto hover de la tarjeta: la eleva verticalmente 5px y aumenta
+   la sombra para crear una sensación de interactividad y profundidad. */
 .collection-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
+/* Imagen dentro de la tarjeta de colección.
+   object-fit: cover asegura que la imagen cubra todo el espacio disponible
+   sin deformarse, recortando lo necesario. La transición permite que el
+   efecto de escala en hover sea suave. */
 .collection-card img {
     width: 100%;
     height: 100%;
@@ -34,10 +53,17 @@
     transition: all 0.3s ease;
 }
 
+/* Efecto zoom suave sobre la imagen al pasar el cursor sobre la tarjeta.
+   Un ligero aumento de escala (5%) crea un efecto visual atractivo
+   que invita a explorar la colección. */
 .collection-card:hover img {
     transform: scale(1.05);
 }
 
+/* Superposición oscura en la parte inferior de la tarjeta que contiene
+   el título y la descripción de la colección. El degradado vertical
+   de negro a transparente asegura que el texto sea legible sobre
+   cualquier imagen de fondo. */
 .collection-overlay {
     position: absolute;
     bottom: 0;
@@ -48,11 +74,17 @@
     color: white;
 }
 
+/* Título de la colección dentro de la superposición.
+   Tamaño de fuente grande para jerarquía visual y margen inferior
+   para separarlo de la descripción. */
 .collection-overlay h3 {
     font-size: 2.4rem;
     margin-bottom: 0.5rem;
 }
 
+/* Descripción de la colección.
+   Tamaño de fuente moderado con opacidad ligeramente reducida para
+   no competir visualmente con el título. */
 .collection-overlay p {
     font-size: 1.4rem;
     opacity: 0.9;

@@ -1,15 +1,18 @@
+/* Contenedor del formulario completo de creación o edición de producto. */
 .admin-product-form-page .product-form {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
+/* Estado de carga del formulario antes de recibir datos base. */
 .admin-product-form-page .product-form-loading {
   display: flex;
   flex-direction: column;
   gap: 1.6rem;
 }
 
+/* Tabs que separan datos generales, imágenes, variantes y políticas. */
 .admin-product-form-page .product-form-tabs {
   margin-bottom: 0;
 }
@@ -24,6 +27,7 @@
   margin-top: -0.8rem;
 }
 
+/* Grilla principal entre formulario y panel lateral. */
 .admin-product-form-page .product-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
@@ -47,6 +51,7 @@
   gap: 1.6rem;
 }
 
+/* Bloques internos con encabezado e iconografía de sección. */
 .admin-product-form-page .product-form-section {
   background: var(--admin-bg, #ffffff);
   border: 1px solid var(--admin-border-light, rgba(0, 119, 182, 0.12));
@@ -62,6 +67,7 @@
   color: var(--admin-text-dark);
 }
 
+/* Encabezado reutilizado dentro de cada sección del formulario. */
 .admin-product-form-page .section-header {
   display: flex;
   align-items: flex-start;
@@ -103,6 +109,7 @@
   flex-shrink: 0;
 }
 
+/* Badges dentro de tabs para indicar conteos o estados. */
 .admin-product-form-page .tab-badge {
   display: inline-flex;
   align-items: center;
@@ -125,6 +132,7 @@
 }
 
 .admin-product-form-page .image-panel,
+/* Panel de estado del producto y acciones relacionadas. */
 .admin-product-form-page .status-panel {
   display: flex;
   flex-direction: column;
@@ -136,6 +144,7 @@
 .admin-product-form-page .variant-card__header,
 .admin-product-form-page .variant-size-summary__header,
 .admin-product-form-page .variant-modal__row-top,
+/* Footer del formulario con acciones de guardado. */
 .admin-product-form-page .product-form-footer {
   display: flex;
   align-items: center;
@@ -154,6 +163,7 @@
   font-size: 1.25rem;
 }
 
+/* Vista previa de imagen principal del producto. */
 .admin-product-form-page .image-panel__preview {
   min-height: 220px;
   border-radius: 16px;
@@ -183,6 +193,7 @@
 }
 
 .admin-product-form-page .image-panel__actions,
+/* Acciones y filas del modal de variantes. */
 .admin-product-form-page .variant-card__header-actions {
   display: flex;
   gap: 0.8rem;
@@ -318,6 +329,7 @@
   border-color: rgba(0, 119, 182, 0.55);
 }
 
+/* Opciones de estado y política de devoluciones del producto. */
 .admin-product-form-page .status-option {
   display: flex;
   align-items: center;
@@ -373,6 +385,7 @@
 }
 
 .admin-product-form-page .variants-toolbar h3,
+/* Resumen y listado de variantes dentro del modal. */
 .admin-product-form-page .variant-modal__intro h3 {
   margin: 0 0 0.4rem;
   font-size: 1.8rem;
@@ -415,6 +428,7 @@
   gap: 1.2rem;
 }
 
+/* Tarjeta individual de variante con tallas y acciones. */
 .admin-product-form-page .variant-card {
   padding: 1.6rem;
 }
@@ -445,6 +459,7 @@
 .admin-product-form-page .variant-card__body,
 .admin-product-form-page .variant-card__media,
 .admin-product-form-page .variant-size-summary,
+/* Cuerpo del modal de variantes y sus grillas internas. */
 .admin-product-form-page .variant-modal {
   display: flex;
   flex-direction: column;
@@ -512,6 +527,7 @@
   padding-top: 0.6rem;
 }
 
+/* Clase accesible para inputs ocultos de archivo. */
 .admin-product-form-page .visually-hidden {
   position: absolute;
   width: 1px;
@@ -523,6 +539,7 @@
   border: 0;
 }
 
+/* Tablet: formulario pasa a una columna. */
 @media (max-width: 1100px) {
   .admin-product-form-page .product-form-grid,
   .admin-product-form-page .variant-modal__grid,
@@ -531,6 +548,7 @@
   }
 }
 
+/* Móvil: compacta paneles, footer y filas del modal. */
 @media (max-width: 768px) {
   .admin-product-form-page .product-form-section,
   .admin-product-form-page .variant-card,

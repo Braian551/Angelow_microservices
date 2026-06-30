@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\GoogleLoginRequest;
 use App\Http\Requests\LoginRequest;
 use App\Services\AuthService;
+use App\Services\LoginAttemptProtectionService;
+use App\Services\TurnstileVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,6 +24,8 @@ class LoginController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly TurnstileVerificationService $turnstileVerificationService,
+        private readonly LoginAttemptProtectionService $loginAttemptProtectionService,
     ) {}
 
     /**
@@ -33,13 +37,36 @@ class LoginController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
+        $credential = $request->string('credential')->toString();
+        $ipAddress = (string) $request->ip();
+        $protectionStatus = $this->loginAttemptProtectionService->status($credential, $ipAddress);
+
+        if ($protectionStatus['is_blocked']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Por seguridad, espera unos minutos antes de volver a intentarlo.',
+                'captcha_required' => true,
+                'blocked_until' => $protectionStatus['blocked_until'],
+            ], 429);
+        }
+
         try {
+            if ($protectionStatus['captcha_required']) {
+                // El backend decide cuándo exigir verificación; la SPA solo refleja este estado.
+                $this->turnstileVerificationService->verify(
+                    $request->string('turnstile_token')->toString(),
+                    $request->ip()
+                );
+            }
+
             $dto = LoginUserDTO::fromArray($request->validated());
             $result = $this->authService->login($dto);
+            $this->loginAttemptProtectionService->clear($credential, $ipAddress);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Inicio de sesión exitoso',
+                'captcha_required' => false,
                 'data' => [
                     'user' => [
                         'id' => $result['user']->id,
@@ -55,9 +82,26 @@ class LoginController extends Controller
                 ],
             ], 200);
         } catch (AuthException $e) {
+            // Solo los fallos reales de credenciales aumentan el contador; la verificación incompleta no debe bloquear al usuario.
+            $shouldRecordFailure = $e->getCode() === 401;
+            $failureStatus = $shouldRecordFailure
+                ? $this->loginAttemptProtectionService->recordFailure($credential, $ipAddress)
+                : $this->loginAttemptProtectionService->status($credential, $ipAddress);
+
+            if ($failureStatus['is_blocked']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Por seguridad, espera unos minutos antes de volver a intentarlo.',
+                    'captcha_required' => true,
+                    'blocked_until' => $failureStatus['blocked_until'],
+                ], 429);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
+                'captcha_required' => $failureStatus['captcha_required'],
+                'blocked_until' => $failureStatus['blocked_until'],
             ], $e->getCode());
         }
     }
@@ -158,3 +202,4 @@ class LoginController extends Controller
         return 'uploads/users/' . $cleanPath;
     }
 }
+

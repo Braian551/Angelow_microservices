@@ -1,3 +1,4 @@
+// Formatea montos del checkout en pesos colombianos sin decimales visibles.
 export function formatCheckoutPrice(value) {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
@@ -6,6 +7,7 @@ export function formatCheckoutPrice(value) {
   }).format(Number(value || 0))
 }
 
+// Normaliza un método de envío para que la UI no dependa de nombres crudos de la API.
 export function normalizeCheckoutMethod(item = {}) {
   const freeShippingMinimum = item?.free_shipping_minimum
   const hasFreeShippingMinimum = freeShippingMinimum !== null && freeShippingMinimum !== undefined && freeShippingMinimum !== ''
@@ -44,6 +46,7 @@ export function normalizeCheckoutMethod(item = {}) {
   }
 }
 
+// Normaliza una dirección del cliente con valores seguros para renderizar el selector de envío.
 export function normalizeCheckoutAddress(item = {}) {
   const addressType = normalizeText(item?.address_type || 'casa').toLowerCase()
 
@@ -65,6 +68,7 @@ export function normalizeCheckoutAddress(item = {}) {
   }
 }
 
+// Normaliza cada línea del carrito antes de enviarla al flujo de pago y pedido.
 export function normalizeCheckoutCartItem(item = {}) {
   const colorVariantId = normalizeOptionalNumericId(
     item?.color_variant_id
@@ -98,6 +102,7 @@ export function normalizeCheckoutCartItem(item = {}) {
   }
 }
 
+// Traduce el tipo técnico de dirección a la etiqueta visible del checkout.
 export function labelCheckoutAddressType(type) {
   const value = normalizeText(type).toLowerCase()
   if (value === 'apartamento') return 'Apartamento'
@@ -106,6 +111,7 @@ export function labelCheckoutAddressType(type) {
   return 'Casa'
 }
 
+// Asocia cada tipo de dirección con el ícono usado por las tarjetas del checkout.
 export function iconCheckoutAddressType(type) {
   const value = normalizeText(type).toLowerCase()
   if (value === 'apartamento') return 'fas fa-building'
@@ -114,6 +120,7 @@ export function iconCheckoutAddressType(type) {
   return 'fas fa-home'
 }
 
+// Compone el nombre del tipo de inmueble, agregando el nombre del edificio cuando existe.
 export function labelCheckoutBuilding(address = {}) {
   const buildingType = labelCheckoutAddressType(address?.building_type || address?.address_type)
   const buildingName = normalizeText(address?.building_name || '')
@@ -125,12 +132,14 @@ export function labelCheckoutBuilding(address = {}) {
   return buildingType
 }
 
+// Une dirección y complemento evitando comas vacías cuando falta alguno de los campos.
 export function buildCheckoutAddressLine(address = {}) {
   return [normalizeText(address?.address || ''), normalizeText(address?.complement || '')]
     .filter(Boolean)
     .join(', ')
 }
 
+// Construye la línea secundaria de zona o apartamento para resumir la entrega.
 export function buildCheckoutZoneLine(address = {}) {
   const zone = normalizeText(address?.neighborhood || address?.city || '')
   const apartment = normalizeText(address?.apartment_number || '')
@@ -142,6 +151,7 @@ export function buildCheckoutZoneLine(address = {}) {
   return zone || apartment
 }
 
+// Resume color y talla de la variante seleccionada en una sola línea legible.
 export function buildCheckoutVariantName(item = {}) {
   return [
     normalizeText(item?.color_name) ? `Color: ${normalizeText(item?.color_name)}` : '',
@@ -149,6 +159,7 @@ export function buildCheckoutVariantName(item = {}) {
   ].filter(Boolean).join(' · ')
 }
 
+// Formatea fechas de confirmación para mostrar trazabilidad clara al cliente.
 export function formatCheckoutDateTime(value) {
   if (!value) return ''
 
@@ -163,10 +174,12 @@ export function formatCheckoutDateTime(value) {
   }).format(parsed)
 }
 
+// Convierte cualquier valor opcional en texto limpio para evitar espacios o nulos visibles.
 function normalizeText(value) {
   return String(value || '').trim()
 }
 
+// Devuelve identificadores numéricos válidos o null cuando el dato no aplica.
 function normalizeOptionalNumericId(value) {
   const parsed = Number(value)
   if (!Number.isFinite(parsed) || parsed <= 0) {

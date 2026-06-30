@@ -8,6 +8,11 @@ function normalizePageSizeOptions(options, fallback) {
   return normalized.length > 0 ? normalized.sort((a, b) => a - b) : fallback
 }
 
+/**
+ * Composable reutilizable para paginación de listas en el panel administrativo.
+ * Acepta cualquier array reactivo como fuente y calcula páginas, rangos visibles
+ * y controles de navegación. Reutilizado por todos los módulos admin.
+ */
 export function useAdminPagination(itemsSource, options = {}) {
   const pageSizeOptions = normalizePageSizeOptions(options.pageSizeOptions, [10, 20, 50])
   const configuredPageSize = Number(options.initialPageSize || pageSizeOptions[0])

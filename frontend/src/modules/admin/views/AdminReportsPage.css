@@ -1,3 +1,4 @@
+/* Tabs superiores para cambiar entre reportes de ventas, productos y clientes. */
 .admin-reports-page .report-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -5,6 +6,7 @@
   padding: 1.25rem 1.75rem;
 }
 
+/* Botón de tab con ícono y texto. */
 .admin-reports-page .report-tab {
   display: inline-flex;
   align-items: center;
@@ -18,53 +20,64 @@
   transition: 0.2s ease;
 }
 
+/* Tab activo con color primario del admin. */
 .admin-reports-page .report-tab.active {
   background: var(--admin-primary);
   color: #fff;
   border-color: var(--admin-primary);
 }
 
+/* Fila de filtros del reporte, responsiva por ancho mínimo. */
 .admin-reports-page .filters-row--reports {
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
+/* Contenedor vertical de cada sección de reporte. */
 .admin-reports-page .report-section {
   display: grid;
   gap: 1.6rem;
 }
 
+/* Grilla base para grupos de gráficas. */
 .admin-reports-page .report-grid {
   display: grid;
   gap: 1.6rem;
 }
 
+/* Layouts de gráficas principales por tipo de reporte. */
 .admin-reports-page .report-grid--sales-charts,
 .admin-reports-page .report-grid--customers-charts {
   grid-template-columns: 1.25fr 0.95fr;
 }
 
+/* Layout de gráficas de productos con tres columnas. */
 .admin-reports-page .report-grid--products-charts {
   grid-template-columns: 1.2fr 0.9fr 0.9fr;
 }
 
+/* Alto base del cuerpo de gráficas. */
 .admin-reports-page .chart-card__body {
   height: 32rem;
   padding: 1.4rem;
 }
 
+/* Alto compacto para gráficas secundarias. */
 .admin-reports-page .chart-card__body--compact {
   height: 30rem;
 }
 
+/* Alto ampliado para gráficas de mayor lectura. */
 .admin-reports-page .chart-card__body--large {
   height: 34rem;
 }
 
+/* Alineación vertical de tablas de reporte. */
 .admin-reports-page .reports-table th,
 .admin-reports-page .reports-table td {
   vertical-align: middle;
 }
 
+/* Celdas con imagen y texto para productos o clientes. */
 .admin-reports-page .report-product-cell,
 .admin-reports-page .report-customer-cell,
 .admin-reports-page .report-product-detail,
@@ -74,6 +87,7 @@
   gap: 1rem;
 }
 
+/* Imagen cuadrada de producto en tabla y detalle. */
 .admin-reports-page .report-product-cell__image,
 .admin-reports-page .report-product-detail__image {
   width: 5.4rem;
@@ -84,6 +98,7 @@
   border: 1px solid rgba(15, 122, 191, 0.12);
 }
 
+/* Avatar circular de cliente en tabla y detalle. */
 .admin-reports-page .report-customer-cell__image,
 .admin-reports-page .report-customer-detail__image {
   width: 4.8rem;
@@ -94,21 +109,25 @@
   border: 1px solid rgba(15, 122, 191, 0.12);
 }
 
+/* Detalle expandido con imagen y contenido estirados. */
 .admin-reports-page .report-product-detail,
 .admin-reports-page .report-customer-detail {
   align-items: stretch;
 }
 
+/* Imagen grande de producto en el detalle. */
 .admin-reports-page .report-product-detail__image {
   width: 12rem;
   height: 12rem;
 }
 
+/* Avatar grande de cliente en el detalle. */
 .admin-reports-page .report-customer-detail__image {
   width: 8.4rem;
   height: 8.4rem;
 }
 
+/* Tablet: todas las grillas de gráficas pasan a una columna. */
 @media (max-width: 1100px) {
   .admin-reports-page .report-grid--sales-charts,
   .admin-reports-page .report-grid--customers-charts,
@@ -117,6 +136,7 @@
   }
 }
 
+/* Móvil: tabs apiladas y gráficas con altura reducida. */
 @media (max-width: 720px) {
   .admin-reports-page .report-tabs {
     padding: 1.2rem 1.2rem 0;

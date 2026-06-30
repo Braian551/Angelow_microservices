@@ -120,6 +120,15 @@
 <script setup>
 import AdminInfoTooltip from '../AdminInfoTooltip.vue'
 
+/**
+ * Pestaña de variantes del formulario de producto.
+ * Muestra el listado de variantes configuradas (color + imágenes + tallas)
+ * con estadísticas resumidas (total variantes, tallas activas, stock total).
+ * Cada variante permite: seleccionar color, gestionar imágenes con prioridad,
+ * abrir modal de tallas/precios, marcar como variante principal y eliminar.
+ * Reutiliza AdminInfoTooltip para las ayudas contextuales de cada campo.
+ * La lógica de negocio se delega a la página padre mediante eventos.
+ */
 defineProps({
   colorHex: { type: Function, required: true },
   colorName: { type: Function, required: true },
@@ -145,7 +154,11 @@ const emit = defineEmits([
   'variant-image-upload',
 ])
 
-// Reenvía refs dinámicas para conservar la selección múltiple de imágenes por variante.
+/**
+ * Reenvía la referencia del input de archivo de imagen de cada variante
+ * a la página padre, permitiendo la selección múltiple de imágenes
+ * por variante sin perder las referencias de los inputs dinámicos.
+ */
 function setVariantImageInput(key, element) {
   emit('set-variant-image-input', key, element)
 }

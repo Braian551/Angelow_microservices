@@ -1,4 +1,9 @@
 ﻿<template>
+  <!-- ============================================
+       Vista principal de gestión de códigos de descuento
+       Panel administrativo para crear, editar, eliminar
+       y gestionar promociones con envío masivo y campañas
+  ============================================ -->
   <div class="admin-discount-codes-page">
     <AdminPageHeader
       icon="fas fa-tags"
@@ -579,6 +584,11 @@
 </template>
 
 <script setup>
+// ============================================
+// Módulo de gestión de códigos de descuento
+// CRUD, envío masivo y campañas a usuarios
+// ============================================
+
 // =====================================================
 // Imports de la vista y componentes compartidos
 // =====================================================
@@ -601,69 +611,69 @@ import '../views/AdminDiscountCodesPage.css'
 // Orquestación de la lógica administrativa
 // =====================================================
 const {
-  activeFilterCount,
-  autoGenerateCode,
-  campaignCodeOptions,
-  campaignCustomers,
-  campaignCustomersLoading,
-  campaignSubmitting,
-  clearFilters,
-  clearSpecificCustomerSelection,
-  closeDetailModal,
-  closeEditorModal,
-  closeMassCampaignModal,
-  closeSpecificCampaignModal,
-  codeStatusClass,
-  codeStatusLabel,
-  confirmDeleteCode,
-  discountStats,
-  editingCodeId,
-  exportCodes,
-  exportingFormat,
-  filteredCampaignCustomers,
-  filteredCodes,
-  filters,
-  form,
-  formErrors,
-  formatCurrency,
-  formatDateTime,
-  formatDiscountValue,
-  formatShortDate,
-  handleCodeGenerationToggle,
-  handleCodeInput,
-  loading,
-  massCampaignAvailabilityMessage,
-  massCampaignAvailabilityTitle,
-  massCampaignErrors,
-  massCampaignForm,
-  massCampaignHasRecipients,
-  navigateToSpecificCampaignPage,
-  openCreateModal,
-  openDetailModal,
-  openEditFromDetail,
-  openEditModal,
-  openMassCampaignModal,
-  openSpecificCampaignModal,
-  pagination,
-  regenerateAutomaticCode,
-  remainingUsesLabel,
-  saveCode,
-  selectedCode,
-  selectedSpecificCode,
-  selectAllFilteredCustomers,
-  showDetailModal,
-  showEditorModal,
-  showMassCampaignModal,
-  showSpecificCampaignModal,
-  specificCampaignErrors,
-  specificCampaignForm,
-  specificCampaignSearch,
-  submitMassCampaign,
-  submitSpecificCampaign,
-  userInitials,
-  validateField,
-  validateMassCampaignField,
-  validateSpecificCampaignField,
+  activeFilterCount,                    // Conteo de filtros activos aplicados
+  autoGenerateCode,                     // Indica si el código se genera automáticamente
+  campaignCodeOptions,                  // Códigos disponibles para usar en campañas
+  campaignCustomers,                    // Lista completa de clientes para campañas
+  campaignCustomersLoading,             // Estado de carga de clientes en campaña
+  campaignSubmitting,                   // Indica si una campaña está en proceso de envío
+  clearFilters,                         // Limpia todos los filtros de búsqueda activos
+  clearSpecificCustomerSelection,       // Deselecciona todos los clientes elegidos
+  closeDetailModal,                     // Cierra el modal de detalle del código
+  closeEditorModal,                     // Cierra el modal de edición/creación de código
+  closeMassCampaignModal,               // Cierra el modal de envío masivo
+  closeSpecificCampaignModal,           // Cierra el modal de campaña a usuarios específicos
+  codeStatusClass,                      // Retorna la clase CSS según el estado del código
+  codeStatusLabel,                      // Retorna la etiqueta de texto del estado
+  confirmDeleteCode,                    // Muestra confirmación y elimina un código
+  discountStats,                        // Estadísticas resumidas de los códigos
+  editingCodeId,                        // ID del código que se está editando
+  exportCodes,                          // Exporta códigos filtrados en Excel o PDF
+  exportingFormat,                      // Formato de exportación en curso (excel/pdf)
+  filteredCampaignCustomers,            // Clientes filtrados por búsqueda en campaña
+  filteredCodes,                        // Códigos filtrados según filtros activos
+  filters,                              // Objeto reactivo con filtros de búsqueda
+  form,                                 // Datos del formulario de creación/edición
+  formErrors,                           // Errores de validación del formulario
+  formatCurrency,                       // Formatea un número como moneda local
+  formatDateTime,                       // Formatea una fecha con hora legible
+  formatDiscountValue,                  // Formatea el valor del descuento según tipo
+  formatShortDate,                      // Formatea una fecha en formato corto
+  handleCodeGenerationToggle,           // Alterna entre generación manual/automática
+  handleCodeInput,                      // Procesa la entrada manual del código
+  loading,                              // Estado de carga general de la página
+  massCampaignAvailabilityMessage,      // Mensaje de disponibilidad en campaña masiva
+  massCampaignAvailabilityTitle,        // Título de disponibilidad en campaña masiva
+  massCampaignErrors,                   // Errores de validación de campaña masiva
+  massCampaignForm,                     // Datos del formulario de campaña masiva
+  massCampaignHasRecipients,            // Indica si hay destinatarios disponibles
+  navigateToSpecificCampaignPage,       // Navega a la página de campaña específica
+  openCreateModal,                      // Abre el modal para crear un nuevo código
+  openDetailModal,                      // Abre el modal de detalle de un código
+  openEditFromDetail,                   // Abre edición desde el modal de detalle
+  openEditModal,                        // Abre el modal para editar un código
+  openMassCampaignModal,                // Abre el modal de envío masivo
+  openSpecificCampaignModal,            // Abre el modal de campaña específica
+  pagination,                           // Estado y configuración de paginación
+  regenerateAutomaticCode,              // Genera un nuevo código automático aleatorio
+  remainingUsesLabel,                   // Texto descriptivo de usos restantes
+  saveCode,                             // Guarda (crea o actualiza) el código
+  selectedCode,                         // Código seleccionado para ver detalle
+  selectedSpecificCode,                 // Código elegido en campaña específica
+  selectAllFilteredCustomers,           // Selecciona todos los clientes visibles
+  showDetailModal,                      // Visibilidad del modal de detalle
+  showEditorModal,                      // Visibilidad del modal de edición
+  showMassCampaignModal,                // Visibilidad del modal de campaña masiva
+  showSpecificCampaignModal,            // Visibilidad del modal de campaña específica
+  specificCampaignErrors,               // Errores de validación de campaña específica
+  specificCampaignForm,                 // Datos del formulario de campaña específica
+  specificCampaignSearch,               // Texto de búsqueda para clientes en campaña
+  submitMassCampaign,                   // Envía la campaña masiva de descuentos
+  submitSpecificCampaign,               // Envía descuentos a usuarios específicos
+  userInitials,                         // Obtiene las iniciales de un usuario
+  validateField,                        // Valida un campo individual del formulario
+  validateMassCampaignField,            // Valida un campo de campaña masiva
+  validateSpecificCampaignField,        // Valida un campo de campaña específica
 } = useAdminDiscountCodes()
 </script>
 

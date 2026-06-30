@@ -1,7 +1,9 @@
 <template>
   <article class="product-card" :data-product-id="product.id">
+    <!-- Badge superior para productos destacados por catálogo. -->
     <div v-if="product.is_featured" class="product-badge">Destacado</div>
 
+    <!-- Acción rápida de favoritos con bloqueo mientras se sincroniza con catálogo. -->
     <button
       type="button"
       class="wishlist-btn"
@@ -13,11 +15,13 @@
       <i :class="isFavorite ? 'fas fa-heart' : 'far fa-heart'" />
     </button>
 
+    <!-- Imagen navegable del producto con fallback visual y descuento calculado. -->
     <RouterLink :to="{ name: 'product', params: { slug: product.slug } }" :class="['product-image', { loading: !imageLoaded }]">
       <img :src="imageUrl" :alt="product.name" :class="{ loaded: imageLoaded }" @load="onImageLoad" @error="onImageError" />
       <div v-if="showComparePrice" class="product-badge sale">{{ discountPercentage }}% OFF</div>
     </RouterLink>
 
+    <!-- Información comercial: categoría, nombre, reseñas, precio y navegación al detalle. -->
     <div class="product-info">
       <span class="product-category">{{ categoryName }}</span>
       <h3 class="product-title">
@@ -53,6 +57,7 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { toggleWishlist } from '../../../services/wishlistApi'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 
+// La tarjeta recibe el producto normalizado desde tienda, home o listados relacionados.
 const props = defineProps({
   product: {
     type: Object,
@@ -62,14 +67,17 @@ const props = defineProps({
 
 const emit = defineEmits(['add-cart', 'wishlist-change'])
 
+// Servicios de navegación, sesión y feedback usados por las acciones de la tarjeta.
 const router = useRouter()
 const { user, isLoggedIn } = useSession()
 const { showSnackbar } = useSnackbarSystem()
 
+// Estado local de carga de imagen y sincronización de favorito.
 const imageLoaded = ref(false)
 const isFavorite = ref(false)
 const wishlistBusy = ref(false)
 
+// Reinicia el estado de imagen cuando cambia la imagen principal del producto.
 watch(
   () => props.product.primary_image,
   () => {
@@ -78,6 +86,7 @@ watch(
   { immediate: true },
 )
 
+// Mantiene el corazón local alineado con el estado favorito recibido por props.
 watch(
   () => props.product.is_favorite,
   (value) => {
@@ -86,16 +95,19 @@ watch(
   { immediate: true },
 )
 
+// Valores derivados para resolver imagen, categoría y conteo de reseñas.
 const imageUrl = computed(() => resolveMediaUrl(props.product.primary_image, 'product'))
 const categoryName = computed(() => props.product.category_name || 'Sin categoría')
 const reviewCount = computed(() => Number(props.product.review_count || 0))
 
+// Determina si existe precio comparativo válido para mostrar descuento.
 const showComparePrice = computed(() => {
   const current = Number(props.product.price || 0)
   const compare = Number(props.product.compare_price || 0)
   return compare > 0 && compare > current
 })
 
+// Calcula el porcentaje de descuento mostrado sobre la imagen.
 const discountPercentage = computed(() => {
   if (!showComparePrice.value) return 0
 
@@ -106,6 +118,7 @@ const discountPercentage = computed(() => {
   return Math.max(1, Math.round(((compare - current) / compare) * 100))
 })
 
+// Convierte el promedio de reseñas en clases Font Awesome para estrellas completas, medias y vacías.
 const starClasses = computed(() => {
   const avg = Number(props.product.avg_rating || 0)
   const fullStars = Math.floor(avg)
@@ -129,15 +142,18 @@ const starClasses = computed(() => {
   return stars
 })
 
+// Marca la imagen como cargada para retirar el estado visual de loading.
 function onImageLoad() {
   imageLoaded.value = true
 }
 
+// Aplica fallback de imagen y evita que la tarjeta quede en estado de carga permanente.
 function onImageError(event) {
   handleMediaError(event, props.product.primary_image, 'product')
   imageLoaded.value = true
 }
 
+// Alterna favorito; si no hay sesión, redirige a login conservando la ruta actual.
 async function onToggleWishlist() {
   if (wishlistBusy.value) return
 
@@ -181,6 +197,7 @@ async function onToggleWishlist() {
   }
 }
 
+// Formatea precios en COP sin decimales para mantener consistencia comercial.
 function formatPrice(value) {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',

@@ -48,19 +48,28 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * Componente de paginación reutilizable del admin.
+ * Muestra resumen de registros, selector de tamaño de página
+ * y controles de navegación con elipsis para muchas páginas.
+ */
 const props = defineProps({
+  /** Página actual (1-indexed). */
   page: {
     type: Number,
     default: 1,
   },
+  /** Cantidad de registros por página. */
   pageSize: {
     type: Number,
     default: 10,
   },
+  /** Total de registros disponibles en el servidor. */
   totalItems: {
     type: Number,
     default: 0,
   },
+  /** Opciones disponibles para el selector de tamaño de página. */
   pageSizeOptions: {
     type: Array,
     default: () => [10, 20, 50],
@@ -69,6 +78,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:page', 'update:pageSize'])
 
+/** Opciones de tamaño de página normalizadas: valores numéricos únicos y ordenados. */
 const normalizedPageSizeOptions = computed(() => {
   const options = props.pageSizeOptions
     .map((value) => Number(value))
@@ -77,11 +87,19 @@ const normalizedPageSizeOptions = computed(() => {
   return options.length > 0 ? options.sort((a, b) => a - b) : [10, 20, 50]
 })
 
+/** Total de páginas calculado a partir del total de registros y el tamaño de página. */
 const totalPages = computed(() => Math.max(1, Math.ceil(props.totalItems / props.pageSize)))
+/** Primer registro visible en la página actual. */
 const startItem = computed(() => (props.totalItems === 0 ? 0 : ((props.page - 1) * props.pageSize) + 1))
+/** Último registro visible en la página actual. */
 const endItem = computed(() => (props.totalItems === 0 ? 0 : Math.min(props.page * props.pageSize, props.totalItems)))
+/** Determina si la paginación debe renderizarse (más registros que el primer tamaño de página). */
 const shouldRender = computed(() => props.totalItems > normalizedPageSizeOptions.value[0] || totalPages.value > 1)
 
+/**
+ * Genera la lista de elementos de paginación incluyendo números de página
+ * y elipsis (...) cuando hay muchas páginas para mantener la UI compacta.
+ */
 const paginationItems = computed(() => {
   const pages = totalPages.value
   const current = props.page
@@ -102,11 +120,19 @@ const paginationItems = computed(() => {
   return items
 })
 
+/**
+ * Emite el evento de cambio de página, asegurando que el número
+ * esté dentro del rango válido (1 a totalPages).
+ */
 function emitPage(page) {
   const nextPage = Math.min(Math.max(1, page), totalPages.value)
   emit('update:page', nextPage)
 }
 
+/**
+ * Maneja el cambio de tamaño de página desde el selector.
+ * Resetea a la página 1 ya que el contenido cambia completamente.
+ */
 function onPageSizeChange(event) {
   const nextPageSize = Number(event.target.value) || normalizedPageSizeOptions.value[0]
   emit('update:pageSize', nextPageSize)

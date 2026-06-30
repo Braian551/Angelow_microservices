@@ -1,3 +1,10 @@
+<!--
+  AdminDiscountSpecificCampaignPage.vue
+  Página de administración para enviar campañas de descuento
+  a usuarios específicos mediante códigos de descuento.
+  Permite seleccionar un código, definir canales de envío
+  y elegir destinatarios de entre los clientes disponibles.
+-->
 <template>
   <div class="admin-discount-specific-campaign-page">
     <AdminPageHeader
@@ -257,7 +264,13 @@
   </div>
 </template>
 
+<!--
+  Lógica de la página de campaña de descuento específica.
+  Gestiona la selección de código de descuento, canales de envío
+  y la elección de clientes destinatarios para la campaña.
+-->
 <script setup>
+// Importaciones de componentes compartidos y composable de campaña específica.
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'

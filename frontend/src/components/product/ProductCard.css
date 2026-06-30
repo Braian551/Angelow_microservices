@@ -1,4 +1,8 @@
 /* ===== PRODUCT CARD ===== */
+/* Contenedor principal de la tarjeta de producto. Define la apariencia base con fondo blanco,
+   bordes redondeados y sombra sutil para efecto de elevación. La transición suaviza
+   los cambios de estado (hover, focus) y position:relative permite posicionar elementos
+   internos como badges y botones de forma absoluta. */
 .product-card {
     background-color: white;
     border-radius: 8px;
@@ -8,11 +12,18 @@
     position: relative;
 }
 
+/* Efecto hover de la tarjeta: eleva verticalmente 5px y aumenta la intensidad de la sombra
+   para crear sensación de interactividad y profundidad. La transición en .product-card
+   hace que el movimiento sea suave. */
 .product-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Etiqueta de estado del producto (nuevo, agotado, etc.). Se posiciona absolutamente
+   en la esquina superior izquierda de la tarjeta. z-index:1 asegura que se muestre por
+   encima de la imagen pero por debajo del botón de favoritos. El color base #0077b6
+   es el azul principal del sistema de diseño. */
 .product-badge {
     position: absolute;
     top: 1rem;
@@ -26,10 +37,16 @@
     z-index: 1;
 }
 
+/* Variante de badge para productos en oferta. Cambia el fondo a rojo (#ef4444)
+   para destacar visualmente las promociones y generar urgencia en el usuario. */
 .product-badge.sale {
     background-color: #ef4444;
 }
 
+/* Botón circular de agregar a favoritos (corazón). Se posiciona en la esquina superior
+   derecha con z-index:2 para estar por encima del badge. El diseño circular con flexbox
+   centrado facilita la interacción en táctil. La transición suaviza el cambio de color
+   y escala en hover. cursor:pointer indica que es clickeable. */
 .wishlist-btn {
     position: absolute;
     top: 1rem;
@@ -50,15 +67,25 @@
     transition: all 0.3s ease;
 }
 
+/* Efecto hover del botón de favoritos: cambia el color a rojo (#ef4444) y aumenta
+   ligeramente su escala (10%) para dar retroalimentación visual de que la acción
+   está disponible. El rojo refuerza la asociación con el corazón/afecto. */
 .wishlist-btn:hover {
     color: #ef4444;
     transform: scale(1.1);
 }
 
+/* Estilo del ícono de corazón cuando el producto está en favoritos. Mantiene el color
+   rojo (#ef4444) de forma consistente con el hover, indicando estado activo de favorito.
+   Se aplica al ícono Font Awesome específico de corazón lleno. */
 .wishlist-btn .fas.fa-heart {
     color: #ef4444;
 }
 
+/* Contenedor de la imagen del producto. display:block elimina espacio fantasma
+   debajo de la imagen inline. height:250px define altura fija para consistencia
+   entre tarjetas. overflow:hidden recorta la imagen cuando hace zoom en hover.
+   position:relative permite posicionar elementos hijos absolutos (badge, overlay). */
 .product-image {
     display: block;
     height: 250px;
@@ -67,6 +94,9 @@
     text-decoration: none;
 }
 
+/* Imagen del producto dentro de su contenedor. object-fit:cover asegura que la imagen
+   llene el espacio sin distorsión, recortando si es necesario. width/height 100%
+   hace que ocupe todo el contenedor. La transición prepara el efecto de zoom en hover. */
 .product-image img {
     width: 100%;
     height: 100%;
@@ -74,14 +104,23 @@
     transition: all 0.3s ease;
 }
 
+/* Efecto zoom en la imagen cuando se pasa el cursor sobre la tarjeta. Aumenta la escala
+   un 5% para crear un efecto de acercamiento sutil. El overflow:hidden del contenedor
+   recorta el exceso, y la transición en img hace que el zoom sea suave. */
 .product-card:hover .product-image img {
     transform: scale(1.05);
 }
 
+/* Contenedor de información del producto (categoría, título, precio, rating, botón).
+   Aplica padding interno de 1.5rem para crear aire entre el contenido y los bordes
+   de la tarjeta, mejorando la legibilidad y la estética visual. */
 .product-info {
     padding: 1.5rem;
 }
 
+/* Etiqueta de categoría del producto. Se muestra como bloque con texto en mayúsculas
+   (text-transform:uppercase) para jerarquía visual. El color gris #777777 la hace
+   menos prominente que el título, y margin-bottom:0.5rem la separa del siguiente elemento. */
 .product-category {
     display: block;
     font-size: 1.2rem;
@@ -90,6 +129,9 @@
     text-transform: uppercase;
 }
 
+/* Título del producto. Usa font-weight:600 (semi-negrita) para destacar sobre
+   otros elementos. El tamaño 1.6rem lo hace legible pero no excesivo. El color
+   oscuro #111111 asegura contraste adecuado sobre fondo blanco. */
 .product-title {
     font-size: 1.6rem;
     margin-bottom: 1rem;
@@ -97,16 +139,24 @@
     font-weight: 600;
 }
 
+/* Enlace dentro del título del producto. text-decoration:none elimina el subrayado
+   por defecto de los links. color:inherit hereda el color del padre (#111111).
+   La transición suaviza el cambio de color en hover. */
 .product-title a {
     text-decoration: none;
     color: inherit;
     transition: color 0.3s ease;
 }
 
+/* Efecto hover del enlace del título: cambia al color azul principal (#0077b6)
+   para indicar que es clickeable y mantener consistencia con la paleta del sitio. */
 .product-title a:hover {
     color: #0077b6;
 }
 
+/* Contenedor del rating (estrellas + cantidad de reseñas). Usa flexbox para alinear
+   horizontalmente las estrellas y el contador. gap:0.5rem crea separación consistente
+   entre ambos elementos. margin-bottom:1rem lo separa de la sección de precio. */
 .product-rating {
     display: flex;
     align-items: center;
@@ -114,20 +164,32 @@
     margin-bottom: 1rem;
 }
 
+/* Estrellas de calificación. El color amarillo #ffcc00 es el estándar para ratings
+   y genera asociación positiva con calidad. font-size:1.3rem asegura que sean
+   visibles pero no dominantes en la tarjeta. */
 .stars {
     color: #ffcc00;
     font-size: 1.3rem;
 }
 
+/* Espaciado entre estrellas individuales. margin-right:1px crea una separación
+   mínima pero necesaria para que las estrellas no se vean pegadas entre sí,
+   mejorando la legibilidad visual del rating. */
 .stars i {
     margin-right: 1px;
 }
 
+/* Texto que muestra la cantidad de reseñas (ej: "(125)"). El color gris #777777
+   lo hace menos prominente que las estrellas, creando jerarquía visual donde
+   las estrellas son el elemento principal y el conteo es información complementaria. */
 .rating-count {
     font-size: 1.2rem;
     color: #777777;
 }
 
+/* Contenedor de precios (precio actual + precio original si hay descuento). Flexbox
+   alinea horizontalmente ambos precios. gap:1rem crea separación entre ellos.
+   margin-bottom:1.5rem lo separa del botón de acción, dando aire visual al layout. */
 .product-price {
     display: flex;
     align-items: center;
@@ -135,18 +197,29 @@
     margin-bottom: 1.5rem;
 }
 
+/* Precio actual del producto. Usa font-weight:700 (negrita) y tamaño grande (1.8rem)
+   para ser el elemento más prominente de la sección de precios. El color azul #6a96cf
+   lo hace destacar y mantener consistencia con la paleta del sitio. */
 .current-price {
     font-size: 1.8rem;
     font-weight: 700;
     color: #6a96cf;
 }
 
+/* Precio original tachado cuando hay descuento. text-decoration:line-through crea
+   la línea horizontal que indica precio anterior. El color gris #777777 y tamaño
+   menor (1.4rem) lo hacen menos prominente que el precio actual, reforzando
+   la percepción de ahorro para el usuario. */
 .original-price {
     font-size: 1.4rem;
     color: #777777;
     text-decoration: line-through;
 }
 
+/* Botón principal de acción "Ver producto". Ocupa todo el ancho del contenedor (width:100%)
+   para ser fácilmente clickeable. El fondo azul claro #90e0ef con texto azul oscuro #0077b6
+   crea un contraste suave pero visible. text-align:center centra el texto y el ícono.
+   La transición suaviza el cambio de colores en hover. */
 .view-product-btn {
     display: block;
     width: 100%;
@@ -161,20 +234,34 @@
     font-size: 1.4rem;
 }
 
+/* Efecto hover del botón: invierte los colores (fondo azul oscuro, texto blanco)
+   para crear un cambio visual claro que confirma la interactividad. Esta inversión
+   de colores es un patrón común que indica estado activo/press. */
 .view-product-btn:hover {
     background-color: #0077b6;
     color: white;
 }
 
+/* Espaciado del ícono dentro del botón. margin-right:0.5rem separa el ícono del texto
+   "Ver producto" para que no se vean pegados, mejorando la legibilidad y la estética
+   del botón. Se aplica a cualquier ícono Font Awesome dentro del botón. */
 .view-product-btn i {
     margin-right: 0.5rem;
 }
 
-/* ===== FEATURED PRODUCTS ===== */
+/* ===== PRODUCTOS DESTACADOS ===== */
+/* Sección contenedora de productos destacados en la página principal. padding:6rem 2rem
+   crea un espacio vertical generoso (6rem arriba/abajo) y horizontal moderado (2rem lados)
+   para que los productos no se sientan apretados y la sección tenga presencia visual
+   en el layout general. */
 .featured-products {
     padding: 6rem 2rem;
 }
 
+/* Encabezado de la sección de productos destacados. Flexbox con justify-content:space-between
+   separa el título (izquierda) del enlace "Ver todos" (derecha). max-width:1200px con
+   margin:auto centrado mantiene el contenido alineado con el grid de productos.
+   margin-bottom:3rem crea separación entre el encabezado y la grilla. */
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -185,6 +272,10 @@
     margin-right: auto;
 }
 
+/* Enlace "Ver todos los productos" en el encabezado de la sección. Usa el color azul
+   principal (#0077b6) y font-weight:600 para que sea visible pero no compita con
+   el título. text-decoration:none elimina el subrayado por defecto. La transición
+   suaviza el cambio de color y subrayado en hover. */
 .view-all {
     color: #0077b6;
     font-weight: 600;
@@ -193,11 +284,18 @@
     transition: all 0.3s ease;
 }
 
+/* Efecto hover del enlace "Ver todos": cambia a un azul más claro (#6a96cf) y agrega
+   subrayado para indicar claramente que es un enlace clickeable. El cambio de color
+   y subrayado juntos refuerzan la interactividad del elemento. */
 .view-all:hover {
     color: #6a96cf;
     text-decoration: underline;
 }
 
+/* Grilla responsiva de productos. Usa CSS Grid con repeat(auto-fill, minmax(250px, 1fr))
+   para crear columnas automáticas que se adaptan al ancho disponible: mínimo 250px
+   por columna, máximo 1fr (fracción del espacio). gap:3rem crea separación uniforme
+   entre tarjetas. max-width:1200px con margin:auto centra la grilla en pantallas anchas. */
 .products-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -206,11 +304,18 @@
     margin: 0 auto;
 }
 
-/* ===== SHIMMER / SKELETON ===== */
+/* ===== ANIMACIÓN SHIMMER / ESQUELETO DE CARGA ===== */
+/* Clase que desactiva interacciones en la tarjeta mientras muestra el estado de carga.
+   pointer-events:none evita que el usuario pueda hacer clic en elementos que aún
+   no tienen datos reales, evitando acciones no intencionadas durante la carga. */
 .product-card.shimmer {
     pointer-events: none;
 }
 
+/* Animación keyframes para el efecto shimmer (brillo de carga). Mueve el gradiente
+   de -200px a 200px horizontalmente, creando un efecto de "barrido" luminoso que
+   simula actividad visual mientras los datos se cargan. Esta animación se reutiliza
+   en todos los elementos de skeleton loading de la tarjeta. */
 @keyframes shimmer-anim {
     0% {
         background-position: -200px 0;
@@ -221,6 +326,10 @@
     }
 }
 
+/* Esqueleto de carga para la imagen del producto. Mantiene la misma altura (250px)
+   que la imagen real para evitar saltos de layout. El gradiente lineal crea un efecto
+   de brillo que se anima infinitamente cada 1.5 segundos usando la animación shimmer-anim.
+   Los colores gris claro simulan una imagen cargando. */
 .shimmer-image {
     height: 250px;
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
@@ -228,10 +337,17 @@
     animation: shimmer-anim 1.5s infinite;
 }
 
+/* Contenedor del esqueleto de información del producto. Mantiene el mismo padding
+   (1.5rem) que .product-info para que la estructura de carga coincida exactamente
+   con la estructura final, evitando movimientos o saltos cuando los datos reales cargan. */
 .shimmer-info {
     padding: 1.5rem;
 }
 
+/* Elementos comunes del esqueleto de carga (categoría, título, rating, precio, botón).
+   Comparten las mismas propiedades base: altura fija, margen inferior, bordes redondeados
+   y la animación shimmer. El gradiente crea el efecto de brillo que indica carga activa.
+   La altura 1.4rem simula el tamaño aproximado del texto real que reemplazarán. */
 .shimmer-category,
 .shimmer-title,
 .shimmer-rating,
@@ -245,23 +361,35 @@
     animation: shimmer-anim 1.5s infinite;
 }
 
+/* Esqueleto de la categoría. Ancho del 40% simula el espacio que ocupará el texto
+   de categoría (que suele ser corto como "ZAPATOS" o "ROPA"). */
 .shimmer-category {
     width: 40%;
 }
 
+/* Esqueleto del título. Ancho del 80% simula un título de producto promedio que
+   generalmente ocupa casi todo el ancho disponible de la tarjeta. */
 .shimmer-title {
     width: 80%;
 }
 
+/* Esqueleto del rating. Ancho del 50% simula el espacio de las estrellas más el
+   contador de reseñas, que típicamente ocupan la mitad del ancho de la tarjeta. */
 .shimmer-rating {
     width: 50%;
 }
 
+/* Esqueleto del precio. Ancho del 35% y altura ligeramente mayor (2rem) para simular
+   el precio actual que suele ser más grande y prominente que el resto del texto.
+   La altura diferenciada mantiene la proporción visual correcta. */
 .shimmer-price {
     width: 35%;
     height: 2rem;
 }
 
+/* Esqueleto del botón de acción. Ancho completo (100%) y altura de 3.6rem para simular
+   el botón "Ver producto" que ocupa todo el ancho de la tarjeta. La altura coincide
+   con el padding del botón real para evitar saltos de layout al cargar datos. */
 .shimmer-button {
     width: 100%;
     height: 3.6rem;

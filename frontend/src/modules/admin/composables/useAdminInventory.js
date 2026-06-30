@@ -13,6 +13,12 @@ import {
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de inventario de productos.
+ * Administra visualización agrupada por producto, ajustes de stock, transferencias
+ * entre variantes, historial de movimientos y sincronización en tiempo real vía WebSocket.
+ * Reutiliza useAdminPagination, useAdminDataExport y useStockRealtime.
+ */
 export function useAdminInventory() {
   const route = useRoute()
   const router = useRouter()

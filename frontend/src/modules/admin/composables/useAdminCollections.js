@@ -6,6 +6,11 @@ import { resolveMediaUrl } from '../../../utils/media'
 import { useAdminPagination } from './useAdminPagination'
 import { slugifyText } from '../utils/productSlug'
 
+/**
+ * Composable para la gestión de colecciones de productos.
+ * Administra CRUD, imágenes, slugs, fecha de lanzamiento, filtros y paginación.
+ * Estructura similar a useAdminCategories pero con soporte para launch_date.
+ */
 export function useAdminCollections() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
@@ -82,6 +87,7 @@ export function useAdminCollections() {
   // =====================================================
   // Helpers internos y presentación
   // =====================================================
+  /** Normaliza los datos de una colección del backend a un formato consistente. */
   function normalizeCollection(row) {
     return {
       ...row,
@@ -96,22 +102,26 @@ export function useAdminCollections() {
     }
   }
 
+  /** Resuelve la URL completa de la imagen de una colección. */
   function resolveCollectionImage(collection) {
     return resolveMediaUrl(collection.image, 'collection')
   }
 
+  /** Trunca un texto a la longitud máxima con puntos suspensivos. */
   function excerpt(value, max = 100) {
     const text = String(value || '').trim()
     if (!text) return 'Sin descripción'
     return text.length > max ? `${text.slice(0, max).trim()}...` : text
   }
 
+  /** Formatea una fecha ISO a cadena legible en español (locale es-CO). */
   function formatDate(value) {
     if (!value) return 'Sin fecha'
     const date = new Date(value)
     return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es-CO')
   }
 
+  /** Extrae el mensaje de error de una respuesta HTTP con valor por defecto. */
   function extractErrorMessage(error, fallback) {
     return error?.response?.data?.message || fallback
   }
@@ -119,12 +129,14 @@ export function useAdminCollections() {
   // =====================================================
   // Gestión del formulario, slug e imagen
   // =====================================================
+  /** Valida el campo nombre: debe tener al menos 2 caracteres. */
   function validateField(field) {
     if (field === 'name') {
       errors.name = form.name.trim().length >= 2 ? '' : 'El nombre es obligatorio y debe tener al menos 2 caracteres.'
     }
   }
 
+  /** Genera el slug automáticamente al escribir el nombre, si no fue editado manualmente. */
   function onNameInput() {
     validateField('name')
     if (!slugManuallyEdited.value) {
@@ -132,15 +144,18 @@ export function useAdminCollections() {
     }
   }
 
+  /** Marca el slug como editado manualmente y lo normaliza. */
   function onSlugInput() {
     slugManuallyEdited.value = form.slug.trim() !== ''
     form.slug = slugifyText(form.slug)
   }
 
+  /** Abre el selector de archivos de imagen oculto. */
   function openImagePicker() {
     imageInputRef.value?.click()
   }
 
+  /** Maneja la selección de archivo: genera URL de previsualización temporal. */
   function onImageSelected(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -151,6 +166,7 @@ export function useAdminCollections() {
     errors.image = ''
   }
 
+  /** Limpia la imagen seleccionada y revierte la previsualización. */
   function clearSelectedImage(resetInput = true) {
     if (imagePreviewUrl.value?.startsWith('blob:')) {
       URL.revokeObjectURL(imagePreviewUrl.value)
@@ -162,6 +178,7 @@ export function useAdminCollections() {
     }
   }
 
+  /** Reinicia el formulario a valores por defecto y limpia imagen y errores. */
   function resetForm() {
     form.name = ''
     form.slug = ''
@@ -174,6 +191,7 @@ export function useAdminCollections() {
     clearSelectedImage(false)
   }
 
+  /** Abre el modal en modo creación o edición con los datos de la colección. */
   function openModal(collection = null) {
     editing.value = collection
     resetForm()
@@ -197,6 +215,7 @@ export function useAdminCollections() {
     showModal.value = true
   }
 
+  /** Cierra el modal y limpia el estado de edición. */
   function closeModal() {
     clearSelectedImage()
     showModal.value = false
@@ -206,6 +225,7 @@ export function useAdminCollections() {
   // =====================================================
   // Carga de datos y refresco
   // =====================================================
+  /** Obtiene la lista de colecciones desde el backend. */
   async function loadCollections() {
     loading.value = true
     try {
@@ -220,6 +240,7 @@ export function useAdminCollections() {
     }
   }
 
+  /** Restablece los filtros de búsqueda y estado a valores iniciales. */
   function clearFilters() {
     search.value = ''
     statusFilter.value = ''
@@ -228,6 +249,7 @@ export function useAdminCollections() {
   // =====================================================
   // Acciones CRUD y cambios de estado
   // =====================================================
+  /** Valida y guarda una colección (creación o actualización) con FormData. */
   async function saveCollection() {
     validateField('name')
     if (errors.name) return
@@ -262,6 +284,7 @@ export function useAdminCollections() {
     }
   }
 
+  /** Muestra confirmación y elimina una colección (bloqueada si tiene productos). */
   function confirmDelete(collection) {
     showAlert({
       type: 'warning',
@@ -290,6 +313,7 @@ export function useAdminCollections() {
     })
   }
 
+  /** Cambia el estado activo/inactivo de una colección. */
   async function toggleStatus(collection) {
     try {
       await catalogHttp.put(`/admin/collections/${collection.id}`, {

@@ -2,16 +2,29 @@
 
 use Laravel\Sanctum\Sanctum;
 
+/*
+|--------------------------------------------------------------------------
+| Configuración de Sanctum para shipping-service
+|--------------------------------------------------------------------------
+|
+| NOTA: Actualmente shipping-service NO usa Sanctum como guard de
+| autenticación principal. La autenticación se maneja mediante
+| tokens JWT validados contra auth-service (ver middleware EnsureAdmin).
+|
+| Esta configuración se mantiene por compatibilidad con el scaffolding
+| de Laravel, pero no afecta la operación del servicio.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Stateful Domains
+    | Dominios con estado (stateful)
     |--------------------------------------------------------------------------
     |
-    | Requests from the following domains / hosts will receive stateful API
-    | authentication cookies. Typically, these should include your local
-    | and production domains which access your API via a frontend SPA.
+    | Define qué dominios/hosts reciben cookies de autenticación stateful.
+    | Incluye localhost y los puertos comunes de desarrollo.
     |
     */
 
@@ -24,13 +37,12 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sanctum Guards
+    | Guards de Sanctum
     |--------------------------------------------------------------------------
     |
-    | This array contains the authentication guards that will be checked when
-    | Sanctum is trying to authenticate a request. If none of these guards
-    | are able to authenticate the request, Sanctum will use the bearer
-    | token that's present on an incoming request for authentication.
+    | Guards que Sanctum verificará al autenticar una solicitud.
+    | shipping-service usa 'web' como guard por defecto, pero
+    | la autenticación real se delega a auth-service.
     |
     */
 
@@ -38,12 +50,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Expiration Minutes
+    | Minutos de expiración de tokens
     |--------------------------------------------------------------------------
     |
-    | This value controls the number of minutes until an issued token will be
-    | considered expired. This will override any values set in the token's
-    | "expires_at" attribute, but first-party sessions are not affected.
+    | Tiempo de vida de los tokens emitidos por Sanctum (null = sin expiración).
     |
     */
 
@@ -51,14 +61,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Token Prefix
+    | Prefijo de tokens
     |--------------------------------------------------------------------------
     |
-    | Sanctum can prefix new tokens in order to take advantage of numerous
-    | security scanning initiatives maintained by open source platforms
-    | that notify developers if they commit tokens into repositories.
-    |
-    | See: https://docs.github.com/en/code-security/secret-scanning/about-secret-scanning
+    | Prefijo opcional para identificar tokens emitidos por esta aplicación
+    | en escaneos de seguridad de plataformas como GitHub.
     |
     */
 
@@ -66,12 +73,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Sanctum Middleware
+    | Middleware de Sanctum
     |--------------------------------------------------------------------------
     |
-    | When authenticating your first-party SPA with Sanctum you may need to
-    | customize some of the middleware Sanctum uses while processing the
-    | request. You may change the middleware listed below as required.
+    | Middleware usado durante la autenticación stateful con Sanctum.
     |
     */
 

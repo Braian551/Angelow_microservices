@@ -1,15 +1,30 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Autenticación para shipping-service
+|--------------------------------------------------------------------------
+|
+| Configura los guards y providers de autenticación locales.
+| IMPORTANTE: Este microservicio NO maneja autenticación directamente.
+| La autenticación se delega a auth-service mediante tokens JWT.
+| El middleware EnsureAdmin valida los tokens contra auth-service.
+|
+| La configuración local se mantiene para:
+| - Soporte de pruebas unitarias con autenticación simulada.
+| - Compatibilidad con el scaffolding de Laravel.
+| - Posible autenticación interna para herramientas de consola.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Authentication Defaults
+    | Valores predeterminados de autenticación
     |--------------------------------------------------------------------------
     |
-    | This option defines the default authentication "guard" and password
-    | reset "broker" for your application. You may change these values
-    | as required, but they're a perfect start for most applications.
+    | Define el guard y el broker de reseteo de contraseña predeterminados.
     |
     */
 

@@ -4,10 +4,29 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Migración para crear las tablas del servicio de envíos en la base legacy.
+ *
+ * NOTA: Aunque el nombre del archivo sugiere que crea la tabla de usuarios,
+ * en realidad crea las tablas de shipping-methods, shipping-price-rules
+ * y user-addresses en el esquema legacy de Angelow PHP.
+ * El nombre es un remanente del scaffolding predeterminado de Laravel.
+ *
+ * Está pensada para ejecutarse sobre la base legacy (legacy_mysql) cuando
+ * se necesita inicializar el esquema desde cero.
+ */
 return new class extends Migration
 {
+    /**
+     * Ejecuta la migración creando las tablas.
+     */
     public function up(): void
     {
+        /*
+         * Tabla de métodos de envío.
+         * Define las opciones de envío disponibles: costo base, tiempo estimado,
+         * umbral de envío gratis, ciudades disponibles, icono y estado activo.
+         */
         Schema::create('shipping_methods', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name', 100);
@@ -27,6 +46,11 @@ return new class extends Migration
             $table->char('trial554', 1)->nullable();
         });
 
+        /*
+         * Tabla de reglas de precio por rango.
+         * Define costos de envío basados en el subtotal del carrito.
+         * Ejemplo: min_price=0, max_price=50000, shipping_cost=9900.
+         */
         Schema::create('shipping_price_rules', function (Blueprint $table) {
             $table->increments('id');
             $table->decimal('min_price', 10, 2);
@@ -38,6 +62,12 @@ return new class extends Migration
             $table->char('trial554', 1)->nullable();
         });
 
+        /*
+         * Tabla de direcciones de usuario.
+         * Almacena las direcciones de envío con datos completos:
+         * destinatario, teléfono, dirección, barrio, tipo de edificio,
+         * instrucciones de entrega y geolocalización GPS opcional.
+         */
         Schema::create('user_addresses', function (Blueprint $table) {
             $table->increments('id');
             $table->string('user_id', 20);
@@ -67,6 +97,9 @@ return new class extends Migration
         });
     }
 
+    /**
+     * Revierte la migración eliminando las tablas.
+     */
     public function down(): void
     {
         Schema::dropIfExists('user_addresses');

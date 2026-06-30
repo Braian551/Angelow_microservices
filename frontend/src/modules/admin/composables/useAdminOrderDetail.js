@@ -1,9 +1,10 @@
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { catalogHttp, orderHttp, paymentHttp, shippingHttp } from '../../../services/http'
 import { resolveUploadUrl } from '../../../utils/media'
 import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
+import { resolvePaymentProofUrl } from '../utils/paymentProofs'
 import {
   buildCheckoutAddressLine,
   labelCheckoutAddressType,
@@ -21,9 +22,12 @@ import {
   translateHistoryValue,
 } from '../utils/orderPresentation'
 
-// =====================================================
-// Dependencias y composables reutilizados
-// =====================================================
+/**
+ * Composable para el detalle completo de un pedido en el panel administrativo.
+ * Carga datos del pedido, pagos, envío, direcciones, historial de cambios
+ * y permite actualizar estado, pago, envío y notas.
+ * Reutiliza useAlertSystem y useSnackbarSystem para feedback.
+ */
 const HISTORY_TYPE_COLORS = Object.freeze({
   status: '#0077b6',
   payment_status: '#10b981',
@@ -44,15 +48,6 @@ const HISTORY_TYPE_ICONS = Object.freeze({
 
 function normalizeText(value) {
   return String(value || '').trim()
-}
-
-function resolvePaymentProofUrl(value) {
-  try {
-    return resolveUploadUrl(value)
-  } catch {
-    const raw = String(value || '').trim()
-    return raw ? (raw.startsWith('/') ? raw : `/${raw}`) : ''
-  }
 }
 
 function normalizeProofPath(value) {
@@ -105,6 +100,8 @@ export function useAdminOrderDetail() {
   const route = useRoute()
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
+  let isComponentAlive = true
+  let loadSequence = 0
 
   // =====================================================
   // Ruta e identificación
@@ -402,13 +399,17 @@ export function useAdminOrderDetail() {
   // =====================================================
   // Carga y actualización de datos
   // =====================================================
-  async function loadProductImages(rows = []) {
+  function isCurrentLoad(sequence) {
+    return isComponentAlive && sequence === loadSequence
+  }
+
+  async function loadProductImages(rows = [], sequence = loadSequence) {
     const productIds = [...new Set((Array.isArray(rows) ? rows : [])
       .map((row) => Number(row?.product_id || 0))
       .filter((id) => id > 0))]
 
     if (productIds.length === 0) {
-      productImageById.value = {}
+      if (isCurrentLoad(sequence)) productImageById.value = {}
       return
     }
 
@@ -430,11 +431,13 @@ export function useAdminOrderDetail() {
       }
     })
 
-    productImageById.value = nextMap
+    if (isCurrentLoad(sequence)) {
+      productImageById.value = nextMap
+    }
   }
 
-  async function loadShippingAddresses() {
-    shippingAddresses.value = []
+  async function loadShippingAddresses(sequence = loadSequence) {
+    if (isCurrentLoad(sequence)) shippingAddresses.value = []
 
     const userId = normalizeText(order.value?.user_id)
     const userEmail = normalizeText(order.value?.customer_email)
@@ -449,48 +452,59 @@ export function useAdminOrderDetail() {
         },
       })
 
-      shippingAddresses.value = extractAddressRows(response.data)
-        .map((row) => normalizeCheckoutAddress(row))
-        .filter((row) => Number(row?.id || 0) > 0)
+      if (isCurrentLoad(sequence)) {
+        shippingAddresses.value = extractAddressRows(response.data)
+          .map((row) => normalizeCheckoutAddress(row))
+          .filter((row) => Number(row?.id || 0) > 0)
+      }
     } catch {
-      shippingAddresses.value = []
+      if (isCurrentLoad(sequence)) shippingAddresses.value = []
     }
   }
 
-  async function loadPaymentRecord() {
-    paymentProofUnavailable.value = false
+  async function loadPaymentRecord(sequence = loadSequence) {
+    if (isCurrentLoad(sequence)) paymentProofUnavailable.value = false
 
     try {
       const response = await paymentHttp.get('/admin/payments', { params: { order_id: orderId.value, per_page: 1 } })
+      if (!isCurrentLoad(sequence)) return
       let rows = extractPaymentRows(response.data)
 
       if (rows.length === 0) {
         const fallbackResponse = await paymentHttp.get('/payments', { params: { order_id: orderId.value } })
+        if (!isCurrentLoad(sequence)) return
         rows = extractPaymentRows(fallbackResponse.data)
           .filter((row) => Number(row?.order_id || 0) === orderId.value)
       }
 
       const selectedPayment = pickPaymentForCurrentOrder(rows)
-      paymentRecord.value = selectedPayment ? normalizePaymentRecord(selectedPayment) : null
+      if (isCurrentLoad(sequence)) {
+        paymentRecord.value = selectedPayment ? normalizePaymentRecord(selectedPayment) : null
+      }
     } catch {
       try {
         const fallbackResponse = await paymentHttp.get('/payments', { params: { order_id: orderId.value } })
+        if (!isCurrentLoad(sequence)) return
         const rows = extractPaymentRows(fallbackResponse.data)
           .filter((row) => Number(row?.order_id || 0) === orderId.value)
 
         const selectedPayment = pickPaymentForCurrentOrder(rows)
-        paymentRecord.value = selectedPayment ? normalizePaymentRecord(selectedPayment) : null
+        if (isCurrentLoad(sequence)) {
+          paymentRecord.value = selectedPayment ? normalizePaymentRecord(selectedPayment) : null
+        }
       } catch {
-        paymentRecord.value = null
+        if (isCurrentLoad(sequence)) paymentRecord.value = null
       }
     }
   }
 
   async function loadOrder() {
+    const sequence = ++loadSequence
     loading.value = true
 
     try {
       const response = await orderHttp.get(`/orders/${orderId.value}`, { params: { source: orderSource.value } })
+      if (!isCurrentLoad(sequence)) return
       const payload = response.data || {}
       const rawOrder = payload.order || payload.data?.order || payload.data || {}
       const rawItems = payload.items || payload.data?.items || []
@@ -498,15 +512,19 @@ export function useAdminOrderDetail() {
 
       order.value = normalizeOrder(rawOrder)
       items.value = Array.isArray(rawItems) ? rawItems : []
-      void loadProductImages(items.value)
+      await loadProductImages(items.value, sequence)
+      if (!isCurrentLoad(sequence)) return
       history.value = Array.isArray(rawHistory) ? rawHistory : []
       expandedHistory.value = false
-      await loadShippingAddresses()
-      await loadPaymentRecord()
+      await loadShippingAddresses(sequence)
+      if (!isCurrentLoad(sequence)) return
+      await loadPaymentRecord(sequence)
+      if (!isCurrentLoad(sequence)) return
       hydrateEditForm()
       resetStatusForm()
       resetPaymentForm()
     } catch {
+      if (!isCurrentLoad(sequence)) return
       showSnackbar({ type: 'error', message: 'Error cargando el detalle de la orden.' })
       order.value = null
       items.value = []
@@ -515,7 +533,7 @@ export function useAdminOrderDetail() {
       shippingAddresses.value = []
       paymentRecord.value = null
     } finally {
-      loading.value = false
+      if (isCurrentLoad(sequence)) loading.value = false
     }
   }
 
@@ -863,6 +881,17 @@ export function useAdminOrderDetail() {
   // Ciclo de vida
   // =====================================================
   onMounted(loadOrder)
+  onBeforeUnmount(() => {
+    isComponentAlive = false
+    loadSequence += 1
+  })
+
+  watch(
+    () => [route.params.id, route.query.vista],
+    () => {
+      loadOrder()
+    },
+  )
 
   // =====================================================
   // API pública del composable

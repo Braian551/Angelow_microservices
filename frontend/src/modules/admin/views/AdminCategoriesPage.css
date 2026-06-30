@@ -1,4 +1,5 @@
 /* Estilos responsivos propios de categorías */
+/* Móvil: editor y acciones de categorías se apilan para mantener lectura. */
 @media (max-width: 768px) {
   .admin-categories-page .admin-editor-grid {
     grid-template-columns: 1fr;

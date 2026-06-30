@@ -1,4 +1,5 @@
 /* Estilos propios de inventario, encapsulados para no afectar otras vistas admin. */
+/* Tabs y chips de detalle para alternar vistas de inventario. */
 .admin-inventory-page .inventory-tabs {
   margin-bottom: 1.6rem;
 }
@@ -16,10 +17,12 @@
   font-size: 1.25rem;
 }
 
+/* Resumen compacto de stock y estado actual. */
 .admin-inventory-page .inventory-summary {
   flex-direction: column;
 }
 
+/* Badges de stock activo, bajo o agotado. */
 .admin-inventory-page .inventory-stock {
   font-weight: 700;
 }
@@ -45,6 +48,7 @@
   gap: 1rem;
 }
 
+/* Encabezado y bloque histórico del detalle de variante. */
 .admin-inventory-page .inventory-detail-header {
   margin-bottom: 1.6rem;
 }
@@ -63,6 +67,7 @@
   flex-wrap: wrap;
 }
 
+/* Grilla del formulario de ajuste o transferencia de stock. */
 .admin-inventory-page .inventory-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -81,6 +86,7 @@
   grid-column: 2 / 3;
 }
 
+/* Preview de variante seleccionada antes de aplicar movimiento. */
 .admin-inventory-page .inventory-variant-preview {
   width: 100%;
   padding: 1rem 1.2rem;
@@ -94,6 +100,7 @@
   min-height: 20rem;
 }
 
+/* Tablet: formulario de inventario pasa a columnas flexibles. */
 @media (max-width: 900px) {
   .admin-inventory-page .inventory-detail-header,
   .admin-inventory-page .inventory-history-header,
@@ -103,6 +110,7 @@
   }
 }
 
+/* Móvil: tabs y pills se apilan para evitar desbordes. */
 @media (max-width: 768px) {
   .admin-inventory-page .inventory-form-grid {
     grid-template-columns: 1fr;

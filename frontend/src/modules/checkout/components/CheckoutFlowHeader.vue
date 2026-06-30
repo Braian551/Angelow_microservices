@@ -1,5 +1,6 @@
 <template>
   <header class="checkout-flow-header">
+    <!-- Título de la pantalla actual del checkout con ícono contextual. -->
     <div class="checkout-flow-heading">
       <div class="checkout-flow-icon">
         <i :class="iconClass" />
@@ -7,6 +8,7 @@
       <h1 class="checkout-flow-title">{{ title }}</h1>
     </div>
 
+    <!-- Indicador fijo de las cuatro etapas del checkout. -->
     <div class="checkout-flow-steps" aria-label="Pasos del checkout">
       <div
         v-for="step in steps"
@@ -22,6 +24,7 @@
 </template>
 
 <script setup>
+// Props que permiten reutilizar el encabezado en envío, pago y confirmación.
 const props = defineProps({
   title: {
     type: String,
@@ -37,6 +40,7 @@ const props = defineProps({
   },
 })
 
+// Secuencia visual compartida del checkout; el paso activo se resalta desde props.
 const steps = [
   { id: 1, label: 'Carrito' },
   { id: 2, label: 'Envío' },
@@ -46,18 +50,21 @@ const steps = [
 </script>
 
 <style scoped>
+/* Contenedor del encabezado y del indicador de pasos. */
 .checkout-flow-header {
   display: grid;
   gap: 2rem;
   margin-bottom: 1rem;
 }
 
+/* Agrupa ícono y título de la pantalla. */
 .checkout-flow-heading {
   display: flex;
   align-items: center;
   gap: 1.4rem;
 }
 
+/* Ícono circular que identifica la etapa actual. */
 .checkout-flow-icon {
   width: 7.8rem;
   height: 7.8rem;
@@ -71,6 +78,7 @@ const steps = [
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+/* Título principal del paso de checkout. */
 .checkout-flow-title {
   margin: 0;
   color: #333333;
@@ -79,6 +87,7 @@ const steps = [
   line-height: 1.1;
 }
 
+/* Carril horizontal de pasos del checkout. */
 .checkout-flow-steps {
   position: relative;
   display: flex;
@@ -87,6 +96,7 @@ const steps = [
   margin: 0 auto;
 }
 
+/* Línea de fondo que conecta los pasos. */
 .checkout-flow-steps::before {
   content: '';
   position: absolute;
@@ -98,6 +108,7 @@ const steps = [
   z-index: 0;
 }
 
+/* Paso individual con número y etiqueta. */
 .checkout-flow-step {
   position: relative;
   z-index: 1;
@@ -107,6 +118,7 @@ const steps = [
   gap: 0.8rem;
 }
 
+/* Círculo numerado del paso. */
 .checkout-flow-step span {
   width: 3.2rem;
   height: 3.2rem;
@@ -122,6 +134,7 @@ const steps = [
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* Etiqueta textual debajo del círculo. */
 .checkout-flow-step p {
   margin: 0;
   color: #666666;
@@ -129,6 +142,7 @@ const steps = [
   font-weight: 500;
 }
 
+/* Estado activo con color de marca y pulso suave. */
 .checkout-flow-step--active span {
   background: #0077b6;
   color: #ffffff;
@@ -137,11 +151,13 @@ const steps = [
   animation: checkoutFlowPulse 2s ease-in-out infinite;
 }
 
+/* Etiqueta destacada para el paso activo. */
 .checkout-flow-step--active p {
   color: #333333;
   font-weight: 600;
 }
 
+/* Pulso visual para reforzar el paso actual sin bloquear lectura. */
 @keyframes checkoutFlowPulse {
   0%,
   100% {
@@ -153,6 +169,7 @@ const steps = [
   }
 }
 
+/* Ajustes móviles para reducir tamaño del encabezado y pasos. */
 @media (max-width: 640px) {
   .checkout-flow-heading {
     gap: 1rem;

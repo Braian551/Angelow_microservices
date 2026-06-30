@@ -12,12 +12,24 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
+/**
+ * Controlador administrativo del módulo de pagos.
+ * Gestiona el CRUD de transacciones de pago, verificación manual,
+ * configuración de cuenta de pago y listado de bancos para el admin.
+ * Soporta doble origen de datos (microservicio y legacy) durante la migración.
+ */
 class AdminPaymentController extends Controller
 {
+    /**
+     * Nombre de la conexión a la base de datos legacy para fallback durante migración.
+     */
     private const LEGACY_CONNECTION = 'legacy_mysql';
 
     /**
      * Lista todas las transacciones con filtros para el admin.
+     * Soporta paginación, búsqueda por múltiples campos, filtro por estado y rango de fechas.
+     * Si no hay datos en microservicio, hace fallback a legacy.
+     * Hidrata datos del usuario (nombre, email) desde auth-service.
      */
     public function index(Request $request): JsonResponse
     {
@@ -72,6 +84,12 @@ class AdminPaymentController extends Controller
         ]);
     }
 
+    /**
+     * Construye la consulta base de pagos con joins y filtros dinámicos.
+     * Adapta la consulta según la conexión (microservicio o legacy) y
+     * la existencia de columnas en el esquema (users, billing_email, etc.).
+     * Normaliza la comparación de estados para ambos orígenes de datos.
+     */
     private function buildPaymentsQuery(Request $request, ?string $connection = null)
     {
         $query = $connection
@@ -149,6 +167,11 @@ class AdminPaymentController extends Controller
         return $query;
     }
 
+    /**
+     * Verifica si una columna existe en una tabla para una conexión dada.
+     * Se usa para adaptar consultas dinámicamente a esquemas distintos
+     * entre microservicio y legacy sin romper la ejecución.
+     */
     private function hasColumn(string $table, string $column, ?string $connection = null): bool
     {
         try {
@@ -160,6 +183,10 @@ class AdminPaymentController extends Controller
         }
     }
 
+    /**
+     * Verifica si una tabla existe en una conexión dada.
+     * Evita errores de esquema al consultar tablas que solo existen en legacy.
+     */
     private function hasTable(string $table, ?string $connection = null): bool
     {
         try {
@@ -171,6 +198,12 @@ class AdminPaymentController extends Controller
         }
     }
 
+    /**
+     * Transforma una fila de pago al formato de respuesta del admin.
+     * Resuelve la URL pública del comprobante, normaliza el estado
+     * y verifica si el archivo físico existe en disco.
+     * Agrega metadata de origen (source) para trazabilidad.
+     */
     private function transformPaymentRow(object $payment, string $source = 'microservice'): array
     {
         $proofPath = trim((string) ($payment->payment_proof ?? ''));
@@ -188,6 +221,12 @@ class AdminPaymentController extends Controller
         ];
     }
 
+    /**
+     * Hidrata los pagos con datos de perfil del usuario desde auth-service.
+     * Consulta perfiles en lote por user_id y completa nombre/email
+     * cuando faltan en la transacción local.
+     * Usa caché implícita del auth-service y maneja errores sin romper la respuesta.
+     */
     private function hydratePaymentsWithAuthProfiles(Collection $rows): Collection
     {
         if ($rows->isEmpty()) {
@@ -230,6 +269,12 @@ class AdminPaymentController extends Controller
         })->values();
     }
 
+    /**
+     * Consulta perfiles de usuarios al auth-service por sus IDs.
+     * Requiere token interno configurado en services.auth.internal_token.
+     * Retorna array indexado por user_id con nombre y email validados.
+     * En entorno de testing retorna vacío para evitar dependencias externas.
+     */
     private function fetchAuthProfilesByUserIds(array $userIds): array
     {
         if ($userIds === [] || app()->environment('testing')) {
@@ -292,6 +337,10 @@ class AdminPaymentController extends Controller
         }
     }
 
+    /**
+     * Resuelve el endpoint interno de perfiles del auth-service.
+     * Acepta URL base con o sin sufijo /api y construye la ruta completa.
+     */
     private function resolveAuthProfilesEndpoint(): ?string
     {
         $baseUrl = trim((string) config('services.auth.base_url', 'http://auth-service:8000/api'));
@@ -308,6 +357,11 @@ class AdminPaymentController extends Controller
         return $baseUrl . '/api/internal/users/profiles';
     }
 
+    /**
+     * Construye la URL pública absoluta del comprobante de pago.
+     * Normaliza rutas relativas (uploads/, payment_proofs/) y
+     * valida URLs ya absolutas. Retorna null si la ruta está vacía.
+     */
     private function buildPublicProofUrl(string $proofPath): ?string
     {
         if ($proofPath === '') {
@@ -335,6 +389,12 @@ class AdminPaymentController extends Controller
         return '/uploads/payment_proofs/' . ltrim($normalized, '/');
     }
 
+    /**
+     * Resuelve la ruta física real del comprobante en disco.
+     * Prueba múltiples candidatos (ruta completa, relativa, solo nombre)
+     * buscando en uploads/payment_proofs y uploads/ para compatibilidad legacy.
+     * Retorna la ruta relativa válida o null si no se encuentra el archivo.
+     */
     private function resolveExistingProofPath(string $proofPath): ?string
     {
         if ($proofPath === '') {
@@ -372,6 +432,11 @@ class AdminPaymentController extends Controller
         return null;
     }
 
+    /**
+     * Construye lista de rutas candidatas para buscar el comprobante.
+     * Maneja variaciones legacy: solo basename, ruta con uploads/, con payment_proofs/, etc.
+     * Elimina duplicados y retorna array único de candidatos priorizados.
+     */
     private function buildProofCandidates(string $normalized): array
     {
         $candidates = [];
@@ -388,6 +453,11 @@ class AdminPaymentController extends Controller
         return array_values(array_unique($candidates));
     }
 
+    /**
+     * Busca un archivo por nombre exacto (case-insensitive) en un directorio y subdirectorios.
+     * Retorna la ruta relativa desde public_path si se encuentra.
+     * Usa RecursiveIteratorIterator para recorrer toda la estructura.
+     */
     private function findProofByBasename(string $directory, string $basename): ?string
     {
         if (!is_dir($directory)) {
@@ -409,6 +479,10 @@ class AdminPaymentController extends Controller
         return null;
     }
 
+    /**
+     * Convierte una ruta absoluta del filesystem a ruta relativa pública.
+     * Elimina el prefijo de public_path para obtener la URL servible por web.
+     */
     private function toRelativePublicPath(string $absolutePath): string
     {
         $publicPath = str_replace('\\', '/', public_path());
@@ -419,6 +493,9 @@ class AdminPaymentController extends Controller
 
     /**
      * Verifica/actualiza el estado de una transaccion.
+     * Actualiza en microservicio y, si falla, intenta fallback a legacy
+     * mapeando el estado normalizado al valor legacy correspondiente.
+     * Inyecta el admin que realiza la acción para auditoría.
      */
     public function verify(Request $request, int $id): JsonResponse
     {
@@ -466,6 +543,7 @@ class AdminPaymentController extends Controller
 
     /**
      * Devuelve cuenta activa y listado de bancos para configuración administrativa.
+     * Combina datos de microservicio con fallback a legacy si es necesario.
      */
     public function accountSettings(): JsonResponse
     {
@@ -493,6 +571,9 @@ class AdminPaymentController extends Controller
 
     /**
      * Crea o actualiza la cuenta visible al cliente en el checkout de pagos.
+     * Desactiva cuentas previas si la nueva se marca como activa.
+     * Soporta creación e idempotencia de actualización por ID.
+     * Retorna la cuenta guardada con etiquetas legibles.
      */
     public function saveAccountSettings(Request $request): JsonResponse
     {
@@ -561,6 +642,10 @@ class AdminPaymentController extends Controller
         ]);
     }
 
+    /**
+     * Consulta los bancos activos desde una conexión específica.
+     * Retorna colección vacía si la tabla no existe o hay error de conexión.
+     */
     private function resolveActiveBanks(?string $connection = null)
     {
         try {
@@ -577,6 +662,11 @@ class AdminPaymentController extends Controller
         }
     }
 
+    /**
+     * Consulta la cuenta de pago activa desde una conexión específica.
+     * Realiza join con la tabla de bancos para obtener el nombre del banco.
+     * Agrega una marca 'source' para indicar si los datos vienen de microservicio o legacy.
+     */
     private function resolveActivePaymentAccount(?string $connection = null): ?object
     {
         try {
@@ -619,6 +709,11 @@ class AdminPaymentController extends Controller
         }
     }
 
+    /**
+     * Consulta una cuenta de pago por su ID primario.
+     * Incluye join con bancos para nombre del banco.
+     * Retorna null si no existe o ID inválido.
+     */
     private function resolvePaymentAccountById(int $id): ?object
     {
         if ($id <= 0) {
@@ -647,6 +742,10 @@ class AdminPaymentController extends Controller
             ->first();
     }
 
+    /**
+     * Transforma el registro de cuenta de pago al formato de respuesta JSON.
+     * Agrega etiquetas legibles para tipo de cuenta y tipo de identificación.
+     */
     private function transformPaymentAccount(?object $account): ?array
     {
         if (!$account) {
@@ -661,6 +760,10 @@ class AdminPaymentController extends Controller
         ];
     }
 
+    /**
+     * Retorna la etiqueta legible para el tipo de cuenta bancaria.
+     * Ejemplos: 'corriente' -> 'Cuenta corriente', 'ahorros' -> 'Cuenta de ahorros'.
+     */
     private function accountTypeLabel(?string $accountType): string
     {
         return match (strtolower((string) $accountType)) {
@@ -670,6 +773,10 @@ class AdminPaymentController extends Controller
         };
     }
 
+    /**
+     * Retorna la etiqueta legible para el tipo de identificación.
+     * Ejemplos: 'cc' -> 'Cédula', 'ce' -> 'Cédula de extranjería', 'nit' -> 'NIT'.
+     */
     private function identificationTypeLabel(?string $identificationType): string
     {
         return match (strtolower((string) $identificationType)) {
@@ -680,6 +787,10 @@ class AdminPaymentController extends Controller
         };
     }
 
+    /**
+     * Verifica si la conexión a la base de datos legacy está disponible.
+     * Se usa para decidir si se puede hacer fallback a datos heredados.
+     */
     private function canUseLegacyConnection(): bool
     {
         try {
@@ -691,6 +802,12 @@ class AdminPaymentController extends Controller
         }
     }
 
+    /**
+     * Normaliza el estado de pago a los valores canónicos del microservicio.
+     * Mapea variantes legacy (verified, paid) a 'approved',
+     * y (failed, cancelled, canceled) a 'rejected'.
+     * Vacío o desconocido se normaliza a 'pending'.
+     */
     private function normalizeStatusForResponse(?string $status): string
     {
         $normalized = strtolower(trim((string) $status));
@@ -703,6 +820,11 @@ class AdminPaymentController extends Controller
         };
     }
 
+    /**
+     * Mapea el estado normalizado al valor que espera la base legacy.
+     * 'approved' -> 'verified', 'rejected' -> 'rejected', resto -> 'pending'.
+     * Se usa al escribir en la tabla legacy durante fallback.
+     */
     private function mapStatusForLegacyWrite(string $status): string
     {
         return match ($this->normalizeStatusForResponse($status)) {
@@ -712,6 +834,13 @@ class AdminPaymentController extends Controller
         };
     }
 
+    /**
+     * Retorna los estados legacy que corresponden a un filtro normalizado.
+     * Para 'approved': ['verified', 'approved']
+     * Para 'rejected': ['rejected', 'failed', 'cancelled', 'canceled']
+     * Para 'pending': ['pending', '']
+     * Permite filtrar en legacy usando los valores históricos.
+     */
     private function legacyStatusesForFilter(string $status): array
     {
         return match ($this->normalizeStatusForResponse($status)) {

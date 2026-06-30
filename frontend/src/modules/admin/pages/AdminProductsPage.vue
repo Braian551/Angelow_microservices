@@ -1,4 +1,12 @@
 <template>
+  <!--
+    AdminProductsPage - Vista de gestión de productos del administrador.
+    Responsabilidad: Listar, filtrar, buscar, crear, editar, activar/desactivar productos,
+    y vista rápida (quick view) con galería de imágenes, variantes y precios.
+    Orquesta datos desde useAdminProducts() y renderiza usando componentes compartidos
+    del módulo admin: AdminPageHeader, AdminFilterCard, AdminResultsBar, AdminPagination,
+    AdminModal, AdminProductCard, AdminExportActions, AdminEmptyState.
+  -->
   <div class="admin-products-page">
     <AdminPageHeader
       icon="fas fa-box-open"
@@ -303,6 +311,24 @@
 </template>
 
 <script setup>
+/**
+ * AdminProductsPage - Lógica de la vista de gestión de productos.
+ *
+ * Este archivo orquesta la lista administrativa de productos con:
+ * - Filtros avanzados (búsqueda, categoría, estado, género, orden).
+ * - Paginación con tamaños de página configurables.
+ * - Selección múltiple de productos para operaciones masivas.
+ * - Vista rápida (quick view) con galería de imágenes, variantes y precios.
+ * - Zoom de imágenes con modal dedicado.
+ * - Exportación a PDF/Excel del listado filtrado.
+ * - Toggle de estado activo/inactivo con confirmación.
+ * Toda la lógica de negocio, validación y comunicación con API está delegada
+ * al composable useAdminProducts() que se importa a continuación.
+ */
+
+// =====================================================
+// Imports de la vista
+// =====================================================
 import { RouterLink } from 'vue-router'
 import { useAdminProducts } from '../composables/useAdminProducts'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
@@ -316,56 +342,58 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import '../views/AdminProductsPage.css'
 
 // =====================================================
-// Lógica administrativa reutilizable
+// Orquestación de la lógica de productos (desde composable)
 // =====================================================
+// Desestructuramos todo lo que expone useAdminProducts() para uso en template.
+// Cada variable/funk se documenta inline para claridad del flujo.
 const {
-  activeColorFilter,
-  activeFilterCount,
-  applyFilters,
-  categories,
-  categoryFilter,
-  clearAllFilters,
-  closeQuickView,
-  closeZoom,
-  colorFilters,
-  confirmToggleStatus,
-  debouncedLoad,
-  exportProducts,
-  exportingFormat,
-  filteredProducts,
-  formatCurrency,
-  genderFilter,
-  loading,
-  mainQuickImage,
-  onProductCardImageError,
-  onZoomImageError,
-  openQuickView,
-  openZoom,
-  pagination,
-  quickColors,
-  quickMaxPrice,
-  quickMinPrice,
-  quickProduct,
-  quickSizes,
-  quickSizeVariants,
-  quickTotalStock,
-  quickVariantCount,
-  quickViewLoading,
-  scrollThumbs,
-  search,
-  selectedProducts,
-  setColorFilter,
-  showQuickView,
-  showThumbArrows,
-  showVariantTable,
-  showZoom,
-  sortOrder,
-  statusFilter,
-  thumbGalleryRef,
-  toggleSelection,
-  visibleThumbs,
-  zoomImage,
-  zoomTitle,
+  activeColorFilter,       // Filtro activo de color seleccionado por el usuario
+  activeFilterCount,       // Conteo de filtros activos para badge visual
+  applyFilters,            // Aplica filtros y recarga la lista de productos
+  categories,              // Lista de categorías disponibles para el filtro
+  categoryFilter,          // Valor seleccionado del filtro de categoría
+  clearAllFilters,         // Limpia todos los filtros activos y recarga
+  closeQuickView,          // Cierra el modal de vista rápida del producto
+  closeZoom,               // Cierra el modal de zoom de imagen
+  colorFilters,            // Lista de colores disponibles para filtrar variantes
+  confirmToggleStatus,     // Abre confirmación para activar/desactivar producto
+  debouncedLoad,           // Carga con debounce para evitar peticiones excesivas
+  exportProducts,          // Exporta listado filtrado a PDF o Excel
+  exportingFormat,         // Formato de exportación en curso ('excel' | 'pdf' | null)
+  filteredProducts,        // Lista filtrada de productos para renderizado
+  formatCurrency,          // Formatea un valor numérico como moneda local (COP)
+  genderFilter,            // Valor seleccionado del filtro de género
+  loading,                 // true mientras se cargan datos del servidor
+  mainQuickImage,          // URL de la imagen principal en la vista rápida
+  onProductCardImageError, // Maneja error de carga de imagen en tarjeta de producto
+  onZoomImageError,        // Maneja error de carga de imagen en modal de zoom
+  openQuickView,           // Abre modal de vista rápida con detalle del producto
+  openZoom,                // Abre modal de zoom para imagen ampliada
+  pagination,              // Estado de paginación (página actual, total, items)
+  quickColors,             // Colores disponibles en la vista rápida
+  quickMaxPrice,           // Precio máximo de variantes en la vista rápida
+  quickMinPrice,           // Precio mínimo de variantes en la vista rápida
+  quickProduct,            // Producto seleccionado para la vista rápida
+  quickSizes,              // Tallas disponibles en la vista rápida
+  quickSizeVariants,       // Variantes con talla para la tabla de la vista rápida
+  quickTotalStock,         // Stock total calculado del producto en vista rápida
+  quickVariantCount,       // Cantidad de variantes del producto en vista rápida
+  quickViewLoading,        // true mientras se cargan detalles para vista rápida
+  scrollThumbs,            // Desplaza galería de miniaturas (izquierda/derecha)
+  search,                  // Texto de búsqueda del filtro principal
+  selectedProducts,        // IDs de productos seleccionados para operaciones masivas
+  setColorFilter,          // Establece el filtro de color activo
+  showQuickView,           // Controla visibilidad del modal de vista rápida
+  showThumbArrows,         // true si hay suficientes miniaturas para mostrar flechas
+  showVariantTable,        // true si hay variantes para mostrar tabla en vista rápida
+  showZoom,                // Controla visibilidad del modal de zoom de imagen
+  sortOrder,               // Valor del ordenamiento seleccionado
+  statusFilter,            // Valor del filtro de estado (activo/inactivo)
+  thumbGalleryRef,         // Ref al contenedor de miniaturas para scroll programático
+  toggleSelection,         // Alterna selección de un producto individual
+  visibleThumbs,           // Miniaturas visibles aplicando filtro de color
+  zoomImage,               // URL de la imagen en zoom
+  zoomTitle,               // Título/alt de la imagen en zoom
 } = useAdminProducts()
 </script>
 

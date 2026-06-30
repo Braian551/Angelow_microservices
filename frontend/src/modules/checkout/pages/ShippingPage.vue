@@ -490,7 +490,7 @@ async function loadPage() {
     const [cartRes, addressesRes, rulesRes] = await Promise.all([
       getCart({
         user_id: user.value?.id || undefined,
-        session_id: user.value?.id ? undefined : sessionId.value,
+        session_id: sessionId.value || undefined,
       }),
       getUserAddresses(user.value?.id || undefined, user.value?.email || ''),
       getShippingRules().catch(() => ({ data: [] })),

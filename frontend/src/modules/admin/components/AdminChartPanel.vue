@@ -26,6 +26,16 @@ import {
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminEmptyState from './AdminEmptyState.vue'
 
+/**
+ * Panel de gráfico reutilizable del admin basado en Chart.js.
+ * Soporta gráficos de barras y doughnut con opciones personalizables.
+ * Muestra AdminEmptyState cuando no hay datos suficientes para graficar.
+ * Destruye y recrea la instancia de Chart.js ante cambios de datos
+ * para evitar fugas de memoria y mantener el canvas sincronizado.
+ * Patrón: Observer — reacciona a cambios profundos de datasets y opciones.
+ */
+
+/** Registra los controladores y elementos de Chart.js necesarios. */
 Chart.register(
   ArcElement,
   BarController,

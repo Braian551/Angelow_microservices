@@ -8,6 +8,7 @@ basededatos.sql
 .env.local
 .env.*.local
 
+
 # ===== Build output =====
 dist/
 build/
@@ -65,3 +66,6 @@ angelow/uploads/
 uploads/
 .composer-cache/
 .composer-home/
+
+
+*.xlsx

@@ -6,6 +6,13 @@ import { useAppShell } from '../../../composables/useAppShell'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { getMediaCandidates, getUploadCandidates, resolveMediaUrl } from '../../../utils/media'
 
+/**
+ * Composable compartido para exportación de datos a Excel y PDF.
+ * Proporciona generateExcel y generatePDF con soporte para imágenes,
+ * encabezados de marca, logos y columnas configurables.
+ * Reutilizado por todos los módulos admin que necesitan exportar reportes.
+ */
+
 const DEFAULT_PRIMARY_HEX = '0F7ABF'
 const DEFAULT_SECONDARY_HEX = 'DCEAF6'
 const DEFAULT_TEXT_HEX = '24364B'

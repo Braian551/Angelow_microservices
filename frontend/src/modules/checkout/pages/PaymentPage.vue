@@ -190,7 +190,13 @@
 
               <label class="payment-terms-box">
                 <input v-model="form.accept_terms" type="checkbox" @change="validateField('accept_terms')" />
-                <span>Acepto los términos y condiciones y autorizo la validación manual de este comprobante.</span>
+                <span>
+                  Acepto los
+                  <RouterLink :to="{ name: 'terms-and-conditions' }" class="legal-link" @click.stop>
+                    términos y condiciones
+                  </RouterLink>
+                  y autorizo la validación manual de este comprobante.
+                </span>
               </label>
               <small v-if="fieldErrors.accept_terms" class="payment-field-error">{{ fieldErrors.accept_terms }}</small>
             </section>
@@ -558,7 +564,7 @@ async function loadInitialData() {
       getBanks(),
       getCart({
         user_id: user.value?.id || undefined,
-        session_id: user.value?.id ? undefined : sessionId.value,
+        session_id: sessionId.value || undefined,
       }),
     ])
 
@@ -933,7 +939,7 @@ async function confirmOrder() {
     try {
       const refreshedCart = await getCart({
         user_id: user.value?.id || undefined,
-        session_id: user.value?.id ? undefined : sessionId.value,
+        session_id: sessionId.value || undefined,
       })
 
       cart.value = refreshedCart?.data && typeof refreshedCart.data === 'object'
@@ -1401,6 +1407,16 @@ function parseStoredJson(rawValue) {
 
 .payment-terms-box input {
   margin-top: 0.25rem;
+}
+
+.payment-terms-box .legal-link {
+  color: #0077b6;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.payment-terms-box .legal-link:hover {
+  text-decoration: underline;
 }
 
 .payment-summary-grid {

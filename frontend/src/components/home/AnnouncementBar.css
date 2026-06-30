@@ -1,3 +1,14 @@
+/* ========================================
+   BARRA DE ANUNCIOS - AnnouncementBar
+   Componente que muestra un banner informativo
+   en la parte superior de la página con avisos
+   o promociones importantes.
+   ======================================== */
+
+/* Selector principal del contenedor de la barra de anuncios.
+   Establece la apariencia visual general del banner,
+   incluyendo el color de fondo azul, el texto blanco centrado
+   y el tamaño de fuente para buena legibilidad. */
 .announcement-bar {
     background-color: #6a96cf;
     color: white;
@@ -7,10 +18,17 @@
     font-weight: 500;
 }
 
+/* Selector del párrafo dentro de la barra de anuncios.
+   Elimina los márgenes por defecto del elemento <p> para
+   que el texto se ajuste correctamente al padding del contenedor
+   y no genere espacios no deseados arriba o abajo. */
 .announcement-bar p {
     margin: 0;
 }
 
+/* Selector del ícono dentro de la barra de anuncios.
+   Agrega un espacio a la derecha del ícono para separarlo
+   del texto del anuncio, mejorando la legibilidad visual. */
 .announcement-bar i {
     margin-right: 0.5rem;
 }

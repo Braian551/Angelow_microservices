@@ -1,104 +1,127 @@
 /* ===== FOOTER ===== */
+
+/* Contenedor principal del pie de página - define el fondo oscuro, el color base del texto y padding superior generoso para separar del contenido */
 .main-footer {
-    background-color: #1f2937;
-    color: #d1d5db;
-    padding-top: 4rem;
+    background-color: #1f2937; /* Fondo gris muy oscuro (equivalente a gray-800 de Tailwind) */
+    color: #d1d5db; /* Color de texto gris claro para legibilidad sobre fondo oscuro */
+    padding-top: 4rem; /* Espacio superior amplio para respiración visual */
 }
 
+/* Contenedor de cuadrícula del footer - organiza las columnas de enlaces de forma responsiva */
 .footer-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 3rem;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem 3rem;
+    display: grid; /* Activa el layout de cuadrícula para distribuir columnas */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Columnas automáticas: mínimo 200px, máximo disponible, se ajustan al ancho del contenedor */
+    gap: 3rem; /* Espacio uniforme entre las columnas */
+    max-width: 1200px; /* Ancho máximo para evitar que el footer se estire demasiado en pantallas grandes */
+    margin: 0 auto; /* Centra el contenedor horizontalmente */
+    padding: 0 2rem 3rem; /* Padding horizontal y inferior para respiración */
 }
 
+/* Títulos de cada columna del footer - destacan visualmente sobre el resto del contenido */
 .footer-column h3 {
-    color: white;
-    font-size: 1.8rem;
-    margin-bottom: 1.5rem;
+    color: white; /* Texto blanco puro para máximo contraste y jerarquía visual */
+    font-size: 1.8rem; /* Tamaño de fuente grande para que los títulos sobresalgan */
+    margin-bottom: 1.5rem; /* Separación entre el título y la lista de enlaces */
+    font-weight: 600; /* Semi-negrita para dar peso visual al título */
+}
+
+/* Lista de enlaces dentro de cada columna del footer - reset de estilos por defecto */
+.footer-column ul {
+    list-style: none; /* Elimina los marcadores de lista (viñetas o números) */
+    margin: 0; /* Resetea el margen por defecto del navegador */
+    padding: 0; /* Resetea el relleno por defecto del navegador */
+}
+
+/* Elementos individuales de la lista - espacio entre cada enlace */
+.footer-column ul li {
+    margin-bottom: 0.8rem; /* Separación vertical entre los elementos de la lista para legibilidad */
+}
+
+/* Enlaces de texto dentro de las listas del footer - estilo base de los hipervínculos */
+.footer-column ul li a {
+    color: #9ca3af; /* Gris medio para que no compita visualmente con los títulos */
+    text-decoration: none; /* Elimina el subrayado por defecto de los enlaces */
+    font-size: 1.4rem; /* Tamaño de fuente legible y consistente */
+    transition: color 0.3s ease; /* Transición suave de color para el efecto hover */
+}
+
+/* Efecto hover sobre los enlaces del footer - indica interactividad al usuario */
+.footer-column ul li a:hover {
+    color: #0077b6; /* Azul vibrante que resalta el enlace al pasar el cursor, señal de interacción */
+}
+
+/* Enlace legal destacado: mantiene visible el acceso a términos en azul, incluso sin hover. */
+.footer-column ul li a.footer-legal-link {
+    color: #38bdf8;
     font-weight: 600;
 }
 
-.footer-column ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.footer-column ul li {
-    margin-bottom: 0.8rem;
-}
-
-.footer-column ul li a {
-    color: #9ca3af;
-    text-decoration: none;
-    font-size: 1.4rem;
-    transition: color 0.3s ease;
-}
-
-.footer-column ul li a:hover {
-    color: #0077b6;
-}
-
+/* Bloque de dirección de contacto - resetea el estilo cursivo por defecto del elemento address */
 .footer-column address {
-    font-style: normal;
+    font-style: normal; /* Desactiva el estilo cursivo que el navegador aplica por defecto al elemento address */
 }
 
+/* Párrafos de información de contacto (dirección, teléfono, correo) */
 .footer-column address p {
-    margin-bottom: 0.8rem;
-    font-size: 1.4rem;
-    color: #9ca3af;
+    margin-bottom: 0.8rem; /* Separación vertical entre los datos de contacto */
+    font-size: 1.4rem; /* Tamaño consistente con el resto del texto del footer */
+    color: #9ca3af; /* Mismo gris que los enlaces para mantener coherencia visual */
 }
 
+/* Iconos decorativos junto a los datos de contacto (teléfono, correo, ubicación) */
 .footer-column address i {
-    margin-right: 0.8rem;
-    color: #0077b6;
-    width: 16px;
+    margin-right: 0.8rem; /* Espacio entre el icono y el texto de contacto */
+    color: #0077b6; /* Azul que resalta los iconos y crea jerarquía visual */
+    width: 16px; /* Ancho fijo para alinear los iconos uniformemente */
 }
 
+/* Contenedor de enlaces a redes sociales - layout flex para alinear los iconos en fila */
 .social-links {
-    display: flex;
-    gap: 1.2rem;
-    margin-top: 1.5rem;
+    display: flex; /* Flexbox para alinear los iconos sociales horizontalmente */
+    gap: 1.2rem; /* Espacio uniforme entre cada icono de red social */
+    margin-top: 1.5rem; /* Separación superior respecto a otros elementos de la columna */
 }
 
+/* Botones circulares de redes sociales - estilo base de cada icono */
 .social-links a {
-    width: 3.6rem;
-    height: 3.6rem;
-    border-radius: 50%;
-    background-color: #374151;
-    color: #d1d5db;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    transition: all 0.3s ease;
-    text-decoration: none;
+    width: 3.6rem; /* Ancho fijo para los botones circulares */
+    height: 3.6rem; /* Alto igual al ancho para formar un cuadrado perfecto */
+    border-radius: 50%; /* Bordes redondeados al 50% para crear círculos perfectos */
+    background-color: #374151; /* Fondo gris oscuro que se integra con el diseño del footer */
+    color: #d1d5db; /* Color del icono de la red social, gris claro */
+    display: flex; /* Flexbox para centrar el contenido (icono) dentro del círculo */
+    align-items: center; /* Centra verticalmente el icono */
+    justify-content: center; /* Centra horizontalmente el icono */
+    font-size: 1.4rem; /* Tamaño del icono de la red social */
+    transition: all 0.3s ease; /* Transición suave para todos los cambios de estilo al hacer hover */
+    text-decoration: none; /* Elimina el subrayado por defecto de los enlaces */
 }
 
+/* Efecto hover sobre los iconos de redes sociales - feedback visual de interacción */
 .social-links a:hover {
-    background-color: #0077b6;
-    color: white;
-    transform: translateY(-2px);
+    background-color: #0077b6; /* Cambia el fondo al azul de acento para resaltar la interacción */
+    color: white; /* El icono se vuelve blanco para máximo contraste sobre el fondo azul */
+    transform: translateY(-2px); /* Ligero desplazamiento vertical hacia arriba para efecto de elevación */
 }
 
+/* Sección inferior del footer - separa el copyright y tagline del contenido principal */
 .footer-bottom {
-    border-top: 1px solid #374151;
-    text-align: center;
-    padding: 1.5rem 0;
+    border-top: 1px solid #374151; /* Línea divisoria sutil en gris oscuro para separar secciones */
+    text-align: center; /* Centra horizontalmente el texto de copyright y tagline */
+    padding: 1.5rem 0; /* Espaciado vertical para respiración sin padding horizontal */
 }
 
+/* Frase o lema del footer - estilo decorativo para diferenciarlo del copyright */
 .footer-tagline {
-    font-size: 1.3rem;
-    color: #9ca3af;
-    margin: 0 0 0.4rem;
-    font-style: italic;
-    letter-spacing: 0.01em;
+    font-size: 1.3rem; /* Tamaño pequeño para texto secundario */
+    color: #9ca3af; /* Gris medio para que sea discreto pero legible */
+    margin: 0 0 0.4rem; /* Sin margen superior, pequeño espacio inferior antes del copyright */
+    font-style: italic; /* Estilo cursivo para darle un toque decorativo y distinguirlo */
+    letter-spacing: 0.01em; /* Ligero espaciado entre letras para mejorar la estética */
 }
 
+/* Texto de copyright - el elemento más discreto del footer, información legal mínima */
 .copyright {
-    font-size: 1.3rem;
-    color: #6b7280;
+    font-size: 1.3rem; /* Tamaño pequeño para texto informativo de bajo énfasis */
+    color: #6b7280; /* Gris oscuro, más apagado que el tagline para máxima sutileza */
 }

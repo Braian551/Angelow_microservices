@@ -6,6 +6,12 @@ import { useAlertSystem } from '../../../composables/useAlertSystem'
 import { useSession } from '../../../composables/useSession'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de administradores del panel.
+ * Encapsula CRUD de administradores, validación de formularios,
+ * carga de foto de perfil y paginación reutilizando useAdminPagination.
+ * Reutiliza useSnackbarSystem y useAlertSystem para feedback visual.
+ */
 export function useAdminAdministrators() {
   // =====================================================
   // Dependencias y composables reutilizados
@@ -56,6 +62,7 @@ export function useAdminAdministrators() {
     return String(editing.value) === String(currentUserId.value)
   })
 
+  /** Valida un campo específico del formulario y actualiza errors.value. */
   function validateField(field) {
     errors.value[field] = ''
 
@@ -79,6 +86,7 @@ export function useAdminAdministrators() {
   // =====================================================
   // Validaciones
   // =====================================================
+  /** Valida todos los campos del formulario. Retorna true si no hay errores. */
   function validateForm() {
     ;['name', 'email'].forEach(validateField)
 
@@ -92,10 +100,12 @@ export function useAdminAdministrators() {
   // =====================================================
   // Helpers internos
   // =====================================================
+  /** Extrae la fecha del último acceso del administrador intentando varios campos. */
   function resolveLastAccess(admin) {
     return admin?.last_access || admin?.last_login || admin?.last_access_at || null
   }
 
+  /** Formatea una fecha ISO a cadena legible en español (locale es-CO). */
   function formatDateTime(value) {
     if (!value) return 'Sin registro'
     const date = new Date(value)
@@ -103,6 +113,7 @@ export function useAdminAdministrators() {
     return date.toLocaleString('es-CO')
   }
 
+  /** Limpia o carga los datos de un administrador en el formulario. */
   function resetForm(admin = null) {
     form.value = admin
       ? {
@@ -118,6 +129,7 @@ export function useAdminAdministrators() {
   // =====================================================
   // Carga
   // =====================================================
+  /** Obtiene la lista completa de administradores desde el backend. */
   async function loadAdmins() {
     loading.value = true
     try {
@@ -138,6 +150,7 @@ export function useAdminAdministrators() {
   // =====================================================
   // Gestión del formulario y modal
   // =====================================================
+  /** Abre el modal en modo creación o edición con los datos del admin indicado. */
   function openModal(admin = null) {
     editing.value = admin ? admin.id : null
     resetForm(admin)
@@ -146,6 +159,7 @@ export function useAdminAdministrators() {
     showModal.value = true
   }
 
+  /** Cierra el modal y limpia el estado de edición. */
   function closeModal() {
     showModal.value = false
     editing.value = null
@@ -154,6 +168,7 @@ export function useAdminAdministrators() {
   // =====================================================
   // Acciones CRUD
   // =====================================================
+  /** Crea o actualiza un administrador según editing.value. */
   async function saveAdmin() {
     if (saving.value) return
 
@@ -188,6 +203,7 @@ export function useAdminAdministrators() {
     }
   }
 
+  /** Muestra confirmación y elimina un administrador por su ID. */
   function deleteAdmin(id) {
     if (id === currentUserId.value) {
       showSnackbar({ type: 'warning', message: 'No puedes eliminarte a ti mismo' })
@@ -220,6 +236,7 @@ export function useAdminAdministrators() {
   // =====================================================
   // Estado y bloqueo de foto de perfil
   // =====================================================
+  /** Maneja la selección de archivo de foto: valida tipo/tamaño, previsualiza y sube vía updateProfile. */
   async function onPhotoSelected(event) {
     const file = event.target.files?.[0]
     if (!file) return

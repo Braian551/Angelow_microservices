@@ -33,23 +33,33 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * Componente modal reutilizable del admin.
+ * Se teletransporta al body para evitar problemas de overflow
+ * y emite 'close' al hacer clic fuera del contenido o en el botón de cerrar.
+ */
 const props = defineProps({
+  /** Controla la visibilidad del modal. */
   show: {
     type: Boolean,
     default: false,
   },
+  /** Título principal que se muestra en el encabezado del modal. */
   title: {
     type: String,
     default: '',
   },
+  /** Subtítulo descriptivo debajo del título. */
   subtitle: {
     type: String,
     default: '',
   },
+  /** Clase de icono FontAwesome para el encabezado. */
   icon: {
     type: String,
     default: '',
   },
+  /** Ancho máximo del modal, acepta cualquier valor CSS válido. */
   maxWidth: {
     type: String,
     default: '860px',
@@ -58,6 +68,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+/** Estilo dinámico que aplica el ancho máximo configurado. */
 const modalStyle = computed(() => ({
   maxWidth: props.maxWidth,
 }))

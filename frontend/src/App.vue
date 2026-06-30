@@ -1,4 +1,5 @@
 <template>
+  <!-- Shell raíz: muestra chrome público solo fuera de auth y admin. -->
   <TopAnnouncementBar v-if="showPublicChrome" :announcement="topBar" />
   <SiteHeader
     v-if="showPublicChrome"
@@ -26,14 +27,17 @@ import { SITE_SETTINGS_UPDATED_EVENT } from './constants/siteSettingsEvents'
 import { useAppShell } from './composables/useAppShell'
 import { getFallbackMediaUrl, resolveMediaUrl } from './utils/media'
 
+// Ruta actual y datos compartidos del shell público.
 const route = useRoute()
 const { settings, topBar, cartCount, notificationCount, shellLoading, refreshShellData, refreshShellSettings } = useAppShell()
 
+// Layouts derivados de la ruta para decidir si se ocultan header, footer y barra superior.
 const isAuthLayout = computed(() => route.meta?.layout === 'auth')
 const isAdminLayout = computed(() => route.meta?.layout === 'admin' || String(route.path || '').startsWith('/admin'))
 const showPublicChrome = computed(() => !isAuthLayout.value && !isAdminLayout.value)
 const initialSearch = computed(() => String(route.query.search || ''))
 
+// Aplica nombre, favicon y colores de marca como configuración runtime del documento.
 function applyBrandRuntimeSettings(currentSettings) {
   const storeName = String(currentSettings?.store_name || 'Angelow').trim()
   const tagline = String(currentSettings?.store_tagline || '').trim()
@@ -56,6 +60,7 @@ function applyBrandRuntimeSettings(currentSettings) {
   }
 }
 
+// Recibe actualizaciones de configuración emitidas por admin/settings y refresca el shell público.
 function handleSiteSettingsUpdated(event) {
   const incomingSettings = event?.detail?.settings
   const refreshToken = Number(event?.detail?.refreshedAt || Date.now())
@@ -72,6 +77,7 @@ function handleSiteSettingsUpdated(event) {
   refreshShellSettings()
 }
 
+// Al navegar en zona pública refresca conteos, anuncios y configuración visible.
 watch(
   () => route.fullPath,
   async () => {
@@ -82,6 +88,7 @@ watch(
   { immediate: true },
 )
 
+// Cada cambio de settings actualiza el documento y variables CSS de marca.
 watch(
   settings,
   (currentSettings) => {
@@ -90,10 +97,12 @@ watch(
   { immediate: true, deep: true },
 )
 
+// Escucha eventos globales de configuración mientras la SPA está montada.
 onMounted(() => {
   window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 
+// Retira el listener global para evitar duplicados en HMR o desmontajes.
 onBeforeUnmount(() => {
   window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })

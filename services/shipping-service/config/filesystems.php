@@ -1,15 +1,27 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Sistemas de archivos para shipping-service
+|--------------------------------------------------------------------------
+|
+| Configura los discos de almacenamiento disponibles. Actualmente no se
+| almacenan archivos en este servicio (las imágenes de métodos de envío
+| se sirven desde URLs públicas). La configuración se mantiene para:
+| - Almacenamiento temporal de reportes de envíos (futuro).
+| - Logs y exportaciones.
+| - Compatibilidad con el framework Laravel.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Filesystem Disk
+    | Disco de sistema de archivos predeterminado
     |--------------------------------------------------------------------------
     |
-    | Here you may specify the default filesystem disk that should be used
-    | by the framework. The "local" disk, as well as a variety of cloud
-    | based disks are available to your application for file storage.
+    | Define qué disco usar por defecto para operaciones de almacenamiento.
     |
     */
 

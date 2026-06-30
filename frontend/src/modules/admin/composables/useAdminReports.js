@@ -1,3 +1,9 @@
+/**
+ * Composable para el módulo de reportes y analíticas del panel administrativo.
+ * Genera gráficos de ventas, pedidos, productos y clientes con Chart.js.
+ * Incluye filtros por rango de fechas, exportación y datos de tendencia.
+ * Reutiliza useAdminPagination y useAdminDataExport.
+ */
 import {
   ArcElement,
   BarController,
