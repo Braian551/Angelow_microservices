@@ -3,6 +3,7 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-30 - Acceso autenticado al checkout](#2026-06-30---acceso-autenticado-al-checkout)
 - [2026-06-29 - Rendimiento de base de datos en microservicios](#2026-06-29---rendimiento-de-base-de-datos-en-microservicios)
 - [2026-06-28 - Corrección de carga admin de reembolsos](#2026-06-28---corrección-de-carga-admin-de-reembolsos)
 - [2026-06-22 - Configuración de cuenta y preferencias](#2026-06-22---configuración-de-cuenta-y-preferencias)
@@ -50,6 +51,14 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-30 - Acceso autenticado al checkout
+
+- Patrón: Chain of Responsibility + State (Refactoring Guru)
+- Aplicación: el guard global del router valida la sesión antes de permitir cualquier ruta de checkout, la vista del carrito redirige al inicio de sesión conservando el retorno, y `cart-service` fusiona el carrito invitado con el carrito del usuario al recibir ambas identidades.
+- Ubicación: `frontend/src/router/index.js`, `frontend/src/modules/cart/pages/CartPage.vue`, `frontend/src/composables/useAppShell.js`, `frontend/src/modules/catalog/pages/ProductDetailPage.vue`, `frontend/src/modules/checkout/pages/ShippingPage.vue`, `frontend/src/modules/checkout/pages/PaymentPage.vue`, `services/cart-service/app/Repositories/QueryBuilderCartRepository.php`
+- Problema resuelto: impedir que usuarios sin sesión avancen al flujo de pago desde el botón del carrito o por URL directa, sin perder productos agregados como visitantes después de autenticarse.
+- Referencia detallada: `checkout/patrones-diseno-checkout-2026-04-03.md`
 
 ## 2026-06-29 - Rendimiento de base de datos en microservicios
 

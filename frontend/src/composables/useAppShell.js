@@ -68,9 +68,9 @@ async function loadShellData({ force = false } = {}) {
     const [homeResponse, cartResponse, notificationsResponse] = await Promise.all([
       getHomeData(),
       getCart({
-        // Envía user_id si el usuario está autenticado, si no usa session_id (carrito anónimo)
+        // Envía ambas identidades para que cart-service fusione el carrito invitado al iniciar sesión.
         user_id: user.value?.id || undefined,
-        session_id: user.value?.id ? undefined : sessionId.value,
+        session_id: sessionId.value || undefined,
       }),
       notificationsPromise,
     ])
@@ -103,7 +103,7 @@ async function refreshCartCount() {
     const { sessionId, user } = useSession()
     const cartResponse = await getCart({
       user_id: user.value?.id || undefined,
-      session_id: user.value?.id ? undefined : sessionId.value,
+      session_id: sessionId.value || undefined,
     })
 
     // Actualiza el contador con el valor más reciente del servidor

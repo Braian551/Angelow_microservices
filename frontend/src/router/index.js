@@ -19,7 +19,7 @@ import ConfirmationPage from '../modules/checkout/pages/ConfirmationPage.vue'
 import CollectionsPage from '../modules/home/pages/CollectionsPage.vue'
 import HomePage from '../modules/home/pages/HomePage.vue'
 
-// Admin
+// Administración
 import AdminLayout from '../modules/admin/layouts/AdminLayout.vue'
 import AdminDashboardPage from '../modules/admin/pages/AdminDashboardPage.vue'
 import AdminProductsPage from '../modules/admin/pages/AdminProductsPage.vue'
@@ -55,9 +55,9 @@ const router = createRouter({
     { path: '/tienda', name: 'store', component: StorePage },
     { path: '/producto/:slug', name: 'product', component: ProductDetailPage, props: true },
     { path: '/carrito', name: 'cart', component: CartPage },
-    { path: '/checkout/envio', name: 'shipping', component: ShippingPage },
-    { path: '/checkout/pago', name: 'payment', component: PaymentPage },
-    { path: '/checkout/confirmacion', name: 'confirmation', component: ConfirmationPage },
+    { path: '/checkout/envio', name: 'shipping', component: ShippingPage, meta: { requiresCheckoutAuth: true } },
+    { path: '/checkout/pago', name: 'payment', component: PaymentPage, meta: { requiresCheckoutAuth: true } },
+    { path: '/checkout/confirmacion', name: 'confirmation', component: ConfirmationPage, meta: { requiresCheckoutAuth: true } },
     { path: '/login', name: 'login', component: LoginPage, meta: { layout: 'auth' } },
     { path: '/recuperar', name: 'forgot-password', component: ForgotPasswordPage, meta: { layout: 'auth' } },
     { path: '/admin/recuperar', name: 'admin-forgot-password', component: AdminForgotPasswordPage, meta: { layout: 'auth' } },
@@ -112,7 +112,7 @@ const router = createRouter({
         },
       ],
     },
-    // Admin panel
+    // Panel administrativo
     {
       path: '/admin',
       component: AdminLayout,
@@ -127,19 +127,19 @@ const router = createRouter({
         { path: 'colecciones', name: 'admin-collections', component: AdminCollectionsPage },
         { path: 'tallas', name: 'admin-sizes', component: AdminSizesPage },
         { path: 'inventario', name: 'admin-inventory', component: AdminInventoryPage },
-        // Ordenes
+        // Órdenes
         { path: 'ordenes', name: 'admin-orders', component: AdminOrdersPage },
         { path: 'ordenes/:id', name: 'admin-order-detail', component: AdminOrderDetailPage, props: true },
         // Clientes
         { path: 'clientes', name: 'admin-customers', component: AdminCustomersPage },
-        // Resenas
+        // Reseñas
         { path: 'resenas', name: 'admin-reviews', component: AdminReviewsPage },
         { path: 'preguntas', name: 'admin-questions', component: AdminQuestionsPage },
         // Pagos
         { path: 'pagos', name: 'admin-payments', component: AdminPaymentsPage },
         { path: 'reembolsos', name: 'admin-refunds', component: AdminRefundsPage },
         { path: 'facturas', name: 'admin-invoices', component: AdminInvoicesPage },
-        // Envios
+        // Envíos
         { path: 'envios/reglas', name: 'admin-shipping-rules', component: AdminShippingRulesPage },
         { path: 'envios/metodos', name: 'admin-shipping-methods', component: AdminShippingMethodsPage },
         // Descuentos
@@ -153,7 +153,7 @@ const router = createRouter({
         { path: 'informes/ventas', name: 'admin-reports-sales', component: AdminReportsPage },
         { path: 'informes/productos', name: 'admin-reports-products', component: AdminReportsPage },
         { path: 'informes/clientes', name: 'admin-reports-customers', component: AdminReportsPage },
-        // Configuracion
+        // Configuración
         { path: 'sliders', name: 'admin-sliders', component: AdminSlidersPage },
         { path: 'configuracion', name: 'admin-settings', component: AdminSettingsPage },
         { path: 'configuracion/general', name: 'admin-settings-general', component: AdminSettingsPage },
@@ -206,19 +206,24 @@ function isAdminSession(userData) {
   return ADMIN_ROLES.has(resolveUserRole(userData))
 }
 
+function hasSessionUser(userData) {
+  // La sesión pública se considera válida solo si hay token y datos mínimos del usuario.
+  return Boolean(userData && typeof userData === 'object' && (userData.id || String(userData.email || '').trim()))
+}
+
 router.beforeEach((to) => {
   const token = localStorage.getItem('angelow_token')
-  const isAuthenticated = Boolean(token)
   const userData = readSessionUser()
+  const isAuthenticated = Boolean(token && hasSessionUser(userData))
   const sessionIsAdmin = isAdminSession(userData)
   const routePath = String(to.path || '')
 
-  // Si existe sesion admin y entra a la raiz publica, redirige directo al panel.
+  // Si existe sesión admin y entra a la raíz pública, redirige directo al panel.
   if (routePath === '/' && isAuthenticated && sessionIsAdmin) {
     return { name: 'admin-dashboard' }
   }
 
-  // Proteger rutas admin: requiere autenticacion + rol admin
+  // Proteger rutas admin: requiere autenticación y rol admin.
   if (to.meta?.requiresAdmin || routePath.startsWith('/admin')) {
     if (!isAuthenticated) {
       return { name: 'login', query: { redirect: to.fullPath } }
@@ -227,6 +232,20 @@ router.beforeEach((to) => {
     if (!sessionIsAdmin) {
       return { name: 'account-dashboard' }
     }
+  }
+
+  // Proteger checkout: desde envío en adelante solo avanza una sesión de cliente.
+  const requiresCheckoutAuth = Boolean(to.meta?.requiresCheckoutAuth) || routePath.startsWith('/checkout')
+  if (requiresCheckoutAuth && !isAuthenticated) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath || '/checkout/envio' },
+    }
+  }
+
+  // Evita que una sesión administrativa confirme compras desde el flujo cliente.
+  if (requiresCheckoutAuth && sessionIsAdmin) {
+    return { name: 'admin-dashboard' }
   }
 
   // Proteger rutas de cuenta de cliente

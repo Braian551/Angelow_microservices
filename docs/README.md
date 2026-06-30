@@ -27,6 +27,7 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 - `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
 - `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
+- `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`: patrones del flujo de checkout, incluyendo acceso autenticado desde envío en adelante.
 - `../frontend/docs/exportaciones-admin-reutilizables.md`: arquitectura compartida para exportaciones administrativas PDF y Excel.
 
 ## Resumen de arquitectura
@@ -94,6 +95,7 @@ flowchart LR
     - `patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`
     - `patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
   - `patrones/checkout/`
+    - `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`
   - `patrones/dashboard/`
     - `patrones/dashboard/patrones-diseno-cuenta-configuracion-preferencias-2026-06-22.md`
     - `patrones/dashboard/patrones-diseno-dashboard-pedidos-realtime-2026-06-16.md`

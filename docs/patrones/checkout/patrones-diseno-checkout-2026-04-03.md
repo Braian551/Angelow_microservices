@@ -14,6 +14,8 @@
   - [Adapter](#adapter-2)
 - [Extensión 2026-06-07: carrito responsive por tarjetas móviles](#extensión-2026-06-07-carrito-responsive-por-tarjetas-móviles)
   - [Template Method + Composition](#template-method-composition)
+- [Extensión 2026-06-30: acceso autenticado al checkout](#extensión-2026-06-30-acceso-autenticado-al-checkout)
+  - [Chain of Responsibility + State](#chain-of-responsibility--state)
 <!-- indice:auto:end -->
 
 ## Template Method
@@ -101,3 +103,23 @@
 - Problema resuelto: el carrito podía seguir mostrando cantidades seleccionables y subtotales sobre stock que ya había sido reservado o liberado por otra sesión, generando fricción al pasar al checkout.
 - Implementación clave:
   - `CartPage.vue` escucha los eventos websocket globales y, si una variante del carrito fue afectada, relanza `syncCartState()` con debounce para recalcular disponibilidad, selección y cantidades válidas con el mismo contrato de `cart-service`.
+
+## Extensión 2026-06-30: acceso autenticado al checkout
+
+### Chain of Responsibility + State
+
+- Referencia: https://refactoring.guru/es/design-patterns/chain-of-responsibility
+- Referencia complementaria: https://refactoring.guru/es/design-patterns/state
+- Aplicación:
+  - `frontend/src/router/index.js`
+  - `frontend/src/modules/cart/pages/CartPage.vue`
+  - `frontend/src/composables/useAppShell.js`
+  - `frontend/src/modules/catalog/pages/ProductDetailPage.vue`
+  - `frontend/src/modules/checkout/pages/ShippingPage.vue`
+  - `frontend/src/modules/checkout/pages/PaymentPage.vue`
+  - `services/cart-service/app/Repositories/QueryBuilderCartRepository.php`
+- Problema resuelto: impedir que el flujo de pago avance sin una sesión de cliente válida, tanto desde el botón del carrito como por acceso directo a `/checkout/envio`, `/checkout/pago` o `/checkout/confirmacion`, sin perder los productos agregados como visitante después de iniciar sesión o registrarse.
+- Implementación clave:
+  - `router/index.js` agrega una validación de checkout dentro del guard global y redirige a `login` con `redirect` seguro cuando no existe token más usuario.
+  - `CartPage.vue` reutiliza el estado reactivo de sesión para cambiar el texto del botón, mostrar la guía operativa y enviar al inicio de sesión conservando el retorno al paso de envío.
+  - `cart-service` fusiona el carrito invitado cuando recibe `user_id` y `session_id`, moviendo líneas nuevas y sumando cantidades cuando la misma variante ya existía en el carrito del usuario.

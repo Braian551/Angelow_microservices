@@ -558,7 +558,7 @@ async function loadInitialData() {
       getBanks(),
       getCart({
         user_id: user.value?.id || undefined,
-        session_id: user.value?.id ? undefined : sessionId.value,
+        session_id: sessionId.value || undefined,
       }),
     ])
 
@@ -933,7 +933,7 @@ async function confirmOrder() {
     try {
       const refreshedCart = await getCart({
         user_id: user.value?.id || undefined,
-        session_id: user.value?.id ? undefined : sessionId.value,
+        session_id: sessionId.value || undefined,
       })
 
       cart.value = refreshedCart?.data && typeof refreshedCart.data === 'object'

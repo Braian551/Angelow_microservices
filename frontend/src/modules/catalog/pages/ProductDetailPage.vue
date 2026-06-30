@@ -1307,7 +1307,7 @@ async function addItemToCart() {
       size_variant_id: Number(activeSize.value.variant_id),
       quantity: quantityResult.value,
       user_id: user.value?.id || null,
-      session_id: user.value?.id ? null : sessionId.value,
+      session_id: sessionId.value || null,
     })
 
     await refreshCartCount()

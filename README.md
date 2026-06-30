@@ -36,6 +36,7 @@ Migración del monolito `angelow/` hacia microservicios Laravel con PostgreSQL, 
 - [Validaciones numéricas de productos, inventario y carrito](docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md)
 - [Verificación de seguridad en autenticación nativa](docs/patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md)
 - [Código compartido para registro y recuperación](docs/patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md)
+- [Acceso autenticado al checkout](docs/patrones/checkout/patrones-diseno-checkout-2026-04-03.md)
 
 ## Servicios y puertos
 
@@ -140,6 +141,7 @@ docker compose exec -T audit-service php artisan test
 - [Validaciones numéricas de productos, inventario y carrito](docs/patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md)
 - [Verificación de seguridad en autenticación nativa](docs/patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md)
 - [Código compartido para registro y recuperación](docs/patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md)
+- [Acceso autenticado al checkout](docs/patrones/checkout/patrones-diseno-checkout-2026-04-03.md)
 - [Registro de librerías y dependencias](docs/referencias/librerias-y-composer-uso.md)
 - [Matriz de requerimientos funcionales actualizada](docs/referencias/matriz-requerimientos-funcionales-actualizada.md)
 - [Guía de exportaciones admin reutilizables](frontend/docs/exportaciones-admin-reutilizables.md)

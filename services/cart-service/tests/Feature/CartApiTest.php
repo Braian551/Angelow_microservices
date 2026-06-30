@@ -86,6 +86,63 @@ class CartApiTest extends TestCase
     }
 
     /**
+     * Verifica que el carrito invitado se vincule al usuario al iniciar sesión.
+     */
+    public function test_guest_cart_is_merged_when_user_session_is_sent(): void
+    {
+        Http::fake([
+            '*/internal/variants/10' => Http::response([
+                'data' => [
+                    'id' => 10,
+                    'product_id' => 100,
+                    'color_variant_id' => 20,
+                    'price' => 90000,
+                    'compare_price' => 95000,
+                    'quantity' => 25,
+                    'size_name' => '8',
+                    'color_name' => 'Azul',
+                    'color_hex' => '#0000ff',
+                    'variant_image' => 'uploads/productos/conjunto-fiesta-azul.webp',
+                ],
+            ], 200),
+            '*/internal/products/100' => Http::response([
+                'data' => [
+                    'id' => 100,
+                    'name' => 'Conjunto Fiesta',
+                    'slug' => 'conjunto-fiesta',
+                    'primary_image' => 'uploads/productos/conjunto-fiesta.webp',
+                ],
+            ], 200),
+        ]);
+
+        $this->postJson('/api/cart/add', [
+            'session_id' => 'sess_guest',
+            'product_id' => 100,
+            'color_variant_id' => 20,
+            'size_variant_id' => 10,
+            'quantity' => 2,
+        ])->assertStatus(200);
+
+        $this->postJson('/api/cart/add', [
+            'user_id' => '42',
+            'product_id' => 100,
+            'color_variant_id' => 20,
+            'size_variant_id' => 10,
+            'quantity' => 1,
+        ])->assertStatus(200);
+
+        $this->getJson('/api/cart?user_id=42&session_id=sess_guest')
+            ->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.item_count', 3)
+            ->assertJsonPath('data.items.0.quantity', 3)
+            ->assertJsonPath('data.subtotal', 270000);
+
+        $this->assertDatabaseHas('carts', ['user_id' => '42']);
+        $this->assertDatabaseMissing('carts', ['session_id' => 'sess_guest', 'user_id' => null]);
+    }
+
+    /**
      * Verifica que cantidades decimales sean rechazadas con mensaje en español.
      */
     public function test_add_rejects_decimal_quantity_with_spanish_message(): void
