@@ -105,6 +105,8 @@ docker compose exec frontend sh -c "npm run build"
 Después del reinicio, validar la ruta impactada en navegador y forzar recarga dura si el cambio no aparece de inmediato.
 Si la tarea toca exportaciones administrativas PDF o Excel, validar además una descarga PDF y una descarga Excel sobre alguna vista intervenida y revisar la guía `frontend/docs/exportaciones-admin-reutilizables.md`.
 
+En producción, el bundle publicado en `frontend/dist` debe reconstruirse con las variables `VITE_*` reales del servidor. Si DevTools muestra llamadas desde `https://angelow.online` hacia `http://localhost:800x`, no tratarlo primero como un error de CORS del backend: recompilar el frontend con `.env.production`, verificar que `dist` ya no contenga `localhost:800` y confirmar que las rutas públicas del proxy (`/catalog-api`, `/auth-api`, etc.) respondan. Procedimiento detallado: `docs/operaciones/DESPLIEGUE_SERVIDOR_NGINX.md`.
+
 El checkout público queda protegido desde `/checkout/envio` en adelante. Si no existe token y datos mínimos del usuario, el router debe redirigir a `/login` con `redirect` hacia el paso solicitado; el botón del carrito debe usar el mismo criterio antes de permitir avanzar al pago. Cuando el cliente venía con carrito invitado, el frontend envía `user_id` y `session_id` para que `cart-service` vincule esos productos al usuario autenticado. Patrón relacionado: `docs/patrones/checkout/patrones-diseno-checkout-2026-04-03.md`.
 
 La vista pública `/terminos-y-condiciones` debe permanecer disponible sin sesión y enlazada desde registro, pago y footer. Si cambia el texto legal o el tratamiento de datos visible, actualizar `frontend/src/modules/legal/content/termsAndConditions.js`, la matriz funcional y el registro de patrones correspondiente.
@@ -208,6 +210,7 @@ Validaciones mínimas de cierre:
 ## Incidencias frecuentes
 
 - Si un cambio visual no aparece, repetir el protocolo de caché del frontend antes de seguir depurando.
+- Si producción intenta consumir `http://localhost:800x`, recompilar `frontend/dist` con `.env.production`; el backend puede estar sano y aun así el bundle viejo provocar bloqueo CORS/loopback en el navegador.
 - Si una vista del dashboard llega sin datos, validar primero la API del dominio dueño y luego la capa Vue.
 - Si se crea documentación nueva, ubicarla en la carpeta temática correcta y enlazarla desde el índice correspondiente.
 
