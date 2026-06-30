@@ -24,6 +24,7 @@
   - [Login devuelve 401](#login-devuelve-401)
   - [Correos no salen](#correos-no-salen)
   - [Frontend no toma variables nuevas](#frontend-no-toma-variables-nuevas)
+  - [Navegador bloquea localhost por CORS en producción](#navegador-bloquea-localhost-por-cors-en-producción)
 - [18. Backups](#18-backups)
 <!-- indice:auto:end -->
 
@@ -855,6 +856,33 @@ Las variables `VITE_*` se hornean durante build:
 docker compose build --no-cache frontend
 docker compose up -d frontend nginx
 ```
+
+Si el frontend está publicado como estático desde `/var/www/angelow/frontend/dist`, recompilar con Node 20 para evitar incompatibilidades de Vite con Node 18 del host:
+
+```bash
+cd /var/www/angelow/frontend
+docker run --rm -v /var/www/angelow/frontend:/app -w /app node:20-alpine sh -lc 'npm run build'
+```
+
+### Navegador bloquea localhost por CORS en producción
+
+Síntoma en DevTools: la tienda cargada desde `https://angelow.online` intenta consultar `http://localhost:8002/api/...` y Chrome bloquea la petición por CORS o por acceso al espacio `loopback`.
+
+La causa habitual no está en los middleware CORS del backend: el `dist` del frontend fue compilado sin las variables `VITE_*` de producción y quedó usando los fallback locales definidos en `frontend/src/services/http.js`.
+
+Validar y corregir en el servidor:
+
+```bash
+cd /var/www/angelow/frontend
+cat .env.production
+docker run --rm -v /var/www/angelow/frontend:/app -w /app node:20-alpine sh -lc 'npm run build'
+grep -R -n 'localhost:800' dist/assets dist/index.html
+grep -R -n 'catalog-api\|auth-api' dist/assets dist/index.html
+nginx -t
+curl -I https://angelow.online/catalog-api/home
+```
+
+El primer `grep` no debe devolver coincidencias. El segundo debe mostrar URLs públicas como `https://angelow.online/catalog-api` y `https://angelow.online/auth-api`. La prueba `curl` debe responder `200` con JSON. Si el navegador conserva el bundle anterior, hacer recarga dura con `Ctrl+Shift+R`.
 
 ## 18. Backups
 
