@@ -18,6 +18,7 @@ import PaymentPage from '../modules/checkout/pages/PaymentPage.vue'
 import ConfirmationPage from '../modules/checkout/pages/ConfirmationPage.vue'
 import CollectionsPage from '../modules/home/pages/CollectionsPage.vue'
 import HomePage from '../modules/home/pages/HomePage.vue'
+import TermsAndConditionsPage from '../modules/legal/pages/TermsAndConditionsPage.vue'
 
 // Administración
 import AdminLayout from '../modules/admin/layouts/AdminLayout.vue'
@@ -58,6 +59,7 @@ const router = createRouter({
     { path: '/checkout/envio', name: 'shipping', component: ShippingPage, meta: { requiresCheckoutAuth: true } },
     { path: '/checkout/pago', name: 'payment', component: PaymentPage, meta: { requiresCheckoutAuth: true } },
     { path: '/checkout/confirmacion', name: 'confirmation', component: ConfirmationPage, meta: { requiresCheckoutAuth: true } },
+    { path: '/terminos-y-condiciones', name: 'terms-and-conditions', component: TermsAndConditionsPage },
     { path: '/login', name: 'login', component: LoginPage, meta: { layout: 'auth' } },
     { path: '/recuperar', name: 'forgot-password', component: ForgotPasswordPage, meta: { layout: 'auth' } },
     { path: '/admin/recuperar', name: 'admin-forgot-password', component: AdminForgotPasswordPage, meta: { layout: 'auth' } },

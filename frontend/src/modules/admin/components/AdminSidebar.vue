@@ -488,6 +488,7 @@ function handleSiteSettingsUpdated(event) {
  * correspondiente y marcar las notificaciones de esa ruta como leídas.
  */
 watch(
+  () => route.path,
   (nextPath) => {
     autoOpenSubmenu()
     markRouteNotificationsAsRead(nextPath)

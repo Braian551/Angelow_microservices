@@ -107,6 +107,8 @@ Si la tarea toca exportaciones administrativas PDF o Excel, validar además una 
 
 El checkout público queda protegido desde `/checkout/envio` en adelante. Si no existe token y datos mínimos del usuario, el router debe redirigir a `/login` con `redirect` hacia el paso solicitado; el botón del carrito debe usar el mismo criterio antes de permitir avanzar al pago. Cuando el cliente venía con carrito invitado, el frontend envía `user_id` y `session_id` para que `cart-service` vincule esos productos al usuario autenticado. Patrón relacionado: `docs/patrones/checkout/patrones-diseno-checkout-2026-04-03.md`.
 
+La vista pública `/terminos-y-condiciones` debe permanecer disponible sin sesión y enlazada desde registro, pago y footer. Si cambia el texto legal o el tratamiento de datos visible, actualizar `frontend/src/modules/legal/content/termsAndConditions.js`, la matriz funcional y el registro de patrones correspondiente.
+
 ## Verificación de seguridad en autenticación
 
 Los flujos nativos de registro, inicio de sesión condicionado y recuperación de contraseña usan Cloudflare Turnstile. El frontend consume `VITE_TURNSTILE_SITE_KEY` y `auth-service` consume `TURNSTILE_SECRET_KEY` desde el entorno del contenedor o del despliegue.
@@ -192,9 +194,11 @@ Validaciones mínimas de cierre:
 - `docs/datos/estructura-unificada-microservicios.sql`: estructura SQL de referencia para visualizar cómo quedaría una única base de datos con tablas y relaciones de todos los microservicios.
 - `docs/datos/rendimiento-bd-microservicios.md`: detalle operativo de vistas, funciones e índices agregados para mejorar tiempos de lectura.
 - `docs/patrones/datos/patrones-diseno-rendimiento-bd-microservicios-2026-06-29.md`: patrones usados para activar optimizaciones con respaldo seguro.
+- `docs/patrones/legal/patrones-diseno-terminos-condiciones-2026-06-30.md`: patrón aplicado a la vista pública de términos y condiciones.
 - `docs/microservicios/README.md`: acceso a documentación por servicio.
 - `docs/referencias/historias-usuario-angelow.md`: historias de usuario completas por épica, actor y criterios en lenguaje funcional.
 - `docs/referencias/casos-uso-angelow.md`: casos de uso completos del sistema en lenguaje entendible para cliente.
+- `docs/referencias/requisitos-no-funcionales-angelow.md`: requisitos no funcionales organizados con ISO/IEC 25010 y redactados para evaluación del software.
 - `docs/referencias/matriz-requerimientos-funcionales-actualizada.md`: matriz funcional actualizada por módulo, subproceso, regla del negocio y requisito de información.
 - `docs/testing/README.md`: ubicación de guías y evidencias de validación transversal.
 - `frontend/README.md`: guía local del frontend.

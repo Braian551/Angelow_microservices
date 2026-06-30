@@ -327,6 +327,16 @@
   color: #ff3333;
 }
 
+.register-page .terms-container .legal-link {
+  color: #0077b6;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.register-page .terms-container .legal-link:hover {
+  text-decoration: underline;
+}
+
 .register-page .btn-primary,
 .register-page .btn-outline {
   width: 100%;

@@ -1,46 +1,14 @@
 {
-  /**
-   * Nombre del servicio de gateway de tiempo real para Angelow.
-   * Este servicio maneja conexiones WebSocket para actualizaciones en tiempo real
-   * de stock e inventario mediante Redis Pub/Sub.
-   */
   "name": "angelow-realtime-gateway",
-  /**
-   * Versión del servicio siguiendo semántica de versión.
-   */
   "version": "1.0.0",
-  /**
-   * Indica que este paquete es privado y no será publicado en npm.
-   */
   "private": true,
-  /**
-   * Descripción en español del propósito del servicio.
-   */
   "description": "Gateway websocket global para stock e inventario realtime.",
-  /**
-   * Archivo principal de entrada del servicio Node.js.
-   */
   "main": "server.js",
-  /**
-   * Scripts disponibles para ejecutar el servicio.
-   */
   "scripts": {
-    /**
-     * Inicia el servidor Node.js de producción.
-     */
     "start": "node server.js"
   },
-  /**
-   * Dependencias de producción requeridas por el servicio.
-   */
   "dependencies": {
-    /**
-     * Cliente Redis para suscribirse a canales de actualización de stock.
-     */
     "redis": "^4.7.0",
-    /**
-     * Biblioteca WebSocket para manejar conexiones cliente-servidor.
-     */
     "ws": "^8.18.0"
   }
 }

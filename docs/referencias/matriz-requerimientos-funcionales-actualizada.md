@@ -18,7 +18,7 @@ Esta versión reorganiza la matriz funcional actualizada en módulos principales
 
 ## Resultado de agrupación
 
-Se conservan 396 registros funcionales identificados en la revisión funcional y se consolidan los nombres de módulo originales en 16 módulos principales. No se eliminaron funciones ni reglas del negocio. Las columnas de numeración RF, RN y RI permanecen vacías para mantener la matriz alineada con el criterio documental vigente.
+Se conservan 399 registros funcionales identificados en la revisión funcional y se consolidan los nombres de módulo originales en 16 módulos principales. No se eliminaron funciones ni reglas del negocio. Las columnas de numeración RF, RN y RI permanecen vacías para mantener la matriz alineada con el criterio documental vigente.
 
 Por ejemplo, las funciones de `Checkout Pago`, `Pagos`, `Pagos Admin`, `Configuración de Pagos` y `Facturas Admin` se agruparon en `Pagos y Facturación`. La diferencia entre operaciones del cliente, checkout, configuración y administración se conserva en la columna `Subprocesos`.
 
@@ -430,6 +430,9 @@ Los requerimientos mantienen la forma `El sistema debe...`. Cada fila conserva t
 
 | Gestión de Usuarios y Acceso | Cuenta — Verificar correo en registro |  | El sistema debe enviar y validar un código de cuatro dígitos antes de permitir continuar al paso de teléfono del registro. |  | La cuenta no puede crearse si el correo no fue verificado o si el token temporal no corresponde al correo enviado. |  | Correo electrónico, código generado, fecha de expiración, enfriamiento de reenvío, token temporal y resultado de validación. |
 | Gestión de Usuarios y Acceso | Recuperación de cuenta — Reutilizar componente de código |  | El sistema debe usar el mismo componente visual para ingresar y reenviar códigos en registro y recuperación de contraseña. |  | Los estados de pendiente, validado, expirado y reenvío deben mantenerse consistentes en ambos flujos. |  | Código ingresado, estado visual, tiempo restante, enfriamiento, error mostrado y acción de reenvío. |
+| Navegación Pública | Información legal — Consultar términos y condiciones |  | El sistema debe permitir consultar una vista pública con los términos y condiciones del sitio. |  | La vista debe estar disponible sin iniciar sesión y debe presentar contenido claro sobre uso, compras, pagos, envíos, postventa y tratamiento de datos. |  | Versión del documento, fecha de actualización, secciones legales, referencias normativas y enlaces internos. |
+| Gestión de Usuarios y Acceso | Cuenta — Consultar términos durante registro |  | El sistema debe mostrar un enlace navegable a términos y condiciones junto a la aceptación del registro. |  | El enlace debe abrir la vista legal sin marcar o desmarcar accidentalmente la casilla de aceptación. |  | Estado de aceptación, enlace legal, ruta de términos, formulario de registro y usuario en creación. |
+| Pagos y Facturación | Checkout de pago — Consultar términos antes de pagar |  | El sistema debe mostrar un enlace navegable a términos y condiciones al registrar el comprobante de pago. |  | El cliente debe poder revisar las condiciones antes de confirmar el pedido y la aceptación del comprobante debe seguir siendo obligatoria. |  | Estado de aceptación, referencia de pago, comprobante, ruta de términos, pedido y formulario de pago. |
 
 ## Fuentes revisadas
 
@@ -438,6 +441,7 @@ Los requerimientos mantienen la forma `El sistema debe...`. Cada fila conserva t
 - `frontend/src/services/*.js`: contratos usados por la interfaz para autenticación, catálogo, carrito, envíos, pagos, órdenes y notificaciones.
 - `frontend/src/modules/**/pages/*.vue` y `frontend/src/components/layout/SiteHeader.vue`: botones, formularios y acciones visibles del cliente y del administrador.
 - `frontend/src/modules/cart/pages/CartPage.vue` y `frontend/src/modules/cart/utils/cartSelection.js`: selección individual y masiva de productos disponibles antes del checkout.
+- `frontend/src/modules/legal/pages/TermsAndConditionsPage.vue` y `frontend/src/modules/legal/content/termsAndConditions.js`: vista pública de términos y condiciones enlazada desde registro, pago y footer.
 - `frontend/src/modules/admin/pages/AdminForgotPasswordPage.vue`, `AdminReportsPage.vue`, `AdminQuestionsPage.vue`, `AdminReviewsPage.vue`, `AdminSizesPage.vue` y `AdminDiscountSpecificCampaignPage.vue`: acciones administrativas validadas en la segunda revisión.
 - `services/*/routes/api.php`: opciones públicas, internas y administrativas del sistema.
 - `services/*/app/Http/Controllers/**/*.php`: acciones reales de cada servicio.

@@ -222,7 +222,11 @@
           <div class="terms-container" :class="{ error: !!errors.terms }">
             <input id="register-terms" v-model="form.terms" type="checkbox" required @change="onTermsChange" />
             <label for="register-terms">
-              Acepto los Términos y condiciones y las Políticas de privacidad de Angelow
+              Acepto los
+              <RouterLink :to="{ name: 'terms-and-conditions' }" class="legal-link" @click.stop>
+                Términos y condiciones
+              </RouterLink>
+              y las Políticas de privacidad de Angelow
             </label>
           </div>
           <div v-if="errors.terms" class="error-message">{{ errors.terms }}</div>

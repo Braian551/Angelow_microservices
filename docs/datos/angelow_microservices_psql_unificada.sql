@@ -1,6 +1,6 @@
 -- Angelow - Estructura unificada de base de datos para microservicios
 -- Motor objetivo: PostgreSQL
--- Fecha de análisis: 2026-06-29
+-- Fecha de análisis: 2026-06-30
 --
 -- Este archivo representa cómo quedaría Angelow si todas las bases de datos
 -- de los microservicios vivieran en una sola base relacional.
@@ -1382,25 +1382,25 @@ ALTER TABLE audit_users
 -- dupliquen escrituras que ya hace Laravel. Se conservan como objetos seguros
 -- las vistas y funciones de lectura/mantenimiento que mejoran consultas.
 
-CREATE INDEX idx_products_active_filters
+CREATE INDEX IF NOT EXISTS idx_products_active_filters
     ON products (is_active, category_id, gender, collection_id, is_featured, created_at);
 
-CREATE INDEX idx_products_active_price
+CREATE INDEX IF NOT EXISTS idx_products_active_price
     ON products (is_active, price);
 
-CREATE INDEX idx_product_images_primary_order
+CREATE INDEX IF NOT EXISTS idx_product_images_primary_order
     ON product_images (product_id, is_primary DESC, "order", id);
 
-CREATE INDEX idx_product_reviews_product_approved_rating
+CREATE INDEX IF NOT EXISTS idx_product_reviews_product_approved_rating
     ON product_reviews (product_id, is_approved, rating);
 
-CREATE INDEX idx_product_questions_product_created
+CREATE INDEX IF NOT EXISTS idx_product_questions_product_created
     ON product_questions (product_id, created_at DESC);
 
-CREATE INDEX idx_search_history_user_term_created
+CREATE INDEX IF NOT EXISTS idx_search_history_user_term_created
     ON search_history (user_id, search_term, created_at DESC);
 
-CREATE INDEX idx_popular_searches_term_count
+CREATE INDEX IF NOT EXISTS idx_popular_searches_term_count
     ON popular_searches (search_term, search_count DESC);
 
 CREATE OR REPLACE VIEW catalog_product_listing_view AS
@@ -1523,16 +1523,68 @@ AS $$
     );
 $$;
 
-CREATE INDEX idx_discount_codes_code_lower
+CREATE OR REPLACE VIEW catalog_active_categories_view AS
+SELECT
+    c.id,
+    c.name,
+    c.slug,
+    c.description,
+    c.image,
+    c.parent_id,
+    parent.name AS parent_name,
+    c.is_active,
+    c.created_at,
+    c.updated_at
+FROM categories c
+LEFT JOIN categories parent ON parent.id = c.parent_id
+WHERE c.is_active = TRUE;
+
+CREATE OR REPLACE FUNCTION catalog_get_categories(
+    p_include_inactive BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE (
+    id INTEGER,
+    name VARCHAR(100),
+    slug VARCHAR(100),
+    description TEXT,
+    image VARCHAR(255),
+    parent_id INTEGER,
+    parent_name VARCHAR(100),
+    is_active BOOLEAN,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+)
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT
+        c.id,
+        c.name,
+        c.slug,
+        c.description,
+        c.image,
+        c.parent_id,
+        parent.name AS parent_name,
+        c.is_active,
+        c.created_at,
+        c.updated_at
+    FROM categories c
+    LEFT JOIN categories parent ON parent.id = c.parent_id
+    WHERE p_include_inactive = TRUE
+       OR c.is_active = TRUE
+    ORDER BY c.name ASC, c.id ASC;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_discount_codes_code_lower
     ON discount_codes (LOWER(code));
 
-CREATE INDEX idx_discount_codes_active_dates
+CREATE INDEX IF NOT EXISTS idx_discount_codes_active_dates
     ON discount_codes (is_active, start_date, end_date, used_count);
 
-CREATE INDEX idx_discount_code_usage_code_user
+CREATE INDEX IF NOT EXISTS idx_discount_code_usage_code_user
     ON discount_code_usage (discount_code_id, user_id);
 
-CREATE INDEX idx_bulk_discount_rules_active_range
+CREATE INDEX IF NOT EXISTS idx_bulk_discount_rules_active_range
     ON bulk_discount_rules (is_active, min_quantity, max_quantity, discount_percentage);
 
 CREATE OR REPLACE FUNCTION discount_cleanup_expired_codes()
@@ -1567,25 +1619,25 @@ BEGIN
 END;
 $$;
 
-CREATE INDEX idx_orders_user_created
+CREATE INDEX IF NOT EXISTS idx_orders_user_created
     ON orders (user_id, created_at DESC);
 
-CREATE INDEX idx_orders_admin_reports
+CREATE INDEX IF NOT EXISTS idx_orders_admin_reports
     ON orders (created_at DESC, status, payment_status);
 
-CREATE INDEX idx_orders_payment_status_created
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status_created
     ON orders (payment_status, created_at DESC);
 
-CREATE INDEX idx_order_items_product_created
+CREATE INDEX IF NOT EXISTS idx_order_items_product_created
     ON order_items (product_id, created_at DESC);
 
-CREATE INDEX idx_order_status_history_order_created
+CREATE INDEX IF NOT EXISTS idx_order_status_history_order_created
     ON order_status_history (order_id, created_at DESC, id DESC);
 
-CREATE INDEX idx_order_views_user_viewed
+CREATE INDEX IF NOT EXISTS idx_order_views_user_viewed
     ON order_views (user_id, viewed_at DESC);
 
-CREATE INDEX idx_order_refund_requests_status_requested
+CREATE INDEX IF NOT EXISTS idx_order_refund_requests_status_requested
     ON order_refund_requests (status, requested_at DESC);
 
 CREATE OR REPLACE VIEW order_history_view AS
@@ -1622,19 +1674,71 @@ SELECT
 FROM orders
 GROUP BY DATE_TRUNC('day', created_at)::DATE, status, payment_status;
 
-CREATE INDEX idx_notifications_user_read_created
+CREATE OR REPLACE FUNCTION order_get_history(
+    p_order_id INTEGER
+)
+RETURNS TABLE (
+    id INTEGER,
+    order_id INTEGER,
+    order_number VARCHAR(20),
+    order_user_id VARCHAR(50),
+    order_status VARCHAR(20),
+    order_payment_status VARCHAR(20),
+    changed_by VARCHAR(50),
+    changed_by_name VARCHAR(100),
+    changed_by_full_name VARCHAR(100),
+    changed_by_role VARCHAR(20),
+    change_type VARCHAR(20),
+    field_changed VARCHAR(100),
+    old_value TEXT,
+    new_value TEXT,
+    description TEXT,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP
+)
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT
+        osh.id,
+        osh.order_id,
+        o.order_number,
+        o.user_id AS order_user_id,
+        o.status AS order_status,
+        o.payment_status AS order_payment_status,
+        osh.changed_by,
+        osh.changed_by_name,
+        u.name AS changed_by_full_name,
+        u.role AS changed_by_role,
+        osh.change_type,
+        osh.field_changed,
+        osh.old_value,
+        osh.new_value,
+        osh.description,
+        osh.ip_address,
+        osh.user_agent,
+        osh.created_at
+    FROM order_status_history osh
+    JOIN orders o ON o.id = osh.order_id
+    LEFT JOIN users u ON u.id = osh.changed_by
+    WHERE osh.order_id = p_order_id
+    ORDER BY osh.created_at DESC, osh.id DESC;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created
     ON notifications (user_id, is_read, created_at DESC);
 
-CREATE INDEX idx_notifications_expires_at
+CREATE INDEX IF NOT EXISTS idx_notifications_expires_at
     ON notifications (expires_at);
 
-CREATE INDEX idx_notification_queue_status_scheduled
+CREATE INDEX IF NOT EXISTS idx_notification_queue_status_scheduled
     ON notification_queue (status, scheduled_at, attempts);
 
-CREATE INDEX idx_admin_notification_dismissals_admin_key
+CREATE INDEX IF NOT EXISTS idx_admin_notification_dismissals_admin_key
     ON admin_notification_dismissals (admin_id, notification_key);
 
-CREATE INDEX idx_announcements_active_window
+CREATE INDEX IF NOT EXISTS idx_announcements_active_window
     ON announcements (is_active, priority DESC, start_date, end_date);
 
 CREATE OR REPLACE VIEW notification_inbox_view AS
@@ -1659,5 +1763,56 @@ FROM notifications n
 LEFT JOIN notification_types nt ON nt.id = n.type_id
 WHERE n.expires_at IS NULL
    OR n.expires_at > CURRENT_TIMESTAMP;
+
+CREATE OR REPLACE FUNCTION notification_user_summary(
+    p_user_id VARCHAR(50)
+)
+RETURNS TEXT
+LANGUAGE sql
+STABLE
+AS $$
+    WITH order_context AS (
+        SELECT
+            user_id,
+            COUNT(*) FILTER (
+                WHERE status NOT IN ('completed', 'cancelled')
+            ) AS pending_orders
+        FROM orders
+        GROUP BY user_id
+    ),
+    cart_context AS (
+        SELECT
+            c.user_id,
+            COALESCE(SUM(ci.quantity), 0) AS cart_items
+        FROM carts c
+        JOIN cart_items ci ON ci.cart_id = c.id
+        GROUP BY c.user_id
+    ),
+    user_context AS (
+        SELECT
+            u.id,
+            u.name,
+            COALESCE(oc.pending_orders, 0) AS pending_orders,
+            COALESCE(cc.cart_items, 0) AS cart_items
+        FROM users u
+        LEFT JOIN order_context oc ON oc.user_id = u.id
+        LEFT JOIN cart_context cc ON cc.user_id = u.id
+        WHERE u.id = p_user_id
+    )
+    SELECT CONCAT(
+        'Notificaciones para ', COALESCE(name, p_user_id), ' (', p_user_id, '):', CHR(10),
+        CASE
+            WHEN pending_orders > 0
+                THEN '- Tienes ' || pending_orders || ' pedido(s) pendiente(s) por procesar.' || CHR(10)
+            ELSE '- No tienes pedidos pendientes.' || CHR(10)
+        END,
+        CASE
+            WHEN cart_items > 0
+                THEN '- Tienes ' || cart_items || ' artículo(s) en tu carrito. ¡Completa tu compra!' || CHR(10)
+            ELSE '- Tu carrito está vacío.' || CHR(10)
+        END
+    )
+    FROM user_context;
+$$;
 
 COMMIT;

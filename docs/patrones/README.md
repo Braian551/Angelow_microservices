@@ -4,6 +4,7 @@
 ## Índice rápido
 
 - [2026-06-30 - Acceso autenticado al checkout](#2026-06-30---acceso-autenticado-al-checkout)
+- [2026-06-30 - Términos y condiciones públicos](#2026-06-30---términos-y-condiciones-públicos)
 - [2026-06-29 - Rendimiento de base de datos en microservicios](#2026-06-29---rendimiento-de-base-de-datos-en-microservicios)
 - [2026-06-28 - Corrección de carga admin de reembolsos](#2026-06-28---corrección-de-carga-admin-de-reembolsos)
 - [2026-06-22 - Configuración de cuenta y preferencias](#2026-06-22---configuración-de-cuenta-y-preferencias)
@@ -51,6 +52,14 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-30 - Términos y condiciones públicos
+
+- Patrón: Facade + Single Responsibility + Template Method (Refactoring Guru)
+- Aplicación: se separó el contenido legal en un módulo de datos, se creó una vista pública con estructura estable y se enlazó desde registro, pago y footer sin cambiar los contratos de API.
+- Ubicación: `frontend/src/modules/legal/content/termsAndConditions.js`, `frontend/src/modules/legal/pages/TermsAndConditionsPage.vue`, `frontend/src/modules/legal/views/TermsAndConditionsView.css`, `frontend/src/router/index.js`, `frontend/src/components/layout/SiteFooter.vue`, `frontend/src/modules/auth/pages/RegisterPage.vue`, `frontend/src/modules/checkout/pages/PaymentPage.vue`
+- Problema resuelto: permitir que el cliente lea términos, condiciones y tratamiento de datos personales antes de registrarse o confirmar un pago.
+- Referencia detallada: `legal/patrones-diseno-terminos-condiciones-2026-06-30.md`
 
 ## 2026-06-30 - Acceso autenticado al checkout
 

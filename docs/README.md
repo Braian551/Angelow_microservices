@@ -25,6 +25,8 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 - `datos/rendimiento-bd-microservicios.md`: objetos de base de datos agregados para acelerar lecturas y mantenimiento.
 - `referencias/historias-usuario-angelow.md`: historias de usuario en lenguaje funcional, entendible para cliente.
 - `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
+- `referencias/requisitos-no-funcionales-angelow.md`: requisitos no funcionales del software organizados con ISO/IEC 25010.
+- `patrones/legal/patrones-diseno-terminos-condiciones-2026-06-30.md`: patrón aplicado para la vista pública de términos y condiciones.
 - `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
 - `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`: patrones del flujo de checkout, incluyendo acceso autenticado desde envío en adelante.
@@ -77,6 +79,7 @@ flowchart LR
 - `referencias/`: catálogos de dependencias y referencias compartidas del repositorio.
   - `referencias/historias-usuario-angelow.md`
   - `referencias/casos-uso-angelow.md`
+  - `referencias/requisitos-no-funcionales-angelow.md`
   - `referencias/librerias-y-composer-uso.md`
   - `referencias/matriz-requerimientos-funcionales-actualizada.md`
 - `investigacion/`: cronogramas, informes y material de apoyo académico o de seguimiento.
@@ -96,6 +99,8 @@ flowchart LR
     - `patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
   - `patrones/checkout/`
     - `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`
+  - `patrones/legal/`
+    - `patrones/legal/patrones-diseno-terminos-condiciones-2026-06-30.md`
   - `patrones/dashboard/`
     - `patrones/dashboard/patrones-diseno-cuenta-configuracion-preferencias-2026-06-22.md`
     - `patrones/dashboard/patrones-diseno-dashboard-pedidos-realtime-2026-06-16.md`

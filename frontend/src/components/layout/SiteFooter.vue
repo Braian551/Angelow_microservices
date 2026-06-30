@@ -39,7 +39,7 @@
           <li><a href="#">Guía de tallas</a></li>
           <li><a href="#">Envíos y entregas</a></li>
           <li><a href="#">Devoluciones</a></li>
-          <li><a href="#">Términos y condiciones</a></li>
+          <li><RouterLink :to="{ name: 'terms-and-conditions' }" class="footer-legal-link">Términos y condiciones</RouterLink></li>
           <li><a href="#">Política de privacidad</a></li>
         </ul>
       </div>
