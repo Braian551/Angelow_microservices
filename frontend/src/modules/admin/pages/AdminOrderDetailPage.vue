@@ -1,4 +1,14 @@
-﻿<template>
+﻿<!--
+  AdminOrderDetailPage.vue
+  ─────────────────────────────────────────────────────────
+  Página de detalle completo de una orden en el módulo de administración.
+  Muestra el resumen de la orden (número, estado, pago, totales), los datos del
+  cliente, la dirección de envío con mapa, el comprobante de pago adjunto, la
+  tabla de productos y el historial de cambios. Permite editar la orden, cambiar
+  su estado y el estado de pago mediante modales. Utiliza el composable
+  useAdminOrderDetail para centralizar la lógica y el estado del componente.
+-->
+<template>
   <div class="admin-order-detail-page">
     <AdminPageHeader
       icon="fas fa-shopping-bag"
@@ -558,7 +568,16 @@
   </div>
 </template>
 
+<!--
+  Script del componente AdminOrderDetailPage.
+  Gestiona la lógica de presentación y edición de una orden: obtención de datos
+  del composable useAdminOrderDetail, formateo de fechas, monedas e
+  identificadores de estado, control de modales de edición y envío de cambios
+  al backend. No contiene lógica de negocio adicional; toda la lógica
+  compleja está delegada al composable.
+-->
 <script setup>
+// Importaciones del detalle administrativo; se mantienen como comentarios JS válidos dentro de script.
 import { RouterLink } from 'vue-router'
 import { useAdminOrderDetail } from '../composables/useAdminOrderDetail'
 import AdminCard from '../components/AdminCard.vue'
@@ -575,73 +594,141 @@ import '../views/AdminOrderDetailPage.css'
 // Lógica principal del detalle de orden
 // =====================================================
 const {
+  // Estados de orden editables disponibles para el administrador
   ADMIN_EDITABLE_ORDER_STATUSES,
+  // Texto del breadcrumb con el número de la orden
   breadcrumbOrderLabel,
+  // Funciones para abrir/cerrar el modal de edición de la orden
   closeEditModal,
+  // Funciones para abrir/cerrar el modal de cambio de estado de pago
   closePaymentStatusModal,
+  // Función para cerrar el modal de comprobante de pago
   closeProofModal,
+  // Funciones para abrir/cerrar el modal de cambio de estado de la orden
   closeStatusModal,
+  // Texto con la ubicación de entrega de la orden
   deliveryLocationLabel,
+  // Objeto de errores de validación del formulario de edición
   editErrors,
+  // Formulario reactivo para los datos editables de la orden
   editForm,
+  // Función para formatear un monto numérico como moneda local
   formatCurrency,
+  // Función para formatear una fecha ISO en formato legible
   formatDateTime,
+  // Función para formatear fechas del historial de cambios
   formatTimelineDate,
+  // Función que obtiene el nombre del usuario que realizó un cambio en el historial
   getHistoryActorName,
+  // Función que obtiene el rol del usuario que realizó un cambio en el historial
   getHistoryActorRole,
+  // Función que retorna el color CSS asociado al tipo de cambio en el historial
   getHistoryTypeColor,
+  // Función que retorna el ícono CSS asociado al tipo de cambio en el historial
   getHistoryTypeIcon,
+  // Función para manejar errores de carga del comprobante de pago
   handlePaymentProofError,
+  // Título dinámico para el encabezado de la página (con número de orden)
   headerTitle,
+  // Cantidad de registros ocultos en el historial colapsado
   hiddenHistoryCount,
+  // Array con todos los registros de historial de cambios de la orden
   history,
+  // Función que traduce el nombre del campo cambiado a texto legible
   historyFieldLabel,
+  // Array con los ítems/productos que componen la orden
   items,
+  // Función para obtener el label de un tipo de dirección según su código
   labelCheckoutAddressType,
+  // Estado booleano que indica si los datos de la orden están cargándose
   loading,
+  // Función para abrir el modal de edición de la orden
   openEditModal,
+  // Función para abrir el modal de cambio de estado de pago
   openPaymentStatusModal,
+  // Función para abrir el modal de vista del comprobante de pago
   openProofModal,
+  // Función para abrir el modal de cambio de estado de la orden
   openStatusModal,
+  // Objeto con los datos completos de la orden (número, cliente, totales, etc.)
   order,
+  // Función que retorna la clase CSS del badge de estado de pago
   paymentBadgeClass,
+  // Objeto de errores de validación del formulario de estado de pago
   paymentErrors,
+  // Formulario reactivo para el cambio de estado de pago
   paymentForm,
+  // Función que retorna el texto legible de un estado de pago dado
   paymentLabel,
+  // Función que retorna el texto legible de un método de pago dado
   paymentMethodLabel,
+  // Indica si el comprobante adjunto es una imagen (true) u otro formato
   paymentProofIsImage,
+  // Indica si el comprobante no está disponible para mostrar
   paymentProofUnavailable,
+  // Objeto con los datos del registro de pago asociado a la orden
   paymentRecord,
+  // Función para resolver la URL de la imagen de un ítem de la orden
   resolveOrderItemImage,
+  // Función para resolver la ruta original de la imagen de un ítem
   resolveOrderItemImagePath,
+  // Estado booleano que indica si una operación de guardado está en curso
   saving,
+  // Dirección de envío guardada del cliente (seleccionada para la orden)
   selectedShippingAddress,
+  // Línea de dirección completa para mostrar en el mapa
   shippingAddressLine,
+  // Label que indica el origen de la dirección (guardada o manual)
   shippingAddressOriginLabel,
+  // Nombre del edificio o conjunto de la dirección de envío
   shippingBuildingNameLabel,
+  // Tipo de edificación de la dirección de envío
   shippingBuildingTypeLabel,
+  // Complemento de la dirección (apto, oficina, etc.)
   shippingComplementLabel,
+  // Coordenadas geográficas de la dirección para el mapa (lat, lng)
   shippingMapCoords,
+  // Nombre del destinatario de la dirección de envío
   shippingRecipientLabel,
+  // Calle y número de la dirección de envío
   shippingStreetLabel,
+  // Barrio o zona de la dirección de envío
   shippingZoneLabel,
+  // Estado booleano que controla la visibilidad del modal de edición
   showEditModal,
+  // Indica si se debe mostrar el botón de expandir/colapsar historial
   showHistoryToggle,
+  // Estado booleano que controla la visibilidad del modal de estado de pago
   showPaymentStatusModal,
+  // Estado booleano que controla la visibilidad del modal de comprobante
   showProofModal,
+  // Estado booleano que controla la visibilidad del modal de estado de orden
   showStatusModal,
+  // Función que retorna la clase CSS del badge de estado de la orden
   statusBadgeClass,
+  // Objeto de errores de validación del formulario de estado de orden
   statusErrors,
+  // Formulario reactivo para el cambio de estado de la orden
   statusForm,
+  // Función que retorna el texto legible de un estado de orden dado
   statusLabel,
+  // Función para enviar la edición de la orden al backend
   submitEditOrder,
+  // Función para enviar el cambio de estado de pago al backend
   submitPaymentStatusChange,
+  // Función para enviar el cambio de estado de la orden al backend
   submitStatusChange,
+  // Función para alternar la expansión del historial de cambios
   toggleHistoryExpansion,
+  // Función que traduce valores de campos del historial a texto legible
   translateHistoryValue,
+  // Funciones de validación individual de campos del formulario de edición
   validateEditField,
+  // Funciones de validación individual de campos del formulario de pago
   validatePaymentField,
+  // Funciones de validación individual de campos del formulario de estado
   validateStatusField,
+  // Array con los registros visibles del historial (tras colapsar/expandir)
   visibleHistory,
 } = useAdminOrderDetail()
 </script>

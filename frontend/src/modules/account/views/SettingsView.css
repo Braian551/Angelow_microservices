@@ -1,3 +1,12 @@
+/* ============================================
+   ARCHIVO: SettingsView.css
+   DESCRIPCIÓN: Estilos de la vista de configuración de cuenta
+   MÓDULO: account/views
+   ============================================ */
+
+/* Contenedor principal del layout de configuración.
+   Utiliza flexbox para crear el layout de dos columnas:
+   sidebar izquierda + contenido derecho. */
 .settings-container {
   display: flex;
   margin: 0;
@@ -7,26 +16,39 @@
   overflow: hidden;
 }
 
+/* Barra lateral izquierda del menú de configuración.
+   Contiene las opciones de navegación entre secciones.
+   Ancho fijo de 280px con fondo gris claro para distinguirla del contenido. */
 .settings-sidebar {
   width: 280px;
   background: #f8f9fa;
   border-right: 1px solid #e0e0e0;
 }
 
+/* Lista de elementos del menú lateral.
+   Se eliminan los estilos por defecto de la lista (viñetas, márgenes, rellenos). */
 .settings-sidebar ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* Cada elemento del menú tiene un borde inferior
+   para separar visualmente las opciones. */
 .settings-sidebar li {
   border-bottom: 1px solid #e0e0e0;
 }
 
+/* El último elemento no necesita borde inferior
+   ya que no hay nada debajo de él. */
 .settings-sidebar li:last-child {
   border-bottom: 0;
 }
 
+/* Botones de navegación del menú lateral.
+   Estilo limpio sin bordes ni fondo, alineados horizontalmente
+   con icono y texto usando flexbox. Tamaño de fuente grande (1.4rem)
+   para facilitar la legibilidad y el clic en dispositivos táctiles. */
 .settings-sidebar li button {
   width: 100%;
   border: 0;
@@ -41,16 +63,26 @@
   cursor: pointer;
 }
 
+/* Icono dentro de cada botón del menú.
+   Ancho fijo para alineación consistente, color azul
+   que es el color primario de la marca. */
 .settings-sidebar li button i {
   width: 22px;
   text-align: center;
   color: #0077b6;
 }
 
+/* Efecto hover en los elementos del menú.
+   Fondo semitransparente sutil en azul para indicar
+   interactividad al pasar el cursor. */
 .settings-sidebar li:hover button {
   background: rgba(0, 119, 182, 0.05);
 }
 
+/* Elemento activo del menú (sección seleccionada).
+   Fondo ligeramente más oscuro, texto más intenso,
+   borde izquierdo grueso en azul primario para indicar
+   claramente la sección actual. Font-weight en negrita. */
 .settings-sidebar li.active button {
   background: rgba(0, 119, 182, 0.08);
   color: #0f172a;
@@ -58,21 +90,32 @@
   font-weight: 700;
 }
 
+/* Área principal de contenido donde se muestran las secciones.
+   flex: 1 hace que ocupe todo el espacio restante después
+   del sidebar. Fondo blanco para contraste limpio. */
 .settings-content {
   flex: 1;
   padding: 2rem;
   background: #fff;
 }
 
+/* Cada sección de configuración (perfil, seguridad, etc.).
+   Oculta por defecto con display: none. Solo la sección
+   con clase .active se muestra. Incluye animación de fade-in
+   al aparecer para una transición suave. */
 .settings-section {
   display: none;
   animation: settings-fade-in 0.25s ease;
 }
 
+/* Sección activa visible */
 .settings-section.active {
   display: block;
 }
 
+/* Título principal (h2) de cada sección de configuración.
+   Inline-flex con ícono alineado al lado del texto.
+   Tamaño grande (2.9rem) para jerarquía visual clara. */
 .settings-section h2 {
   display: inline-flex;
   align-items: center;
@@ -83,11 +126,16 @@
   color: #1f2937;
 }
 
+/* Ícono del título de sección, color azul primario
+   para mantener consistencia visual con el sidebar. */
 .settings-section h2 i {
   color: #0077b6;
   font-size: 1.1em;
 }
 
+/* Contenedor del formulario de configuración.
+   Bordes redondeados, fondo blanco, padding generoso
+   para crear un panel visual diferenciado del fondo. */
 .settings-form {
   border: 1px solid #e0e0e0;
   border-radius: 10px;
@@ -95,10 +143,15 @@
   padding: 1.8rem;
 }
 
+/* Grupo individual de campo de formulario (label + input).
+   Margen inferior para separar los campos verticalmente. */
 .form-group {
   margin-bottom: 1.6rem;
 }
 
+/* Etiquetas (labels) de los campos del formulario.
+   Bloque para ocupar toda la línea, margen inferior
+   para separar del input, fuente en negrita para jerarquía. */
 .form-group label {
   display: block;
   margin-bottom: 0.55rem;
@@ -107,6 +160,10 @@
   font-weight: 600;
 }
 
+/* Estilos base para inputs, selects y textareas del formulario.
+   Ancho completo, bordes redondeados, padding generoso
+   para facilitar la interacción. Se aplica el mismo estilo
+   a todos los campos para consistencia visual. */
 .form-group input,
 .form-group select,
 .form-group textarea {
@@ -119,6 +176,10 @@
   background: #fff;
 }
 
+/* Estado de foco en campos del formulario.
+   Borde azul primario + sombra sutil exterior para
+   indicar claramente qué campo está activo/activo.
+   Se elimina el outline nativo del navegador. */
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -127,11 +188,17 @@
   box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.15);
 }
 
+/* Campo de entrada deshabilitado (solo lectura).
+   Fondo gris claro y texto atenuado para indicar
+   que no es editable. Ejemplo: campo de email bloqueado. */
 .form-group input[disabled] {
   background: #f8fafc;
   color: #64748b;
 }
 
+/* Texto de ayuda o descripción debajo de los campos (small).
+   Tamaño reducido, color gris para no competir
+   visualmente con el contenido principal del campo. */
 .form-group small {
   display: block;
   margin-top: 0.5rem;
@@ -139,16 +206,9 @@
   color: #6b7280;
 }
 
-.change-email-link {
-  border: 0;
-  background: transparent;
-  color: #0077b6;
-  padding: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
+/* Contenedor de la subida de foto de perfil.
+   Flexbox vertical centrado con espacio entre
+   la imagen y los botones de acción. */
 .profile-picture-upload {
   display: flex;
   flex-direction: column;
@@ -156,6 +216,10 @@
   gap: 1.2rem;
 }
 
+/* Imagen de perfil circular con borde decorativo.
+   Tamaño fijo de 110px, border-radius: 50% para hacerla circular.
+   object-fit: cover para que la imagen se adapte sin deformarse.
+   Borde azul claro (#90e0ef) como elemento decorativo. */
 .profile-picture-upload img {
   width: 110px;
   height: 110px;
@@ -164,6 +228,8 @@
   object-fit: cover;
 }
 
+/* Contenedor de acciones de la foto (botón cambiar + input oculto).
+   Flexbox vertical centrado con espacio reducido entre elementos. */
 .upload-actions {
   display: flex;
   flex-direction: column;
@@ -171,6 +237,9 @@
   gap: 0.6rem;
 }
 
+/* Botón para cambiar foto de perfil.
+   Color de fondo azul claro (#90e0ef) que se oscurece
+   en hover para indicar interactividad. */
 .btn-change-photo {
   border: 0;
   border-radius: 8px;
@@ -182,20 +251,29 @@
   cursor: pointer;
 }
 
+/* Hover del botón cambiar foto: fondo más saturado,
+   texto blanco para mejor contraste. */
 .btn-change-photo:hover {
   background: #00b4d8;
   color: #fff;
 }
 
+/* Input de archivo oculto visualmente pero funcional.
+   Se activa programáticamente al hacer clic en el botón cambiar foto. */
 .hidden-input {
   display: none;
 }
 
+/* Contenedor grid para los elementos de seguridad.
+   Gap de 1rem entre elementos para separación visual. */
 .security-item-father {
   display: grid;
   gap: 1rem;
 }
 
+/* Elemento individual de configuración de seguridad (2FA, sesión activa, etc.).
+   Flexbox horizontal con justify-content: space-between para
+   colocar la información a la izquierda y los botones a la derecha. */
 .security-item {
   border: 1px solid #e0e0e0;
   border-radius: 10px;
@@ -207,18 +285,25 @@
   gap: 1rem;
 }
 
+/* Título del elemento de seguridad (ej: "Autenticación de dos factores"). */
 .security-info h3 {
   margin: 0 0 0.4rem;
   font-size: 1.8rem;
   color: #1f2937;
 }
 
+/* Descripción del elemento de seguridad.
+   Color gris para texto secundario, sin márgenes
+   para mantener el diseño compacto. */
 .security-info p {
   margin: 0;
   font-size: 1.4rem;
   color: #6b7280;
 }
 
+/* Botones de acción en elementos de seguridad (editar, cerrar sesión).
+   Comparten estilos base: sin bordes, bordes redondeados,
+   fuente en negrita, cursor pointer para interactividad. */
 .btn-edit,
 .btn-logout {
   border: 0;
@@ -229,26 +314,37 @@
   cursor: pointer;
 }
 
+/* Botón de editar: estilo secundario con fondo azul claro */
 .btn-edit {
   background: #90e0ef;
   color: #0f172a;
 }
 
+/* Hover del botón editar: fondo más saturado, texto blanco */
 .btn-edit:hover {
   background: #00b4d8;
   color: #fff;
 }
 
+/* Botón de cerrar sesión: estilo de peligro/advertencia.
+   Fondo rojo claro (#fee2e2) y texto rojo (#dc2626)
+   para indicar que es una acción destructiva. */
 .btn-logout {
   background: #fee2e2;
   color: #dc2626;
 }
 
+/* Hover del botón cerrar sesión: fondo rojo sólido,
+   texto blanco para indicar acción confirmada. */
 .btn-logout:hover {
   background: #dc2626;
   color: #fff;
 }
 
+/* Grupo de toggle/switch para configuraciones binarias
+   (notificaciones, privacidad, etc.).
+   Flexbox horizontal con espacio entre el label y el switch.
+   Borde inferior discontinuo para separar cada opción. */
 .toggle-group {
   display: flex;
   justify-content: space-between;
@@ -258,23 +354,42 @@
   border-bottom: 1px dashed #d1d5db;
 }
 
+.toggle-group > label:first-child {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Último toggle del grupo: margen inferior para
+   separar del siguiente bloque de contenido. */
 .toggle-group:last-of-type {
   margin-bottom: 1rem;
 }
 
+/* Contenedor del interruptor toggle (switch).
+   Posición relativa para posicionar el input y slider internamente.
+   Dimensiones fijas de 52x28px para el toggle. */
 .switch {
   position: relative;
   display: inline-block;
+  flex: 0 0 52px;
   width: 52px;
   height: 28px;
+  margin-bottom: 0;
 }
 
+/* Input checkbox real oculto visualmente pero accesible.
+   Opacidad 0 y dimensiones 0 para que no sea visible
+   pero siga siendo funcional con JavaScript. */
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
+/* Slider visual del toggle switch.
+   Posición absoluta cubre todo el contenedor.
+   Color gris por defecto (estado apagado).
+   Transición suave de 0.2s para el cambio de estado. */
 .slider {
   position: absolute;
   cursor: pointer;
@@ -283,6 +398,9 @@
   transition: 0.2s ease;
 }
 
+/* Círculo blanco deslizante dentro del slider.
+   Pseudo-elemento ::before crea la bolita del toggle.
+   Posicionada a la izquierda por defecto (estado apagado). */
 .slider::before {
   content: '';
   position: absolute;
@@ -294,22 +412,33 @@
   transition: 0.2s ease;
 }
 
+/* Estado activado del toggle: fondo azul primario
+   cuando el checkbox está marcado (:checked). */
 .switch input:checked + .slider {
   background: #0077b6;
 }
 
+/* Bolita del toggle se desplaza a la derecha
+   cuando el checkbox está activado. translateX(24px)
+   mueve la bolita al lado derecho del slider. */
 .switch input:checked + .slider::before {
   transform: translateX(24px);
 }
 
+/* Variante redonda del slider (border-radius muy grande).
+   Clase adicional .round para toggle con forma circular. */
 .slider.round {
   border-radius: 999px;
 }
 
+/* Bolita circular dentro del slider redondo */
 .slider.round::before {
   border-radius: 50%;
 }
 
+/* Contenedor de acciones del formulario (guardar/cancelar).
+   Flexbox alineado a la derecha (flex-end) con espacio
+   entre botones. Margen superior para separar del formulario. */
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -317,6 +446,9 @@
   margin-top: 1.6rem;
 }
 
+/* Botones de acción del formulario (guardar/cancelar).
+   Comparten estilos base: sin bordes, bordes redondeados,
+   fuente negrita, tamaño de fuente consistente. */
 .btn-save,
 .btn-cancel {
   border: 0;
@@ -327,30 +459,45 @@
   cursor: pointer;
 }
 
+/* Botón guardar: estilo primario con fondo azul */
 .btn-save {
   background: #0077b6;
   color: #fff;
 }
 
+/* Hover del botón guardar: azul ligeramente más claro */
 .btn-save:hover {
   background: #0b84d8;
 }
 
+/* Botón guardar deshabilitado: opacidad reducida
+   y cursor "not-allowed" para indicar que no es clickeable. */
 .btn-save[disabled] {
   opacity: 0.65;
   cursor: not-allowed;
 }
 
+/* Botón cancelar: estilo secundario/outline.
+   Borde gris, fondo blanco, texto gris oscuro
+   para diferenciarlo del botón primario (guardar). */
 .btn-cancel {
   border: 1px solid #d1d5db;
   background: #fff;
   color: #4b5563;
 }
 
+/* Hover del botón cancelar: fondo gris muy claro
+   para indicar interactividad sin ser llamativo. */
 .btn-cancel:hover {
   background: #f8fafc;
 }
 
+/* ============================================
+   ANIMACIÓN: Transición de entrada para secciones
+   Efecto fade-in con desplazamiento vertical sutil.
+   Las secciones aparecen desde abajo (8px) con
+   opacidad creciente durante 0.25 segundos.
+   ============================================ */
 @keyframes settings-fade-in {
   from {
     opacity: 0;
@@ -362,6 +509,13 @@
   }
 }
 
+/* ============================================
+   MEDIA QUERY: Pantallas medianas (≤ 1100px)
+   Cambia el layout de dos columnas a una sola columna.
+   El sidebar se apila verticalmente sobre el contenido.
+   Los items del menú se muestran en grid de 3 columnas
+   para ahorrar espacio vertical.
+   ============================================ */
 @media (max-width: 1100px) {
   .settings-container {
     flex-direction: column;
@@ -392,12 +546,22 @@
     padding: 1rem;
   }
 
+  /* El elemento activo ahora tiene borde inferior en lugar de izquierdo
+     ya que el layout es vertical/horizontal en grid. */
   .settings-sidebar li.active button {
     border-left: 0;
     border-bottom: 4px solid #0077b6;
   }
 }
 
+/* ============================================
+   MEDIA QUERY: Pantallas pequeñas (≤ 760px)
+   Adapta el diseño para móviles:
+   - Sidebar a una sola columna vertical
+   - Contenido con menos padding
+   - Elementos de seguridad apilados verticalmente
+   - Botones de acción a ancho completo
+   ============================================ */
 @media (max-width: 760px) {
   .settings-sidebar ul {
     grid-template-columns: 1fr;
@@ -416,11 +580,15 @@
     padding: 1.2rem;
   }
 
+  /* Elementos de seguridad apilados verticalmente
+     en pantallas pequeñas para mejor legibilidad. */
   .security-item {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  /* Botones de acción apilados verticalmente
+     y a ancho completo para facilitar el tacto en móviles. */
   .form-actions {
     flex-direction: column;
   }

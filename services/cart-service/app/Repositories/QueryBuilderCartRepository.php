@@ -20,10 +20,22 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
 {
     /**
      * Obtiene el carrito más reciente del usuario/sesión o crea uno nuevo.
-     * Si se proporciona user_id, busca por usuario; si no, por session_id.
-     * Al crear, si hay user_id no guarda session_id (carrito vinculado).
+     * Si recibe user_id y session_id, vincula primero el carrito invitado.
+     * Al crear, si hay user_id no guarda session_id porque queda vinculado.
      */
     public function getOrCreateCart(?string $userId, ?string $sessionId): int
+    {
+        if ($userId && $sessionId) {
+            return $this->mergeGuestCartIntoUserCart($userId, $sessionId);
+        }
+
+        return $this->findOrCreateCart($userId, $sessionId);
+    }
+
+    /**
+     * Busca el carrito más reciente para una identidad o crea uno nuevo.
+     */
+    private function findOrCreateCart(?string $userId, ?string $sessionId): int
     {
         $query = DB::table('carts');
 
@@ -47,6 +59,65 @@ class QueryBuilderCartRepository implements CartRepositoryInterface
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Fusiona el carrito anónimo de la sesión actual dentro del carrito del usuario.
+     */
+    private function mergeGuestCartIntoUserCart(string $userId, string $sessionId): int
+    {
+        return DB::transaction(function () use ($userId, $sessionId) {
+            $userCartId = $this->findOrCreateCart($userId, null);
+            $guestCart = DB::table('carts')
+                ->where('session_id', $sessionId)
+                ->whereNull('user_id')
+                ->orderByDesc('created_at')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$guestCart) {
+                return $userCartId;
+            }
+
+            $guestItems = DB::table('cart_items')
+                ->where('cart_id', $guestCart->id)
+                ->get();
+
+            foreach ($guestItems as $guestItem) {
+                $existing = $this->findExistingItem(
+                    $userCartId,
+                    (int) $guestItem->product_id,
+                    $guestItem->color_variant_id !== null ? (int) $guestItem->color_variant_id : null,
+                    (int) $guestItem->size_variant_id,
+                );
+
+                if ($existing) {
+                    // Si la misma variante ya existe en el carrito del usuario, se conserva una sola línea.
+                    DB::table('cart_items')
+                        ->where('id', $existing->id)
+                        ->update([
+                            'quantity' => (int) $existing->quantity + (int) $guestItem->quantity,
+                            'updated_at' => now(),
+                        ]);
+
+                    DB::table('cart_items')->where('id', $guestItem->id)->delete();
+                    continue;
+                }
+
+                // Si no hay duplicado, la línea invitada pasa completa al carrito del usuario.
+                DB::table('cart_items')
+                    ->where('id', $guestItem->id)
+                    ->update([
+                        'cart_id' => $userCartId,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            DB::table('carts')->where('id', $userCartId)->update(['updated_at' => now()]);
+            DB::table('carts')->where('id', $guestCart->id)->delete();
+
+            return $userCartId;
+        });
     }
 
     /**

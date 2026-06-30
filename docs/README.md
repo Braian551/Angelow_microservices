@@ -18,7 +18,18 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 
 - `operaciones/manual-tecnico.md`: manual técnico central del repositorio.
 - `microservicios/README.md`: navegación hacia documentación específica por servicio.
+- `arquitectura/diagramas-clases-microservicios-plantuml.md`: índice de diagramas de clases PlantUML separados por microservicio.
+- `arquitectura/modelos-relacionales-bases-datos-plantuml.md`: índice de modelos relacionales PlantUML separados por microservicio.
+- `arquitectura/modelo-relacional-completo-plantuml.md`: mapa maestro con todas las tablas de negocio y sus relaciones.
+- `datos/estructura-unificada-microservicios.sql`: estructura SQL de referencia para una base de datos unificada con relaciones entre microservicios.
+- `datos/rendimiento-bd-microservicios.md`: objetos de base de datos agregados para acelerar lecturas y mantenimiento.
+- `referencias/historias-usuario-angelow.md`: historias de usuario en lenguaje funcional, entendible para cliente.
+- `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
+- `referencias/requisitos-no-funcionales-angelow.md`: requisitos no funcionales del software organizados con ISO/IEC 25010.
+- `patrones/legal/patrones-diseno-terminos-condiciones-2026-06-30.md`: patrón aplicado para la vista pública de términos y condiciones.
+- `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
+- `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`: patrones del flujo de checkout, incluyendo acceso autenticado desde envío en adelante.
 - `../frontend/docs/exportaciones-admin-reutilizables.md`: arquitectura compartida para exportaciones administrativas PDF y Excel.
 
 ## Resumen de arquitectura
@@ -38,23 +49,37 @@ flowchart LR
   ORD --> NOTI[notification-service]
   ORD --> AUD[audit-service]
 
+  FE --> GW[realtime-gateway]
   NOTI --> REDIS[(Redis)]
   ORD --> REDIS
+  CAT --> REDIS
+  REDIS --> GW
 ```
 
 ## Índice por categoría
 
 - `arquitectura/`: diagramas y mapas estructurales del sistema.
   - `arquitectura/arquitectura-web-plantuml.md`
+  - `arquitectura/diagramas-clases-microservicios-plantuml.md`
+  - `arquitectura/diagramas-clases-microservicios/`
   - `arquitectura/mapas-navegacion-sistema-plantuml.md`
+  - `arquitectura/modelo-relacional-completo-plantuml.md`
   - `arquitectura/modelos-relacionales-bases-datos-plantuml.md`
+  - `arquitectura/modelos-relacionales-bases-datos/`
 - `datos/`: importación, trazabilidad y migración de datos.
   - `datos/importacion-datos.md`
   - `datos/migracion-tablas.md`
+  - `datos/estructura-unificada-microservicios.sql`
+  - `datos/rendimiento-bd-microservicios.md`
+- `proyecto/`: ficha de seguimiento académico y técnico del proyecto.
+  - `proyecto/FICHA_PROYECTO_ANGELOW.md`
 - `operaciones/`: despliegue, operación y mantenimiento de infraestructura compartida.
   - `operaciones/manual-tecnico.md`
   - `operaciones/DESPLIEGUE_SERVIDOR_NGINX.md`
 - `referencias/`: catálogos de dependencias y referencias compartidas del repositorio.
+  - `referencias/historias-usuario-angelow.md`
+  - `referencias/casos-uso-angelow.md`
+  - `referencias/requisitos-no-funcionales-angelow.md`
   - `referencias/librerias-y-composer-uso.md`
   - `referencias/matriz-requerimientos-funcionales-actualizada.md`
 - `investigacion/`: cronogramas, informes y material de apoyo académico o de seguimiento.
@@ -65,13 +90,22 @@ flowchart LR
   - `investigacion/reservas-stock-ecommerce-2026-06-08.md`
 - `patrones/`: documentación de patrones de diseño organizada por módulo o contexto.
   - `patrones/README.md`
+  - `patrones/auth/`
+    - `patrones/auth/patrones-diseno-auth-codigo-registro-recuperacion-2026-06-22.md`
+    - `patrones/auth/patrones-diseno-auth-turnstile-2026-06-21.md`
   - `patrones/admin/`
     - `patrones/admin/patrones-diseno-admin-reembolsos-2026-06-20.md`
     - `patrones/admin/patrones-diseno-admin-product-form-refactor-vue-2026-06-10.md`
     - `patrones/admin/patrones-diseno-validaciones-numericas-2026-06-10.md`
   - `patrones/checkout/`
+    - `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`
+  - `patrones/legal/`
+    - `patrones/legal/patrones-diseno-terminos-condiciones-2026-06-30.md`
   - `patrones/dashboard/`
+    - `patrones/dashboard/patrones-diseno-cuenta-configuracion-preferencias-2026-06-22.md`
     - `patrones/dashboard/patrones-diseno-dashboard-pedidos-realtime-2026-06-16.md`
+  - `patrones/datos/`
+    - `patrones/datos/patrones-diseno-rendimiento-bd-microservicios-2026-06-29.md`
   - `patrones/home/`
   - `patrones/tienda/`
 - `microservicios/`: índice de acceso a la documentación específica de cada servicio.

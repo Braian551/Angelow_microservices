@@ -5,6 +5,11 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { SITE_SETTINGS_UPDATED_EVENT } from '../../../constants/siteSettingsEvents'
 
+/**
+ * Composable para la configuración general del sitio (branding, contactos, SEO, etc.).
+ * Carga definiciones de secciones desde el backend, gestiona imágenes,
+ * colores, validaciones y guarda los cambios con soporte para eventos de actualización.
+ */
 export function useAdminSettings() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()

@@ -22,7 +22,12 @@ import {
   shouldTreatExistingSkuAsManual,
 } from '../utils/productSku'
 
-// Centraliza estado, carga de datos y reglas del formulario para dejar la página como orquestadora.
+/**
+ * Composable para el formulario de creación/edición de productos.
+ * Centraliza estado del formulario, carga de catálogos (categorías, colecciones,
+ * colores, tallas, imágenes), validaciones, generación de slugs/SKUs,
+ * construcción de payload y gestión de imágenes.
+ */
 export function useAdminProductForm() {
   const route = useRoute()
   const router = useRouter()

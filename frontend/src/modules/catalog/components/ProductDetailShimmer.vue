@@ -1,4 +1,5 @@
 <template>
+  <!-- Skeleton del detalle de producto: conserva la estructura final mientras carga la API. -->
   <div class="product-detail-shimmer" aria-busy="true" aria-label="Cargando producto">
     <div class="back-button-container">
       <span class="product-detail-shimmer__pill product-detail-shimmer__pill--back" />
@@ -71,6 +72,7 @@
 </template>
 
 <script setup>
+// Cantidades fijas usadas para repetir placeholders sin acoplar el skeleton a datos reales.
 const thumbnails = [1, 2, 3, 4]
 const stars = [1, 2, 3, 4, 5]
 const colors = [1, 2, 3, 4]

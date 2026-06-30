@@ -7,6 +7,11 @@ import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 import { authHttp, orderHttp } from '../../../services/http'
 
+/**
+ * Composable para la gestión de clientes del panel administrativo.
+ * Combina datos de clientes y pedidos para calcular métricas (LTV, tasa de recompra, etc.).
+ * Incluye filtros por estado, segmento, búsqueda, exportación y bloqueo/desbloqueo.
+ */
 export function useAdminCustomers() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
@@ -110,25 +115,30 @@ export function useAdminCustomers() {
     ]
   })
 
+  /** Normaliza un valor de identidad (id) a string trimmeado o null. */
   function normalizeIdentity(value) {
     const normalized = String(value || '').trim()
     return normalized || null
   }
 
+  /** Lee un parámetro de query string de la ruta actual. */
   function readRouteQueryValue(key) {
     return typeof route.query?.[key] === 'string' ? route.query[key].trim() : ''
   }
 
+  /** Sincroniza los filtros de búsqueda con los parámetros de query de la ruta. */
   function syncFiltersFromRoute() {
     filters.search = readRouteQueryValue('search')
   }
 
+  /** Normaliza un email a minúsculas y trimmeado, o null si está vacío. */
   function normalizeEmail(value) {
     const normalized = String(value || '').trim().toLowerCase()
     return normalized || null
   }
 
   // Reutiliza el helper de perfiles del módulo para completar datos faltantes sin duplicar su resolución.
+  /** Completa los campos faltantes de un cliente con datos del perfil cargado. */
   function applyProfileFallback(customer) {
     const profile = resolveAdminCustomerProfile(customerProfiles.value, customer.id)
 
@@ -144,6 +154,7 @@ export function useAdminCustomers() {
     }
   }
 
+  /** Normaliza los datos de un cliente del backend a un formato consistente. */
   function normalizeCustomer(customer) {
     const normalized = {
       ...customer,
@@ -160,6 +171,7 @@ export function useAdminCustomers() {
     return applyProfileFallback(normalized)
   }
 
+  /** Normaliza los datos de un pedido del backend a un formato consistente. */
   function normalizeOrder(order) {
     return {
       ...order,
@@ -174,6 +186,7 @@ export function useAdminCustomers() {
     }
   }
 
+  /** Enriquece un cliente con métricas calculadas a partir de sus pedidos. */
   function enrichCustomer(customer) {
     const emailKey = normalizeEmail(customer.email)
     const idKey = normalizeIdentity(customer.id)
@@ -217,10 +230,12 @@ export function useAdminCustomers() {
     }
   }
 
+  /** Formatea un valor numérico como moneda colombiana. */
   function formatCurrency(value) {
     return `$ ${Number(value || 0).toLocaleString('es-CO')}`
   }
 
+  /** Formatea una fecha ISO a cadena legible en español. */
   function formatDate(value) {
     if (!value) return 'Sin fecha'
 
@@ -228,6 +243,7 @@ export function useAdminCustomers() {
     return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es-CO')
   }
 
+  /** Formatea una fecha ISO a fecha y hora legible en español. */
   function formatDateTime(value) {
     if (!value) return 'Sin registro'
 
@@ -235,6 +251,7 @@ export function useAdminCustomers() {
     return Number.isNaN(date.getTime()) ? 'Sin registro' : date.toLocaleString('es-CO')
   }
 
+  /** Retorna el label legible del estado de un pedido. */
   function statusLabel(status) {
     const labels = {
       pending: 'Pendiente',
@@ -249,6 +266,7 @@ export function useAdminCustomers() {
     return labels[status] || 'Pendiente'
   }
 
+  /** Retorna el label legible del estado de pago de un pedido. */
   function paymentLabel(status) {
     const labels = {
       pending: 'Pendiente',
@@ -262,18 +280,21 @@ export function useAdminCustomers() {
     return labels[status] || 'Pendiente'
   }
 
+  /** Retorna la clase CSS del badge según el estado del pedido. */
   function statusBadgeClass(status) {
     if (['delivered', 'completed'].includes(status)) return 'active'
     if (['cancelled', 'refunded'].includes(status)) return 'cancelled'
     return 'pending'
   }
 
+  /** Retorna la clase CSS del badge según el estado de pago. */
   function paymentBadgeClass(status) {
     if (['paid', 'verified'].includes(status)) return 'active'
     if (['failed', 'refunded', 'rejected'].includes(status)) return 'cancelled'
     return 'pending'
   }
 
+  /** Verifica si una fecha está dentro de los últimos N días. */
   function isWithinLastDays(value, days) {
     if (!value) {
       return false
@@ -289,6 +310,7 @@ export function useAdminCustomers() {
     return date >= threshold
   }
 
+  /** Retorna el label del segmento de un cliente (Recurrente, Nuevo, Prospecto, Ocasional). */
   function customerSegmentLabel(customer) {
     if (customer.orders_count > 1) return 'Recurrente'
     if (isWithinLastDays(customer.created_at, 30)) return 'Nuevo'
@@ -296,6 +318,7 @@ export function useAdminCustomers() {
     return 'Ocasional'
   }
 
+  /** Limpia todos los filtros y recarga la lista de clientes. */
   function clearAllFilters() {
     filters.search = ''
     filters.state = 'all'
@@ -305,6 +328,7 @@ export function useAdminCustomers() {
 
   let debounceTimer = null
 
+  /** Recarga clientes con debounce de 450ms para evitar peticiones excesivas. */
   function debouncedLoadCustomers() {
     clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => {
@@ -312,6 +336,7 @@ export function useAdminCustomers() {
     }, 450)
   }
 
+  /** Carga los perfiles de clientes para completar datos faltantes. */
   async function loadCustomerProfiles(customersSource) {
     const profileIds = customersSource
       .map((customer) => customer?.id)
@@ -322,6 +347,7 @@ export function useAdminCustomers() {
   }
 
   // Coordina clientes y pedidos preservando los mismos endpoints y payloads existentes.
+  /** Carga clientes y pedidos en paralelo para calcular métricas. */
   async function loadCustomers(refreshOrders = false) {
     loading.value = true
 
@@ -355,15 +381,18 @@ export function useAdminCustomers() {
     }
   }
 
+  /** Abre el modal de detalle del cliente seleccionado. */
   function openCustomerModal(customer) {
     selectedCustomerId.value = customer.id
     showDetailModal.value = true
   }
 
+  /** Cierra el modal de detalle del cliente. */
   function closeCustomerModal() {
     showDetailModal.value = false
   }
 
+  /** Verifica que el cliente seleccionado siga en la lista filtrada; cierra el modal si ya no existe. */
   function syncSelectedCustomer() {
     if (!selectedCustomerId.value) {
       return
@@ -376,6 +405,7 @@ export function useAdminCustomers() {
     }
   }
 
+  /** Muestra confirmación y alterna el estado de bloqueo de un cliente. */
   function toggleCustomerBlock(customer) {
     const actionLabel = customer.is_blocked ? 'desbloquear' : 'bloquear'
 
@@ -403,6 +433,7 @@ export function useAdminCustomers() {
     })
   }
 
+  /** Define las columnas de exportación Excel/PDF de los clientes. */
   function buildCustomerExportColumns() {
     return [
       {
@@ -431,6 +462,7 @@ export function useAdminCustomers() {
   }
 
   // Exporta usando la infraestructura compartida, sin recrear otra implementación por vista.
+  /** Exporta los clientes visibles en el formato indicado (excel o pdf). */
   function exportCustomers(format) {
     return exportData({
       format,
@@ -445,6 +477,7 @@ export function useAdminCustomers() {
     })
   }
 
+  /** Aplica el estado de la ruta (filtros y cliente enfocado) al cargar o navegar. */
   async function applyRouteState() {
     // Permite llegar desde el buscador con el perfil correcto ya enfocado.
     syncFiltersFromRoute()

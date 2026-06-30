@@ -6,9 +6,12 @@ import { getFallbackMediaUrl, handleMediaError, resolveMediaUrl } from '../../..
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
-// =====================================================
-// Constantes internas
-// =====================================================
+/**
+ * Composable para la gestión de productos del panel administrativo.
+ * Administra listado, filtros por categoría/colección/género/estado,
+ * paginación, exportación y helpers de visualización de variantes.
+ * Reutiliza useAdminPagination y useAdminDataExport.
+ */
 const PRODUCT_FALLBACK_IMAGE = getFallbackMediaUrl('product')
 
 // =====================================================

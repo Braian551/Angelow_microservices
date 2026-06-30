@@ -71,6 +71,13 @@
 <script setup>
 import { computed, ref, useSlots } from 'vue'
 
+/**
+ * Componente de filtros reutilizable del admin.
+ * Encapsula barra de búsqueda con input, botón de envío, toggle de colapso
+ * y dos slots: #default (contenido siempre visible) y #advanced (colapsable).
+ * Patrón: Template Method — estructura fija con slots para contenido variable.
+ * Reutilizado en todas las vistas de listado del admin (productos, pedidos, etc.).
+ */
 const props = defineProps({
   /** Clase de icono FontAwesome para la cabecera */
   icon: { type: String, default: 'fas fa-filter' },

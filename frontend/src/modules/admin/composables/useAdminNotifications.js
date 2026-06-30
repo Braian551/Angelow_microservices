@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { catalogHttp, notificationHttp, orderHttp } from '../../../services/http'
+import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 import {
   buildInventoryTargetRoute,
   buildInventoryVariantLabel,
@@ -7,8 +8,14 @@ import {
   resolveInventoryThreshold,
 } from '../utils/inventoryPresentation'
 
-const ORDER_NOTIFICATIONS_REFRESH_MS = 20000
+/**
+ * Composable global (singleton) para el sistema de notificaciones del panel administrativo.
+ * Gestiona notificaciones de pedidos, pagos, reembolsos, facturas e inventario
+ * con actualización en tiempo real vía suscripciones WebSocket y polling periódico.
+ * Mantiene un conteo de no leídas por módulo para el indicador del sidebar.
+ */
 const ORDER_NOTIFICATIONS_LIMIT = 25
+const ORDER_NOTIFICATIONS_REFRESH_MS = 30000
 const ORDER_BOOTSTRAP_LOOKBACK_HOURS = 72
 const MAX_BOOTSTRAP_NOTIFICATIONS = 24
 const MAX_BOOTSTRAP_INVENTORY_NOTIFICATIONS = 12
@@ -92,6 +99,7 @@ let loadingNotifications = false
 let orderSnapshot = new Map()
 let inventorySnapshot = new Map()
 let orderNotificationsTimer = null
+let unsubscribeOrderRealtime = null
 let activeSubscribers = 0
 let lastVisitedRoutePath = null
 let dismissedNotificationsLoaded = false
@@ -105,6 +113,9 @@ function startAdminNotifications() {
   }
 
   loadNotifications({ initialize: true })
+  unsubscribeOrderRealtime = subscribeToOrderRealtime(() => {
+    loadNotifications()
+  })
 
   orderNotificationsTimer = window.setInterval(() => {
     if (document.visibilityState === 'hidden') {
@@ -126,6 +137,9 @@ function stopAdminNotifications() {
     window.clearInterval(orderNotificationsTimer)
     orderNotificationsTimer = null
   }
+
+  unsubscribeOrderRealtime?.()
+  unsubscribeOrderRealtime = null
 
   orderSnapshot = new Map()
   inventorySnapshot = new Map()

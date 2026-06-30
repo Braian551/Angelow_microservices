@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\StockReservationRealtimePublisher;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,10 @@ class AdminOrderController extends Controller
         'processing' => ['processing', 'in_review', 'en_revision'],
         'cancelled' => ['cancelled', 'canceled', 'refunded'],
     ];
+
+    public function __construct(private readonly StockReservationRealtimePublisher $realtimePublisher)
+    {
+    }
 
     /**
      * Retorna el operador SQL «LIKE» correspondiente al motor de base de datos.
@@ -155,7 +160,7 @@ class AdminOrderController extends Controller
         $stats = [
             'total' => $rows->count(),
             'requested' => $rows->where('status', 'requested')->count(),
-            'in_process' => $rows->filter(static fn ($row) => in_array((string) $row->status, ['approved', 'processing'], true))->count(),
+            'in_process' => $rows->where('status', 'processing')->count(),
             'completed' => $rows->where('status', 'completed')->count(),
         ];
 
@@ -205,7 +210,8 @@ class AdminOrderController extends Controller
             return response()->json(['message' => 'Orden asociada no encontrada.'], 404);
         }
 
-        $targetStatus = (string) $data['status'];
+        // Compatibilidad: aceptar una solicitud la mueve directamente al flujo operativo de reembolso en proceso.
+        $targetStatus = (string) $data['status'] === 'approved' ? 'processing' : (string) $data['status'];
         $now = now();
         $paymentStatus = $this->paymentStatusForRefundStatus($targetStatus);
         $paymentStatusColumn = $this->firstExistingColumn('orders', ['payment_status'], $connection);
@@ -258,6 +264,9 @@ class AdminOrderController extends Controller
                 ]);
             }
         });
+
+        $this->publishRefundRealtimeUpdate($order, $refundRequest, $connection, $targetStatus, $paymentStatus, $oldPaymentStatus);
+        $this->notifyRefundCustomer($order, $refundRequest, $connection, $targetStatus, $paymentStatus);
 
         return response()->json([
             'success' => true,
@@ -819,7 +828,13 @@ class AdminOrderController extends Controller
             }
 
             if ($status !== null) {
-                $query->where('refunds.status', $status);
+                // Mantiene filtros antiguos de "approved" apuntando al estado canónico actual de proceso.
+                $normalizedFilterStatus = $status === 'approved' ? 'processing' : $status;
+                if ($normalizedFilterStatus === 'processing') {
+                    $query->whereIn('refunds.status', ['approved', 'processing']);
+                } else {
+                    $query->where('refunds.status', $normalizedFilterStatus);
+                }
             }
 
             if ($search !== null) {
@@ -849,6 +864,8 @@ class AdminOrderController extends Controller
                     $row->customer_name = trim((string) ($row->customer_name ?? '')) ?: 'Cliente';
                     $row->customer_email = trim((string) ($row->customer_email ?? $row->user_email ?? ''));
                     $row->total = (float) ($row->total ?? 0);
+                    // Reutiliza la normalización del flujo admin para no exponer el estado intermedio anterior.
+                    $row->status = (string) ($row->status ?? '') === 'approved' ? 'processing' : $row->status;
 
                     return $row;
                 })
@@ -910,8 +927,8 @@ class AdminOrderController extends Controller
     private function buildRefundHistoryDescription(string $status, mixed $description): string
     {
         $labels = [
-            'approved' => 'Solicitud de reembolso aceptada.',
-            'processing' => 'Reembolso marcado en proceso.',
+            'approved' => 'Reembolso aceptado y marcado en proceso.',
+            'processing' => 'Reembolso aceptado y marcado en proceso.',
             'rejected' => 'Solicitud de reembolso rechazada.',
             'completed' => 'Reembolso completado.',
         ];
@@ -920,6 +937,127 @@ class AdminOrderController extends Controller
         $note = $this->nullableString($description);
 
         return $note === null ? $base : "{$base} Nota: {$note}";
+    }
+
+    /**
+     * Publica la transición de reembolso en el canal realtime compartido de órdenes.
+     */
+    private function publishRefundRealtimeUpdate(object $order, object $refundRequest, ?string $connection, string $refundStatus, ?string $paymentStatus, mixed $oldPaymentStatus): void
+    {
+        $orderId = (int) ($refundRequest->order_id ?? $order->id ?? 0);
+        if ($orderId <= 0) {
+            return;
+        }
+
+        $payload = [
+            'order_id' => $orderId,
+            'order_number' => $this->nullableString($order->order_number ?? null),
+            'user_id' => $this->nullableString($order->user_id ?? $refundRequest->user_id ?? null),
+            'user_email' => $this->nullableString($order->user_email ?? $order->customer_email ?? $order->billing_email ?? $refundRequest->user_email ?? null),
+            'source' => $connection === self::LEGACY_CONNECTION ? 'legacy' : 'orders',
+            'field' => 'refund_status',
+            'old_value' => $this->nullableString($refundRequest->status ?? null),
+            'new_value' => $refundStatus,
+            'refund_status' => $refundStatus,
+            'payment_status' => $paymentStatus,
+            'old_payment_status' => $this->nullableString($oldPaymentStatus),
+        ];
+
+        $this->realtimePublisher->publish('order.refund.updated', $payload);
+
+        if ($paymentStatus !== null) {
+            $this->realtimePublisher->publish('order.payment_status.updated', [
+                ...$payload,
+                'field' => 'payment_status',
+                'old_value' => $this->nullableString($oldPaymentStatus),
+                'new_value' => $paymentStatus,
+            ]);
+        }
+    }
+
+    /**
+     * Registra notificación y correo para el cliente reutilizando notification-service.
+     */
+    private function notifyRefundCustomer(object $order, object $refundRequest, ?string $connection, string $refundStatus, ?string $paymentStatus): void
+    {
+        $endpoint = $this->resolveNotificationEndpoint();
+        if ($endpoint === null) {
+            return;
+        }
+
+        $userId = $this->nullableString($order->user_id ?? $refundRequest->user_id ?? null);
+        $userEmail = $this->nullableString($order->user_email ?? $order->customer_email ?? $order->billing_email ?? $refundRequest->user_email ?? null);
+        if ($userId === null && $userEmail === null) {
+            return;
+        }
+
+        $orderId = (int) ($refundRequest->order_id ?? $order->id ?? 0);
+        $orderLabel = $this->nullableString($order->order_number ?? null) ?? ($orderId > 0 ? '#' . $orderId : 'tu pedido');
+        $title = 'Actualización de tu reembolso';
+        $message = $this->refundCustomerMessage($orderLabel, $refundStatus, $paymentStatus);
+
+        try {
+            Http::timeout(5)->post($endpoint, [
+                'user_id' => $userId,
+                'user_email' => $userEmail,
+                'type_id' => (int) config('services.notifications.order_type_id', 1),
+                'event_key' => 'order',
+                'title' => $title,
+                'message' => $message,
+                'related_entity_type' => 'order',
+                'related_entity_id' => $orderId,
+                'send_push' => true,
+                'send_email' => true,
+            ]);
+        } catch (Throwable $exception) {
+            Log::warning('No se pudo notificar al cliente sobre el reembolso.', [
+                'order_id' => $orderId,
+                'refund_id' => $refundRequest->id ?? null,
+                'connection' => $connection,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Construye el mensaje visible para la bandeja y el correo del cliente.
+     */
+    private function refundCustomerMessage(string $orderLabel, string $refundStatus, ?string $paymentStatus): string
+    {
+        return match ($refundStatus) {
+            'processing' => "Tu solicitud de reembolso para la orden {$orderLabel} fue aceptada y ya está en proceso.",
+            'rejected' => "Tu solicitud de reembolso para la orden {$orderLabel} fue revisada y fue rechazada. Puedes consultar el detalle en tus pedidos.",
+            'completed' => "El reembolso de la orden {$orderLabel} fue completado. El estado de pago ahora es " . ($this->refundPaymentLabel($paymentStatus) ?? 'Reembolsado') . '.',
+            default => "Tu solicitud de reembolso para la orden {$orderLabel} fue actualizada.",
+        };
+    }
+
+    /**
+     * Traduce el estado de pago de reembolso para mensajes operativos.
+     */
+    private function refundPaymentLabel(?string $paymentStatus): ?string
+    {
+        return match ($this->nullableString($paymentStatus)) {
+            'refund_requested' => 'Reembolso solicitado',
+            'pending_refund' => 'Reembolso en proceso',
+            'refunded' => 'Reembolsado',
+            'verified' => 'Pago verificado',
+            default => null,
+        };
+    }
+
+    /**
+     * Resuelve la URL del endpoint de notification-service.
+     */
+    private function resolveNotificationEndpoint(): ?string
+    {
+        $baseUrl = trim((string) config('services.notifications.base_url', 'http://notification-service:8000/api'));
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $baseUrl = rtrim($baseUrl, '/');
+        return str_ends_with($baseUrl, '/api') ? "{$baseUrl}/notifications" : "{$baseUrl}/api/notifications";
     }
 
     /**

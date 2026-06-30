@@ -1,3 +1,4 @@
+// Etiquetas públicas para estados de pedido recibidos desde base de datos o API.
 const ORDER_STATUS_LABELS = Object.freeze({
   created: 'Creada',
   pending: 'Pendiente',
@@ -14,6 +15,7 @@ const ORDER_STATUS_LABELS = Object.freeze({
   refunded: 'Reembolsado',
 })
 
+// Etiquetas públicas para estados de pago, incluyendo equivalencias de migración.
 const PAYMENT_STATUS_LABELS = Object.freeze({
   pending: 'Pendiente',
   pending_payment: 'Pendiente de pago',
@@ -32,6 +34,7 @@ const PAYMENT_STATUS_LABELS = Object.freeze({
   canceled: 'Cancelado',
 })
 
+// Etiquetas visibles para métodos de pago técnicos.
 const PAYMENT_METHOD_LABELS = Object.freeze({
   transfer: 'Transferencia',
   transferencia: 'Transferencia',
@@ -45,6 +48,7 @@ const PAYMENT_METHOD_LABELS = Object.freeze({
   consignacion: 'Consignación',
 })
 
+// Campos de historial traducidos para auditoría administrativa.
 const HISTORY_FIELD_LABELS = Object.freeze({
   status: 'Estado',
   payment_status: 'Estado de pago',
@@ -52,12 +56,14 @@ const HISTORY_FIELD_LABELS = Object.freeze({
   order_status: 'Estado de la orden',
 })
 
+// Acciones masivas mostradas en mensajes y registros de admin.
 const BULK_ACTION_LABELS = Object.freeze({
   change_status: 'cambio de estado',
   change_payment_status: 'cambio de estado de pago',
   deactivate: 'desactivación',
 })
 
+// Reemplazos de respaldo para textos compuestos que mezclan valores técnicos.
 const GENERIC_REPLACEMENTS = [
   [/\bcreated\b/gi, 'Creada'],
   [/\bpending_payment\b/gi, 'Pendiente de pago'],
@@ -84,6 +90,7 @@ const GENERIC_REPLACEMENTS = [
   [/\bcard\b/gi, 'Tarjeta'],
 ]
 
+// Normaliza tokens de BD para poder compararlos sin depender de espacios o guiones.
 function normalizeToken(value) {
   return String(value ?? '')
     .trim()
@@ -92,6 +99,7 @@ function normalizeToken(value) {
     .replace(/-/g, '_')
 }
 
+// Agrupa estados equivalentes del pedido en las rutas de negocio actuales.
 export function normalizeOrderStatus(status) {
   const normalized = normalizeToken(status)
 
@@ -113,10 +121,12 @@ export function normalizeOrderStatus(status) {
 
 export const normalizeAdminOrderStatus = normalizeOrderStatus
 
+// Normaliza estados de pago sin colapsarlos para conservar semántica de cobro.
 export function normalizePaymentStatus(status) {
   return normalizeToken(status)
 }
 
+// Estados disponibles para filtros administrativos de pedidos.
 export const ADMIN_ORDER_FILTER_STATUSES = Object.freeze([
   { value: 'pending', label: 'Pendiente' },
   { value: 'processing', label: 'En proceso' },
@@ -126,6 +136,7 @@ export const ADMIN_ORDER_FILTER_STATUSES = Object.freeze([
   { value: 'cancelled', label: 'Cancelado' },
 ])
 
+// Estados que el administrador puede seleccionar al editar un pedido.
 export const ADMIN_EDITABLE_ORDER_STATUSES = Object.freeze([
   { value: 'pending', label: 'Pendiente' },
   { value: 'processing', label: 'En proceso' },
@@ -135,10 +146,12 @@ export const ADMIN_EDITABLE_ORDER_STATUSES = Object.freeze([
   { value: 'cancelled', label: 'Cancelado' },
 ])
 
+// Busca una etiqueta normalizada dentro del mapa correspondiente.
 function labelFromMap(value, map) {
   return map[normalizeToken(value)] || ''
 }
 
+// Convierte slugs o tokens desconocidos en texto legible como último recurso.
 function humanizeToken(value) {
   const normalized = String(value ?? '')
     .trim()
@@ -151,6 +164,7 @@ function humanizeToken(value) {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase()
 }
 
+// Traduce valores de BD a texto natural según el contexto de presentación.
 export function translateDbText(value, context = 'generic') {
   if (value == null) return ''
 
@@ -193,18 +207,22 @@ export function translateDbText(value, context = 'generic') {
   return translated
 }
 
+// Devuelve la etiqueta final de estado de pedido con fallback seguro.
 export function getOrderStatusLabel(status) {
   return translateDbText(normalizeOrderStatus(status), 'order_status') || 'Pendiente'
 }
 
+// Devuelve la etiqueta final de estado de pago con fallback seguro.
 export function getPaymentStatusLabel(status) {
   return translateDbText(status, 'payment_status') || 'Pendiente'
 }
 
+// Devuelve la etiqueta final del método de pago.
 export function getPaymentMethodLabel(method) {
   return translateDbText(method, 'payment_method') || 'N/A'
 }
 
+// Asocia estados de pedido con clases visuales de badge.
 export function getOrderStatusBadgeClass(status) {
   const normalized = normalizeOrderStatus(status)
 
@@ -216,6 +234,7 @@ export function getOrderStatusBadgeClass(status) {
   return 'pending'
 }
 
+// Asocia estados de pago con clases visuales de badge.
 export function getPaymentStatusBadgeClass(status) {
   const normalized = normalizePaymentStatus(status)
 
@@ -224,10 +243,12 @@ export function getPaymentStatusBadgeClass(status) {
   return 'pending'
 }
 
+// Traduce el nombre de campo mostrado en el historial.
 export function getHistoryFieldLabel(field) {
   return HISTORY_FIELD_LABELS[normalizeToken(field)] || 'Cambio'
 }
 
+// Traduce valores antiguos y nuevos del historial según el campo afectado.
 export function translateHistoryValue(value, field) {
   const normalizedField = normalizeToken(field)
   if (normalizedField === 'payment_status') {
@@ -241,6 +262,7 @@ export function translateHistoryValue(value, field) {
   return translateDbText(value, 'order_status') || '-'
 }
 
+// Traduce acciones masivas para mensajes de confirmación o auditoría.
 export function getBulkActionLabel(action) {
   return BULK_ACTION_LABELS[normalizeToken(action)] || 'acción masiva'
 }

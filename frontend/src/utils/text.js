@@ -1,3 +1,4 @@
+// Pares de reemplazo para mojibake UTF-8 frecuente que llega desde fuentes antiguas.
 const DIRECT_REPLACEMENTS = [
   ['\u00C3\u00A1', '\u00E1'],
   ['\u00C3\u00A9', '\u00E9'],
@@ -16,6 +17,7 @@ const DIRECT_REPLACEMENTS = [
   ['\u00C2', ''],
 ]
 
+// Correcciones por palabra para casos donde la corrupción llegó como signos de interrogación.
 const WORD_REPLACEMENTS = [
   [/\?\?Oferta/g, '\u00A1Oferta'],
   [/\?\?Compra/g, '\u00A1Compra'],
@@ -63,6 +65,7 @@ const WORD_REPLACEMENTS = [
   [/pol\?{1,2}tica/g, 'pol\u00EDtica'],
 ]
 
+// Aplica reemplazos literales antes de las reglas con expresiones regulares.
 function applyDirectReplacements(value) {
   return DIRECT_REPLACEMENTS.reduce(
     (result, [from, to]) => result.split(from).join(to),
@@ -70,6 +73,7 @@ function applyDirectReplacements(value) {
   )
 }
 
+// Normaliza texto visible sin modificar valores que no sean cadenas.
 export function normalizeUtf8Text(value) {
   if (typeof value !== 'string') return value
 
@@ -81,6 +85,7 @@ export function normalizeUtf8Text(value) {
   )
 }
 
+// Recorre arreglos y objetos para limpiar textos anidados recibidos por APIs.
 export function normalizeUtf8Data(payload) {
   if (Array.isArray(payload)) {
     return payload.map((item) => normalizeUtf8Data(item))

@@ -22,6 +22,8 @@ export function buildProductPayload({ form, validateCopPrice, validatePositiveIn
   }
 }
 
+// Construye variantes con imágenes existentes y tallas validadas para persistencia.
+// Construye variantes con imágenes existentes y tallas validadas para persistencia.
 function buildVariantPayload({ form, validateCopPrice, validatePositiveInteger }) {
   return form.variants.map((variant) => ({
     id: variant.id,
@@ -56,10 +58,14 @@ function buildVariantPayload({ form, validateCopPrice, validatePositiveInteger }
 export function buildProductRequestBody({ form, mainImageFile, payload }) {
   const hasFiles = Boolean(mainImageFile) || form.variants.some((variant) => variant.images.some((img) => img.file))
 
+  // Si no hay archivos nuevos, el backend puede recibir JSON normal.
+  // Si no hay archivos nuevos, el backend puede recibir JSON normal.
   if (!hasFiles) {
     return { body: payload, config: undefined }
   }
 
+  // Cuando hay archivos, variants viaja serializado y las imágenes viajan como partes multipart.
+  // Cuando hay archivos, variants viaja serializado y las imágenes viajan como partes multipart.
   const formData = new FormData()
   Object.entries(payload).forEach(([key, value]) => {
     if (key === 'variants') {
@@ -70,10 +76,14 @@ export function buildProductRequestBody({ form, mainImageFile, payload }) {
     formData.append(key, value ?? '')
   })
 
+  // La imagen principal nueva se envía en una clave dedicada para reemplazo seguro.
+  // La imagen principal nueva se envía en una clave dedicada para reemplazo seguro.
   if (mainImageFile) {
     formData.append('main_image_file', mainImageFile)
   }
 
+  // Cada imagen nueva de variante conserva la clave de variante y su orden visual.
+  // Cada imagen nueva de variante conserva la clave de variante y su orden visual.
   form.variants.forEach((variant) => {
     variant.images.forEach((img, imgIndex) => {
       if (img.file) {

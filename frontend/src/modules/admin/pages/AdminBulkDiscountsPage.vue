@@ -1,3 +1,9 @@
+<!-- 
+  AdminBulkDiscountsPage.vue
+  Página principal para la gestión de descuentos por cantidad (reglas de volumen).
+  Permite crear, editar, eliminar y consultar reglas de descuento globales
+  aplicadas automáticamente según la cantidad de artículos en el carrito.
+-->
 <template>
   <div class="admin-bulk-discounts-page">
     <AdminPageHeader
@@ -220,7 +226,13 @@
   </div>
 </template>
 
+<!--
+  Bloque script con Composition API.
+  Orquesta la lógica de la página de descuentos por cantidad,
+  incluyendo filtros, paginación, CRUD y validación de formularios.
+-->
 <script setup>
+/* ── Componentes de interfaz de administración ── */
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminExportActions from '../components/AdminExportActions.vue'
@@ -233,6 +245,7 @@ import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
+/* ── Composable principal (lógica de negocio) ── */
 import { useAdminBulkDiscounts } from '../composables/useAdminBulkDiscounts'
 import '../views/AdminBulkDiscountsPage.css'
 

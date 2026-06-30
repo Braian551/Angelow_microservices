@@ -1,3 +1,9 @@
+<!--
+  AdminCategoriesPage.vue
+  Componente de administración para gestionar las categorías del catálogo.
+  Permite listar, buscar, filtrar, crear, editar, activar/desactivar y eliminar categorías.
+  Incluye paginación, estadísticas y un modal con formulario para alta y edición.
+-->
 <template>
   <div class="admin-entity-page admin-categories-page">
     <AdminPageHeader
@@ -245,31 +251,31 @@ import { useAdminCategories } from '../composables/useAdminCategories'
 // Orquestación de la lógica de categorías
 // =====================================================
 const {
-  activeFilterCount,
-  clearFilters,
-  clearSelectedImage,
-  closeModal,
-  confirmDelete,
-  editing,
-  errors,
-  excerpt,
-  filteredCategories,
-  form,
-  imageInputRef,
-  imagePreviewUrl,
-  loading,
-  onImageSelected,
-  onNameInput,
-  onSlugInput,
-  openImagePicker,
-  openModal,
-  pagination,
-  resolveCategoryImage,
-  saveCategory,
-  search,
-  showModal,
-  stats,
-  statusFilter,
-  toggleStatus,
+  activeFilterCount, // Número total de filtros actualmente activos
+  clearFilters, // Restablece todos los filtros de búsqueda y estado
+  clearSelectedImage, // Limpia la imagen seleccionada y su vista previa
+  closeModal, // Cierra el modal de creación/edición de categoría
+  confirmDelete, // Muestra diálogo de confirmación antes de eliminar una categoría
+  editing, // Indica si se está editando una categoría existente (true) o creando una nueva (false)
+  errors, // Objeto con los errores de validación del formulario
+  excerpt, // Función que trunca un texto a la longitud indicada con "..."
+  filteredCategories, // Lista de categorías filtradas según los criterios de búsqueda y estado
+  form, // Objeto reactivo con los datos del formulario (name, slug, description, is_active)
+  imageInputRef, // Referencia al input de archivo para seleccionar imagen
+  imagePreviewUrl, // URL de la imagen seleccionada para vista previa
+  loading, // Indica si se están cargando datos del servidor
+  onImageSelected, // Manejador del evento al seleccionar un archivo de imagen
+  onNameInput, // Manejador del input del nombre, genera el slug automáticamente
+  onSlugInput, // Manejador del input del slug, valida caracteres permitidos
+  openImagePicker, // Abre el selector de archivos para elegir imagen
+  openModal, // Abre el modal en modo creación o edición según el parámetro
+  pagination, // Objeto con estado de paginación (página actual, total, items por página, etc.)
+  resolveCategoryImage, // Resuelve la URL de la imagen de la categoría (imagen real o placeholder)
+  saveCategory, // Valida y guarda (crea o actualiza) la categoría en el servidor
+  search, // Término de búsqueda para filtrar categorías por nombre, slug o descripción
+  showModal, // Controla la visibilidad del modal de creación/edición
+  stats, // Array de objetos con estadísticas resumen (total, activas, inactivas, etc.)
+  statusFilter, // Filtro de estado seleccionado ('', 'active' o 'inactive')
+  toggleStatus, // Alterna el estado activo/inactivo de una categoría
 } = useAdminCategories()
 </script>

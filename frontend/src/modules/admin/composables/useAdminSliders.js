@@ -10,6 +10,11 @@ import {
   loadStoreLinkCatalogs,
 } from '../utils/storeLinkOptions'
 
+/**
+ * Composable para la gestión de sliders/banner del carrusel principal.
+ * Administra CRUD, reordenamiento, imágenes, enlaces internos/externos
+ * y previsualización de estilos. Reutiliza useAdminPagination.
+ */
 export function useAdminSliders() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()

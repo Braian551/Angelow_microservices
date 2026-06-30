@@ -86,7 +86,14 @@
 import { computed, ref, watch } from 'vue'
 import AdminModal from './AdminModal.vue'
 import { getPaymentStatusLabel } from '../utils/orderPresentation'
+import { resolvePaymentProofUrl } from '../utils/paymentProofs'
 
+/**
+ * Modal reutilizable para visualizar comprobantes de pago.
+ * Soporta imágenes (con zoom), PDFs (enlace de apertura),
+ * estados de archivo no disponible y metadatos de referencia.
+ * Reutiliza AdminModal como base y resolvePaymentProofUrl para resolver rutas de adjuntos.
+ */
 const props = defineProps({
   show: {
     type: Boolean,
@@ -148,22 +155,38 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
+/** Estado de zoom de la imagen del comprobante. */
 const proofZoomed = ref(false)
 
-const attachmentUrl = computed(() => props.attachment?.url || props.payment?.proof_url || '')
+/** URL resuelta del adjunto, usando resolvePaymentProofUrl para normalizar rutas legacy/microservicio. */
+const attachmentUrl = computed(() => resolvePaymentProofUrl(props.attachment?.url || props.payment?.proof_url || ''))
+/** Nombre del archivo adjunto para mostrar en la interfaz. */
 const attachmentName = computed(() => props.attachment?.name || props.payment?.proof_name || '')
+/** Bandera que indica si el archivo existe físicamente en el servidor. */
 const attachmentExists = computed(() => props.attachment?.exists ?? props.payment?.proof_exists ?? true)
+/** Lista de metadatos adicionales filtrados para mostrar debajo del comprobante. */
 const metaItems = computed(() => Array.isArray(props.meta) ? props.meta.filter((item) => item?.label && item?.value) : [])
+/** Determina si el comprobante está disponible para visualización. */
 const proofAvailable = computed(() => Boolean(attachmentUrl.value && attachmentExists.value !== false))
+/** Determina si el adjunto es una imagen previsualizable (png, jpg, webp, gif, bmp, svg). */
 const proofIsImage = computed(() => Boolean(attachmentUrl.value && /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(attachmentUrl.value)))
+/** Resuelve la etiqueta legible del estado de pago usando orderPresentation. */
 const paymentStatusLabel = computed(() => getPaymentStatusLabel(props.payment?.status || props.fallbackStatus || 'pending'))
 
+/**
+ * Resetea el estado de zoom cada vez que se cierra el modal
+ * para que al reabrirlo la imagen aparezca en tamaño normal.
+ */
 watch(() => props.show, (isOpen) => {
   if (!isOpen) {
     proofZoomed.value = false
   }
 })
 
+/**
+ * Alterna el estado de zoom de la imagen del comprobante.
+ * Solo aplica cuando el adjunto es una imagen previsualizable.
+ */
 function toggleProofZoom() {
   if (!proofIsImage.value) return
   proofZoomed.value = !proofZoomed.value

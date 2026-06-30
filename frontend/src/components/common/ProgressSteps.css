@@ -1,14 +1,20 @@
+/* Contenedor principal del componente de progreso. Define el espaciado inferior
+   para separar este componente de otros elementos del formulario. */
 .progress-container {
     margin-bottom: 3rem;
 }
 
 /* Footprints icon */
+/* Envoltorio del ícono de huellas. Utiliza flexbox para centrar la imagen
+   del ícono horizontalmente dentro del componente de progreso. */
 .progress-icon-wrapper {
     display: flex;
     justify-content: center;
     margin-bottom: 1.5rem;
 }
 
+/* Imagen de huellas. Define el tamaño fijo del ícono para mantener
+   consistencia visual en todos los estados del componente. */
 .footprints-img {
     width: 56px;
     height: 56px;
@@ -16,6 +22,10 @@
 }
 
 /* Steps */
+/* Contenedor de los pasos del progreso. Utiliza flexbox para distribuir
+   los pasos horizontalmente con alineación en la parte superior. position: relative
+   permite posicionar la línea de fondo de forma absoluta dentro de este contenedor.
+   max-width limita el ancho para mantener legibilidad en pantallas grandes. */
 .steps-wrapper {
     display: flex;
     justify-content: center;
@@ -26,6 +36,10 @@
 }
 
 /* Background line */
+/* Línea de fondo del progreso. Se posiciona de forma absoluta detrás de los pasos.
+   La posición top: 15px alinea la línea verticalmente con el centro de los círculos de paso.
+   left/right: 40px crea márgenes para que la línea comience y termine en los centros
+   del primer y último paso respectivamente. z-index: 0 la coloca detrás de los pasos. */
 .steps-line {
     position: absolute;
     top: 15px;
@@ -37,6 +51,10 @@
 }
 
 /* Filled line */
+/* Línea de progreso rellenada. Se superpone sobre la línea de fondo y muestra
+   el progreso actual. Su ancho se controla dinámicamente con JavaScript.
+   La transición en la propiedad width crea una animación suave al avanzar entre pasos.
+   Utiliza la variable --transition-slow para una velocidad de transición más pausada. */
 .steps-line-fill {
     position: absolute;
     top: 0;
@@ -46,6 +64,10 @@
     transition: width var(--transition-slow);
 }
 
+/* Elemento individual de cada paso. Utiliza flexbox en columna para apilar
+   el círculo del paso y su etiqueta de texto verticalmente.
+   z-index: 1 asegura que los pasos estén sobre la línea de progreso.
+   flex: 1 distribuye el espacio equitativamente entre todos los pasos. */
 .step-item {
     display: flex;
     flex-direction: column;
@@ -54,6 +76,10 @@
     flex: 1;
 }
 
+/* Círculo del paso. Representa el indicador visual de cada paso del proceso.
+   Utiliza border-radius: var(--radius-full) para crear un círculo perfecto.
+   La transición en todas las propiedades permite animaciones suaves al cambiar de estado.
+   El font-weight: 700 asegura que los números sean legibles y destacados. */
 .step {
     width: 30px;
     height: 30px;
@@ -70,6 +96,10 @@
     font-size: var(--font-size-sm);
 }
 
+/* Estado activo del paso. Indica el paso actual en el que se encuentra el usuario.
+   Cambia el fondo y borde al color primario, el texto a blanco para contraste,
+   y agrega un box-shadow sutil (4px de radio con opacidad baja) para destacar
+   visualmente el paso activo sobre los demás. */
 .step--active {
     background-color: var(--primary);
     color: var(--white);
@@ -77,17 +107,28 @@
     box-shadow: 0 0 0 4px rgba(26, 143, 196, 0.15);
 }
 
+/* Estado completado del paso. Indica que el usuario ya completó este paso.
+   Cambia los colores al estilo primario pero sin el efecto de sombra del estado activo,
+   diferenciando visualmente entre el paso actual y los pasos completados. */
 .step--completed {
     background-color: var(--primary);
     color: var(--white);
     border-color: var(--primary);
 }
 
+/* Número del paso. Estilos tipográficos específicos para el número
+   que se muestra dentro del círculo del paso. line-height: 1 evita
+   problemas de alineación vertical del texto dentro del círculo. */
 .step-number {
     font-size: var(--font-size-sm);
     line-height: 1;
 }
 
+/* Etiqueta del paso. Texto descriptivo que aparece debajo de cada círculo.
+   Utiliza font-weight: 600 para dar jerarquía visual al texto.
+   La transición en color permite cambio suave al activar o completar el paso.
+   text-align: center asegura que el texto esté centrado independientemente
+   de su longitud. */
 .step-label {
     font-size: var(--font-size-xs);
     color: var(--gray-400);
@@ -96,6 +137,11 @@
     text-align: center;
 }
 
+/* Selector :has() para cambiar el color de la etiqueta cuando el paso
+   está activo o completado. Este selector moderno permite estilizar
+   el .step-label basándose en el estado de su hermano .step--active
+   o .step--completed dentro del mismo .step-item, sin necesidad
+   de clases adicionales en la etiqueta. */
 .step-item:has(.step--active) .step-label,
 .step-item:has(.step--completed) .step-label {
     color: var(--primary);

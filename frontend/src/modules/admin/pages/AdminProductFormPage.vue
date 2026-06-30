@@ -1,3 +1,9 @@
+<!--
+  AdminProductFormPage.vue
+  Componente de página para crear y editar productos en el panel de administración.
+  Orquesta los formularios de información general, variantes, precios e inventario.
+  Se adapta dinámicamente entre modo "nuevo producto" y "editar producto" según la ruta.
+-->
 <template>
   <div class="admin-product-form-page">
     <AdminPageHeader
@@ -140,68 +146,78 @@
 </template>
 
 <script setup>
+/*
+  Script del componente AdminProductFormPage.
+  Gestiona las importaciones, el estado reactivo del formulario de productos,
+  la lógica de pestañas, variantes, imágenes y validación a través del composable useAdminProductForm.
+*/
+// Importaciones de enrutamiento
 import { RouterLink } from 'vue-router'
+// Composable principal que encapsula toda la lógica del formulario de producto
 import { useAdminProductForm } from '../composables/useAdminProductForm'
+// Componentes base del layout de administración
 import AdminCard from '../components/AdminCard.vue'
 import AdminModal from '../components/AdminModal.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminShimmer from '../components/AdminShimmer.vue'
+// Componentes específicos del formulario de producto (pestañas y modales)
 import AdminProductGeneralTab from '../components/products/AdminProductGeneralTab.vue'
 import AdminProductVariantModal from '../components/products/AdminProductVariantModal.vue'
 import AdminProductVariantsTab from '../components/products/AdminProductVariantsTab.vue'
+// Estilos del formulario de producto
 import '../views/AdminProductFormPage.css'
 
 // La página queda como orquestadora: delega estado, API y reglas al composable del formulario.
 const {
-  activeTab,
-  activeVariant,
-  availableSizesForActiveVariant,
-  canSaveProduct,
-  categories,
-  closeRefundPolicyModal,
-  collections,
-  colorHex,
-  colorName,
-  colors,
-  currencyLabel,
-  errors,
-  form,
-  handleCopInput,
-  handleMainImageUpload,
-  handleSizeCopInput,
-  handleSizeSkuInput,
-  handleSlugInput,
-  handleVariantImageUpload,
-  initialLoading,
-  isEditing,
-  mainImagePreview,
-  removeMainImage,
-  refundPolicyModalOpen,
-  removeSizeRow,
-  removeVariant,
-  removeVariantImageItem,
-  requestRefundPolicyToggle,
-  saveProduct,
-  saving,
-  selectedSizeId,
-  setDefaultVariant,
-  confirmRefundPolicy,
-  setMainImageInputRef,
-  setVariantImageInputRef,
-  setVariantImagePrimary,
-  sizeName,
-  sizes,
-  totalSizeConfigurations,
-  totalStock,
-  triggerMainImagePicker,
-  triggerVariantImagePicker,
-  validateField,
-  validateSizeRow,
-  variantModalOpen,
-  addSizeRowToActiveVariant,
-  addVariant,
-  closeVariantModal,
-  onProductImageError,
-  openVariantModal,
+  activeTab,                    // Pestaña activa actualmente (general o variants)
+  activeVariant,                // Variante seleccionada actualmente para editar
+  availableSizesForActiveVariant, // Tallas disponibles para la variante activa
+  canSaveProduct,               // Bandera que indica si el formulario es válido para guardar
+  categories,                   // Lista de categorías disponibles para asignar al producto
+  closeRefundPolicyModal,       // Cierra el modal de configuración de política de reembolso
+  collections,                  // Lista de colecciones disponibles para asignar al producto
+  colorHex,                     // Código hexadecimal del color seleccionado
+  colorName,                    // Nombre del color seleccionado para la variante
+  colors,                       // Lista de colores disponibles para crear variantes
+  currencyLabel,                // Etiqueta de la moneda utilizada para los precios
+  errors,                       // Objeto con los mensajes de error de validación del formulario
+  form,                         // Objeto reactivo que contiene todos los datos del formulario del producto
+  handleCopInput,               // Maneja el cambio de precio de costo de origen del producto
+  handleMainImageUpload,        // Procesa la subida de la imagen principal del producto
+  handleSizeCopInput,           // Maneja el cambio de precio de costo para una talla específica
+  handleSizeSkuInput,           // Maneja el cambio de SKU para una talla específica
+  handleSlugInput,              // Maneja la generación del slug a partir del nombre del producto
+  handleVariantImageUpload,     // Procesa la subida de imágenes para una variante del producto
+  initialLoading,               // Indica si los datos iniciales del formulario están cargando
+  isEditing,                    // Indica si el formulario está en modo edición (true) o creación (false)
+  mainImagePreview,             // URL de vista previa de la imagen principal del producto
+  removeMainImage,              // Elimina la imagen principal seleccionada del producto
+  refundPolicyModalOpen,        // Controla la visibilidad del modal de política de reembolso
+  removeSizeRow,                // Elimina una fila de talla de la variante activa
+  removeVariant,                // Elimina una variante completa del producto
+  removeVariantImageItem,       // Elimina una imagen específica de una variante
+  requestRefundPolicyToggle,    // Solicita abrir el modal para configurar la política de reembolso
+  saveProduct,                  // Función que envía los datos del producto al backend para crear o actualizar
+  saving,                       // Indica si se está guardando el formulario actualmente
+  selectedSizeId,               // ID de la talla seleccionada en el modal de variante
+  setDefaultVariant,            // Marca una variante como la variante predeterminada del producto
+  confirmRefundPolicy,          // Confirma y guarda la configuración de la política de reembolso
+  setMainImageInputRef,         // Establece la referencia del input de imagen principal
+  setVariantImageInputRef,      // Establece la referencia del input de imagen de variante
+  setVariantImagePrimary,       // Marca una imagen de variante como imagen principal de la variante
+  sizeName,                     // Nombre de la talla seleccionada
+  sizes,                        // Lista de tallas disponibles para crear variantes
+  totalSizeConfigurations,      // Total de configuraciones de talla en todas las variantes
+  totalStock,                   // Stock total sumado de todas las variantes y tallas
+  triggerMainImagePicker,       // Abre el selector de archivos para la imagen principal
+  triggerVariantImagePicker,    // Abre el selector de archivos para las imágenes de variante
+  validateField,                // Valida un campo específico del formulario y actualiza errores
+  validateSizeRow,              // Valida una fila de talla dentro de la variante activa
+  variantModalOpen,             // Controla la visibilidad del modal de edición de variante
+  addSizeRowToActiveVariant,    // Agrega una nueva fila de talla a la variante activa
+  addVariant,                   // Agrega una nueva variante al producto
+  closeVariantModal,            // Cierra el modal de edición de variante
+  onProductImageError,          // Maneja errores de carga de imágenes del producto
+  openVariantModal,             // Abre el modal de edición de variante con la variante indicada
 } = useAdminProductForm()
 </script>

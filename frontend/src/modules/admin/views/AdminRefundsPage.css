@@ -1,3 +1,4 @@
+/* Monto secundario mostrado debajo del identificador principal en la tabla. */
 .admin-refunds-page .admin-refunds-table__amount {
   display: block;
   margin-top: 0.25rem;
@@ -6,6 +7,7 @@
   font-weight: 700;
 }
 
+/* Motivo truncado para que la columna no rompa el ancho de la tabla. */
 .admin-refunds-page .admin-refunds-table__reason {
   display: inline-block;
   max-width: 18rem;
@@ -16,17 +18,20 @@
   white-space: nowrap;
 }
 
+/* Acción positiva para marcar una devolución como completada. */
 .admin-refunds-page .action-btn--complete {
   color: #16784a;
   background: rgba(22, 120, 74, 0.1);
 }
 
+/* Grilla de datos resumidos dentro del modal de detalle. */
 .admin-refunds-page .refund-detail-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.8rem;
 }
 
+/* Tarjeta compacta de cada dato relevante de la devolución. */
 .admin-refunds-page .refund-detail-card {
   border: 1px solid #d8e5f2;
   border-radius: 0.85rem;
@@ -37,6 +42,7 @@
   min-width: 0;
 }
 
+/* Etiquetas de tarjetas y secciones con estilo operativo uniforme. */
 .admin-refunds-page .refund-detail-card span,
 .admin-refunds-page .refund-detail-section h4 {
   color: #607289;
@@ -46,12 +52,14 @@
   text-transform: uppercase;
 }
 
+/* Valor principal dentro de cada tarjeta de detalle. */
 .admin-refunds-page .refund-detail-card strong {
   color: #20344a;
   font-size: 1rem;
   overflow-wrap: anywhere;
 }
 
+/* Secciones amplias para motivo, evidencia o notas de devolución. */
 .admin-refunds-page .refund-detail-section {
   margin-top: 1rem;
   border: 1px solid #d8e5f2;
@@ -60,11 +68,13 @@
   background: #ffffff;
 }
 
+/* Quita márgenes internos para controlar el espaciado desde la sección. */
 .admin-refunds-page .refund-detail-section h4,
 .admin-refunds-page .refund-detail-section p {
   margin: 0;
 }
 
+/* Texto descriptivo de cada sección del detalle. */
 .admin-refunds-page .refund-detail-section p {
   margin-top: 0.45rem;
   color: #30475f;
@@ -72,10 +82,12 @@
   overflow-wrap: anywhere;
 }
 
+/* Texto auxiliar de detalles extensos. */
 .admin-refunds-page .refund-detail-section__details {
   color: #526277;
 }
 
+/* Resumen previo a ejecutar una acción sobre la solicitud. */
 .admin-refunds-page .refund-action-summary {
   border: 1px solid #d8e5f2;
   border-radius: 0.85rem;
@@ -86,26 +98,31 @@
   margin-bottom: 1rem;
 }
 
+/* Nombre o estado principal dentro del resumen de acción. */
 .admin-refunds-page .refund-action-summary strong {
   color: #20344a;
   font-size: 1.05rem;
 }
 
+/* Descripción secundaria del resumen de acción. */
 .admin-refunds-page .refund-action-summary span {
   color: #607289;
   line-height: 1.45;
 }
 
+/* Campos del formulario de resolución de devolución. */
 .admin-refunds-page .form-group {
   display: grid;
   gap: 0.45rem;
 }
 
+/* Etiquetas del formulario de resolución. */
 .admin-refunds-page .form-group label {
   color: #30475f;
   font-weight: 800;
 }
 
+/* Control base del formulario dentro del módulo de devoluciones. */
 .admin-refunds-page .form-control {
   width: 100%;
   border: 1px solid #cfe0ec;
@@ -116,24 +133,28 @@
   font-size: 0.95rem;
 }
 
+/* Estado de foco accesible para inputs del modal. */
 .admin-refunds-page .form-control:focus {
   outline: none;
   border-color: #0f7abf;
   box-shadow: 0 0 0 3px rgba(15, 122, 191, 0.12);
 }
 
+/* Mensaje de validación del formulario de devolución. */
 .admin-refunds-page .form-error {
   color: #d14343;
   font-size: 0.85rem;
   margin: 0;
 }
 
+/* Tablet: reduce el detalle a dos columnas. */
 @media (max-width: 1100px) {
   .admin-refunds-page .refund-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
+/* Móvil: evita desbordes en motivo y apila tarjetas de detalle. */
 @media (max-width: 720px) {
   .admin-refunds-page .admin-refunds-table__reason {
     max-width: 12rem;

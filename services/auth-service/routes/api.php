@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\PasswordRecoveryController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Auth\RegistrationVerificationController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Internal\UserProfileController;
 use App\Http\Controllers\HealthController;
@@ -39,6 +40,24 @@ Route::prefix('auth')->group(function () {
         Route::post('/resend-code', [PasswordRecoveryController::class, 'resendCode']);
         Route::post('/verify-code', [PasswordRecoveryController::class, 'verifyCode']);
         Route::post('/reset-password', [PasswordRecoveryController::class, 'resetPassword']);
+    });
+
+    Route::prefix('registration-verification')->group(function () {
+        Route::post('/request-code', [RegistrationVerificationController::class, 'requestCode']);
+        Route::post('/resend-code', [RegistrationVerificationController::class, 'resendCode']);
+        Route::post('/verify-code', [RegistrationVerificationController::class, 'verifyCode']);
+    });
+
+    Route::prefix('registration-verification')->group(function () {
+        Route::post('/request-code', [RegistrationVerificationController::class, 'requestCode']);
+        Route::post('/resend-code', [RegistrationVerificationController::class, 'resendCode']);
+        Route::post('/verify-code', [RegistrationVerificationController::class, 'verifyCode']);
+    });
+
+    Route::prefix('registration-verification')->group(function () {
+        Route::post('/request-code', [RegistrationVerificationController::class, 'requestCode']);
+        Route::post('/resend-code', [RegistrationVerificationController::class, 'resendCode']);
+        Route::post('/verify-code', [RegistrationVerificationController::class, 'verifyCode']);
     });
 
     // Rutas protegidas (requieren token Sanctum)

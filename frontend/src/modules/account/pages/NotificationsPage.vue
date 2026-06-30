@@ -1,7 +1,10 @@
 <template>
+  <!-- Muestra el efecto shimmer (esqueleto de carga) mientras se obtienen las notificaciones del API -->
   <AccountShimmer v-if="loading" variant="notifications" />
 
+  <!-- Contenido principal: se renderiza solo cuando loading es false -->
   <template v-else>
+    <!-- Encabezado de la página: título, descripción y botón de marcado masivo -->
     <section class="dashboard-header notifications-header-panel">
       <div class="notifications-header-panel__copy">
         <h1>
@@ -11,6 +14,7 @@
         <p>Mantente al día con tus pedidos, novedades y movimientos importantes de tu cuenta.</p>
       </div>
 
+      <!-- Botón para marcar todas las notificaciones como leídas; solo se muestra si hay al menos una sin leer -->
       <button
         v-if="unreadCount > 0"
         type="button"
@@ -18,11 +22,13 @@
         :disabled="loadingAction"
         @click="markAllAsRead"
       >
+        <!-- Muestra spinner de carga cuando se está procesando; de lo contrario muestra el icono de doble check -->
         <i :class="loadingAction ? 'fas fa-spinner fa-spin' : 'fas fa-check-double'"></i>
         {{ loadingAction ? 'Actualizando...' : 'Marcar todas como leídas' }}
       </button>
     </section>
 
+    <!-- Tarjetas de resumen: total, sin leer y leídas -->
     <section class="account-grid-2 notifications-summary-grid">
       <article class="summary-card notification-summary-card">
         <div class="summary-icon notification-summary-card__icon notification-summary-card__icon--total">
@@ -30,6 +36,7 @@
         </div>
         <div class="summary-content">
           <h3>Total</h3>
+          <!-- Pluralización condicional: muestra "notificación" o "notificaciones" según la cantidad -->
           <p>{{ notifications.length }} notificación{{ notifications.length === 1 ? '' : 'es' }}</p>
         </div>
       </article>
@@ -40,6 +47,7 @@
         </div>
         <div class="summary-content">
           <h3>Sin leer</h3>
+          <!-- Pluralización condicional para "pendiente" / "pendientes" -->
           <p>{{ unreadCount }} pendiente{{ unreadCount === 1 ? '' : 's' }}</p>
         </div>
       </article>
@@ -50,20 +58,25 @@
         </div>
         <div class="summary-content">
           <h3>Leídas</h3>
+          <!-- Pluralización condicional para "revisada" / "revisadas" -->
           <p>{{ readCount }} revisada{{ readCount === 1 ? '' : 's' }}</p>
         </div>
       </article>
     </section>
 
+    <!-- Tablero principal de notificaciones: filtros, lista y estados vacíos -->
     <section class="account-card notifications-board">
+      <!-- Encabezado del tablero con título y selector de tipo -->
       <header class="section-header notifications-board__header">
         <div class="notifications-board__heading">
           <h2>Bandeja de notificaciones</h2>
+          <!-- Muestra cuántas notificaciones son visibles según los filtros activos -->
           <p class="notifications-board__meta">
             {{ filteredNotifications.length }} resultado{{ filteredNotifications.length === 1 ? '' : 's' }} visibles
           </p>
         </div>
 
+        <!-- Selector desplegable para filtrar por tipo de notificación (órdenes, productos, etc.) -->
         <div class="notif-type-select-wrap">
           <i class="fas fa-filter notif-type-select-icon"></i>
           <select v-model="typeFilter" class="notif-type-select">
@@ -77,7 +90,9 @@
         </div>
       </header>
 
+      <!-- Barra de herramientas con botones "pill" para filtrar por estado de lectura -->
       <div class="notifications-toolbar">
+        <!-- Genera un botón pill por cada opción de estado definida en statusOptions -->
         <button
           v-for="opt in statusOptions"
           :key="opt.value"
@@ -87,22 +102,27 @@
           @click="statusFilter = opt.value"
         >
           {{ opt.label }}
+          <!-- Muestra un badge con el conteo de no leídas solo en el botón "Sin leer" -->
           <span v-if="opt.value === 'unread' && unreadCount > 0" class="notifications-status-pill__badge">{{ unreadCount }}</span>
         </button>
       </div>
 
+      <!-- Estado de error: se muestra cuando falla la carga de notificaciones -->
       <div v-if="errorMessage" class="empty-state notifications-empty-state">
         <i class="fas fa-exclamation-circle"></i>
         <p>{{ errorMessage }}</p>
       </div>
 
+      <!-- Estado vacío: se muestra cuando no hay notificaciones para los filtros seleccionados -->
       <div v-else-if="filteredNotifications.length === 0" class="empty-state notifications-empty-state">
         <i class="fas fa-bell-slash"></i>
         <p>No tienes notificaciones para este filtro.</p>
         <span>Cuando haya novedades relevantes las verás aquí.</span>
       </div>
 
+      <!-- Lista de notificaciones con animación de entrada/salida al cambiar los filtros -->
       <transition-group v-else name="notifications-list" tag="div" class="notifications-list">
+        <!-- Cada notificación se renderiza como un article clickeable -->
         <article
           v-for="notification in filteredNotifications"
           :key="notification.id"
@@ -110,32 +130,41 @@
           :class="{ 'is-unread': !notification.is_read }"
           @click="handleOpenNotification(notification)"
         >
+          <!-- Zona izquierda: indicador de no leída + icono del tipo de notificación -->
           <div class="notifications-item__leading">
+            <!-- Punto azul que indica que la notificación no ha sido leída -->
             <span v-if="!notification.is_read" class="notifications-item__unread-dot" title="No leída"></span>
+            <!-- Icono con fondo de color según el tipo de notificación (orden, producto, etc.) -->
             <div class="notifications-item__icon" :class="`notifications-item__icon--${notificationType(notification)}`">
               <i :class="notificationIcon(notification)"></i>
             </div>
           </div>
 
+          <!-- Cuerpo de la notificación: título, badge de tipo, tiempo transcurrido y mensaje -->
           <div class="notifications-item__body">
             <div class="notifications-item__top">
               <div class="notifications-item__headline">
                 <h3>{{ notification.title }}</h3>
+                <!-- Badge de color que indica el tipo de notificación en texto legible -->
                 <span :class="`notifications-type-badge notifications-type-badge--${notificationType(notification)}`">
                   {{ notificationTypeLabel(notification) }}
                 </span>
               </div>
 
+              <!-- Tiempo transcurrido desde la creación (se actualiza cada segundo gracias a relativeNow) -->
               <span class="notifications-item__time">
                 <i class="far fa-clock"></i>
                 {{ formatTimeAgo(notification.created_at) }}
               </span>
             </div>
 
+            <!-- Mensaje descriptivo de la notificación -->
             <p class="notifications-item__message">{{ notification.message }}</p>
           </div>
 
+          <!-- Botones de acción: marcar leída y eliminar. @click.stop evita que el clic se propague al article padre -->
           <div class="notifications-item__actions" @click.stop>
+            <!-- Botón "Marcar leída": solo se muestra si la notificación no fue leída aún -->
             <button
               v-if="!notification.is_read"
               type="button"
@@ -147,6 +176,7 @@
               <span>{{ loadingAction ? 'Marcando...' : 'Marcar leída' }}</span>
             </button>
 
+            <!-- Botón "Eliminar": siempre visible para poder borrar cualquier notificación -->
             <button
               type="button"
               class="btn-outline-small notifications-item__btn notifications-item__btn--delete"
@@ -164,83 +194,136 @@
 </template>
 
 <script setup>
+// ── Imports de Vue ──────────────────────────────────────────────────────────
+// computed: propiedades reactivas derivadas (se recalculan automáticamente).
+// inject: accede a valores inyectados desde un componente ancestro (provide/inject).
+// onMounted / onUnmounted: hooks del ciclo de vida para inicializar y limpiar recursos.
+// ref: crea una variable reactiva que Vue observa para actualizar el DOM.
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
+// useRouter: composable para navegar programáticamente entre rutas de la aplicación.
 import { useRouter } from 'vue-router'
+// Componente de efecto shimmer (esqueleto de carga) que se muestra mientras se cargan los datos.
 import AccountShimmer from '../components/AccountShimmer.vue'
+// Funciones del API para gestionar notificaciones: obtener, marcar como leídas y eliminar.
 import {
   deleteNotification,
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../../services/notificationApi'
+// useSession: composable que expone el usuario actual y su estado de sesión (isLoggedIn).
 import { useSession } from '../../../composables/useSession'
+// useAlertSystem: composable para mostrar alertas modales (éxito, error, confirmación).
 import { useAlertSystem } from '../../../composables/useAlertSystem'
+// useAppShell: composable para comunicar datos al shell de la aplicación (barra superior, etc.).
 import { useAppShell } from '../../../composables/useAppShell'
 
+// ── Inicialización de composables y dependencias ──────────────────────────────
 const router = useRouter()
 const { user, isLoggedIn } = useSession()
 const { showAlert } = useAlertSystem()
 const { setNotificationCount } = useAppShell()
+// Inyecta la función del componente padre para actualizar el contador de notificaciones sin leer en la barra de navegación.
+// Si no existe provide en el padre, usa una función vacía como respaldo.
 const setAccountUnreadNotifications = inject('setAccountUnreadNotifications', () => {})
 
+// ── Estado reactivo ──────────────────────────────────────────────────────────
+// loading: controla la visibilidad del shimmer de carga durante la carga inicial.
 const loading = ref(true)
+// loadingAction: bloquea botones mientras se ejecuta una acción (marcar leída, eliminar, etc.) para evitar clics duplicados.
 const loadingAction = ref(false)
+// errorMessage: almacena el mensaje de error cuando falla la carga de notificaciones.
 const errorMessage = ref('')
+// notifications: array completo de notificaciones obtenidas del API.
 const notifications = ref([])
+// statusFilter: filtro activo por estado de lectura ('all', 'unread', 'read').
 const statusFilter = ref('all')
+// typeFilter: filtro activo por tipo de notificación ('all', 'order', 'product', etc.).
 const typeFilter = ref('all')
+// relativeNow: marca de tiempo actual que se actualiza cada segundo para calcular "hace X tiempo" en tiempo real.
 const relativeNow = ref(Date.now())
+// Intervalo en milisegundos para el polling de notificaciones (20 segundos).
 const NOTIFICATIONS_POLLING_MS = 20000
+// Identificador del intervalo del reloj relativo (para limpiarlo al desmontar).
 let relativeClockTimer = null
+// Identificador del intervalo de polling de notificaciones (para limpiarlo al desmontar).
 let notificationsRefreshTimer = null
 
+// ── Opciones de filtro por estado ────────────────────────────────────────────
+// Cada objeto define el valor del filtro y la etiqueta visible en los botones tipo "pill".
 const statusOptions = [
   { value: 'all', label: 'Todas' },
   { value: 'unread', label: 'Sin leer' },
   { value: 'read', label: 'Leídas' },
 ]
 
+// ── Propiedades computadas ──────────────────────────────────────────────────
+// unreadCount: calcula la cantidad de notificaciones no leídas filtrando por is_read === false.
 const unreadCount = computed(() => notifications.value.filter((item) => !item?.is_read).length)
+// readCount: calcula la cantidad de notificaciones ya leídas filtrando por is_read === true.
 const readCount = computed(() => notifications.value.filter((item) => !!item?.is_read).length)
 
+// filteredNotifications: devuelve solo las notificaciones que cumplen con ambos filtros activos
+// (estado de lectura y tipo de entidad). Es la lista que realmente se renderiza en el DOM.
 const filteredNotifications = computed(() => {
   return notifications.value.filter((item) => {
+    // Determina si la notificación fue leída (convierte a booleano por seguridad).
     const read = !!item?.is_read
+    // Extrae el tipo de entidad relacionada y lo normaliza a minúsculas; por defecto es 'system'.
     const entityType = String(item?.related_entity_type || 'system').toLowerCase()
 
+    // Si el filtro es "leídas" pero la notificación no fue leída, la excluye.
     if (statusFilter.value === 'read' && !read) return false
+    // Si el filtro es "sin leer" pero la notificación ya fue leída, la excluye.
     if (statusFilter.value === 'unread' && read) return false
+    // Si se eligió un tipo específico y no coincide, la excluye.
     if (typeFilter.value !== 'all' && typeFilter.value !== entityType) return false
 
     return true
   })
 })
 
+// ── Ciclo de vida ───────────────────────────────────────────────────────────
+// onMounted: se ejecuta cuando el componente se inserta en el DOM.
+// Inicia el reloj relativo y carga las notificaciones por primera vez.
 onMounted(async () => {
+  // Actualiza relativeNow cada segundo para que los textos "hace X minutos" se refresquen en tiempo real.
   relativeClockTimer = window.setInterval(() => {
     relativeNow.value = Date.now()
   }, 1000)
 
+  // Carga inicial de notificaciones con el shimmer de loading visible.
   await refreshNotifications({ showLoader: true })
+  // Inicia el polling para refrescar notificaciones periódicamente en segundo plano.
   startNotificationsPolling()
 })
 
+// onUnmounted: se ejecuta cuando el componente se destruye (navegación a otra ruta).
+// Limpia todos los intervalos para evitar fugas de memoria.
 onUnmounted(() => {
+  // Detiene el reloj relativo que actualiza "hace X tiempo".
   if (relativeClockTimer !== null) {
     window.clearInterval(relativeClockTimer)
     relativeClockTimer = null
   }
 
+  // Detiene el polling de notificaciones.
   stopNotificationsPolling()
 })
 
+// ── Funciones de carga de datos ─────────────────────────────────────────────
+// refreshNotifications: obtiene la lista completa de notificaciones del API.
+// Parámetro showLoader: cuando es true, muestra el shimmer de carga y errores;
+// cuando es false (polling silencioso), actualiza los datos sin mostrar indicadores.
 async function refreshNotifications({ showLoader = false } = {}) {
+  // Solo muestra el loader y limpia errores en la carga inicial (no en el polling).
   if (showLoader) {
     loading.value = true
     errorMessage.value = ''
   }
 
   try {
+    // Si el usuario no tiene sesión activa, limpia las notificaciones y el contador global.
     if (!isLoggedIn.value) {
       notifications.value = []
       setAccountUnreadNotifications(0)
@@ -248,35 +331,50 @@ async function refreshNotifications({ showLoader = false } = {}) {
       return
     }
 
+    // Extrae el ID y email del usuario para la consulta al API.
     const userId = String(user.value?.id || '').trim()
     const userEmail = String(user.value?.email || '').trim()
+    // Llama al servicio API que retorna las notificaciones del usuario.
     const response = await getNotifications(userId, userEmail)
+    // Asigna las notificaciones; valida que response.data sea un array para evitar errores.
     notifications.value = Array.isArray(response?.data) ? response.data : []
+    // Actualiza el contador de notificaciones sin leer en el shell y en la barra de navegación del padre.
     setAccountUnreadNotifications(unreadCount.value)
     setNotificationCount(unreadCount.value)
   } catch {
+    // En caso de error, solo muestra el mensaje si es la carga inicial (no en polling silencioso).
     if (showLoader) {
       errorMessage.value = 'No se pudieron cargar las notificaciones.'
     }
   } finally {
+    // Oculta el loader solo si se mostró al inicio.
     if (showLoader) {
       loading.value = false
     }
   }
 }
 
+// ── Polling de notificaciones ────────────────────────────────────────────────
+// startNotificationsPolling: inicia un intervalo que refresca las notificaciones
+// cada 20 segundos. Si la pestaña del navegador está oculta, omite la petición
+// para ahorrar recursos de red y CPU.
 function startNotificationsPolling() {
+  // Detiene cualquier polling existente antes de iniciar uno nuevo (evita duplicados).
   stopNotificationsPolling()
 
   notificationsRefreshTimer = window.setInterval(() => {
+    // Si la pestaña está en segundo plano (hidden), no realiza la consulta.
     if (document.visibilityState === 'hidden') {
       return
     }
 
+    // Refresca las notificaciones sin mostrar el shimmer de carga.
     refreshNotifications()
   }, NOTIFICATIONS_POLLING_MS)
 }
 
+// stopNotificationsPolling: limpia el intervalo de polling para evitar llamadas innecesarias al API
+// y fugas de memoria cuando el componente se desmonta.
 function stopNotificationsPolling() {
   if (notificationsRefreshTimer !== null) {
     window.clearInterval(notificationsRefreshTimer)
@@ -284,52 +382,71 @@ function stopNotificationsPolling() {
   }
 }
 
+// ── Funciones de marcado de lectura ─────────────────────────────────────────
+// markAsRead: marca una notificación individual como leída en el API y actualiza el estado local.
 async function markAsRead(notificationId) {
   try {
     loadingAction.value = true
+    // Llama al API para registrar que el usuario leyó la notificación.
     await markNotificationRead(notificationId)
 
+    // Actualiza el array local: reemplaza la notificación modificada con is_read = true
+    // usando map para no mutar el array original (inmutabilidad reactiva de Vue).
     notifications.value = notifications.value.map((item) => (
       Number(item.id) === Number(notificationId)
         ? { ...item, is_read: true }
         : item
     ))
 
+    // Sincroniza el contador de no leídas con los componentes padre y el shell.
     setAccountUnreadNotifications(unreadCount.value)
     setNotificationCount(unreadCount.value)
   } catch {
+    // Muestra una alerta de error si la petición al API falla.
     showAlert({
       type: 'error',
       title: 'No fue posible actualizar',
       message: 'No pudimos marcar la notificación como leída.',
     })
   } finally {
+    // Desbloquea los botones de acción independientemente del resultado.
     loadingAction.value = false
   }
 }
 
+// ── Función de eliminación ──────────────────────────────────────────────────
+// deleteOne: muestra un modal de confirmación antes de eliminar una notificación.
+// Utiliza el sistema de alertas con un callback asíncrono que se ejecuta solo si
+// el usuario confirma la acción.
 function deleteOne(notificationId) {
+  // Muestra un diálogo de confirmación con dos opciones: cancelar y eliminar.
   showAlert({
     type: 'question',
     title: 'Eliminar notificación',
     message: '¿Deseas eliminar esta notificación?',
     actions: [
+      // Botón de cancelar: cierra el modal sin hacer nada.
       { text: 'Cancelar', style: 'secondary' },
       {
         text: 'Eliminar',
         style: 'danger',
+        // Callback que se ejecuta al confirmar la eliminación.
         callback: async () => {
           try {
             loadingAction.value = true
+            // Llama al API para eliminar la notificación del servidor.
             await deleteNotification(
               notificationId,
               String(user.value?.id || '').trim(),
               String(user.value?.email || '').trim(),
             )
+            // Elimina la notificación del array local usando filter (inmutabilidad reactiva).
             notifications.value = notifications.value.filter((item) => Number(item.id) !== Number(notificationId))
+            // Actualiza los contadores globales de notificaciones sin leer.
             setAccountUnreadNotifications(unreadCount.value)
             setNotificationCount(unreadCount.value)
           } catch {
+            // Muestra alerta de error si la eliminación falla.
             showAlert({
               type: 'error',
               title: 'No fue posible eliminar',
@@ -344,24 +461,31 @@ function deleteOne(notificationId) {
   })
 }
 
+// ── Marcado masivo de lectura ───────────────────────────────────────────────
+// markAllAsRead: marca todas las notificaciones pendientes como leídas de una sola vez.
 async function markAllAsRead() {
+  // Si no hay notificaciones sin leer, no hace nada (evita una llamada innecesaria al API).
   if (unreadCount.value === 0) return
 
   try {
     loadingAction.value = true
+    // Llama al API para marcar todas las notificaciones del usuario como leídas.
     await markAllNotificationsRead(
       String(user.value?.id || '').trim(),
       String(user.value?.email || '').trim(),
     )
 
+    // Actualiza el array local: todas las notificaciones ahora tienen is_read = true.
     notifications.value = notifications.value.map((item) => ({
       ...item,
       is_read: true,
     }))
 
+    // Resetea los contadores de notificaciones sin leer a cero.
     setAccountUnreadNotifications(0)
     setNotificationCount(0)
 
+    // Muestra una alerta de éxito que se cierra automáticamente después de 4 segundos.
     showAlert({
       type: 'success',
       title: 'Listo',
@@ -369,6 +493,7 @@ async function markAllAsRead() {
       autoCloseSeconds: 4,
     })
   } catch {
+    // Muestra alerta de error si la operación falla.
     showAlert({
       type: 'error',
       title: 'No fue posible actualizar',
@@ -379,22 +504,35 @@ async function markAllAsRead() {
   }
 }
 
+// ── Manejo de apertura de notificación ──────────────────────────────────────
+// handleOpenNotification: se ejecuta al hacer clic en una notificación de la lista.
+// Si la notificación no fue leída, la marca como leída automáticamente.
+// Si es una notificación de tipo "order", navega a la página de órdenes con el ID de la orden.
 function handleOpenNotification(notification) {
+  // Marca como leída si aún no lo está (la función es idempotente en el API).
   if (!notification?.is_read) {
     markAsRead(notification.id)
   }
 
+  // Si la notificación está relacionada con una orden, navega a la vista de órdenes
+  // pasando el ID de la orden como parámetro de consulta para resaltarla.
   if (String(notification?.related_entity_type || '') === 'order' && notification?.related_entity_id) {
     router.push({ name: 'account-orders', query: { order: notification.related_entity_id } })
   }
 }
 
+// ── Funciones utilitarias de tipo de notificación ───────────────────────────
+// notificationType: normaliza el tipo de entidad relacionada de la notificación.
+// Si el tipo no está en la lista permitida, devuelve 'system' como valor por defecto.
 function notificationType(notification) {
   const type = String(notification?.related_entity_type || 'system').toLowerCase()
+  // Lista blanca de tipos válidos; cualquier otro valor se tratará como 'system'.
   if (['order', 'product', 'promotion', 'account', 'system'].includes(type)) return type
   return 'system'
 }
 
+// notificationTypeLabel: retorna la etiqueta en español legible para el usuario
+// según el tipo de notificación (se usa en el badge de color al lado del título).
 function notificationTypeLabel(notification) {
   const type = notificationType(notification)
   if (type === 'order') return 'Orden'
@@ -404,6 +542,8 @@ function notificationTypeLabel(notification) {
   return 'Sistema'
 }
 
+// notificationIcon: retorna la clase de icono de Font Awesome según el tipo de notificación.
+// Cada tipo tiene un icono visualmente representativo de su naturaleza.
 function notificationIcon(notification) {
   const type = notificationType(notification)
   if (type === 'order') return 'fas fa-shopping-bag'
@@ -413,6 +553,10 @@ function notificationIcon(notification) {
   return 'fas fa-info-circle'
 }
 
+// ── Formateo de tiempo relativo ─────────────────────────────────────────────
+// formatTimeAgo: convierte una marca de tiempo en un texto legible como "hace 5 minutos".
+// Usa relativeNow (que se actualiza cada segundo) para que el texto se refresque en tiempo real.
+// Para marcas de tiempo antiguas (más de 7 días), muestra la fecha absoluta en formato local.
 function formatTimeAgo(value) {
   if (!value) return 'Ahora'
 
@@ -420,6 +564,7 @@ function formatTimeAgo(value) {
   const createdAt = parseNotificationDate(value)
   if (!createdAt) return 'Ahora'
 
+  // Calcula la diferencia en segundos entre ahora y la fecha de creación.
   const seconds = Math.max(0, Math.floor((relativeNow.value - createdAt.getTime()) / 1000))
   if (seconds < 5) return 'Hace unos segundos'
 
@@ -434,6 +579,7 @@ function formatTimeAgo(value) {
   const days = Math.floor(hours / 24)
   if (days < 7) return `Hace ${days} día${days === 1 ? '' : 's'}`
 
+  // Para notificaciones antiguas (más de 7 días), muestra la fecha en formato dd/mm/aaaa.
   return createdAt.toLocaleDateString('es-CO', {
     day: '2-digit',
     month: '2-digit',
@@ -441,19 +587,28 @@ function formatTimeAgo(value) {
   })
 }
 
+// ── Parseo de fechas de notificaciones ──────────────────────────────────────
+// parseNotificationDate: convierte un string de fecha (ISO o formato "YYYY-MM-DD HH:mm:ss")
+// en un objeto Date válido. Maneja timestamps sin zona horaria añadiendo 'Z' (UTC)
+// para mantener consistencia con el backend que almacena en UTC.
 function parseNotificationDate(value) {
   const raw = String(value || '').trim()
   if (!raw) return null
 
+  // Normaliza el separador: reemplaza espacio por 'T' para formar ISO 8601 válido.
   const iso = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  // Verifica si ya tiene zona horaria (Z o +/-HH:MM).
   const hasTimezone = /(Z|[+-]\d{2}:?\d{2})$/i.test(iso)
+  // Si no tiene zona horaria, asume UTC (Z) para paridad con el backend.
   const normalized = hasTimezone ? iso : `${iso}Z`
 
+  // Intenta parsear la fecha normalizada.
   const parsed = new Date(normalized)
   if (!Number.isNaN(parsed.getTime())) {
     return parsed
   }
 
+  // Fallback: intenta parsear el string original sin normalización.
   const fallback = new Date(raw)
   return Number.isNaN(fallback.getTime()) ? null : fallback
 }

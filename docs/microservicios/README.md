@@ -5,6 +5,8 @@
 
 - [Objetivo](#objetivo)
 - [Documentos relacionados](#documentos-relacionados)
+- [Diagramas de clases separados](#diagramas-de-clases-separados)
+- [Modelos relacionales separados](#modelos-relacionales-separados)
 - [Índice](#índice)
 - [Regla de ubicación](#regla-de-ubicación)
 <!-- indice:auto:end -->
@@ -17,6 +19,37 @@ Concentrar los accesos a la documentación específica de cada servicio sin mezc
 
 - `../README.md`
 - `../operaciones/manual-tecnico.md`
+- `../arquitectura/diagramas-clases-microservicios-plantuml.md`
+- `../arquitectura/modelos-relacionales-bases-datos-plantuml.md`
+- `../arquitectura/modelo-relacional-completo-plantuml.md`
+
+## Diagramas de clases separados
+
+- `../arquitectura/diagramas-clases-microservicios/auth-service.md`
+- `../arquitectura/diagramas-clases-microservicios/catalog-service.md`
+- `../arquitectura/diagramas-clases-microservicios/cart-service.md`
+- `../arquitectura/diagramas-clases-microservicios/order-service.md`
+- `../arquitectura/diagramas-clases-microservicios/payment-service.md`
+- `../arquitectura/diagramas-clases-microservicios/discount-service.md`
+- `../arquitectura/diagramas-clases-microservicios/shipping-service.md`
+- `../arquitectura/diagramas-clases-microservicios/notification-service.md`
+- `../arquitectura/diagramas-clases-microservicios/audit-service.md`
+- `../arquitectura/diagramas-clases-microservicios/realtime-gateway.md`
+
+## Modelos relacionales separados
+
+- `../arquitectura/modelo-relacional-completo-plantuml.md`
+- `../arquitectura/modelos-relacionales-bases-datos/auth-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/catalog-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/cart-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/order-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/payment-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/discount-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/shipping-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/notification-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/audit-service.md`
+- `../arquitectura/modelos-relacionales-bases-datos/realtime-gateway.md`
+- `../arquitectura/modelos-relacionales-bases-datos/referencias-logicas.md`
 
 ## Índice
 
@@ -29,6 +62,7 @@ Concentrar los accesos a la documentación específica de cada servicio sin mezc
 - `services/shipping-service/docs/README.md`
 - `services/notification-service/docs/README.md`
 - `services/audit-service/docs/README.md`
+- `services/realtime-gateway/`
 
 ## Regla de ubicación
 

@@ -16,6 +16,12 @@ import {
   resolveInventoryThreshold,
 } from '../utils/inventoryPresentation'
 
+/**
+ * Composable principal del dashboard administrativo.
+ * Carga y gestiona estadísticas del día, métricas históricas, gráficos de pedidos
+ * e inventario con actualización en tiempo real vía eventos del shell de la app.
+ */
+
 // =====================================================
 // Constantes internas
 // =====================================================

@@ -1,3 +1,9 @@
+/**
+ * Composable para la gestión de reembolsos del panel administrativo.
+ * Administra listado de solicitudes, aprobación/rechazo, filtros por estado
+ * y fechas, comprobantes de pago y paginación.
+ * Reutiliza useAdminPagination para paginación.
+ */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { orderHttp } from '../../../services/http'
 import { resolveUploadUrl } from '../../../utils/media'
@@ -8,7 +14,7 @@ import { useAdminPagination } from './useAdminPagination'
 
 const REFUND_STATUS_LABELS = {
   requested: 'Solicitado',
-  approved: 'Aceptado',
+  approved: 'Reembolso en proceso',
   processing: 'Reembolso en proceso',
   rejected: 'Rechazado',
   completed: 'Reembolsado',
@@ -36,22 +42,13 @@ const REFUND_REASON_LABELS = {
 
 const REFUND_ACTIONS = {
   approve: {
-    status: 'approved',
+    status: 'processing',
     label: 'Aceptar reembolso',
     confirm: 'Aceptar',
     title: 'Aceptar reembolso',
     icon: 'fas fa-check',
     tone: 'edit',
     paymentMessage: 'El pago pasará a reembolso en proceso.',
-  },
-  process: {
-    status: 'processing',
-    label: 'Marcar en proceso',
-    confirm: 'Marcar en proceso',
-    title: 'Marcar reembolso en proceso',
-    icon: 'fas fa-rotate',
-    tone: 'edit',
-    paymentMessage: 'El pago se mantendrá en reembolso en proceso.',
   },
   reject: {
     status: 'rejected',
@@ -75,6 +72,8 @@ const REFUND_ACTIONS = {
 
 function normalizeStatus(value, fallback = 'requested') {
   const normalized = String(value || '').trim().toLowerCase()
+  // Reutiliza la compatibilidad de estados antiguos: "approved" ahora se representa como proceso activo.
+  if (normalized === 'approved') return 'processing'
   return normalized || fallback
 }
 
@@ -158,8 +157,25 @@ export function useAdminRefunds() {
     return getPaymentStatusLabel(status)
   }
 
+  // Ajusta los colores de pago al contexto de reembolso para que "Reembolsado" no se muestre como error.
   function paymentStatusBadgeClass(status) {
+    const normalized = normalizeStatus(status, '')
+    if (normalized === 'refunded') return 'active'
+    if (normalized === 'pending_refund') return 'processing'
+    if (normalized === 'refund_requested') return 'pending'
+
     return getPaymentStatusBadgeClass(status)
+  }
+
+  // Reutiliza el estado de la solicitud como fuente principal para mantener pago y reembolso conectados.
+  function refundPaymentStatus(refund) {
+    const status = normalizeStatus(refund?.status)
+    if (status === 'requested') return 'refund_requested'
+    if (status === 'processing') return 'pending_refund'
+    if (status === 'completed') return 'refunded'
+    if (status === 'rejected') return 'verified'
+
+    return normalizeStatus(refund?.payment_status, 'pending')
   }
 
   function refundReasonLabel(reason) {
@@ -211,7 +227,7 @@ export function useAdminRefunds() {
       refundStats.value = payload.stats || {
         total: refunds.value.length,
         requested: refunds.value.filter((refund) => refund.status === 'requested').length,
-        in_process: refunds.value.filter((refund) => ['approved', 'processing'].includes(refund.status)).length,
+        in_process: refunds.value.filter((refund) => refund.status === 'processing').length,
         completed: refunds.value.filter((refund) => refund.status === 'completed').length,
       }
     } catch {
@@ -268,10 +284,10 @@ export function useAdminRefunds() {
 
   function canUseAction(refund, actionName) {
     const status = normalizeStatus(refund?.status)
+    // Aceptar pasa directo a proceso; por eso no existe una acción separada para "Marcar en proceso".
     if (actionName === 'approve') return status === 'requested'
-    if (actionName === 'process') return ['requested', 'approved'].includes(status)
-    if (actionName === 'reject') return ['requested', 'approved', 'processing'].includes(status)
-    if (actionName === 'complete') return ['approved', 'processing'].includes(status)
+    if (actionName === 'reject') return ['requested', 'processing'].includes(status)
+    if (actionName === 'complete') return status === 'processing'
     return false
   }
 
@@ -351,6 +367,7 @@ export function useAdminRefunds() {
     pagination,
     paymentStatusBadgeClass,
     paymentStatusLabel,
+    refundPaymentStatus,
     refundDetailsLabel,
     refundReasonLabel,
     refundStatusBadgeClass,

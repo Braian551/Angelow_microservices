@@ -43,6 +43,17 @@ return [
         'web_api_key' => env('FIREBASE_WEB_API_KEY', 'AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k'),
     ],
 
+    'turnstile' => [
+        'secret_key' => env('TURNSTILE_SECRET_KEY', ''),
+        'verify_url' => env('TURNSTILE_VERIFY_URL', 'https://challenges.cloudflare.com/turnstile/v0/siteverify'),
+    ],
+
+    'login_protection' => [
+        'captcha_after_attempts' => env('AUTH_LOGIN_CAPTCHA_AFTER_ATTEMPTS', 3),
+        'temp_block_after_attempts' => env('AUTH_LOGIN_TEMP_BLOCK_AFTER_ATTEMPTS', 8),
+        'temp_block_minutes' => env('AUTH_LOGIN_TEMP_BLOCK_MINUTES', 15),
+    ],
+
     'internal' => [
         'api_token' => env('INTERNAL_API_TOKEN', ''),
     ],
@@ -50,6 +61,12 @@ return [
     'password_recovery' => [
         'code_ttl' => env('PASSWORD_RECOVERY_CODE_TTL', 900),
         'resend_cooldown' => env('PASSWORD_RECOVERY_RESEND_COOLDOWN', 60),
+        'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
+    ],
+
+    'registration_verification' => [
+        'code_ttl' => env('REGISTRATION_VERIFICATION_CODE_TTL', 900),
+        'resend_cooldown' => env('REGISTRATION_VERIFICATION_RESEND_COOLDOWN', 60),
         'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
     ],
 

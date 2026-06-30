@@ -12,18 +12,18 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Query Builder implementation of the Product repository.
+ * Implementación Query Builder del repositorio de productos.
  *
- * Migrated from angelow/producto/includes/product-functions.php
- * and angelow/tienda/productos.php (SP GetFilteredProducts).
+ * Reutiliza el comportamiento de angelow/producto/includes/product-functions.php
+ * y angelow/tienda/productos.php, incluyendo la referencia funcional de GetFilteredProducts.
  */
 class QueryBuilderProductRepository implements ProductRepositoryInterface
 {
     /**
-     * Get a paginated, filtered list of products.
+     * Obtiene un listado paginado y filtrado de productos.
      *
-     * Replaces the stored procedure GetFilteredProducts with a
-     * Query Builder approach for portability and readability.
+     * Reemplaza el procedimiento GetFilteredProducts con Query Builder para mantener portabilidad
+     * y permite activar la vista PostgreSQL cuando la migración de rendimiento ya existe.
      */
     public function getFiltered(array $filters, int $limit, int $offset, ?string $userId = null): array
     {
@@ -35,7 +35,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             $userId,
         );
 
-        // Fallback legacy durante migración cuando la base distribuida no tenga productos aún.
+        // Reutiliza la conexión histórica durante migración cuando la base distribuida no tenga productos aún.
         if (($result['total'] ?? 0) === 0) {
             try {
                 $legacyResult = $this->runFilteredQueryByConnection(
@@ -50,7 +50,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
                     $result = $legacyResult;
                 }
             } catch (Throwable $exception) {
-                Log::warning('No se pudo consultar el fallback de catálogo desde legacy.', [
+                Log::warning('No se pudo consultar el respaldo histórico de catálogo.', [
                     'error' => $exception->getMessage(),
                     'filters' => $filters,
                 ]);
@@ -76,6 +76,10 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     ): array {
         $db = $connection ? DB::connection($connection) : DB::connection();
         $searchOperator = $db->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
+        if ($connection === null && $db->getDriverName() === 'pgsql' && $this->databaseObjectExists($db, 'catalog_product_listing_view')) {
+            return $this->runFilteredViewQuery($filters, $limit, $offset, $userId, $searchOperator);
+        }
 
         $query = $db->table('products as p')
             ->leftJoin('product_images as pi', function ($join) {
@@ -163,7 +167,111 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Normaliza filtros de género para soportar variantes con acentos/plurales y valores mojibake heredados.
+     * Ejecuta la consulta optimizada sobre la vista PostgreSQL cuando la migración ya está aplicada.
+     */
+    private function runFilteredViewQuery(
+        array $filters,
+        int $limit,
+        int $offset,
+        ?string $userId,
+        string $searchOperator,
+    ): array {
+        $query = DB::table('catalog_product_listing_view as p')
+            ->where('p.is_active', true)
+            ->select('p.*');
+
+        if ($userId) {
+            $query->leftJoin('wishlist as w', function ($join) use ($userId) {
+                $join->on('p.id', '=', 'w.product_id')
+                    ->where('w.user_id', '=', $userId);
+            });
+            $query->addSelect(DB::raw('CASE WHEN w.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite'));
+        } else {
+            $query->addSelect(DB::raw('0 as is_favorite'));
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search, $searchOperator) {
+                $q->where('p.name', $searchOperator, "%{$search}%")
+                    ->orWhere('p.description', $searchOperator, "%{$search}%")
+                    ->orWhere('p.category_name', $searchOperator, "%{$search}%");
+            });
+        }
+
+        if (!empty($filters['category'])) {
+            $query->where('p.category_id', $filters['category']);
+        }
+
+        if (!empty($filters['gender'])) {
+            $genderCriteria = $this->resolveGenderSearchCriteria((string) $filters['gender']);
+            $query->where(function ($genderQuery) use ($genderCriteria, $searchOperator) {
+                foreach ($genderCriteria as $criterion) {
+                    $genderQuery->orWhere('p.gender', $searchOperator, $criterion);
+                }
+            });
+        }
+
+        if (isset($filters['min_price']) && $filters['min_price'] !== null) {
+            $query->where('p.price', '>=', $filters['min_price']);
+        }
+
+        if (isset($filters['max_price']) && $filters['max_price'] !== null) {
+            $query->where('p.price', '<=', $filters['max_price']);
+        }
+
+        if (!empty($filters['offers'])) {
+            $query->whereNotNull('p.compare_price')
+                ->whereColumn('p.price', '<', 'p.compare_price');
+        }
+
+        if (!empty($filters['collection'])) {
+            $query->where('p.collection_id', $filters['collection']);
+        }
+
+        $total = (clone $query)->count('p.id');
+
+        $sortBy = $filters['sort'] ?? 'newest';
+        match ($sortBy) {
+            'popular' => $query->orderByDesc('p.review_count'),
+            'price_asc' => $query->orderBy('p.price'),
+            'price_desc' => $query->orderByDesc('p.price'),
+            'name_asc' => $query->orderBy('p.name'),
+            'name_desc' => $query->orderByDesc('p.name'),
+            default => $query->orderByDesc('p.is_featured')->orderByDesc('p.created_at'),
+        };
+
+        $products = $query->offset($offset)->limit($limit)->get()->toArray();
+
+        return [
+            'products' => array_map(fn($product) => (array) $product, $products),
+            'total' => (int) $total,
+        ];
+    }
+
+    /**
+     * Verifica objetos opcionales para activar mejoras sin romper bases todavía no migradas.
+     */
+    private function databaseObjectExists($db, string $objectName): bool
+    {
+        static $cache = [];
+        $cacheKey = $db->getName() . ':' . $objectName;
+
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        try {
+            $row = $db->selectOne('SELECT to_regclass(?) AS object_name', [$objectName]);
+
+            return $cache[$cacheKey] = !empty($row?->object_name);
+        } catch (Throwable) {
+            return $cache[$cacheKey] = false;
+        }
+    }
+
+    /**
+     * Normaliza filtros de género para soportar variantes con acentos, plurales y datos históricos.
      */
     private function resolveGenderSearchCriteria(string $rawGender): array
     {
@@ -171,7 +279,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         $genderKey = Str::ascii($normalized);
 
         $criteria = match ($genderKey) {
-            // Patrones tolerantes para cubrir nina/nino incluso cuando llegan con bytes degradados.
+            // Patrones tolerantes para cubrir niña/niño incluso cuando llegan con bytes degradados.
             'nina', 'ninas' => ['%ni%a%', '%nina%', '%niña%', '%niÃ±a%', '%niñas%', '%niÃ±as%'],
             'nino', 'ninos' => ['%ni%o%', '%nino%', '%niño%', '%niÃ±o%', '%niños%', '%niÃ±os%'],
             'bebe', 'bebes' => ['%be%b%', '%bebe%', '%bebé%', '%bebes%', '%bebés%', '%bebÃ©%', '%bebÃ©s%'],
@@ -182,9 +290,9 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get a single product by its slug.
+     * Obtiene un producto por su slug.
      *
-     * Migrated from getProductBySlug() in product-functions.php
+     * Reutiliza la referencia funcional de getProductBySlug() en product-functions.php.
      */
     public function findBySlug(string $slug): ?object
     {
@@ -209,9 +317,9 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get product variants (colors -> sizes -> images).
+     * Obtiene variantes de producto en la jerarquía color, talla e imagen.
      *
-     * Migrated from getProductVariants() in product-functions.php
+     * Reutiliza la referencia funcional de getProductVariants() en product-functions.php.
      */
     public function getVariants(int $productId): array
     {
@@ -285,9 +393,9 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get additional (non-primary) images.
+     * Obtiene imágenes adicionales que no son la imagen principal.
      *
-     * Migrated from getAdditionalImages() in product-functions.php
+     * Reutiliza la referencia funcional de getAdditionalImages() en product-functions.php.
      */
     public function getAdditionalImages(int $productId): array
     {
@@ -305,9 +413,9 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get related products.
+     * Obtiene productos relacionados para la ficha de producto.
      *
-     * Migrated from getRelatedProducts() in product-functions.php
+     * Reutiliza la referencia funcional de getRelatedProducts() en product-functions.php.
      */
     public function getRelated(int $productId, int $categoryId, int $limit = 4): array
     {
@@ -337,9 +445,9 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get reviews with stats.
+     * Obtiene reseñas con estadísticas agregadas.
      *
-     * Migrated from getProductReviews() in product-functions.php
+     * Reutiliza la referencia funcional de getProductReviews() en product-functions.php.
      */
     public function getReviews(int $productId, ?string $userId = null): array
     {
@@ -379,7 +487,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
             })
             ->toArray();
 
-        // Estadisticas para la seccion de barras de calificacion.
+        // Estadísticas para la sección de barras de calificación.
         $stats = DB::table('product_reviews')
             ->where('product_id', $productId)
             ->where('is_approved', true)
@@ -424,9 +532,9 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Get questions and answers.
+     * Obtiene preguntas y respuestas del producto.
      *
-     * Migrated from getProductQuestions() in product-functions.php
+     * Reutiliza la referencia funcional de getProductQuestions() en product-functions.php.
      */
     public function getQuestions(int $productId, int $limit = 5, ?string $userId = null): array
     {
@@ -473,7 +581,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Normaliza la ruta del avatar para mantener compatibilidad con legacy.
+     * Resuelve stock disponible en tiempo real y usa la cantidad persistida como respaldo.
      */
     private function resolveRealtimeAvailableStock(int $sizeVariantId, int $fallbackQuantity): int
     {
@@ -499,7 +607,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Normaliza la ruta del avatar para mantener compatibilidad con legacy.
+     * Normaliza la ruta del avatar para mantener compatibilidad con imágenes históricas.
      */
     private function normalizeUserImagePath(?string $path): string
     {
@@ -517,7 +625,7 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
     }
 
     /**
-     * Retorna el nombre mostrado del usuario con fallback consistente.
+     * Retorna el nombre mostrado del usuario con respaldo consistente.
      */
     private function resolveUserName(?string $name, ?string $userId = null): string
     {
@@ -534,5 +642,3 @@ class QueryBuilderProductRepository implements ProductRepositoryInterface
         return 'Usuario ' . $cleanUserId;
     }
 }
-
-

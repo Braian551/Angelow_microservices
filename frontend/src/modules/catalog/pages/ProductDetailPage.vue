@@ -1,10 +1,13 @@
 <template>
   <main class="product-detail-page">
     <div class="section-container">
+      <!-- Skeleton del detalle mientras se cargan producto, variantes, reseñas y preguntas. -->
       <ProductDetailShimmer v-if="loading" />
+      <!-- Estado de error controlado cuando el producto no se pudo cargar. -->
       <p v-else-if="errorMessage" class="error-box">{{ errorMessage }}</p>
 
       <template v-else>
+        <!-- Navegación contextual para volver al listado o historial previo. -->
         <div class="back-button-container">
           <button type="button" class="back-button" @click="goBack">
             <i class="fas fa-arrow-left" />
@@ -12,7 +15,9 @@
           </button>
         </div>
 
+        <!-- Bloque principal: galería de imágenes y panel de compra del producto. -->
         <section class="product-main-section">
+          <!-- Galería con imagen principal, miniaturas y zoom. -->
           <div class="product-gallery">
             <div class="gallery-main" :class="{ 'is-loading': showMainImageShimmer }">
               <span v-if="showMainImageShimmer" class="product-image-shimmer" aria-hidden="true"></span>
@@ -43,6 +48,7 @@
             </div>
           </div>
 
+          <!-- Panel comercial: nombre, precio, variantes, stock y acciones. -->
           <div class="product-info">
             <div class="product-header">
               <h1 class="product-title">{{ normalizedProductName }}</h1>
@@ -189,6 +195,7 @@
           </div>
         </section>
 
+        <!-- Tabs inferiores con descripción, especificaciones, reseñas y preguntas. -->
         <section ref="tabsSectionRef" class="detail-tabs-section">
           <div class="detail-tabs-header">
             <button
@@ -230,6 +237,7 @@
           </div>
 
           <div class="detail-tabs-content">
+            <!-- Descripción extendida del producto con imágenes adicionales navegables. -->
             <div v-show="activeTab === 'description'" class="detail-tab-pane">
               <h3>Detalles del producto</h3>
               <p>{{ normalizedDescription }}</p>
@@ -246,6 +254,7 @@
               </div>
             </div>
 
+            <!-- Especificaciones normalizadas desde datos de producto y variante activa. -->
             <div v-show="activeTab === 'specs'" class="detail-tab-pane">
               <div class="detail-specs-list">
                 <div v-for="spec in tabSpecs" :key="spec.label" class="detail-spec-item">
@@ -255,6 +264,7 @@
               </div>
             </div>
 
+            <!-- Opiniones y distribución de calificaciones del producto. -->
             <div v-show="activeTab === 'reviews'" class="detail-tab-pane">
               <div class="questions-header reviews-header">
                 <div class="reviews-header-copy">
@@ -352,6 +362,7 @@
               </div>
             </div>
 
+            <!-- Preguntas de clientes y respuestas asociadas al producto. -->
             <div v-show="activeTab === 'questions'" class="detail-tab-pane">
               <div class="questions-header">
                 <h3>Preguntas y respuestas</h3>
@@ -425,6 +436,7 @@
       </template>
     </div>
 
+    <!-- Modal de zoom que reutiliza la imagen activa de la galería o descripción. -->
     <div class="detail-image-modal" :class="{ active: zoomModalOpen }" @click.self="closeZoom">
       <button type="button" class="detail-modal-close" aria-label="Cerrar" @click="closeZoom">&times;</button>
       <img :src="zoomImage.src" :alt="zoomImage.alt" @error="onZoomImageError" />
@@ -449,12 +461,14 @@ import { numericValidationMessages, validatePositiveInteger } from '../../../uti
 import { normalizeUtf8Text } from '../../../utils/text'
 import '../views/ProductDetailView.css'
 
+// Dependencias de ruta, sesión, shell y feedback usadas por el detalle público.
 const route = useRoute()
 const router = useRouter()
 const { sessionId, user, isLoggedIn } = useSession()
 const { refreshCartCount } = useAppShell()
 const { showSnackbar } = useSnackbarSystem()
 
+// Estado principal de carga, producto, variantes, interacción y modales.
 const loading = ref(true)
 const errorMessage = ref('')
 const infoMessage = ref('')
@@ -478,13 +492,17 @@ const zoomModalOpen = ref(false)
 const zoomImage = ref({ src: '', alt: '', rawPath: '' })
 const pendingRealtimeVariantIds = new Set()
 
+// Temporizador que agrupa refrescos realtime para no saturar el catálogo.
 let realtimeVariantRefreshTimerId = null
 
+// Opciones de color derivadas desde el mapa de variantes recibido por catálogo.
 const colorOptions = computed(() => Object.values(variants.value || {}))
+// Identificadores de variantes usados para suscribirse al stock realtime.
 const currentProductVariantIds = computed(() => colorOptions.value.flatMap((color) => Object.values(color?.sizes || {})
   .map((size) => Number(size?.variant_id || 0))
   .filter((variantId) => Number.isFinite(variantId) && variantId > 0)))
 
+// Color seleccionado o primer color disponible como fallback visual.
 const activeColor = computed(() => {
   if (!colorOptions.value.length) return null
 
@@ -495,8 +513,10 @@ const activeColor = computed(() => {
   )
 })
 
+// Tallas disponibles para el color activo.
 const sizeOptions = computed(() => Object.values(activeColor.value?.sizes || {}))
 
+// Talla seleccionada o primera talla disponible para no dejar el panel vacío.
 const activeSize = computed(() => {
   if (!sizeOptions.value.length) return null
 
@@ -507,12 +527,15 @@ const activeSize = computed(() => {
   )
 })
 
+// Textos normalizados para evitar mojibake visible en datos de producto y variantes.
 const normalizedProductName = computed(() => normalizeUtf8Text(product.value.name || 'Producto'))
 const selectedColorName = computed(() => normalizeUtf8Text(activeColor.value?.color_name || 'No disponible'))
 const selectedSizeName = computed(() => normalizeUtf8Text(activeSize.value?.size_name || 'No disponible'))
 
+// Precio activo prioriza la variante seleccionada sobre el precio base.
 const activePrice = computed(() => Number(activeSize.value?.price || product.value.price || 0))
 
+// Precio comparativo activo, válido solo si supera el precio de venta.
 const activeComparePrice = computed(() => {
   const current = activePrice.value
   const variantCompare = Number(activeSize.value?.compare_price || 0)
@@ -523,8 +546,10 @@ const activeComparePrice = computed(() => {
   return 0
 })
 
+// Indica si debe mostrarse precio tachado y descuento.
 const hasComparePrice = computed(() => activeComparePrice.value > activePrice.value)
 
+// Calcula el porcentaje de descuento visible para la variante activa.
 const discountPercentage = computed(() => {
   if (!hasComparePrice.value) return 0
 
@@ -534,6 +559,7 @@ const discountPercentage = computed(() => {
   return Math.max(1, Math.round(((compare - activePrice.value) / compare) * 100))
 })
 
+// Resumen de reseñas y promedio para cabecera y tab de opiniones.
 const reviewStats = computed(() => reviews.value?.stats || {})
 const reviewCount = computed(() => Number(reviewStats.value?.total_reviews || 0))
 
@@ -543,13 +569,16 @@ const averageRating = computed(() => {
   return Math.min(5, value)
 })
 
+// Conteo visible de preguntas normalizadas.
 const questionsCount = computed(() => questionItems.value.length)
 
+// Descripción con fallback para productos sin copy registrado.
 const normalizedDescription = computed(() => {
   const description = normalizeUtf8Text(product.value.description || '')
   return description || 'Sin descripción disponible.'
 })
 
+// Presenta el género técnico del producto como etiqueta en español.
 const genderLabel = computed(() => {
   const normalized = String(normalizeUtf8Text(product.value.gender || '')).toLowerCase()
 
@@ -561,6 +590,7 @@ const genderLabel = computed(() => {
   return 'No especificado'
 })
 
+// Especificaciones principales usadas tanto en panel como en tab técnico.
 const productSpecs = computed(() => {
   const specs = []
 
@@ -588,6 +618,7 @@ const productSpecs = computed(() => {
   return specs
 })
 
+// Especificaciones extendidas que se muestran dentro del tab correspondiente.
 const tabSpecs = computed(() => {
   const specs = [
     { label: 'Material', value: normalizeUtf8Text(product.value.material || 'No especificado') },
@@ -606,6 +637,7 @@ const tabSpecs = computed(() => {
   return specs
 })
 
+// Imágenes disponibles según color activo y galería adicional del producto.
 const activeImages = computed(() => {
   const colorImages = (activeColor.value?.images || []).map((image, index) => ({
     src: resolveMediaUrl(image.image_path, 'product'),
@@ -641,6 +673,7 @@ const activeImages = computed(() => {
   })
 })
 
+// Imágenes complementarias para la descripción, excluyendo duplicados.
 const tabDescriptionImages = computed(() => {
   const seen = new Set()
 
@@ -663,10 +696,12 @@ const tabDescriptionImages = computed(() => {
     })
 })
 
+// Galería final con fallback para evitar que la vista quede sin imagen.
 const galleryImages = computed(() => (activeImages.value.length
   ? activeImages.value
   : [{ src: resolveMediaUrl('', 'product'), rawPath: '', alt: 'Producto' }]))
 
+// Imagen principal derivada del índice actual de la galería.
 const mainImage = computed(() => {
   const safeIndex = Math.min(
     Math.max(Number(currentImageIndex.value || 0), 0),
@@ -676,8 +711,10 @@ const mainImage = computed(() => {
   return galleryImages.value[safeIndex]
 })
 
+// Controla el shimmer de la imagen principal hasta confirmar la carga.
 const showMainImageShimmer = computed(() => Boolean(mainImage.value?.src) && !mainImageLoaded.value)
 
+// Reseñas normalizadas con textos, avatar y fecha listos para presentación.
 const reviewItems = computed(() => {
   const items = Array.isArray(reviews.value?.reviews) ? reviews.value.reviews : []
 
@@ -697,6 +734,7 @@ const reviewItems = computed(() => {
   }))
 })
 
+// Preguntas normalizadas junto con sus respuestas para el tab de comunidad.
 const questionItems = computed(() => {
   const items = Array.isArray(questions.value) ? questions.value : []
 
@@ -722,6 +760,7 @@ const questionItems = computed(() => {
   }))
 })
 
+// Reglas de permisos locales para reseñar y preguntar.
 const userHasReview = computed(() => Boolean(reviews.value?.user_has_review))
 const canReview = computed(() => {
   if (!isLoggedIn.value) return false
@@ -740,11 +779,13 @@ const userHasQuestion = computed(() => {
 
 const canAskQuestion = computed(() => !userHasQuestion.value)
 
+// Ruta de login que devuelve al usuario al producto después de autenticarse.
 const loginRedirectRoute = computed(() => ({
   name: 'login',
   query: { redirect: router.currentRoute.value.fullPath },
 }))
 
+// Distribución de calificaciones para la gráfica de barras de opiniones.
 const ratingRows = computed(() => {
   const total = reviewCount.value
 
@@ -769,8 +810,10 @@ const ratingRows = computed(() => {
   })
 })
 
+// Estrellas promedio de la cabecera del producto.
 const starClasses = computed(() => getRatingStars(averageRating.value))
 
+// Stock y límites de cantidad derivados de la variante seleccionada.
 const stockQuantity = computed(() => Math.max(0, Number(activeSize.value?.quantity || 0)))
 
 const quantityMax = computed(() => {
@@ -780,29 +823,34 @@ const quantityMax = computed(() => {
 
 const isAddDisabled = computed(() => !activeSize.value || stockQuantity.value <= 0 || Boolean(quantityError.value) || cartSubmitting.value)
 
+// Clase visual del estado de stock.
 const stockClass = computed(() => {
   if (stockQuantity.value <= 0) return 'out-of-stock'
   if (stockQuantity.value <= 5) return 'low-stock'
   return 'in-stock'
 })
 
+// Ícono que acompaña el mensaje de disponibilidad.
 const stockIcon = computed(() => {
   if (stockQuantity.value <= 0) return 'fa-times-circle'
   if (stockQuantity.value <= 5) return 'fa-exclamation-circle'
   return 'fa-check-circle'
 })
 
+// Mensaje de disponibilidad mostrado al usuario.
 const stockMessage = computed(() => {
   if (stockQuantity.value <= 0) return 'Agotado'
   if (stockQuantity.value <= 5) return `Últimas ${stockQuantity.value} unidades`
   return `Disponible (${stockQuantity.value} unidades)`
 })
 
+// Ruta hacia tienda filtrada por colección del producto.
 const collectionRoute = computed(() => ({
   name: 'store',
   query: product.value.collection_id ? { collection: String(product.value.collection_id) } : {},
 }))
 
+// Selecciona automáticamente el primer color cuando llegan variantes nuevas.
 watch(colorOptions, (items) => {
   if (!items.length) return
 
@@ -811,6 +859,7 @@ watch(colorOptions, (items) => {
   }
 }, { immediate: true })
 
+// Al cambiar de color, reinicia talla, galería y cantidad para evitar combinaciones inválidas.
 watch(activeColor, () => {
   const firstSize = sizeOptions.value[0]
   selectedSizeVariantId.value = firstSize?.variant_id || null
@@ -819,18 +868,22 @@ watch(activeColor, () => {
   quantityError.value = ''
 }, { immediate: true })
 
+// Reinicia la galería cuando cambia el conjunto de imágenes activo.
 watch(activeImages, () => {
   currentImageIndex.value = 0
 })
 
+// Activa nuevamente el shimmer cada vez que cambia la imagen principal.
 watch(() => mainImage.value.src, () => {
   mainImageLoaded.value = false
 }, { immediate: true })
 
+// Bloquea el scroll del documento mientras el zoom está abierto.
 watch(zoomModalOpen, (isOpen) => {
   document.body.style.overflow = isOpen ? 'hidden' : ''
 })
 
+// Recarga el producto cuando cambia el slug sin desmontar la vista.
 watch(
   () => route.params.slug,
   () => {
@@ -838,6 +891,7 @@ watch(
   },
 )
 
+// Convierte una calificación numérica en clases de estrellas.
 function getRatingStars(ratingValue) {
   const value = Number(ratingValue || 0)
   const fullStars = Math.floor(value)
@@ -857,15 +911,18 @@ function getRatingStars(ratingValue) {
   return stars
 }
 
+// Cambia el tab visible sin destruir el contenido de los demás paneles.
 function setActiveTab(tabId) {
   activeTab.value = tabId
 }
 
+// Abre especificaciones y desplaza suavemente hacia la sección de tabs.
 function openSpecsGuide() {
   activeTab.value = 'specs'
   tabsSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+// Formatea fechas de reseñas con precisión de hora para trazabilidad.
 function formatReviewDate(value) {
   if (!value) return ''
 
@@ -882,6 +939,7 @@ function formatReviewDate(value) {
   })
 }
 
+// Formatea fechas de preguntas y respuestas en formato local.
 function formatQuestionDate(value) {
   if (!value) return ''
 
@@ -891,6 +949,7 @@ function formatQuestionDate(value) {
   return date.toLocaleString('es-CO')
 }
 
+// Inicia el flujo de opinión o redirige a login si no hay sesión.
 function handleWriteReview() {
   if (!isLoggedIn.value || !user.value?.id) {
     router.push(loginRedirectRoute.value)
@@ -900,6 +959,7 @@ function handleWriteReview() {
   infoMessage.value = 'Proximamente podras publicar opiniones desde esta vista.'
 }
 
+// Inicia el flujo de pregunta o redirige a login si no hay sesión.
 function handleAskQuestion() {
   if (!isLoggedIn.value || !user.value?.id) {
     router.push(loginRedirectRoute.value)
@@ -909,6 +969,7 @@ function handleAskQuestion() {
   infoMessage.value = 'Proximamente podras crear preguntas desde esta vista.'
 }
 
+// Vuelve al historial si existe; si no, retorna a la tienda.
 function goBack() {
   if (window.history.length > 1) {
     router.back()
@@ -918,6 +979,7 @@ function goBack() {
   router.push({ name: 'store' })
 }
 
+// Abre el modal de imagen con fallback a la imagen principal.
 function openZoom(image) {
   zoomImage.value = {
     src: image?.src || mainImage.value.src,
@@ -927,25 +989,30 @@ function openZoom(image) {
   zoomModalOpen.value = true
 }
 
+// Cierra el modal de zoom y libera el scroll por watcher.
 function closeZoom() {
   zoomModalOpen.value = false
 }
 
+// Permite cerrar el zoom con Escape desde cualquier punto de la página.
 function onGlobalKeydown(event) {
   if (event.key === 'Escape' && zoomModalOpen.value) {
     closeZoom()
   }
 }
 
+// Selecciona color y deja que el watcher reinicie talla e imagen.
 function selectColor(colorVariantId) {
   selectedColorId.value = colorVariantId
 }
 
+// Selecciona talla y reinicia la cantidad a una unidad.
 function selectSize(variantId) {
   selectedSizeVariantId.value = variantId
   quantity.value = 1
 }
 
+// Actualiza de forma inmutable el stock de una variante dentro del mapa de colores.
 function setVariantStockQuantity(variantId, nextQuantity) {
   let updated = false
   const normalizedQuantity = Math.max(0, Number(nextQuantity || 0))
@@ -986,6 +1053,7 @@ function setVariantStockQuantity(variantId, nextQuantity) {
   return updated
 }
 
+// Consulta el stock actualizado de una variante impactada por realtime.
 async function refreshRealtimeVariant(variantId) {
   const response = await getProductVariantById(variantId)
   const payload = response?.data || {}
@@ -993,6 +1061,7 @@ async function refreshRealtimeVariant(variantId) {
   return setVariantStockQuantity(variantId, nextQuantity)
 }
 
+// Procesa en lote las variantes pendientes y ajusta cantidad si cambia el stock activo.
 async function flushRealtimeVariantRefresh() {
   const variantIds = Array.from(pendingRealtimeVariantIds)
   pendingRealtimeVariantIds.clear()
@@ -1025,6 +1094,7 @@ async function flushRealtimeVariantRefresh() {
   }
 }
 
+// Agrupa eventos realtime cercanos para refrescar stock una sola vez.
 function scheduleRealtimeVariantRefresh(variantIds = []) {
   variantIds.forEach((variantId) => {
     const normalizedVariantId = Number(variantId || 0)
@@ -1047,11 +1117,13 @@ function scheduleRealtimeVariantRefresh(variantIds = []) {
   }, 260)
 }
 
+// Obtiene inicial para swatches sin color visual disponible.
 function initialColorLetter(name) {
   const clean = String(normalizeUtf8Text(name || 'C')).trim()
   return clean ? clean.slice(0, 1).toUpperCase() : 'C'
 }
 
+// Normaliza la cantidad escrita y aplica el máximo permitido por stock.
 function normalizeQuantity() {
   const result = validatePositiveInteger(quantity.value)
 
@@ -1071,11 +1143,13 @@ function normalizeQuantity() {
   quantityError.value = ''
 }
 
+// Valida en tiempo real que la cantidad sea un entero positivo.
 function validateQuantityInput() {
   const result = validatePositiveInteger(quantity.value)
   quantityError.value = result.valid ? '' : numericValidationMessages.positiveInteger
 }
 
+// Aumenta o disminuye cantidad respetando mínimo y stock máximo.
 function changeQuantity(step) {
   const current = validatePositiveInteger(quantity.value).value || 1
   if (Number(step || 0) > 0 && current >= quantityMax.value) {
@@ -1088,31 +1162,38 @@ function changeQuantity(step) {
   quantityError.value = ''
 }
 
+// Marca la imagen principal como cargada para ocultar shimmer.
 function onMainImageLoad() {
   mainImageLoaded.value = true
 }
 
+// Aplica fallback cuando falla la imagen principal.
 function onMainImageError(event) {
   mainImageLoaded.value = true
   handleMediaError(event, mainImage.value.rawPath || product.value.primary_image, 'product')
 }
 
+// Aplica fallback en miniaturas sin afectar la selección actual.
 function onThumbImageError(event) {
   handleMediaError(event, product.value.primary_image, 'product')
 }
 
+// Aplica fallback dentro del modal de zoom.
 function onZoomImageError(event) {
   handleMediaError(event, zoomImage.value.rawPath || product.value.primary_image, 'product')
 }
 
+// Helper genérico para imágenes del tab de descripción.
 function onImageError(event, originalPath, fallbackType = 'product') {
   handleMediaError(event, originalPath, fallbackType)
 }
 
+// Formatea precios de detalle como pesos colombianos compactos.
 function formatPrice(value) {
   return `$${Number(value || 0).toLocaleString('es-CO')}`
 }
 
+// Informa al usuario cuando intenta superar el stock disponible.
 function showQuantityLimitMessage() {
   const available = Math.max(0, Number(stockQuantity.value || 0))
   if (available <= 0) {
@@ -1134,6 +1215,7 @@ function showQuantityLimitMessage() {
   })
 }
 
+// Extrae mensajes de API para mostrarlos en snackbar y texto del detalle.
 function extractErrorMessage(error, fallback) {
   const apiError = String(error?.response?.data?.error || '').trim()
   if (apiError) return apiError
@@ -1144,6 +1226,7 @@ function extractErrorMessage(error, fallback) {
   return fallback
 }
 
+// Carga producto completo, variantes, imágenes, reseñas y preguntas desde catálogo.
 async function loadData() {
   loading.value = true
   mainImageLoaded.value = false
@@ -1177,6 +1260,7 @@ async function loadData() {
   }
 }
 
+// Valida variante, stock y cantidad antes de agregar al carrito.
 async function addItemToCart() {
   if (cartSubmitting.value) return false
   infoMessage.value = ''
@@ -1223,7 +1307,7 @@ async function addItemToCart() {
       size_variant_id: Number(activeSize.value.variant_id),
       quantity: quantityResult.value,
       user_id: user.value?.id || null,
-      session_id: user.value?.id ? null : sessionId.value,
+      session_id: sessionId.value || null,
     })
 
     await refreshCartCount()
@@ -1264,6 +1348,7 @@ async function buyNow() {
   router.push({ name: 'shipping' })
 }
 
+// Alterna favoritos con bloqueo de doble clic y redirección a login si hace falta.
 async function toggleFavorite() {
   if (wishlistBusy.value || !product.value?.id) return
 
@@ -1305,6 +1390,7 @@ async function toggleFavorite() {
   }
 }
 
+// Escucha cambios realtime y agenda refresco solo para variantes del producto actual.
 useStockRealtime((message) => {
   const relevantVariantIds = message.variantIds.filter((variantId) => currentProductVariantIds.value.includes(variantId))
   if (!relevantVariantIds.length) {
@@ -1314,11 +1400,13 @@ useStockRealtime((message) => {
   scheduleRealtimeVariantRefresh(relevantVariantIds)
 })
 
+// Carga datos iniciales y registra el atajo global de Escape.
 onMounted(() => {
   loadData()
   window.addEventListener('keydown', onGlobalKeydown)
 })
 
+// Limpia listeners, scroll bloqueado y timers pendientes al salir del detalle.
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   window.removeEventListener('keydown', onGlobalKeydown)

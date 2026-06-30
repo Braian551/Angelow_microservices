@@ -16,6 +16,7 @@
 <script setup>
 import { ref } from 'vue'
 
+/** Texto del tooltip que se mostrará al usuario. */
 defineProps({
   text: {
     type: String,
@@ -26,9 +27,16 @@ defineProps({
 const visible = ref(false)
 const tipStyle = ref({})
 
+/** Ancho fijo del tooltip en píxeles para cálculos de posicionamiento. */
 const TOOLTIP_WIDTH = 240
+/** Margen de seguridad en píxeles para evitar desborde del viewport. */
 const MARGIN = 12
 
+/**
+ * Muestra el tooltip posicionándolo sobre el icono.
+ * Calcula la posición horizontal evitando que se desborde
+ * por la derecha o izquierda del viewport.
+ */
 function showTooltip(event) {
   const rect = event.currentTarget.getBoundingClientRect()
 
@@ -50,6 +58,9 @@ function showTooltip(event) {
   visible.value = true
 }
 
+/**
+ * Oculta el tooltip reseteando su estado de visibilidad.
+ */
 function hideTooltip() {
   visible.value = false
 }

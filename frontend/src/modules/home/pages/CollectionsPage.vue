@@ -1,5 +1,6 @@
 <template>
   <main class="section-container">
+    <!-- Listado público de colecciones con estados de carga, error y tarjetas navegables. -->
     <section class="featured-collections collections-page">
       <h1 class="section-title">Nuestras colecciones</h1>
 
@@ -34,10 +35,12 @@ import { RouterLink } from 'vue-router'
 import { getCollections } from '../../../services/catalogApi'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 
+// Estado local de carga y respuesta del catálogo de colecciones.
 const loading = ref(true)
 const errorMessage = ref('')
 const collections = ref([])
 
+// Carga las colecciones desde catalog-service para construir accesos a tienda filtrada.
 async function loadData() {
   loading.value = true
   errorMessage.value = ''
@@ -52,14 +55,17 @@ async function loadData() {
   }
 }
 
+// Aplica fallback compartido si una imagen de colección no está disponible.
 function onImageError(event, originalPath) {
   handleMediaError(event, originalPath, 'collection')
 }
 
+// Ejecuta la carga inicial cuando la página entra al DOM.
 onMounted(loadData)
 </script>
 
 <style scoped>
+/* Ajuste vertical propio de la página completa de colecciones. */
 .collections-page {
   padding: 4rem 0 6rem;
 }

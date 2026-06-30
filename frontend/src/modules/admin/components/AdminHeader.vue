@@ -207,6 +207,10 @@ const searchableModules = [
   { title: 'Administradores', subtitle: 'Gestión de administradores', url: '/admin/administradores', icon: 'fas fa-user-shield', keywords: ['admin', 'administrador', 'administradores', 'usuarios'] },
 ]
 
+/**
+ * Normaliza un texto de búsqueda eliminando tildes, convirtiendo a minúsculas
+ * y recortando espacios para permitir búsquedas acento-insensibles.
+ */
 function normalizeSearchText(value) {
   return String(value || '')
     .normalize('NFD')
@@ -215,10 +219,18 @@ function normalizeSearchText(value) {
     .trim()
 }
 
+/**
+ * Determina si un pedido proviene de legacy o del microservicio,
+ * normalizando el campo order_source a un valor interno consistente.
+ */
 function normalizeOrderSource(value) {
   return String(value || '').trim().toLowerCase() === 'legacy' ? 'legacy' : 'microservice'
 }
 
+/**
+ * Construye la ruta de detalle de un pedido considerando si es legacy
+ * (requiere query param 'vista=archivo') o del microservicio.
+ */
 function buildOrderDetailRoute(order) {
   const isLegacy = normalizeOrderSource(order?.order_source) === 'legacy'
 
@@ -229,6 +241,11 @@ function buildOrderDetailRoute(order) {
   }
 }
 
+/**
+ * Calcula un puntaje de relevancia para un candidato de búsqueda.
+ * Menor puntaje = mayor relevancia. Valora coincidencias exactas,
+ * coincidencias al inicio y coincidencias parciales en orden creciente.
+ */
 function calculateSearchScore(query, candidates = []) {
   let bestScore = Number.POSITIVE_INFINITY
 
@@ -258,6 +275,11 @@ function calculateSearchScore(query, candidates = []) {
   return bestScore
 }
 
+/**
+ * Ordena los resultados de búsqueda por puntaje de relevancia,
+ * luego por tipo (pedidos > facturas > clientes > módulos) y
+ * finalmente alfabéticamente en español.
+ */
 function sortSearchResults(results) {
   return [...results].sort((left, right) => {
     if (left.score !== right.score) {
@@ -273,6 +295,10 @@ function sortSearchResults(results) {
   })
 }
 
+/**
+ * Genera resultados de búsqueda estáticos a partir de la lista predefinida
+ * de módulos del admin, calculando su relevancia contra la consulta.
+ */
 function buildModuleResults(query) {
   return searchableModules
     .map((module) => {
@@ -292,21 +318,37 @@ function buildModuleResults(query) {
     .filter(Boolean)
 }
 
+/**
+ * Extrae el array de filas de pedidos desde la respuesta HTTP,
+ * soportando tanto formato paginado (data.data) como array directo.
+ */
 function extractOrderRows(response) {
   const payload = response?.data?.data || {}
   return Array.isArray(payload) ? payload : (payload.rows || [])
 }
 
+/**
+ * Extrae el array de filas de facturas desde la respuesta HTTP,
+ * soportando formato paginado con campo 'rows'.
+ */
 function extractInvoiceRows(response) {
   const payload = response?.data || {}
   return Array.isArray(payload.rows) ? payload.rows : []
 }
 
+/**
+ * Extrae el array de filas de clientes desde la respuesta HTTP,
+ * soportando múltiples estructuras de respuesta posibles.
+ */
 function extractCustomerRows(response) {
   const payload = response?.data?.data || response?.data || []
   return Array.isArray(payload) ? payload : (payload.data || [])
 }
 
+/**
+ * Transforma un objeto de pedido en un resultado de búsqueda estandarizado
+ * con título, subtítulo, ruta y puntaje de relevancia.
+ */
 function mapOrderResult(order, query) {
   const id = Number(order?.id || 0)
   if (!id) {
@@ -333,6 +375,10 @@ function mapOrderResult(order, query) {
   }
 }
 
+/**
+ * Transforma un objeto de factura en un resultado de búsqueda estandarizado,
+ * incluyendo número de factura y referencia al pedido asociado.
+ */
 function mapInvoiceResult(invoice, query) {
   const id = Number(invoice?.id || 0)
   if (!id) {
@@ -368,6 +414,10 @@ function mapInvoiceResult(invoice, query) {
   }
 }
 
+/**
+ * Transforma un objeto de cliente en un resultado de búsqueda estandarizado,
+ * usando nombre, email o teléfono como semilla de búsqueda en la vista de clientes.
+ */
 function mapCustomerResult(customer, query) {
   const id = String(customer?.id || '').trim()
   if (!id) {
@@ -402,6 +452,11 @@ function mapCustomerResult(customer, query) {
   }
 }
 
+/**
+ * Ejecuta la búsqueda combinando módulos estáticos con entidades reales
+ * (pedidos, facturas, clientes) consultadas en paralelo a sus respectivas APIs.
+ * Retorna los resultados fusionados y ordenados por relevancia.
+ */
 async function runSearch(query) {
   const normalizedQuery = normalizeSearchText(query)
   if (normalizedQuery.length < SEARCH_MIN_LENGTH) {
@@ -449,6 +504,10 @@ async function runSearch(query) {
   return sortSearchResults([...liveResults, ...staticResults]).slice(0, SEARCH_RESULTS_LIMIT)
 }
 
+/**
+ * Maneja el evento de entrada en el campo de búsqueda con debounce.
+ * Cancela búsquedas anteriores y lanza una nueva consulta después del delay.
+ */
 function handleSearch() {
   clearTimeout(searchTimeout)
   if (normalizeSearchText(searchQuery.value).length < SEARCH_MIN_LENGTH) {
@@ -479,6 +538,10 @@ function handleSearch() {
   }, SEARCH_DEBOUNCE_MS)
 }
 
+/**
+ * Envía la búsqueda inmediatamente (sin debounce) y navega al primer
+ * resultado si existe, cerrando el panel de resultados.
+ */
 async function submitSearch() {
   if (normalizeSearchText(searchQuery.value).length < SEARCH_MIN_LENGTH) {
     showResults.value = searchQuery.value.length > 0
@@ -510,6 +573,10 @@ async function submitSearch() {
   closeSearch()
 }
 
+/**
+ * Limpia el estado de búsqueda: cancela timeouts pendientes,
+ * resetea query, resultados y banderas de carga.
+ */
 function closeSearch() {
   clearTimeout(searchTimeout)
   searchRequestId += 1
@@ -519,15 +586,27 @@ function closeSearch() {
   searching.value = false
 }
 
+/**
+ * Alterna la visibilidad del panel de notificaciones
+ * y carga las notificaciones al abrirlo por primera vez.
+ */
 function toggleNotifications() {
   showNotifications.value = !showNotifications.value
   if (showNotifications.value) loadNotifications()
 }
 
+/**
+ * Marca todas las notificaciones como leídas en el backend
+ * y actualiza el estado local del contador de no leídas.
+ */
 async function markAllRead() {
   markAllNotificationsAsRead()
 }
 
+/**
+ * Abre una notificación individual: la marca como leída,
+ * resuelve la ruta de destino y navega a ella.
+ */
 async function openNotification(notification) {
   if (!notification) {
     return
@@ -553,10 +632,18 @@ async function openNotification(notification) {
   markRouteNotificationsAsRead(resolvedTarget.path)
 }
 
+/**
+ * Resuelve la etiqueta legible del módulo asociado a una notificación
+ * (ej: 'Pedidos', 'Pagos', 'Facturas').
+ */
 function notificationModuleLabel(notification) {
   return resolveNotificationModuleLabel(notification?.module_key)
 }
 
+/**
+ * Retorna el icono FontAwesome correspondiente al tipo de notificación
+ * (pedido, pago, reembolso, factura, inventario, reseña, sistema).
+ */
 function notificationIcon(type) {
   const icons = {
     order: 'fas fa-shopping-bag',
@@ -570,6 +657,10 @@ function notificationIcon(type) {
   return icons[type] || 'fas fa-bell'
 }
 
+/**
+ * Formatea una fecha de forma relativa (ej: "Hace 5 min", "Hace 2 h")
+ * o como fecha completa en español si es mayor a 24 horas.
+ */
 function formatTime(date) {
   if (!date) return ''
   const d = new Date(date)

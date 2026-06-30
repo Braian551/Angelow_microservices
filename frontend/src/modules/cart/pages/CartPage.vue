@@ -293,11 +293,12 @@
             <p v-else-if="!canProceedToShipping" class="cart-order-note">
               Selecciona al menos un producto disponible para continuar.
             </p>
+            <p v-else-if="!isLoggedIn" class="cart-order-note">
+              Inicia sesión o crea una cuenta para continuar al pago.
+            </p>
 
             <button type="button" class="cart-primary-action" :disabled="!canProceedToShipping" @click="goToShipping">
-              <span>
-                {{ canProceedToShipping ? `Proceder al pago (${selectedUnitCount})` : 'Selecciona productos disponibles' }}
-              </span>
+              <span>{{ checkoutActionLabel }}</span>
               <i class="fas fa-arrow-right" />
             </button>
           </div>
@@ -336,7 +337,7 @@ const EMPTY_CART = {
 const INLINE_FEEDBACK_DURATION = 3600
 
 const router = useRouter()
-const { sessionId, user } = useSession()
+const { sessionId, user, isLoggedIn } = useSession()
 const { setCartCount } = useAppShell()
 const { showSnackbar } = useSnackbarSystem()
 
@@ -366,6 +367,18 @@ const blockedProductCount = computed(() => selectionState.value.blockedProductCo
 const allSelectableSelected = computed(() => selectionState.value.allSelectableSelected)
 const hasSelectableItems = computed(() => selectionState.value.hasSelectableItems)
 const canProceedToShipping = computed(() => selectedProductCount.value > 0)
+const checkoutActionLabel = computed(() => {
+  // Reutiliza la validación de selección del carrito y agrega el estado de sesión al texto del botón.
+  if (!canProceedToShipping.value) {
+    return 'Selecciona productos disponibles'
+  }
+
+  if (!isLoggedIn.value) {
+    return 'Inicia sesión para pagar'
+  }
+
+  return `Proceder al pago (${selectedUnitCount.value})`
+})
 
 // Errores de validación para el banner de CheckoutValidationAlert
 const selectionValidationErrors = computed(() => {
@@ -378,7 +391,7 @@ const selectionValidationErrors = computed(() => {
 function buildCartQuery() {
   return {
     user_id: user.value?.id || undefined,
-    session_id: user.value?.id ? undefined : sessionId.value,
+    session_id: sessionId.value || undefined,
   }
 }
 
@@ -548,6 +561,18 @@ async function goToShipping() {
     return
   }
 
+  if (!isLoggedIn.value) {
+    // El router también protege la URL directa; aquí se guía al cliente desde la acción visible del carrito.
+    selectionValidationError.value = false
+    showSnackbar({
+      type: 'info',
+      title: 'Inicia sesión',
+      message: 'Inicia sesión o crea una cuenta para continuar con el pago.',
+    })
+    router.push({ name: 'login', query: { redirect: '/checkout/envio' } })
+    return
+  }
+
   selectionValidationError.value = false
   router.push({ name: 'shipping' })
 }
@@ -578,7 +603,7 @@ function lowStockBadgeText(availability) {
     : `Quedan ${availability.availableStock}`
 }
 
-// Texto del overlay sobre la imagen del producto (estilo Mercado Libre)
+// Texto de la superposición sobre la imagen del producto con estilo de Mercado Libre.
 function imageStockOverlayText(availability) {
   if (availability.availableStock === 1) return '¡Última unidad!'
   return `Últimas ${availability.availableStock} uds.`

@@ -1,3 +1,9 @@
+/**
+ * Composable para la gestión de pagos del panel administrativo.
+ * Administra listado de transacciones, verificación de comprobantes,
+ * configuración de cuentas bancarias y filtros por estado/fechas.
+ * Reutiliza useAdminPagination para paginación.
+ */
 import { computed, onMounted, ref } from 'vue'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { orderHttp, paymentHttp } from '../../../services/http'
@@ -9,6 +15,7 @@ import {
 } from '../../../services/paymentApi'
 import { useAdminPagination } from './useAdminPagination'
 import { getPaymentMethodLabel, getPaymentStatusBadgeClass, getPaymentStatusLabel } from '../utils/orderPresentation'
+import { resolvePaymentProofUrl } from '../utils/paymentProofs'
 
 function buildEmptyAccountForm() {
   return {
@@ -61,7 +68,7 @@ function normalizePayment(rawPayment = {}) {
     customer_name: rawPayment.customer_name || rawPayment.billing_name || rawPayment.user_name || '',
     customer_email: rawPayment.customer_email || rawPayment.billing_email || rawPayment.user_email || '',
     reference_number: rawPayment.reference_number || '',
-    proof_url: rawPayment.proof_url || '',
+    proof_url: resolvePaymentProofUrl(rawPayment.proof_url || rawPayment.payment_proof || ''),
     proof_name: rawPayment.proof_name || '',
     proof_exists: rawPayment.proof_exists !== false,
   }

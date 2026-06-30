@@ -18,7 +18,8 @@ return [
     |
     */
 
-    // Este servicio expone API stateless y no depende de tabla sessions en PostgreSQL.
+    // shipping-service: driver stateless (archivo) porque las APIs no usan sesiones.
+    // No depende de tabla sessions en PostgreSQL. La autenticación es por token JWT.
     'driver' => env('SESSION_DRIVER', 'file'),
 
     /*

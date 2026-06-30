@@ -45,11 +45,23 @@
               placeholder="Ej: admin@tienda.com"
               :class="{ error: !!errors.identifier }"
               autocomplete="username"
+              @input="validateIdentifier"
               required
             />
             <div class="form-hint">Enviaremos un código de 4 dígitos a este correo.</div>
             <div v-if="errors.identifier" class="error-message">{{ errors.identifier }}</div>
           </div>
+
+          <TurnstileWidget
+            v-if="step === 1"
+            ref="turnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
 
           <button
             type="button"
@@ -80,6 +92,7 @@
               placeholder="0000"
               :class="{ error: !!errors.code }"
               autocomplete="one-time-code"
+              @input="validateCode"
               required
             />
             <div class="form-hint">El código vence en {{ timerLabel }}</div>
@@ -107,6 +120,16 @@
               {{ resendButtonText }}
             </button>
           </div>
+          <TurnstileWidget
+            v-if="step === 2"
+            ref="resendTurnstileRef"
+            :site-key="turnstileSiteKey"
+            :reset-key="turnstileResetKey"
+            @verified="onTurnstileVerified"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+          <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
         </div>
 
         <!-- Paso 3: Nueva contraseña -->
@@ -176,6 +199,7 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import TurnstileWidget from '../../../components/security/TurnstileWidget.vue'
 import {
   requestRecoveryCode,
   resendRecoveryCode,
@@ -198,6 +222,11 @@ const codeExpiresIn = ref(0)
 const resendCooldown = ref(0)
 const requestCooldown = ref(0)
 const sessionToken = ref('')
+const turnstileToken = ref('')
+const turnstileResetKey = ref(0)
+const turnstileRef = ref(null)
+const resendTurnstileRef = ref(null)
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 
 let timerIntervalId = null
 let resendIntervalId = null
@@ -208,6 +237,7 @@ const form = reactive({
   code: '',
   password: '',
   passwordConfirmation: '',
+  turnstile: '',
 })
 
 const loading = reactive({
@@ -261,6 +291,26 @@ function clearFieldErrors() {
   errors.code = ''
   errors.password = ''
   errors.passwordConfirmation = ''
+  errors.turnstile = ''
+}
+
+function resetTurnstile() {
+  turnstileToken.value = ''
+  turnstileResetKey.value += 1
+}
+
+function onTurnstileVerified(token) {
+  turnstileToken.value = token
+  errors.turnstile = ''
+}
+
+function onTurnstileExpired() {
+  turnstileToken.value = ''
+}
+
+function onTurnstileError() {
+  turnstileToken.value = ''
+  errors.turnstile = 'No pudimos cargar la verificación de seguridad. Inténtalo de nuevo.'
 }
 
 function clearMessages() {
@@ -430,6 +480,10 @@ async function submitRequestCode(isResend) {
 
   const identifier = validateIdentifier()
   if (!identifier) return
+  if (!turnstileToken.value) {
+    errors.turnstile = 'Completa la verificación de seguridad para continuar.'
+    return
+  }
 
   if (!isResend && requestCooldown.value > 0) {
     setIdentifierCooldownMessage(requestCooldown.value)
@@ -444,7 +498,10 @@ async function submitRequestCode(isResend) {
 
   try {
     const action = isResend ? resendRecoveryCode : requestRecoveryCode
-    const response = await action({ identifier })
+    const response = await action({
+      identifier,
+      turnstile_token: turnstileToken.value,
+    })
     const data = response?.data || {}
 
     requestCooldown.value = 0
@@ -458,6 +515,7 @@ async function submitRequestCode(isResend) {
     step.value = 2
     codeStatus.value = 'pending'
     successMessage.value = response?.message || 'Código enviado.'
+    resetTurnstile()
   } catch (error) {
     const message = parseApiError(error, 'No pudimos enviar el código en este momento.')
     const cooldownSeconds = extractCooldownSeconds(error)
@@ -473,6 +531,7 @@ async function submitRequestCode(isResend) {
     } else {
       globalError.value = message
     }
+    resetTurnstile()
   } finally {
     loading.requestCode = false
     loading.resendCode = false

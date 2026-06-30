@@ -5,6 +5,11 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de métodos de envío.
+ * Administra CRUD, filtros por ciudad/estado, validación de costos
+ * y exportación. Reutiliza useAdminPagination y useAdminDataExport.
+ */
 export function useAdminShippingMethods() {
   // =====================================================
   // Dependencias y composables reutilizados

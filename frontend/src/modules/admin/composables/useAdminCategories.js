@@ -6,6 +6,11 @@ import { resolveMediaUrl } from '../../../utils/media'
 import { useAdminPagination } from './useAdminPagination'
 import { slugifyText } from '../utils/productSlug'
 
+/**
+ * Composable para la gestión de categorías de productos.
+ * Administra CRUD, imágenes, slugs, filtros y paginación de categorías.
+ * Reutiliza useAdminPagination para la paginación de la lista.
+ */
 export function useAdminCategories() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
@@ -81,6 +86,7 @@ export function useAdminCategories() {
   // =====================================================
   // Helpers internos y presentación
   // =====================================================
+  /** Normaliza los datos de una categoría del backend a un formato consistente. */
   function normalizeCategory(item) {
     return {
       ...item,
@@ -94,16 +100,19 @@ export function useAdminCategories() {
     }
   }
 
+  /** Resuelve la URL completa de la imagen de una categoría. */
   function resolveCategoryImage(category) {
     return resolveMediaUrl(category.image, 'category')
   }
 
+  /** Trunca un texto a la longitud máxima con puntos suspensivos. */
   function excerpt(value, max = 100) {
     const text = String(value || '').trim()
     if (!text) return 'Sin descripción'
     return text.length > max ? `${text.slice(0, max).trim()}...` : text
   }
 
+  /** Extrae el mensaje de error de una respuesta HTTP con valor por defecto. */
   function extractErrorMessage(error, fallback) {
     return error?.response?.data?.message || fallback
   }
@@ -111,12 +120,14 @@ export function useAdminCategories() {
   // =====================================================
   // Gestión del formulario e imagen
   // =====================================================
+  /** Valida el campo nombre: debe tener al menos 2 caracteres. */
   function validateField(field) {
     if (field === 'name') {
       errors.name = form.name.trim().length >= 2 ? '' : 'El nombre es obligatorio y debe tener al menos 2 caracteres.'
     }
   }
 
+  /** Genera el slug automáticamente al escribir el nombre, si no fue editado manualmente. */
   function onNameInput() {
     validateField('name')
     if (!slugManuallyEdited.value) {
@@ -124,15 +135,18 @@ export function useAdminCategories() {
     }
   }
 
+  /** Marca el slug como editado manualmente y lo normaliza. */
   function onSlugInput() {
     slugManuallyEdited.value = form.slug.trim() !== ''
     form.slug = slugifyText(form.slug)
   }
 
+  /** Abre el selector de archivos de imagen oculto. */
   function openImagePicker() {
     imageInputRef.value?.click()
   }
 
+  /** Maneja la selección de archivo: genera URL de previsualización temporal. */
   function onImageSelected(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -143,6 +157,7 @@ export function useAdminCategories() {
     errors.image = ''
   }
 
+  /** Limpia la imagen seleccionada y revierte la previsualización. */
   function clearSelectedImage(resetInput = true) {
     if (imagePreviewUrl.value?.startsWith('blob:')) {
       URL.revokeObjectURL(imagePreviewUrl.value)
@@ -154,6 +169,7 @@ export function useAdminCategories() {
     }
   }
 
+  /** Reinicia el formulario a valores por defecto y limpia imagen y errores. */
   function resetForm() {
     form.name = ''
     form.slug = ''
@@ -165,6 +181,7 @@ export function useAdminCategories() {
     clearSelectedImage(false)
   }
 
+  /** Abre el modal en modo creación o edición con los datos de la categoría. */
   function openModal(category = null) {
     editing.value = category
     resetForm()
@@ -187,6 +204,7 @@ export function useAdminCategories() {
     showModal.value = true
   }
 
+  /** Cierra el modal y limpia el estado de edición. */
   function closeModal() {
     clearSelectedImage()
     showModal.value = false
@@ -196,6 +214,7 @@ export function useAdminCategories() {
   // =====================================================
   // Carga de datos y refresco
   // =====================================================
+  /** Obtiene la lista de categorías desde el backend. */
   async function loadCategories() {
     loading.value = true
     try {
@@ -210,6 +229,7 @@ export function useAdminCategories() {
     }
   }
 
+  /** Restablece los filtros de búsqueda y estado a valores iniciales. */
   function clearFilters() {
     search.value = ''
     statusFilter.value = ''
@@ -218,6 +238,7 @@ export function useAdminCategories() {
   // =====================================================
   // Acciones CRUD y estado
   // =====================================================
+  /** Valida y guarda una categoría (creación o actualización) con FormData. */
   async function saveCategory() {
     validateField('name')
     if (errors.name) return
@@ -250,6 +271,7 @@ export function useAdminCategories() {
     }
   }
 
+  /** Muestra confirmación y elimina una categoría (bloqueada si tiene productos). */
   function confirmDelete(category) {
     showAlert({
       type: 'warning',
@@ -278,6 +300,7 @@ export function useAdminCategories() {
     })
   }
 
+  /** Cambia el estado activo/inactivo de una categoría. */
   async function toggleStatus(category) {
     try {
       await catalogHttp.put(`/admin/categories/${category.id}`, {

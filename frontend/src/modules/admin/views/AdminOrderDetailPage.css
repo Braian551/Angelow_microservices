@@ -4,6 +4,7 @@
   gap: 0.8rem;
 }
 
+/* Botones de toolbar con variantes visuales para acciones del pedido. */
 .admin-order-detail-page .order-toolbar-btn {
   display: inline-flex;
   align-items: center;
@@ -63,6 +64,7 @@
   background: rgba(0, 119, 182, 0.18);
 }
 
+/* Bloque destacado con identidad, estado y chips principales del pedido. */
 .admin-order-detail-page .order-spotlight {
   display: flex;
   align-items: center;
@@ -107,6 +109,7 @@
   gap: 0.65rem;
 }
 
+/* Tarjetas de métricas rápidas del pedido. */
 .admin-order-detail-page .order-highlight-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -147,11 +150,13 @@
   font-size: 1.08rem;
 }
 
+/* Grilla temporal usada durante la carga del detalle. */
 .admin-order-detail-page .order-detail-loading-grid {
   display: grid;
   gap: 1.2rem;
 }
 
+/* Paneles de resumen financiero y operativo. */
 .admin-order-detail-page .order-summary-panels {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -222,6 +227,7 @@
   font-weight: 800;
 }
 
+/* Franja de total final resaltada dentro del resumen. */
 .admin-order-detail-page .order-total-strip {
   margin-top: 1rem;
   display: flex;
@@ -235,6 +241,7 @@
   color: var(--admin-primary);
 }
 
+/* Comprobante de pago con preview, overlay y metadatos. */
 .admin-order-detail-page .payment-proof-card {
   display: grid;
   gap: 1rem;
@@ -354,12 +361,14 @@
   color: var(--admin-text-light);
 }
 
+/* Estado vacío suave para secciones sin comprobante o información secundaria. */
 .admin-order-detail-page .detail-empty--soft {
   border: 1px dashed rgba(148, 184, 216, 0.24);
   border-radius: 1.4rem;
   background: rgba(247, 251, 255, 0.62);
 }
 
+/* Layout de tarjetas del detalle: dirección, comprobante y productos. */
 .admin-order-detail-page .order-detail-stack {
   margin-top: 1.2rem;
   display: grid;
@@ -406,6 +415,7 @@
   vertical-align: top;
 }
 
+/* Producto dentro de tablas anidadas del detalle. */
 .admin-order-detail-page .order-item-product {
   display: flex;
   align-items: center;
@@ -437,6 +447,7 @@
   flex-shrink: 0;
 }
 
+/* Historial de cambios del pedido con timeline vertical. */
 .admin-order-detail-page .order-history-section {
   margin-top: 1.2rem;
 }
@@ -446,6 +457,7 @@
   color: var(--admin-text-light);
 }
 
+/* Botón para expandir o contraer registros del historial. */
 .admin-order-detail-page .history-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -470,6 +482,7 @@
   background: rgba(0, 119, 182, 0.12);
 }
 
+/* Línea temporal de cambios del pedido. */
 .admin-order-detail-page .history-timeline {
   position: relative;
   display: grid;
@@ -663,6 +676,7 @@
 /* =====================================================
    Tarjeta de dirección de envío con íconos
    ===================================================== */
+/* Tarjetas de dirección asociadas al pedido. */
 .admin-order-detail-page .addr-card {
   display: grid;
   gap: 0;
@@ -761,6 +775,7 @@
   padding: 0.75rem 0 0;
 }
 
+/* Panel para editar o revisar dirección asociada al pedido. */
 .admin-order-detail-page .order-edit-address-panel {
   display: grid;
   gap: 0.9rem;
@@ -852,6 +867,7 @@
   text-align: right;
 }
 
+/* Formularios internos del detalle de pedido. */
 .admin-order-detail-page .form-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -873,6 +889,7 @@
   font-size: 1.2rem;
 }
 
+/* Desktop medio: reduce grillas principales. */
 @media (max-width: 1200px) {
 .admin-order-detail-page .order-highlight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -883,6 +900,7 @@
   }
 }
 
+/* Tablet: apila columnas de detalle. */
 @media (max-width: 1080px) {
 .admin-order-detail-page .order-detail-stack {
     grid-template-columns: 1fr;
@@ -893,6 +911,7 @@
   }
 }
 
+/* Móvil: compacta resumen, timeline y formularios. */
 @media (max-width: 768px) {
 .admin-order-detail-page .order-highlight-grid,
 .admin-order-detail-page .order-summary-panels {
@@ -957,6 +976,7 @@
     justify-content: flex-start;
   }
 
+/* Acciones superiores del resumen del pedido. */
 .admin-order-detail-page .summary-actions {
     width: 100%;
   }

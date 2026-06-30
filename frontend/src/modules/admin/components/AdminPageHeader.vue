@@ -33,6 +33,13 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 
+/**
+ * Encabezado de página reutilizable del admin.
+ * Muestra icono, título, subtítulo, acciones y breadcrumb de navegación.
+ * El breadcrumb siempre incluye "Dashboard" como primer elemento
+ * y evita duplicados si el array de breadcrumbs ya lo contiene.
+ * Patrón: Composite — combina heading, acciones y navegación en una unidad coherente.
+ */
 const props = defineProps({
   /** Icono FontAwesome, ej: 'fas fa-chart-line' */
   icon: { type: String, default: null },

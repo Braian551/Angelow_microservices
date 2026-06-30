@@ -1,3 +1,4 @@
+/* Celdas de factura y pedido con identificador principal y dato secundario. */
 .admin-invoices-page .invoice-number-cell,
 .admin-invoices-page .invoice-order-cell {
   display: flex;
@@ -5,12 +6,14 @@
   gap: 0.2rem;
 }
 
+/* Texto secundario dentro de las celdas de factura y pedido. */
 .admin-invoices-page .invoice-number-cell span,
 .admin-invoices-page .invoice-order-cell span {
   color: #718096;
   font-size: 0.75rem;
 }
 
+/* Acciones de resultados para reenviar o descargar facturas. */
 .admin-invoices-page .invoices-results-actions {
   display: flex;
   align-items: center;

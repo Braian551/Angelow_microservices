@@ -1,15 +1,28 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| Colas de trabajo para shipping-service
+|--------------------------------------------------------------------------
+|
+| Configuración del sistema de colas. Actualmente el servicio no procesa
+| trabajos en cola de forma intensiva, pero se mantiene la configuración
+| estándar de Laravel (driver 'database') para:
+| - Procesamiento asíncrono de notificaciones de envío.
+| - Sincronización futura de datos con otros servicios.
+| - Tareas programadas de mantenimiento.
+|
+*/
+
 return [
 
     /*
     |--------------------------------------------------------------------------
-    | Default Queue Connection Name
+    | Conexión de cola predeterminada
     |--------------------------------------------------------------------------
     |
-    | Laravel's queue supports a variety of backends via a single, unified
-    | API, giving you convenient access to each backend using identical
-    | syntax for each. The default queue connection is defined below.
+    | Define qué driver de cola se usa por defecto. 'database' es la opción
+    | más simple para entornos Docker sin Redis externo.
     |
     */
 

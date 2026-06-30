@@ -1,4 +1,8 @@
 <template>
+  <!-- Componente de página administrativa para gestionar solicitudes de reembolso.
+       Muestra una lista de reembolsos con filtros, estadísticas, tabla paginada,
+       modales de detalle, acción y evidencia. Permite aprobar, completar o rechazar
+       solicitudes de reembolso de clientes. -->
   <div class="admin-entity-page admin-refunds-page">
     <AdminPageHeader
       icon="fas fa-rotate-left"
@@ -24,7 +28,6 @@
             <select id="refund-status-filter" v-model="filters.status" @change="applyFilters">
               <option value="">Todos</option>
               <option value="requested">Solicitado</option>
-              <option value="approved">Aceptado</option>
               <option value="processing">Reembolso en proceso</option>
               <option value="rejected">Rechazado</option>
               <option value="completed">Reembolsado</option>
@@ -94,8 +97,8 @@
                 <span class="admin-refunds-table__reason">{{ refundReasonLabel(refund.reason) }}</span>
               </td>
               <td>
-                <span class="status-badge" :class="paymentStatusBadgeClass(refund.payment_status)">
-                  {{ paymentStatusLabel(refund.payment_status) }}
+                <span class="status-badge" :class="paymentStatusBadgeClass(refundPaymentStatus(refund))">
+                  {{ paymentStatusLabel(refundPaymentStatus(refund)) }}
                 </span>
               </td>
               <td>
@@ -117,16 +120,6 @@
                     @click="openActionModal(refund, 'approve')"
                   >
                     <i :class="isActionLoading(refund, 'approve') ? 'fas fa-spinner fa-spin' : 'fas fa-check'"></i>
-                  </button>
-                  <button
-                    class="action-btn edit"
-                    type="button"
-                    title="Marcar en proceso"
-                    :class="{ 'is-loading': isActionLoading(refund, 'process') }"
-                    :disabled="savingAction || !canUseAction(refund, 'process')"
-                    @click="openActionModal(refund, 'process')"
-                  >
-                    <i :class="isActionLoading(refund, 'process') ? 'fas fa-spinner fa-spin' : 'fas fa-rotate'"></i>
                   </button>
                   <button
                     class="action-btn edit action-btn--complete"
@@ -176,7 +169,7 @@
           </div>
           <div class="refund-detail-card">
             <span>Pago</span>
-            <strong>{{ paymentStatusLabel(selectedRefund.payment_status) }}</strong>
+            <strong>{{ paymentStatusLabel(refundPaymentStatus(selectedRefund)) }}</strong>
           </div>
           <div class="refund-detail-card">
             <span>Estado</span>
@@ -265,7 +258,19 @@
 </template>
 
 <script setup>
+/**
+ * Script del componente AdminRefundsPage.
+ * Gestiona la lógica de la página administrativa de reembolsos:
+ * - Carga y muestra solicitudes de reembolso con filtros y paginación.
+ * - Permite realizar acciones sobre cada solicitud (aprobar, completar, rechazar).
+ * - Controla los modales de detalle, acciones y previsualización de evidencia.
+ * - Utiliza el composable useAdminRefunds para toda la lógica de negocio.
+ */
+
+// --- Importaciones de Vue Router ---
 import { RouterLink } from 'vue-router'
+
+// --- Componentes de administración reutilizables ---
 import AdminCard from '../components/AdminCard.vue'
 import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
@@ -276,43 +281,48 @@ import AdminPaymentProofModal from '../components/AdminPaymentProofModal.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+
+// --- Composable con la lógica de negocio de reembolsos ---
 import { useAdminRefunds } from '../composables/useAdminRefunds'
+
+// --- Estilos del componente ---
 import '../views/AdminRefundsPage.css'
 
 const {
-  activeFilterCount,
-  actionErrors,
-  actionForm,
-  applyFilters,
-  canUseAction,
-  clearFilters,
-  closeActionModal,
-  closeDetailModal,
-  closeEvidenceModal,
-  filters,
-  formatCurrency,
-  formatDateTime,
-  isActionLoading,
-  loading,
-  openActionModal,
-  openDetailModal,
-  openEvidenceModal,
-  pagination,
-  paymentStatusBadgeClass,
-  paymentStatusLabel,
-  refundDetailsLabel,
-  refundReasonLabel,
-  refundStatusBadgeClass,
-  refundStatusLabel,
-  refunds,
-  savingAction,
-  selectedAction,
-  selectedRefund,
-  showActionModal,
-  showDetailModal,
-  showEvidenceModal,
-  stats,
-  submitAction,
-  validateActionField,
+  activeFilterCount,         // Número total de filtros actualmente activos
+  actionErrors,              // Errores de validación del formulario de acción
+  actionForm,                // Modelo del formulario de acción (descripción/nota operativa)
+  applyFilters,              // Función para aplicar los filtros de búsqueda y estado
+  canUseAction,              // Función que verifica si una acción está habilitada para un reembolso
+  clearFilters,              // Función para restablecer todos los filtros a sus valores por defecto
+  closeActionModal,          // Función para cerrar el modal de acción (aprobar/rechazar/completar)
+  closeDetailModal,          // Función para cerrar el modal de detalle del reembolso
+  closeEvidenceModal,        // Función para cerrar el modal de previsualización de evidencia
+  filters,                   // Objeto reactivo con los filtros aplicados (búsqueda y estado)
+  formatCurrency,            // Función para formatear un valor numérico como moneda local
+  formatDateTime,            // Función para formatear una cadena de fecha/hora a formato legible
+  isActionLoading,           // Función que indica si una acción específica está en curso para un reembolso
+  loading,                   // Bandera booleana que indica si los datos se están cargando
+  openActionModal,           // Función para abrir el modal de acción con el reembolso y tipo seleccionados
+  openDetailModal,           // Función para abrir el modal de detalle de un reembolso específico
+  openEvidenceModal,         // Función para abrir el modal de evidencia de un reembolso específico
+  pagination,                // Objeto con la lógica de paginación (página actual, total, items visibles)
+  paymentStatusBadgeClass,   // Función que retorna la clase CSS del badge según el estado de pago
+  paymentStatusLabel,        // Función que retorna la etiqueta legible del estado de pago
+  refundDetailsLabel,        // Función que retorna la etiqueta legible de los detalles adicionales
+  refundPaymentStatus,       // Función que calcula el estado de pago actual de un reembolso
+  refundReasonLabel,         // Función que retorna la etiqueta legible del motivo del reembolso
+  refundStatusBadgeClass,    // Función que retorna la clase CSS del badge según el estado del reembolso
+  refundStatusLabel,         // Función que retorna la etiqueta legible del estado del reembolso
+  refunds,                   // Lista reactiva de todas las solicitudes de reembolso cargadas
+  savingAction,              // Bandera booleana que indica si se está guardando una acción en curso
+  selectedAction,            // Objeto con la configuración de la acción actualmente seleccionada
+  selectedRefund,            // Objeto del reembolso actualmente seleccionado para detalle o acción
+  showActionModal,           // Bandera booleana que controla la visibilidad del modal de acción
+  showDetailModal,           // Bandera booleana que controla la visibilidad del modal de detalle
+  showEvidenceModal,         // Bandera booleana que controla la visibilidad del modal de evidencia
+  stats,                     // Arreglo de estadísticas resumidas (total, pendientes, aprobados, etc.)
+  submitAction,              // Función para enviar y procesar la acción seleccionada sobre el reembolso
+  validateActionField,       // Función para validar un campo específico del formulario de acción
 } = useAdminRefunds()
 </script>

@@ -8,6 +8,7 @@ use App\Http\Requests\PasswordRecoveryCodeRequest;
 use App\Http\Requests\PasswordRecoveryResetRequest;
 use App\Http\Requests\PasswordRecoveryVerifyCodeRequest;
 use App\Services\PasswordRecoveryService;
+use App\Services\TurnstileVerificationService;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -21,6 +22,7 @@ class PasswordRecoveryController extends Controller
 {
     public function __construct(
         private readonly PasswordRecoveryService $passwordRecoveryService,
+        private readonly TurnstileVerificationService $turnstileVerificationService,
     ) {}
 
     /**
@@ -32,6 +34,12 @@ class PasswordRecoveryController extends Controller
     public function requestCode(PasswordRecoveryCodeRequest $request): JsonResponse
     {
         return $this->handleAction(function () use ($request) {
+            // Protege el envío de correos de recuperación antes de generar códigos.
+            $this->turnstileVerificationService->verify(
+                $request->string('turnstile_token')->toString(),
+                $request->ip()
+            );
+
             $result = $this->passwordRecoveryService->requestCode(
                 $request->string('identifier')->toString(),
                 false
@@ -54,6 +62,12 @@ class PasswordRecoveryController extends Controller
     public function resendCode(PasswordRecoveryCodeRequest $request): JsonResponse
     {
         return $this->handleAction(function () use ($request) {
+            // Reutiliza la verificación inicial para evitar reenvíos automatizados.
+            $this->turnstileVerificationService->verify(
+                $request->string('turnstile_token')->toString(),
+                $request->ip()
+            );
+
             $result = $this->passwordRecoveryService->requestCode(
                 $request->string('identifier')->toString(),
                 true

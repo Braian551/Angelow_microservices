@@ -7,6 +7,11 @@ import { buildStoreLinkGroups, CUSTOM_STORE_LINK_VALUE, detectStoreLinkOption, l
 import { useAdminDataExport } from './useAdminDataExport'
 import { useAdminPagination } from './useAdminPagination'
 
+/**
+ * Composable para la gestión de anuncios del panel administrativo.
+ * Administra dos tipos de anuncios: barra superior (top_bar) y banner promocional (promo_banner).
+ * Incluye CRUD, validación, colores, enlaces internos, exportación y control de fechas.
+ */
 export function useAdminAnnouncements() {
   const { showAlert } = useAlertSystem()
   const { showSnackbar } = useSnackbarSystem()
@@ -137,6 +142,7 @@ export function useAdminAnnouncements() {
     return style
   })
 
+  /** Reinicia el formulario a valores por defecto y limpia imagen y errores. */
   function resetForm() {
     form.type = 'top_bar'
     form.title = ''
@@ -157,18 +163,21 @@ export function useAdminAnnouncements() {
     clearErrors()
   }
 
+  /** Limpia todos los errores de validación del formulario. */
   function clearErrors() {
     Object.keys(formErrors).forEach((key) => {
       formErrors[key] = ''
     })
   }
 
+  /** Restablece los filtros de búsqueda y tipo a sus valores iniciales. */
   function clearFilters() {
     filters.search = ''
     filters.state = 'all'
     filters.type = 'all'
   }
 
+  /** Obtiene la lista de colores disponibles del catálogo backend. */
   async function loadColors() {
     try {
       const { data } = await catalogHttp.get('/admin/colors')
@@ -178,10 +187,12 @@ export function useAdminAnnouncements() {
     }
   }
 
+  /** Detecta la opción de enlace seleccionada a partir de la URL actual del formulario. */
   function detectLinkOption(link) {
     selectedLinkOption.value = detectStoreLinkOption(link, linkOptionGroups.value, '')
   }
 
+  /** Maneja el cambio de opción de enlace: aplica URL o permite entrada personalizada. */
   function onLinkOptionChange(value) {
     selectedLinkOption.value = value
     if (value !== CUSTOM_STORE_LINK_VALUE) {
@@ -190,6 +201,7 @@ export function useAdminAnnouncements() {
     }
   }
 
+  /** Actualiza la detección de enlace al cambiar el tipo de anuncio. */
   function handleAnnouncementTypeChange() {
     validateField('type')
     if (isTopBarType.value) {
@@ -200,12 +212,14 @@ export function useAdminAnnouncements() {
     detectLinkOption(form.button_link)
   }
 
+  /** Carga las categorías y colecciones disponibles para enlaces internos. */
   async function loadLinkOptions() {
     const { categories, collections } = await loadStoreLinkCatalogs()
     linkCategories.value = categories
     linkCollections.value = collections
   }
 
+  /** Abre el modal de creación si no se supera el límite de 2 anuncios. */
   function openCreateModal() {
     if (!canCreateAnnouncement.value) {
       showAlert({
@@ -221,6 +235,7 @@ export function useAdminAnnouncements() {
     showEditorModal.value = true
   }
 
+  /** Carga los datos de un anuncio existente en el formulario para edición. */
   function openEditModal(announcement) {
     editingAnnouncementId.value = announcement.id
     clearErrors()
@@ -244,22 +259,26 @@ export function useAdminAnnouncements() {
     showEditorModal.value = true
   }
 
+  /** Cierra el modal del editor y reinicia el formulario. */
   function closeEditorModal() {
     showEditorModal.value = false
     editingAnnouncementId.value = null
     resetForm()
   }
 
+  /** Abre el modal de detalle con la información del anuncio seleccionado. */
   function openDetailModal(announcement) {
     selectedAnnouncement.value = announcement
     showDetailModal.value = true
   }
 
+  /** Cierra el modal de detalle y limpia la selección. */
   function closeDetailModal() {
     showDetailModal.value = false
     selectedAnnouncement.value = null
   }
 
+  /** Transiciona del modal de detalle al de edición con el anuncio actual. */
   function openEditFromDetail() {
     if (!selectedAnnouncement.value) return
     const currentAnnouncement = selectedAnnouncement.value
@@ -267,6 +286,7 @@ export function useAdminAnnouncements() {
     openEditModal(currentAnnouncement)
   }
 
+  /** Valida un campo específico del formulario de anuncios. */
   function validateField(field) {
     switch (field) {
       case 'type':
@@ -306,6 +326,7 @@ export function useAdminAnnouncements() {
     }
   }
 
+  /** Valida todos los campos obligatorios del formulario. */
   function validateForm() {
     validateField('type')
     validateField('title')
@@ -318,6 +339,7 @@ export function useAdminAnnouncements() {
     return Object.values(formErrors).every((value) => !value)
   }
 
+  /** Obtiene la lista de anuncios desde el backend. */
   async function loadAnnouncements() {
     loading.value = true
     try {
@@ -331,6 +353,7 @@ export function useAdminAnnouncements() {
     }
   }
 
+  /** Construye el FormData con los campos del formulario para enviar al backend. */
   function buildAnnouncementPayload() {
     const payload = new FormData()
 
@@ -353,6 +376,7 @@ export function useAdminAnnouncements() {
     return payload
   }
 
+  /** Valida y guarda un anuncio (creación o actualización). */
   async function saveAnnouncement() {
     if (!validateForm()) {
       showSnackbar({ type: 'warning', message: 'Corrige los errores del formulario antes de guardar.' })
@@ -382,6 +406,7 @@ export function useAdminAnnouncements() {
     }
   }
 
+  /** Muestra confirmación y elimina un anuncio por su ID. */
   function confirmDeleteAnnouncement(announcement) {
     showAlert({
       type: 'warning',
@@ -407,6 +432,7 @@ export function useAdminAnnouncements() {
     })
   }
 
+  /** Define las columnas de exportación Excel/PDF de los anuncios. */
   function buildAnnouncementExportColumns() {
     return [
       {
@@ -428,6 +454,7 @@ export function useAdminAnnouncements() {
     ]
   }
 
+  /** Exporta los anuncios filtrados en el formato indicado (excel o pdf). */
   function exportAnnouncements(format) {
     return exportData({
       format,
@@ -442,10 +469,12 @@ export function useAdminAnnouncements() {
     })
   }
 
+  /** Abre el selector de archivos de imagen oculto. */
   function openImagePicker() {
     imageInputRef.value?.click()
   }
 
+  /** Maneja la selección de archivo: genera URL de previsualización temporal. */
   function onImageSelected(event) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -455,6 +484,7 @@ export function useAdminAnnouncements() {
     imagePreviewUrl.value = URL.createObjectURL(file)
   }
 
+  /** Limpia la imagen seleccionada y revierte la previsualización. */
   function clearSelectedImage() {
     selectedImageFile.value = null
     if (imagePreviewUrl.value.startsWith('blob:')) URL.revokeObjectURL(imagePreviewUrl.value)
@@ -462,10 +492,12 @@ export function useAdminAnnouncements() {
     if (imageInputRef.value) imageInputRef.value.value = ''
   }
 
+  /** Retorna el label legible del tipo de anuncio. */
   function typeLabel(type) {
     return type === 'promo_banner' ? 'Banner promocional' : 'Barra superior'
   }
 
+  /** Retorna la etiqueta de prioridad (Alta, Media, Normal) según el valor numérico. */
   function priorityLabel(priority) {
     const numericPriority = Number(priority || 0)
     if (numericPriority >= 8) return 'Alta'
@@ -473,6 +505,7 @@ export function useAdminAnnouncements() {
     return 'Normal'
   }
 
+  /** Retorna la clase CSS asociada al nivel de prioridad. */
   function priorityClass(priority) {
     const numericPriority = Number(priority || 0)
     if (numericPriority >= 8) return 'cancelled'
@@ -480,6 +513,7 @@ export function useAdminAnnouncements() {
     return 'active'
   }
 
+  /** Determina la clave de estado (active, scheduled, expired, inactive) de un anuncio. */
   function announcementStatusKey(announcement) {
     if (!announcement.is_active && !announcement.active) return 'inactive'
     const now = Date.now()
@@ -490,14 +524,17 @@ export function useAdminAnnouncements() {
     return 'active'
   }
 
+  /** Retorna el label legible del estado de un anuncio. */
   function announcementStatusLabel(announcement) {
     return { active: 'Activo', scheduled: 'Programado', expired: 'Vencido', inactive: 'Inactivo' }[announcementStatusKey(announcement)]
   }
 
+  /** Retorna la clase CSS del estado de un anuncio. */
   function announcementStatusClass(announcement) {
     return { active: 'active', scheduled: 'pending', expired: 'cancelled', inactive: 'rejected' }[announcementStatusKey(announcement)]
   }
 
+  /** Genera estilos inline para la previsualización de un anuncio (color de fondo y texto). */
   function previewCardStyle(source) {
     return {
       backgroundColor: source.background_color || '#0f7abf',
@@ -505,12 +542,14 @@ export function useAdminAnnouncements() {
     }
   }
 
+  /** Trunca un texto a la longitud máxima indicada con puntos suspensivos. */
   function truncateText(value, maxLength = 80) {
     const text = String(value || '').trim()
     if (text.length <= maxLength) return text || 'Sin mensaje'
     return `${text.slice(0, maxLength)}...`
   }
 
+  /** Formatea una fecha ISO a cadena legible en español. */
   function formatDateTime(value) {
     if (!value) return 'Sin fecha'
     return new Date(value).toLocaleString('es-CO', {
@@ -522,6 +561,7 @@ export function useAdminAnnouncements() {
     })
   }
 
+  /** Convierte una fecha ISO a formato compatible con input datetime-local. */
   function normalizeDateTimeInput(value) {
     if (!value) return ''
     const date = new Date(value)
@@ -534,12 +574,14 @@ export function useAdminAnnouncements() {
     return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
+  /** Verifica si una URL es válida (ruta interna o enlace externo HTTP/HTTPS). */
   function isValidLink(value) {
     const clean = String(value || '').trim()
     if (!clean) return true
     return clean.startsWith('/') || /^https?:\/\//i.test(clean)
   }
 
+  /** Extrae el mensaje de error de una respuesta HTTP con valor por defecto. */
   function extractErrorMessage(error, fallback) {
     return error?.response?.data?.message || fallback
   }

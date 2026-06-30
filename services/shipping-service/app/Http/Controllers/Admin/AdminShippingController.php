@@ -11,10 +11,28 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * Controlador administrativo de configuración de envíos.
+ *
+ * Gestiona el CRUD completo de métodos de envío y reglas de precio por rango
+ * desde el panel de administración. Implementa el mismo patrón de fallback
+ * a legacy que el controlador público (ShippingController) para mantener
+ * la compatibilidad durante la migración de datos.
+ *
+ * Todos los endpoints de este controlador están protegidos por el middleware
+ * EnsureAdmin, que verifica token JWT contra auth-service y rol de administrador.
+ */
 class AdminShippingController extends Controller
 {
-    // ── Metodos de envio ────────────────────────────────────
+    // ── Métodos de envío ────────────────────────────────────
 
+    /**
+     * Obtiene todos los métodos de envío (activos e inactivos) para el panel admin.
+     *
+     * Ordena por: activos primero, luego por costo base, luego por nombre.
+     * Si no hay datos en la base distribuida, recurre a legacy.
+     * Retorna los métodos transformados al formato estándar del admin.
+     */
     public function methods(): JsonResponse
     {
         $methods = ShippingMethod::query()
@@ -24,6 +42,7 @@ class AdminShippingController extends Controller
             ->get()
             ->map(fn (ShippingMethod $method) => $this->transformMethod($method));
 
+        // Fallback a legacy si la tabla distribuida está vacía
         if ($methods->isEmpty()) {
             $methods = collect($this->loadLegacyMethods());
         }
@@ -31,40 +50,63 @@ class AdminShippingController extends Controller
         return response()->json(['success' => true, 'data' => $methods]);
     }
 
+    /**
+     * Crea un nuevo método de envío.
+     *
+     * Construye el payload validado y persisté en la base distribuida (shipping-db).
+     * Retorna 201 con el ID del nuevo registro.
+     */
     public function storeMethod(Request $request): JsonResponse
     {
         $method = ShippingMethod::query()->create($this->buildMethodPayload($request, false));
 
-        return response()->json(['success' => true, 'message' => 'Metodo creado.', 'id' => $method->id], 201);
+        return response()->json(['success' => true, 'message' => 'Método creado.', 'id' => $method->id], 201);
     }
 
+    /**
+     * Actualiza un método de envío existente.
+     *
+     * Usa actualización parcial (sometimes en validación) para permitir
+     * enviar solo los campos modificados desde el frontend admin.
+     */
     public function updateMethod(Request $request, int $id): JsonResponse
     {
         $method = ShippingMethod::query()->find($id);
 
         if (!$method) {
-            return response()->json(['success' => false, 'message' => 'Metodo no encontrado.'], 404);
+            return response()->json(['success' => false, 'message' => 'Método no encontrado.'], 404);
         }
 
         $method->fill($this->buildMethodPayload($request, true));
         $method->save();
 
-        return response()->json(['success' => true, 'message' => 'Metodo actualizado.']);
+        return response()->json(['success' => true, 'message' => 'Método actualizado.']);
     }
 
+    /**
+     * Elimina un método de envío por ID.
+     *
+     * Borrado físico (DELETE) de la base distribuida.
+     */
     public function destroyMethod(int $id): JsonResponse
     {
         $deleted = ShippingMethod::query()->whereKey($id)->delete();
 
         if (!$deleted) {
-            return response()->json(['success' => false, 'message' => 'Metodo no encontrado.'], 404);
+            return response()->json(['success' => false, 'message' => 'Método no encontrado.'], 404);
         }
 
-        return response()->json(['success' => true, 'message' => 'Metodo eliminado.']);
+        return response()->json(['success' => true, 'message' => 'Método eliminado.']);
     }
 
     // ── Reglas de precio ────────────────────────────────────
 
+    /**
+     * Obtiene todas las reglas de precio por rango para el panel admin.
+     *
+     * Ordenadas por precio mínimo ascendente.
+     * Fallback a legacy si shipping-db está vacía.
+     */
     public function rules(): JsonResponse
     {
         $rules = ShippingPriceRule::query()
@@ -72,6 +114,7 @@ class AdminShippingController extends Controller
             ->get()
             ->map(fn (ShippingPriceRule $rule) => $this->transformRule($rule));
 
+        // Fallback a legacy si no hay reglas en la base distribuida
         if ($rules->isEmpty()) {
             $rules = collect($this->loadLegacyRules());
         }
@@ -80,7 +123,11 @@ class AdminShippingController extends Controller
     }
 
     /**
-     * Fallback legacy para metodos cuando la base distribuida aun no tiene datos.
+     * Carga métodos de envío desde la base legacy (fallback para el panel admin).
+     *
+     * Se invoca cuando la tabla shipping_methods de shipping-db está vacía.
+     * Transforma los registros legacy al mismo formato que usa el admin
+     * para mantener consistencia en la UI de configuración.
      */
     private function loadLegacyMethods(): array
     {
@@ -136,7 +183,9 @@ class AdminShippingController extends Controller
     }
 
     /**
-     * Fallback legacy para reglas por precio cuando la base distribuida aun no tiene datos.
+     * Carga reglas de precio desde la base legacy (fallback para el panel admin).
+     *
+     * Transforma las reglas legacy al formato estándar del admin.
      */
     private function loadLegacyRules(): array
     {
@@ -166,6 +215,12 @@ class AdminShippingController extends Controller
         }
     }
 
+    /**
+     * Verifica si una tabla existe en la base legacy.
+     *
+     * Usada por loadLegacyMethods y loadLegacyRules antes de consultar
+     * para evitar errores de esquema.
+     */
     private function legacyTableExists(string $table): bool
     {
         try {
@@ -175,6 +230,12 @@ class AdminShippingController extends Controller
         }
     }
 
+    /**
+     * Convierte un valor de fecha a string ISO 8601 de forma segura.
+     *
+     * Retorna null si el valor está vacío o no puede parsearse.
+     * Útil para normalizar fechas legacy al formato estándar ISO.
+     */
     private function toIsoString(mixed $value): ?string
     {
         if ($value === null || $value === '') {
@@ -188,6 +249,9 @@ class AdminShippingController extends Controller
         }
     }
 
+    /**
+     * Crea una nueva regla de precio por rango.
+     */
     public function storeRule(Request $request): JsonResponse
     {
         $rule = ShippingPriceRule::query()->create($this->buildRulePayload($request, false));
@@ -195,6 +259,9 @@ class AdminShippingController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla creada.', 'id' => $rule->id], 201);
     }
 
+    /**
+     * Actualiza una regla de precio existente con validación parcial.
+     */
     public function updateRule(Request $request, int $id): JsonResponse
     {
         $rule = ShippingPriceRule::query()->find($id);
@@ -209,6 +276,9 @@ class AdminShippingController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla actualizada.']);
     }
 
+    /**
+     * Elimina una regla de precio por ID.
+     */
     public function destroyRule(int $id): JsonResponse
     {
         $deleted = ShippingPriceRule::query()->whereKey($id)->delete();
@@ -220,6 +290,14 @@ class AdminShippingController extends Controller
         return response()->json(['success' => true, 'message' => 'Regla eliminada.']);
     }
 
+    /**
+     * Construye el payload validado para crear/actualizar un método de envío.
+     *
+     * Soporta campos duplicados (is_active/active) para compatibilidad
+     * con diferentes versiones del frontend admin.
+     *
+     * @param bool $partial Si es true, usa validación 'sometimes' (actualización parcial)
+     */
     private function buildMethodPayload(Request $request, bool $partial): array
     {
         $rules = [
@@ -239,6 +317,7 @@ class AdminShippingController extends Controller
         $data = $request->validate($rules);
         $payload = [];
 
+        // Construye el payload solo con los campos presentes (soporta PATCH parcial)
         if (array_key_exists('name', $data)) {
             $payload['name'] = trim((string) $data['name']);
         }
@@ -275,6 +354,7 @@ class AdminShippingController extends Controller
             $payload['city'] = $this->nullableTrim($data['city'] ?? null);
         }
 
+        // Acepta tanto 'is_active' como 'active' para compatibilidad con distintos frontends
         if (array_key_exists('is_active', $data) || array_key_exists('active', $data)) {
             $payload['is_active'] = (bool) ($data['is_active'] ?? $data['active'] ?? false);
         }
@@ -282,6 +362,11 @@ class AdminShippingController extends Controller
         return $payload;
     }
 
+    /**
+     * Construye el payload validado para crear/actualizar una regla de precio.
+     *
+     * Soporta actualización parcial y el campo duplicado is_active/active.
+     */
     private function buildRulePayload(Request $request, bool $partial): array
     {
         $rules = [
@@ -314,6 +399,12 @@ class AdminShippingController extends Controller
         return $payload;
     }
 
+    /**
+     * Transforma un modelo ShippingMethod al formato de respuesta del admin.
+     *
+     * Convierte tipos, calcula estimated_days consolidado y
+     * normaliza fechas a ISO 8601.
+     */
     private function transformMethod(ShippingMethod $method): array
     {
         return [
@@ -335,6 +426,9 @@ class AdminShippingController extends Controller
         ];
     }
 
+    /**
+     * Transforma un modelo ShippingPriceRule al formato de respuesta del admin.
+     */
     private function transformRule(ShippingPriceRule $rule): array
     {
         return [
@@ -349,6 +443,9 @@ class AdminShippingController extends Controller
         ];
     }
 
+    /**
+     * Limpia un valor eliminando espacios y retorna null si queda vacío.
+     */
     private function nullableTrim(mixed $value): ?string
     {
         $clean = trim((string) $value);

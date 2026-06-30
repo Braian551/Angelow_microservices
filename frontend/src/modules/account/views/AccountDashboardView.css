@@ -1,14 +1,27 @@
+/* ==========================================================================
+   AccountDashboardView.css
+   Estilos para la vista principal del panel de cuenta de usuario.
+   Contiene: sidebar, perfil, resumen de pedidos, estados de pedido,
+   sistema de carga (shimmer) y diseño responsivo.
+   ========================================================================== */
+
+/* Contenedor principal de la página de cuenta - establece altura mínima
+   restando el header fijo (120px) y fondo gris claro de consistencia */
 .account-page {
   min-height: calc(100vh - 120px);
   background: #f3f4f6;
 }
 
+/* Contenedor flexible del dashboard - distribuye sidebar y contenido principal
+   en fila, con altura mínima completa del viewport */
 .user-dashboard-container {
   display: flex;
   min-height: calc(100vh - 120px);
   background: #f3f4f6;
 }
 
+/* Barra lateral del usuario - panel fijo de navegación con ancho fijo,
+   fondo blanco, sombra sutil y posición sticky para seguir al scroll */
 .user-sidebar {
   width: 295px;
   background: #fff;
@@ -21,6 +34,8 @@
   flex-direction: column;
 }
 
+/* Resumen del perfil de usuario - sección centralizada en la sidebar
+   con borde inferior separador y padding generoso para el avatar */
 .user-profile-summary {
   border-bottom: 1px solid #e0e0e0;
   padding: 1.6rem 1.8rem 2rem;
@@ -28,6 +43,8 @@
   position: relative;
 }
 
+/* Botón de regresar - posicionado absolutamente en la esquina superior
+   izquierda del perfil, con color azul corporativo y forma cuadrada redondeada */
 .back-button {
   position: absolute;
   top: 1.8rem;
@@ -44,10 +61,14 @@
   font-size: 1.8rem;
 }
 
+/* Efecto hover del botón de regresar - cambia a un azul más claro
+   para indicar interactividad al pasar el cursor */
 .back-button:hover {
   background: #0b84d8;
 }
 
+/* Avatar del usuario - contenedor circular con borde celeste,
+   centrado horizontalmente con margen inferior para separar del nombre */
 .user-avatar {
   width: 110px;
   height: 110px;
@@ -60,6 +81,8 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
+/* Efecto shimmer (carga) del avatar - overlay con gradiente animado
+   que simula un efecto de brillo mientras se carga la imagen */
 .user-avatar__shimmer {
   position: absolute;
   inset: 0;
@@ -69,6 +92,8 @@
   animation: accountShimmerWave 1.35s ease-in-out infinite;
 }
 
+/* Imagen del avatar - oculta por defecto con opacidad 0,
+   se muestra con transición suave cuando la imagen está lista */
 .user-avatar img {
   width: 100%;
   height: 100%;
@@ -77,10 +102,14 @@
   transition: opacity 0.22s ease;
 }
 
+/* Clase modificadora que muestra la imagen del avatar cuando
+   la carga ha completado exitosamente */
 .user-avatar img.is-ready {
   opacity: 1;
 }
 
+/* Nombre del usuario en el perfil - tipografía grande y color oscuro
+   para dar protagonismo al identificador del usuario */
 .user-info h3 {
   margin: 0 0 0.4rem;
   font-size: 1.8rem;
@@ -88,6 +117,8 @@
   color: #1f2937;
 }
 
+/* Información adicional del usuario (email, rol, etc.) -
+   texto secundario en gris con tamaño reducido */
 .user-info p {
   margin: 0.1rem 0;
   color: #6b7280;
@@ -96,20 +127,27 @@
   overflow-wrap: anywhere;
 }
 
+/* Contenedor del menú de navegación del usuario - padding vertical
+   para separar las opciones del perfil */
 .user-menu {
   padding: 1.1rem 0;
 }
 
+/* Lista de opciones del menú - sin viñetas ni estilos predeterminados */
 .user-menu ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* Cada elemento del menú - posición relativa para elementos
+   posicionados internamente (como badges de notificación) */
 .user-menu li {
   position: relative;
 }
 
+/* Enlaces y botones del menú - diseño flex con icono y texto,
+   ocupan todo el ancho disponible del sidebar */
 .user-menu li a,
 .user-menu li button {
   width: 100%;
@@ -127,6 +165,8 @@
   cursor: pointer;
 }
 
+/* Iconos dentro de los elementos del menú - ancho fijo y centrado
+   para mantener alineación consistente con el texto */
 .user-menu li a i,
 .user-menu li button i {
   width: 22px;
@@ -134,28 +174,38 @@
   font-size: 1.8rem;
 }
 
+/* Estado hover de los elementos del menú - fondo celeste semitransparente
+   y color azul para indicar selección interactiva */
 .user-menu li:hover a,
 .user-menu li:hover button {
   background: rgba(144, 224, 239, 0.35);
   color: #0077b6;
 }
 
+/* Elemento activo del menú - fondo azul sólido con texto blanco
+   y borde izquierdo celeste como indicador de sección actual */
 .user-menu li.active a {
   background: #0077b6;
   color: #fff;
   border-left: 4px solid #00b4d8;
 }
 
+/* Opción de cerrar sesión - color rojo para diferenciarla
+   del resto de opciones de navegación */
 .user-menu li.logout a,
 .user-menu li.logout button {
   color: #ff3333;
 }
 
+/* Hover de cerrar sesión - fondo rojo muy suave para
+   reforzar la acción destructiva */
 .user-menu li.logout:hover a,
 .user-menu li.logout:hover button {
   background: rgba(255, 51, 51, 0.08);
 }
 
+/* Badge de notificaciones - indicador numérico posicionado
+   absolutamente a la derecha del elemento del menú */
 .notification-badge {
   position: absolute;
   right: 16px;
@@ -174,11 +224,15 @@
   padding: 0 0.5rem;
 }
 
+/* Contenido principal del dashboard - ocupa el espacio restante
+   con flex: 1 y padding generoso para respiración visual */
 .user-main-content {
   flex: 1;
   padding: 2.8rem;
 }
 
+/* Cabecera del dashboard - tarjeta blanca con borde redondeado,
+   sombra sutil y título destacado en azul corporativo */
 .dashboard-header {
   background: #fff;
   border: 1px solid #e0e0e0;
@@ -188,6 +242,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* Título principal del dashboard - color azul de marca,
+   sin márgenes superiores para alinear con el borde de la tarjeta */
 .dashboard-header h1 {
   margin: 0 0 0.8rem;
   font-size: 2.8rem;
@@ -195,12 +251,15 @@
   color: #0077b6;
 }
 
+/* Subtítulo o bienvenida del dashboard - texto gris secundario */
 .dashboard-header p {
   margin: 0;
   font-size: 1.6rem;
   color: #6b7280;
 }
 
+/* Cuadrícula de resumen y grid de 2 columnas - layout de 3 columnas
+   responsivas con gap uniforme y margen inferior de separación */
 .dashboard-summary,
 .account-grid-2 {
   display: grid;
@@ -209,6 +268,8 @@
   margin-bottom: 2rem;
 }
 
+/* Tarjeta de resumen - cada card muestra un dato clave del usuario
+   (pedidos, favoritos, etc.) con borde izquierdo azul como acento */
 .summary-card {
   background: #fff;
   border: 1px solid #d5dbe3;
@@ -220,6 +281,8 @@
   gap: 1.5rem;
 }
 
+/* Icono del resumen - círculo celeste grande que acompaña
+   el dato numérico o textual en cada tarjeta */
 .summary-icon {
   width: 60px;
   height: 60px;
@@ -232,18 +295,23 @@
   font-size: 2.2rem;
 }
 
+/* Título del contenido del resumen - texto oscuro con margen inferior
+   para separar del párrafo descriptivo */
 .summary-content h3 {
   margin: 0 0 0.4rem;
   font-size: 1.6rem;
   color: #1f2937;
 }
 
+/* Descripción del resumen - texto gris con tamaño intermedio */
 .summary-content p {
   margin: 0 0 0.5rem;
   color: #6b7280;
   font-size: 1.4rem;
 }
 
+/* Enlace "ver más" del resumen - color azul con peso bold
+   para llamar a la acción */
 .summary-content a {
   color: #0077b6;
   font-size: 1.3rem;
@@ -251,6 +319,8 @@
   text-decoration: none;
 }
 
+/* Tarjeta genérica de cuenta - contenedor blanco para secciones
+   como pedidos, direcciones, notificaciones, etc. */
 .account-card {
   background: #fff;
   border: 1px solid #e0e0e0;
@@ -260,6 +330,8 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* Cabecera de sección - diseño flex con título a la izquierda
+   y enlace "ver todo" a la derecha, separado por borde inferior */
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -270,6 +342,7 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
+/* Título de la sección - sin margen, color oscuro y tamaño grande */
 .section-header h2 {
   margin: 0;
   font-size: 2.2rem;
@@ -277,6 +350,8 @@
   color: #1f2937;
 }
 
+/* Enlace "ver todo" de la sección - color azul de marca
+   con peso bold para indicar navegación */
 .section-header .view-all {
   color: #0077b6;
   text-decoration: none;
@@ -284,17 +359,21 @@
   font-weight: 700;
 }
 
+/* Lista de pedidos - cuadrícula vertical con gap entre tarjetas */
 .orders-list {
   display: grid;
   gap: 1.4rem;
 }
 
+/* Tarjeta individual de cada pedido - borde redondeado y padding interno */
 .order-card {
   border: 1px solid #d5dbe3;
   border-radius: 12px;
   padding: 1.8rem;
 }
 
+/* Cabecera del pedido - flex entre número de pedido y estado,
+   con borde inferior separador */
 .order-header {
   display: flex;
   justify-content: space-between;
@@ -305,17 +384,21 @@
   margin-bottom: 1rem;
 }
 
+/* Título del pedido (número de orden) - color oscuro fuerte */
 .order-title h3 {
   margin: 0 0 0.5rem;
   font-size: 1.8rem;
   color: #0f172a;
 }
 
+/* Fecha del pedido - texto gris secundario en tamaño pequeño */
 .order-date {
   color: #6b7280;
   font-size: 1.2rem;
 }
 
+/* Detalles del pedido - flex entre información y total,
+   alineados verticalmente con margen inferior */
 .order-details {
   display: flex;
   justify-content: space-between;
@@ -324,6 +407,8 @@
   margin-bottom: 1rem;
 }
 
+/* Información del pedido (artículos, envío, etc.) - texto gris
+   con icono acompañante en línea */
 .order-info {
   font-size: 1.3rem;
   color: #6b7280;
@@ -332,12 +417,16 @@
   gap: 0.8rem;
 }
 
+/* Total del pedido - tipografía grande y negrita para
+   destacar el monto como dato más importante */
 .order-total {
   font-size: 2.2rem;
   font-weight: 800;
   color: #0f172a;
 }
 
+/* Badge de estado - etiqueta redondeada con fondo coloreado
+   que indica el estado actual del pedido */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -349,12 +438,16 @@
   line-height: 1;
 }
 
+/* Estados pendiente y en procesamiento - fondo amarillo suave
+   con texto ámbar para indicar acción en curso */
 .status-pending,
 .status-processing {
   background: #fff4d6;
   color: #b45309;
 }
 
+/* Estados confirmado, pagado y enviado - fondo azul claro
+   con texto azul para indicar avance en el proceso */
 .status-confirmed,
 .status-paid,
 .status-shipped {
@@ -362,23 +455,30 @@
   color: #2563eb;
 }
 
+/* Estados entregado y completado - fondo verde claro
+   con texto verde para indicar éxito */
 .status-delivered,
 .status-completed {
   background: #dcfce7;
   color: #16a34a;
 }
 
+/* Estados cancelado y fallido - fondo rojo claro
+   con texto rojo para indicar error o cancelación */
 .status-cancelled,
 .status-failed {
   background: #fee2e2;
   color: #dc2626;
 }
 
+/* Contenedor de acciones del pedido - flex con gap entre botones */
 .order-actions {
   display: flex;
   gap: 0.8rem;
 }
 
+/* Botón primario pequeño y botón de ver pedido - estilo azul sólido
+   con bordes redondeados, usado para acciones principales */
 .btn-primary-small,
 .btn-view-order {
   border: 0;
@@ -396,11 +496,15 @@
   cursor: pointer;
 }
 
+/* Hover de botones primarios - cambio a azul más claro
+   para feedback visual de interactividad */
 .btn-primary-small:hover,
 .btn-view-order:hover {
   background: #0b84d8;
 }
 
+/* Botón outline (contorno) - estilo transparente con borde azul,
+   usado para secundarias acciones como "cancelar" o "volver" */
 .btn-outline-small {
   border: 1px solid #0077b6;
   color: #0077b6;
@@ -417,16 +521,28 @@
   cursor: pointer;
 }
 
+/* Hover del botón outline - fondo azul muy suave para
+   indicar interactividad sin cambiar el borde */
 .btn-outline-small:hover {
   background: rgba(0, 119, 182, 0.08);
 }
 
+/* Cuadrícula de productos - diseño responsivo que se adapta
+   al ancho disponible con un mínimo de 260px por columna */
 .products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.8rem;
 }
 
+/* ==========================================================================
+   ANIMACIÓN SHIMMER - Efecto de carga placeholder
+   Simula un brillo que se desplaza horizontalmente sobre superficies
+   grisáceas mientras los datos se cargan desde el servidor.
+   ========================================================================== */
+
+/* Keyframes de la animación shimmer - mueve el gradiente de
+   izquierda a derecha creando efecto de brillo continuo */
 @keyframes accountShimmerWave {
   0% {
     background-position: 200% 0;
@@ -436,11 +552,22 @@
   }
 }
 
+/* ==========================================================================
+   COMPONENTES SHIMMER (PLACEHOLDERS DE CARGA)
+   Sistema de elementos grises animados que reemplazan el contenido
+   real mientras se obtienen los datos del servidor.
+   Cada clase shimmer simula la forma del elemento que eventualmente
+   aparecerá (línea de texto, avatar, tarjeta, botón, etc.).
+   ========================================================================== */
+
+/* Contenedor principal del shimmer - cuadrícula con gap generoso */
 .account-shimmer {
   display: grid;
   gap: 2rem;
 }
 
+/* Superficie base del shimmer - gradiente animado idéntico al
+   shimmer del avatar, aplicado a todos los elementos placeholder */
 .account-shimmer__surface,
 .account-shimmer__line,
 .account-shimmer__circle,
@@ -453,18 +580,26 @@
   animation: accountShimmerWave 1.35s ease-in-out infinite;
 }
 
+/* Superficie shimmer con overflow oculto para contener
+   el gradiente animado dentro de sus límites */
 .account-shimmer__surface {
   overflow: hidden;
 }
 
+/* Shimmer del resumen - sin margen inferior porque se ajusta
+   al contenedor padre */
 .account-shimmer__summary {
   margin-bottom: 0;
 }
 
+/* Shimmer de tarjeta de resumen - borde izquierdo gris apagado
+   para simular el acento azul del estado real */
 .account-shimmer__summary-card {
   border-left-color: #7fb9d6;
 }
 
+/* Shimmer de tarjeta de resumen individual - diseño flex con
+   espacio entre el ícono y el texto placeholder */
 .account-shimmer__summary-card--single {
   display: flex;
   align-items: center;
@@ -472,25 +607,35 @@
   margin-top: 1.8rem;
 }
 
+/* Shimmer de cabecera - cuadrícula vertical para simular
+   título y subtítulo del dashboard */
 .account-shimmer__header {
   display: grid;
   gap: 1rem;
 }
 
+/* Shimmer de lista y stack - cuadrículas verticales para
+   simular listas de elementos o apilamiento de contenido */
 .account-shimmer__list,
 .account-shimmer__stack {
   display: grid;
   gap: 1rem;
 }
 
+/* Stack con espaciado reducido - gap más compacto para
+   elementos visualmente más cercanos */
 .account-shimmer__stack--spaced {
   gap: 0.8rem;
 }
 
+/* Stack que crece para ocupar espacio disponible -
+   útil en diseños flex donde necesita expandirse */
 .account-shimmer__stack--grow {
   flex: 1;
 }
 
+/* Shimmer de filas - contenedores flex para simular filas de
+   contenido con iconos, métricas, acciones o herramientas */
 .account-shimmer__row,
 .account-shimmer__metric-row,
 .account-shimmer__action-row,
@@ -501,16 +646,22 @@
   gap: 1rem;
 }
 
+/* Fila con espacio entre extremos - justifica contenido
+   a los extremos para simular distribución real */
 .account-shimmer__row--between {
   justify-content: space-between;
 }
 
+/* Filas con wrap - permiten salto de línea en pantallas
+   pequeñas para simular comportamiento responsivo */
 .account-shimmer__row--wrap,
 .account-shimmer__action-row,
 .account-shimmer__toolbar {
   flex-wrap: wrap;
 }
 
+/* Líneas, píldoras y botones shimmer - display block con border-radius
+   completo para simular formas redondeadas de texto y controles */
 .account-shimmer__line,
 .account-shimmer__pill,
 .account-shimmer__btn {
@@ -518,90 +669,126 @@
   border-radius: 999px;
 }
 
+/* Línea de texto base - altura estándar para simular
+   una línea de texto normal */
 .account-shimmer__line {
   height: 1.3rem;
 }
 
+/* Línea de título - ancho moderado y altura grande para
+   simular encabezados o títulos principales */
 .account-shimmer__line--title {
   width: min(46rem, 72%);
   height: 2.8rem;
 }
 
+/* Línea de subtítulo - ancho y altura intermedios para
+   simular subtítulos o descripciones secundarias */
 .account-shimmer__line--subtitle {
   width: min(38rem, 58%);
   height: 1.5rem;
 }
 
+/* Línea de encabezado - ancho moderado para simular
+   encabezados de sección */
 .account-shimmer__line--heading {
   width: min(24rem, 72%);
   height: 1.9rem;
 }
 
+/* Línea pequeña - para simular texto auxiliar,
+   etiquetas o metadatos */
 .account-shimmer__line--small {
   width: min(18rem, 52%);
   height: 1.2rem;
 }
 
+/* Línea de texto regular - ancho medio para simular
+   contenido párrafo */
 .account-shimmer__line--text {
   width: min(22rem, 68%);
 }
 
+/* Línea ancha - ocupa 100% del ancho disponible,
+   para simular separadores o líneas de contenido completo */
 .account-shimmer__line--wide {
   width: 100%;
 }
 
+/* Línea de enlace - ancho fijo pequeño para simular
+   un hipervínculo o texto clicable */
 .account-shimmer__line--link {
   width: 12rem;
   height: 1.2rem;
 }
 
+/* Línea de precio - ancho fijo y altura mayor para simular
+   la visualización de montos monetarios */
 .account-shimmer__line--price {
   width: 10rem;
   height: 2rem;
 }
 
+/* Línea de filtro - ancho fijo y altura grande para simular
+   barras de búsqueda o selectores de filtro */
 .account-shimmer__line--filter {
   width: 16rem;
   height: 3.6rem;
 }
 
+/* Línea de navegación - ancho completo con bordes menos
+   redondeados para simular pestañas o items de menú */
 .account-shimmer__line--nav {
   width: 100%;
   height: 4.4rem;
   border-radius: 10px;
 }
 
+/* Círculos shimmer - elementos redondeados para simular
+   avatares, íconos o indicadores circulares */
 .account-shimmer__circle {
   display: inline-flex;
   flex: none;
   border-radius: 50%;
 }
 
+/* Círculo de ícono grande - 60x60px para simular
+   íconos principales como los de las tarjetas de resumen */
 .account-shimmer__circle--icon {
   width: 60px;
   height: 60px;
 }
 
+/* Círculo pequeño - 44x44px para simular íconos
+   de acciones secundarias o botones */
 .account-shimmer__circle--small {
   width: 44px;
   height: 44px;
 }
 
+/* Círculo de avatar - 88x88px para simular la foto
+   de perfil del usuario en el sidebar */
 .account-shimmer__circle--avatar {
   width: 88px;
   height: 88px;
 }
 
+/* Rectángulos shimmer - bloques con bordes redondeados para
+   simular imágenes, miniaturas o campos de formulario */
 .account-shimmer__rect {
   display: block;
   border-radius: 16px;
 }
 
+/* Rectángulo de producto - ancho completo con relación de aspecto
+   1:1 para simular imágenes cuadradas de productos */
 .account-shimmer__rect--product {
   width: 100%;
   aspect-ratio: 1 / 1;
 }
 
+/* Miniatura rectangular - tamaño fijo para simular
+   imágenes pequeñas en listas o tarjetas compactas */
 .account-shimmer__rect--thumb {
   width: 88px;
   height: 88px;
@@ -609,39 +796,55 @@
   border-radius: 14px;
 }
 
+/* Rectángulo de campo de formulario - ancho completo con
+   altura de input para simular campos de texto */
 .account-shimmer__rect--input {
   width: 100%;
   height: 4.8rem;
   border-radius: 12px;
 }
 
+/* Píldoras shimmer - elementos con bordes completamente
+   redondeados para simular badges, etiquetas de estado */
 .account-shimmer__pill {
   height: 3.2rem;
 }
 
+/* Píldora de estado - ancho fijo para simular badges
+   como "Pendiente", "Enviado", etc. */
 .account-shimmer__pill--status {
   width: 11rem;
 }
 
+/* Píldora pequeña - tamaño reducido para etiquetas
+   auxiliares o categorías menores */
 .account-shimmer__pill--small {
   width: 9rem;
   height: 2.8rem;
 }
 
+/* Botón shimmer - dimensiones de botón estándar para
+   simular acciones como "Ver pedido", "Editar", etc. */
 .account-shimmer__btn {
   width: 14rem;
   height: 4.2rem;
   border-radius: 12px;
 }
 
+/* Botón ghost (fantasma) - ancho reducido para simular
+   botones secundarios o de menor énfasis */
 .account-shimmer__btn--ghost {
   width: 12rem;
 }
 
+/* Botón de ancho completo - ocupa todo el espacio disponible,
+   para simular botones principales de acción */
 .account-shimmer__btn--full {
   width: 100%;
 }
 
+/* Tarjetas shimmer genéricas - contenedores con borde y padding
+   para simular tarjetas de pedidos, direcciones, productos, etc. */
 .account-shimmer__order-card,
 .account-shimmer__address-card,
 .account-shimmer__product-card,
@@ -652,6 +855,8 @@
   padding: 1.6rem;
 }
 
+/* Tarjetas de pedido, dirección y notificación - cuadrícula
+   vertical con gap interno para simular contenido apilado */
 .account-shimmer__order-card,
 .account-shimmer__address-card,
 .account-shimmer__notification-row {
@@ -659,42 +864,60 @@
   gap: 1.2rem;
 }
 
+/* Tarjeta de pedido detallada - gap ligeramente mayor para
+   simular más espacio entre elementos de contenido */
 .account-shimmer__order-card--detailed {
   gap: 1.4rem;
 }
 
+/* Fila de métricas shimmer - justifica contenido a los extremos
+   para simular disposición de valor y etiqueta */
 .account-shimmer__metric-row {
   justify-content: space-between;
 }
 
+/* Fila de progreso shimmer - gap mayor para simular
+   indicadores de progreso con más espacio entre elementos */
 .account-shimmer__progress-row {
   gap: 1.2rem;
 }
 
+/* Fila de progreso ancha - justifica a los extremos
+   para simular barras de progreso con extremos definidos */
 .account-shimmer__progress-row--wide {
   justify-content: space-between;
 }
 
+/* Punto de progreso shimmer - elemento alargado que simula
+   un segmento de barra de progreso con animación */
 .account-shimmer__progress-dot {
   flex: 1;
   height: 1.2rem;
   border-radius: 999px;
 }
 
+/* Cuadrículas de productos y direcciones shimmer - layouts
+   responsivos que se adaptan al ancho disponible */
 .account-shimmer__product-grid,
 .account-shimmer__address-grid {
   display: grid;
   gap: 1.6rem;
 }
 
+/* Cuadrícula de productos shimmer - columnas responsivas
+   con mínimo de 220px, simulando grid de productos reales */
 .account-shimmer__product-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+/* Cuadrícula de direcciones shimmer - columnas responsivas
+   con mínimo de 280px, simulando tarjetas de dirección */
 .account-shimmer__address-grid {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
+/* Filas de notificación y detalle shimmer - flex entre extremos
+   para simular disposición de contenido con acciones a la derecha */
 .account-shimmer__notification-row,
 .account-shimmer__detail-row {
   display: flex;
@@ -703,15 +926,21 @@
   gap: 1.4rem;
 }
 
+/* Shell del shimmer de configuración - sin padding porque
+   hereda del contenedor padre */
 .account-shimmer__settings-shell {
   padding: 0;
 }
 
+/* Layout del shimmer de configuración - dos columnas: sidebar
+   de navegación (240px) y contenido flexible a la derecha */
 .account-shimmer__settings-layout {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
 }
 
+/* Sidebar del shimmer de configuración - borde derecho
+   separador con padding y apilamiento vertical de elementos */
 .account-shimmer__settings-sidebar {
   border-right: 1px solid #e0e0e0;
   padding: 2rem;
@@ -719,23 +948,35 @@
   gap: 1rem;
 }
 
+/* Contenido del shimmer de configuración - padding generoso
+   con apilamiento vertical de campos y secciones */
 .account-shimmer__settings-content {
   padding: 2rem;
   display: grid;
   gap: 1.6rem;
 }
 
+/* Campos del shimmer de configuración - cuadrícula de 2 columnas
+   para simular formulario de edición de perfil */
 .account-shimmer__settings-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.2rem;
 }
 
+/* Bloque de campo shimmer - apilamiento vertical para simular
+   un grupo de label + input */
 .account-shimmer__field-block {
   display: grid;
   gap: 0.8rem;
 }
 
+/* ==========================================================================
+   ESTADOS ESPECIALES DE LA VISTA
+   ========================================================================== */
+
+/* Mensaje de carga - texto gris informativo que se muestra
+   mientras se obtienen los datos del servidor */
 .loading-box {
   font-size: 1.5rem;
   color: #6b7280;
@@ -743,6 +984,8 @@
   padding: 1.2rem 0;
 }
 
+/* Mensaje de error - fondo rojo claro con borde rojo,
+   diseñado para captar la atención del usuario */
 .error-box {
   margin: 0;
   background: #fef2f2;
@@ -753,23 +996,31 @@
   font-size: 1.4rem;
 }
 
+/* Estado vacío - contenedor centrado para cuando no hay
+   datos que mostrar (sin pedidos, sin favoritos, etc.) */
 .empty-state {
   text-align: center;
   padding: 3rem 2rem;
 }
 
+/* Ícono del estado vacío - color gris apagado y tamaño grande
+   para comunicar visualmente la ausencia de contenido */
 .empty-state i {
   color: #90a3bf;
   font-size: 3.8rem;
   margin-bottom: 0.8rem;
 }
 
+/* Texto del estado vacío - mensaje descriptivo en gris
+   con margen inferior para el posible botón de acción */
 .empty-state p {
   margin: 0 0 1rem;
   color: #6b7280;
   font-size: 1.6rem;
 }
 
+/* Contenedor de autenticación requerida - tarjeta centrada
+   que se muestra cuando el usuario debe iniciar sesión */
 .account-auth-required {
   max-width: 860px;
   margin: 3rem auto;
@@ -780,17 +1031,30 @@
   text-align: center;
 }
 
+/* Título de autenticación requerida - llamado a la acción
+   para que el usuario inicie sesión */
 .account-auth-required h2 {
   margin: 0 0 1rem;
   font-size: 2.4rem;
 }
 
+/* Texto descriptivo de autenticación - explica al usuario
+   por qué necesita iniciar sesión */
 .account-auth-required p {
   margin: 0 0 1.2rem;
   font-size: 1.6rem;
   color: #6b7280;
 }
 
+/* ==========================================================================
+   MEDIA QUERIES - DISEÑO RESPONSIVO
+   Adapta la interfaz a diferentes tamaños de pantalla para
+   garantizar usabilidad en desktop, tablet y móvil.
+   ========================================================================== */
+
+/* breakpoint TABLET/APLICACIÓN DE ESCRITORIO (máx. 1320px) -
+   Convierte las cuadrículas de 3 columnas en una sola columna
+   para adaptarlas al espacio reducido de pantallas intermedias */
 @media (max-width: 1320px) {
   .dashboard-summary,
   .account-grid-2 {
@@ -798,11 +1062,17 @@
   }
 }
 
+/* breakpoint TABLET (máx. 980px) -
+   Cambia la disposición de fila a columna: sidebar arriba,
+   contenido principal abajo. Reduce tamaños y espaciados
+   para optimizar el espacio en dispositivos medianos. */
 @media (max-width: 980px) {
+  /* Contenedor principal cambia a dirección vertical */
   .user-dashboard-container {
     flex-direction: column;
   }
 
+  /* Sidebar ocupa todo el ancho, pasa a ser relativo (no sticky) */
   .user-sidebar {
     width: 100%;
     height: auto;
@@ -811,6 +1081,7 @@
     border-bottom: 1px solid #e0e0e0;
   }
 
+  /* Reducción del padding del contenido principal */
   .user-main-content {
     padding: 1.5rem;
   }
@@ -820,74 +1091,89 @@
     padding: 1.6rem 1.4rem 1.5rem;
   }
 
+  /* Reposiciona el botón de regresar para tablet */
   .back-button {
     top: 1.3rem;
     left: 1.3rem;
   }
 
+  /* Avatar ligeramente más pequeño en tablet */
   .user-avatar {
     width: 96px;
     height: 96px;
     margin-bottom: 1rem;
   }
 
+  /* Nombre del usuario reducido en tablet */
   .user-info h3 {
     font-size: 1.65rem;
   }
 
+  /* Menú más compacto en tablet */
   .user-menu {
     padding: 0.7rem 0;
   }
 
+  /* Opciones del menú con padding reducido */
   .user-menu li a,
   .user-menu li button {
     padding: 1.1rem 1.4rem;
   }
 
+  /* Tarjetas del dashboard con padding reducido */
   .dashboard-header,
   .account-card {
     padding: 1.6rem;
   }
 
+  /* Título del dashboard reducido en tablet */
   .dashboard-header h1 {
     font-size: 2.4rem;
   }
 
+  /* Subtítulo del dashboard reducido en tablet */
   .dashboard-header p {
     font-size: 1.45rem;
   }
 
+  /* Shimmer de notificaciones y detalles: apilamiento vertical en tablet */
   .account-shimmer__notification-row,
   .account-shimmer__detail-row {
     flex-direction: column;
     align-items: stretch;
   }
 
+  /* Shimmer de configuración: columnas individuales en tablet */
   .account-shimmer__settings-layout,
   .account-shimmer__settings-fields {
     grid-template-columns: 1fr;
   }
 
+  /* Sidebar del shimmer de configuración sin borde derecho en tablet */
   .account-shimmer__settings-sidebar {
     border-right: 0;
     border-bottom: 1px solid #e0e0e0;
   }
 
+  /* Botones y filtros shimmer a ancho completo en tablet */
   .account-shimmer__btn,
   .account-shimmer__line--filter {
     width: 100%;
   }
 
+  /* Cabecera y detalles del pedido: apilamiento vertical en tablet */
   .order-header,
   .order-details {
     flex-direction: column;
     align-items: flex-start;
   }
 
+  /* Acciones del pedido a ancho completo en tablet */
   .order-actions {
     width: 100%;
   }
 
+  /* Todos los botones de acción a ancho completo en tablet */
   .btn-view-order,
   .btn-primary-small,
   .btn-outline-small {
@@ -895,7 +1181,12 @@
   }
 }
 
+/* breakpoint MÓVIL (máx. 640px) -
+   Optimización máxima para pantallas pequeñas: reduce aún más
+   tamaños de fuente, espaciados, bordes y dimensiones de avatar.
+   Los elementos interactivos mantienen áreas de toque mínimas. */
 @media (max-width: 640px) {
+  /* Altura mínima automática en móvil para evitar espacios vacíos */
   .account-page,
   .user-dashboard-container {
     min-height: auto;
@@ -906,6 +1197,7 @@
     padding: 1.2rem 1rem 1.2rem;
   }
 
+  /* Botón de regresar más pequeño en móvil */
   .back-button {
     width: 36px;
     height: 36px;
@@ -914,20 +1206,24 @@
     font-size: 1.5rem;
   }
 
+  /* Avatar reducido al mínimo en móvil */
   .user-avatar {
     width: 84px;
     height: 84px;
     border-width: 2px;
   }
 
+  /* Nombre del usuario en tamaño mínimo legible */
   .user-info h3 {
     font-size: 1.5rem;
   }
 
+  /* Texto auxiliar del perfil aún más pequeño */
   .user-info p {
     font-size: 1.1rem;
   }
 
+  /* Menú con áreas de toque optimizadas para móvil */
   .user-menu li a,
   .user-menu li button {
     gap: 0.85rem;
@@ -935,12 +1231,14 @@
     font-size: 1.3rem;
   }
 
+  /* Iconos del menú reducidos en móvil */
   .user-menu li a i,
   .user-menu li button i {
     width: 18px;
     font-size: 1.55rem;
   }
 
+  /* Badge de notificaciones más pequeño en móvil */
   .notification-badge {
     right: 10px;
     min-width: 22px;
@@ -948,20 +1246,24 @@
     font-size: 1.1rem;
   }
 
+  /* Contenido principal con mínimo padding en móvil */
   .user-main-content {
     padding: 1rem;
   }
 
+  /* Tarjetas del dashboard con bordes y padding reducidos */
   .dashboard-header,
   .account-card {
     border-radius: 12px;
     padding: 1.35rem;
   }
 
+  /* Título del dashboard en tamaño mínimo legible */
   .dashboard-header h1 {
     font-size: 2.1rem;
   }
 
+  /* Subtítulo del dashboard con line-height mayor para legibilidad */
   .dashboard-header p {
     font-size: 1.32rem;
     line-height: 1.5;

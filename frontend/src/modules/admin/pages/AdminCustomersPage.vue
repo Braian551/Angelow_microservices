@@ -1,4 +1,16 @@
 <template>
+  <!--
+    Componente: AdminCustomersPage.vue
+    Propósito: Página administrativa para gestionar clientes del sistema.
+    Funcionalidades principales:
+    - Listado de clientes con filtros avanzados (búsqueda, estado, segmento)
+    - Estadísticas generales del hub de clientes
+    - Tabla de clientes con información de contacto, pedidos y valor acumulado
+    - Modal de detalle del cliente con perfil, pedidos recientes y resumen comercial
+    - Exportación de datos a Excel y PDF
+    - Paginación de resultados
+    Composable utilizado: useAdminCustomers
+  -->
   <div class="admin-customers-page">
     <AdminPageHeader
       icon="fas fa-users"
@@ -237,6 +249,8 @@
 </template>
 
 <script setup>
+// Script del componente AdminCustomersPage.vue.
+// Importa utilidades, componentes y el composable que concentra la lógica de clientes.
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 import { useAdminCustomers } from '../composables/useAdminCustomers'
 import AdminCard from '../components/AdminCard.vue'
@@ -252,30 +266,30 @@ import AdminTableShimmer from '../components/AdminTableShimmer.vue'
 import '../views/AdminCustomersPage.css'
 
 const {
-  activeFilterCount,
-  clearAllFilters,
-  closeCustomerModal,
-  customerSegmentLabel,
-  customers,
-  debouncedLoadCustomers,
-  exportCustomers,
-  exportingFormat,
-  filters,
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  hubStatsFormatted,
-  loadCustomers,
-  loading,
-  openCustomerModal,
-  pagination,
-  paymentBadgeClass,
-  paymentLabel,
-  selectedCustomer,
-  showDetailModal,
-  statusBadgeClass,
-  statusLabel,
-  toggleCustomerBlock,
+  activeFilterCount, // Número de filtros activos actualmente aplicados
+  clearAllFilters, // Función para limpiar todos los filtros de búsqueda
+  closeCustomerModal, // Función para cerrar el modal de detalle del cliente
+  customerSegmentLabel, // Función para obtener la etiqueta del segmento del cliente
+  customers, // Lista completa de clientes cargados desde el servidor
+  debouncedLoadCustomers, // Función con debounce para cargar clientes sin saturar el servidor
+  exportCustomers, // Función para exportar la lista de clientes a Excel o PDF
+  exportingFormat, // Formato de exportación en curso ('excel', 'pdf' o null)
+  filters, // Objeto reactivo con los filtros de búsqueda y segmentación
+  formatCurrency, // Función para formatear valores monetarios
+  formatDate, // Función para formatear fechas
+  formatDateTime, // Función para formatear fechas con hora
+  hubStatsFormatted, // Estadísticas formateadas del hub para mostrar en el grid
+  loadCustomers, // Función para cargar la lista de clientes desde la API
+  loading, // Indicador de carga en curso (true/false)
+  openCustomerModal, // Función para abrir el modal de detalle de un cliente específico
+  pagination, // Objeto con propiedades de paginación (página actual, total, etc.)
+  paymentBadgeClass, // Función para obtener la clase CSS del badge de estado de pago
+  paymentLabel, // Función para obtener la etiqueta del estado de pago
+  selectedCustomer, // Cliente seleccionado actualmente para ver en el modal de detalle
+  showDetailModal, // Indicador de visibilidad del modal de detalle (true/false)
+  statusBadgeClass, // Función para obtener la clase CSS del badge de estado del pedido
+  statusLabel, // Función para obtener la etiqueta del estado del pedido
+  toggleCustomerBlock, // Función para bloquear o desbloquear un cliente
 } = useAdminCustomers()
 
 function avatarUrl(customer) {

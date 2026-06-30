@@ -1,4 +1,10 @@
 <template>
+  <!--
+    Componente principal de informes del panel de administración.
+    Permite al administrador analizar ventas, productos populares y clientes recurrentes.
+    Incluye filtros por fecha, estado y agrupación, visualización con gráficas y tablas,
+    y exportación de resultados en formatos Excel y PDF.
+  -->
   <div class="admin-reports-page">
     <AdminPageHeader
       icon="fas fa-chart-bar"
@@ -462,8 +468,12 @@
 </template>
 
 <script setup>
+// Script del componente de informes de administración.
+// Delega la lógica reactiva en useAdminReports y conserva aquí la composición de la vista.
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
+
 import { useAdminReports } from '../composables/useAdminReports'
+
 import AdminCard from '../components/AdminCard.vue'
 import AdminExportActions from '../components/AdminExportActions.vue'
 import AdminFilterCard from '../components/AdminFilterCard.vue'
@@ -474,47 +484,48 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+
 import '../views/AdminReportsPage.css'
 
 const {
-  activeFilterCount,
-  activeReportRows,
-  activeSearchModel,
-  activeStats,
-  activeTab,
-  activeTabConfig,
-  breadcrumbs,
-  categoriesCanvas,
-  closeDetailModal,
-  customerDistributionCanvas,
-  customersPagination,
-  detailContext,
-  detailTitle,
-  exportReport,
-  exportingFormat,
-  filteredCustomerRows,
-  filteredProductsRows,
-  filters,
-  formatCurrency,
-  formatDateTime,
-  formatPeriodLabel,
-  goToTab,
-  groupedSalesRows,
-  loadCurrentReport,
-  loading,
-  monthlyComparisonCanvas,
-  openDetailModal,
-  productsPagination,
-  quantityProductsCanvas,
-  renderCharts,
-  resetFilters,
-  resultsLabel,
-  salesEvolutionCanvas,
-  salesPagination,
-  searchPlaceholder,
-  showDetailModal,
-  tabs,
-  topCustomersCanvas,
-  topProductsCanvas,
+  activeFilterCount,       // Número de filtros actualmente activos en la sección avanzada
+  activeReportRows,        // Filas de datos del reporte activo (para habilitar/deshabilitar exportación)
+  activeSearchModel,       // Modelo reactivo del campo de búsqueda vinculado al filtro
+  activeStats,             // Estadísticas resumidas del reporte activo (ventas, productos o clientes)
+  activeTab,               // Identificador de la pestaña/sección actualmente seleccionada
+  activeTabConfig,         // Configuración de la pestaña activa (título, nota informativa, etc.)
+  breadcrumbs,             // Ruta de navegación para el encabezado de la página
+  categoriesCanvas,        // Referencia al canvas donde se renderiza el gráfico de categorías
+  closeDetailModal,        // Función para cerrar el modal de detalle
+  customerDistributionCanvas, // Referencia al canvas del gráfico de distribución de clientes
+  customersPagination,     // Estado de paginación de la tabla de clientes recurrentes
+  detailContext,           // Contexto del registro seleccionado para mostrar en el modal de detalle
+  detailTitle,             // Título dinámico del modal de detalle según el tipo de reporte
+  exportReport,            // Función para exportar el reporte actual en formato Excel o PDF
+  exportingFormat,         // Formato de exportación en progreso ('excel', 'pdf' o null)
+  filteredCustomerRows,    // Filas de clientes filtradas según los criterios del reporte
+  filteredProductsRows,    // Filas de productos filtradas según los criterios del reporte
+  filters,                 // Objeto reactivo con los filtros de cada sección (ventas, productos, clientes)
+  formatCurrency,          // Función auxiliar para formatear valores numéricos como moneda
+  formatDateTime,          // Función auxiliar para formatear fechas y horas legibles
+  formatPeriodLabel,       // Función para formatear etiquetas de período (día, semana, mes, año)
+  goToTab,                 // Función para cambiar a una pestaña de reporte específica
+  groupedSalesRows,        // Filas de ventas agrupadas por el período seleccionado
+  loadCurrentReport,       // Función para cargar los datos del reporte según la pestaña y filtros activos
+  loading,                 // Estado de carga general (true mientras se obtienen datos del servidor)
+  monthlyComparisonCanvas, // Referencia al canvas del gráfico de comparativa mensual de ventas
+  openDetailModal,         // Función para abrir el modal de detalle con el registro seleccionado
+  productsPagination,      // Estado de paginación de la tabla de productos más vendidos
+  quantityProductsCanvas,  // Referencia al canvas del gráfico de más vendidos por cantidad
+  renderCharts,            // Función para re-renderizar los gráficas tras cambiar filtros o datos
+  resetFilters,            // Función para restablecer todos los filtros a sus valores predeterminados
+  resultsLabel,            // Texto con el conteo de resultados del reporte activo
+  salesEvolutionCanvas,    // Referencia al canvas del gráfico de evolución de ventas
+  salesPagination,         // Estado de paginación de la tabla de ventas por período
+  searchPlaceholder,       // Placeholder dinámico del campo de búsqueda según la pestaña activa
+  showDetailModal,         // Estado booleano que controla la visibilidad del modal de detalle
+  tabs,                    // Arreglo de objetos con la configuración de las pestañas de reporte
+  topCustomersCanvas,      // Referencia al canvas del gráfico de top clientes por valor
+  topProductsCanvas,       // Referencia al canvas del gráfico de top productos por ingresos
 } = useAdminReports()
 </script>

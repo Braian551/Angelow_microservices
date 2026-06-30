@@ -18,14 +18,74 @@ class OrderApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->mockStockReservationService();
+    }
+
+    /**
+     * Aísla las pruebas HTTP del servicio externo de catálogo y de Redis.
+     */
+    private function mockStockReservationService(): void
+    {
+        $this->mock(StockReservationService::class, function ($mock): void {
+            $mock->shouldReceive('reserveForOrder')
+                ->byDefault()
+                ->andReturn([
+                    'ok' => true,
+                    'expires_at' => now()->addHours(2)->toISOString(),
+                    'ttl_seconds' => 7200,
+                ]);
+
+            $mock->shouldReceive('extendReservation')
+                ->byDefault()
+                ->andReturn(['ok' => true, 'extended' => 1]);
+
+            $mock->shouldReceive('confirmReservation')
+                ->byDefault()
+                ->andReturn(['ok' => true, 'confirmed' => 1]);
+
+            $mock->shouldReceive('releaseReservation')
+                ->byDefault()
+                ->andReturn(['ok' => true, 'released' => 1]);
+        });
+    }
+
+    /**
+     * Construye un payload válido según el contrato actual de creación de pedidos.
+     */
+    private function orderPayload(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'order_number' => 'ORD-BASE',
+            'user_id' => '12',
+            'subtotal' => 100000,
+            'total' => 112000,
+            'items' => [
+                [
+                    'product_id' => 10,
+                    'color_variant_id' => 20,
+                    'size_variant_id' => 30,
+                    'product_name' => 'Conjunto infantil',
+                    'variant_name' => 'Azul / 4T',
+                    'price' => 100000,
+                    'quantity' => 1,
+                    'total' => 100000,
+                ],
+            ],
+        ], $overrides);
+    }
+
     public function test_can_create_and_view_order(): void
     {
-        $createResponse = $this->postJson('/api/orders', [
+        $createResponse = $this->postJson('/api/orders', $this->orderPayload([
             'order_number' => 'ORD-1001',
             'user_id' => '12',
             'subtotal' => 100000,
             'total' => 112000,
-        ]);
+        ]));
 
         $createResponse
             ->assertStatus(201)
@@ -41,12 +101,24 @@ class OrderApiTest extends TestCase
 
     public function test_can_update_order_status_and_persist_history(): void
     {
-        $orderId = (int) $this->postJson('/api/orders', [
+        $orderId = (int) $this->postJson('/api/orders', $this->orderPayload([
             'order_number' => 'ORD-2001',
             'user_id' => '50',
             'subtotal' => 85000,
             'total' => 90000,
-        ])->json('id');
+            'items' => [
+                [
+                    'product_id' => 11,
+                    'color_variant_id' => 21,
+                    'size_variant_id' => 31,
+                    'product_name' => 'Vestido infantil',
+                    'variant_name' => 'Rosa / 5T',
+                    'price' => 85000,
+                    'quantity' => 1,
+                    'total' => 85000,
+                ],
+            ],
+        ]))->json('id');
 
         $this->patchJson("/api/orders/{$orderId}/status", [
             'status' => 'shipped',
@@ -74,16 +146,28 @@ class OrderApiTest extends TestCase
             '*' => Http::response(['message' => 'Notificación creada y encolada'], 201),
         ]);
 
-        Mail::shouldReceive('html')->twice()->andReturnNull();
+        Mail::shouldReceive('html')->times(3)->andReturnNull();
 
-        $orderId = (int) $this->postJson('/api/orders', [
+        $orderId = (int) $this->postJson('/api/orders', $this->orderPayload([
             'order_number' => 'ORD-3001',
             'user_id' => '88',
             'subtotal' => 72000,
             'total' => 76000,
             'billing_name' => 'Cliente Prueba',
             'billing_email' => 'cliente.prueba@angelow.test',
-        ])->json('id');
+            'items' => [
+                [
+                    'product_id' => 12,
+                    'color_variant_id' => 22,
+                    'size_variant_id' => 32,
+                    'product_name' => 'Camiseta infantil',
+                    'variant_name' => 'Blanca / 6T',
+                    'price' => 72000,
+                    'quantity' => 1,
+                    'total' => 72000,
+                ],
+            ],
+        ]))->json('id');
 
         $this->patchJson("/api/orders/{$orderId}/status", [
             'status' => 'processing',
@@ -99,7 +183,8 @@ class OrderApiTest extends TestCase
             'description' => 'Pago confirmado',
         ])->assertOk();
 
-        Http::assertSentCount(2);
+        // El flujo actual puede notificar la creación y luego cada cambio operativo.
+        Http::assertSentCount(3);
         Http::assertSent(function ($request) use ($orderId): bool {
             return str_contains($request->url(), '/notifications')
                 && (string) ($request['related_entity_type'] ?? '') === 'order'
@@ -123,9 +208,9 @@ class OrderApiTest extends TestCase
             '*' => Http::response(['message' => 'Notificación creada y encolada'], 201),
         ]);
 
-        Mail::shouldReceive('html')->twice()->andReturnNull();
+        Mail::shouldReceive('html')->times(3)->andReturnNull();
 
-        $orderId = (int) $this->postJson('/api/orders', [
+        $orderId = (int) $this->postJson('/api/orders', $this->orderPayload([
             'order_number' => 'ORD-4001',
             'user_id' => '99',
             'subtotal' => 50000,
@@ -134,7 +219,19 @@ class OrderApiTest extends TestCase
             'payment_status' => 'paid',
             'billing_name' => 'Cliente Cancelación',
             'billing_email' => 'cliente.cancelacion@angelow.test',
-        ])->json('id');
+            'items' => [
+                [
+                    'product_id' => 13,
+                    'color_variant_id' => 23,
+                    'size_variant_id' => 33,
+                    'product_name' => 'Pantalón infantil',
+                    'variant_name' => 'Azul / 5T',
+                    'price' => 50000,
+                    'quantity' => 1,
+                    'total' => 50000,
+                ],
+            ],
+        ]))->json('id');
 
         $this->patchJson("/api/orders/{$orderId}/cancel", [
             'user_id' => '99',
@@ -165,7 +262,8 @@ class OrderApiTest extends TestCase
             'new_value' => 'pending_refund',
         ]);
 
-        Http::assertSentCount(1);
+        // La cancelación conserva la notificación al cliente y puede sumar aviso operativo de reembolso.
+        Http::assertSentCount(2);
         Http::assertSent(function ($request) use ($orderId): bool {
             return str_contains($request->url(), '/notifications')
                 && (string) ($request['related_entity_type'] ?? '') === 'order'
