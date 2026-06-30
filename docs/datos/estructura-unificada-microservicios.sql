@@ -16,9 +16,9 @@
 -- 5. `user_addresses` conserva campos heredados y campos normalizados vistos
 --    en migraciones del servicio de envíos.
 -- 6. El archivo define estructura y relaciones; no incluye datos semilla.
--- 7. Se revisaron migraciones, SQL auxiliar, dumps y bases SQLite locales:
---    no se detectaron triggers, vistas, funciones ni procedimientos usados
---    actualmente por las bases de datos de los microservicios.
+-- 7. Se incorporan vistas, funciones e índices de rendimiento inspirados en
+--    el dump completo `basededatoscompletaAntigua.sql`, adaptados a PostgreSQL
+--    y a los límites actuales de cada microservicio.
 --
 -- Importante: es un diseño de referencia. No ejecutarlo sobre producción sin
 -- revisión previa, porque no contiene `DROP TABLE` ni lógica de migración de datos.
@@ -1377,17 +1377,287 @@ ALTER TABLE audit_users
 -- Triggers, vistas, funciones y procedimientos
 -- ============================================================
 --
--- Fuentes revisadas para completar esta sección:
--- - `services/*/database/migrations/*.php`
--- - `services/*/database/sql/*.sql`
--- - `services/*/database/database.sqlite`, consultando `sqlite_master`
--- - `basededatos.sql`, revisando metadatos y sentencias PostgreSQL
---
--- Resultado:
--- Las bases actuales no declaran `CREATE TRIGGER`, `CREATE VIEW`,
--- `CREATE FUNCTION`, `CREATE PROCEDURE`, reglas ni vistas materializadas.
--- Por esa razón, esta base unificada no agrega objetos ejecutables
--- adicionales; conserva únicamente tablas, índices, restricciones y
--- relaciones que sí existen en las fuentes analizadas.
+-- El dump completo contiene triggers de auditoría y procedimientos MySQL.
+-- En la arquitectura distribuida se evitan triggers que crucen dominios o
+-- dupliquen escrituras que ya hace Laravel. Se conservan como objetos seguros
+-- las vistas y funciones de lectura/mantenimiento que mejoran consultas.
+
+CREATE INDEX idx_products_active_filters
+    ON products (is_active, category_id, gender, collection_id, is_featured, created_at);
+
+CREATE INDEX idx_products_active_price
+    ON products (is_active, price);
+
+CREATE INDEX idx_product_images_primary_order
+    ON product_images (product_id, is_primary DESC, "order", id);
+
+CREATE INDEX idx_product_reviews_product_approved_rating
+    ON product_reviews (product_id, is_approved, rating);
+
+CREATE INDEX idx_product_questions_product_created
+    ON product_questions (product_id, created_at DESC);
+
+CREATE INDEX idx_search_history_user_term_created
+    ON search_history (user_id, search_term, created_at DESC);
+
+CREATE INDEX idx_popular_searches_term_count
+    ON popular_searches (search_term, search_count DESC);
+
+CREATE OR REPLACE VIEW catalog_product_listing_view AS
+SELECT
+    p.id,
+    p.name,
+    p.slug,
+    p.description,
+    p.brand,
+    p.gender,
+    p.collection,
+    p.material,
+    p.care_instructions,
+    p.compare_price,
+    p.price,
+    p.category_id,
+    c.name AS category_name,
+    c.slug AS category_slug,
+    p.collection_id,
+    col.name AS collection_name,
+    col.slug AS collection_slug,
+    p.is_featured,
+    p.is_active,
+    p.created_at,
+    p.updated_at,
+    p.trial554,
+    COALESCE(primary_image.image_path, 'uploads/products/default-product.jpg') AS primary_image,
+    COALESCE(price_stats.min_price, p.price, 0)::numeric(10, 2) AS min_price,
+    COALESCE(price_stats.max_price, p.price, 0)::numeric(10, 2) AS max_price,
+    COALESCE(price_stats.available_stock, 0)::integer AS available_stock,
+    COALESCE(review_stats.avg_rating, 0)::numeric(4, 2) AS avg_rating,
+    COALESCE(review_stats.review_count, 0)::integer AS review_count
+FROM products p
+LEFT JOIN categories c ON c.id = p.category_id
+LEFT JOIN collections col ON col.id = p.collection_id
+LEFT JOIN LATERAL (
+    SELECT pi.image_path
+    FROM product_images pi
+    WHERE pi.product_id = p.id
+    ORDER BY pi.is_primary DESC, pi."order" ASC, pi.id ASC
+    LIMIT 1
+) AS primary_image ON TRUE
+LEFT JOIN LATERAL (
+    SELECT
+        MIN(psv.price) AS min_price,
+        MAX(psv.price) AS max_price,
+        SUM(CASE WHEN psv.is_active THEN psv.quantity ELSE 0 END) AS available_stock
+    FROM product_color_variants pcv
+    JOIN product_size_variants psv ON psv.color_variant_id = pcv.id
+    WHERE pcv.product_id = p.id
+) AS price_stats ON TRUE
+LEFT JOIN LATERAL (
+    SELECT
+        AVG(pr.rating) AS avg_rating,
+        COUNT(*) AS review_count
+    FROM product_reviews pr
+    WHERE pr.product_id = p.id
+      AND COALESCE(pr.is_approved, TRUE) = TRUE
+) AS review_stats ON TRUE;
+
+CREATE OR REPLACE FUNCTION catalog_search_products_and_terms(
+    p_search_term TEXT,
+    p_limit INTEGER DEFAULT 5
+)
+RETURNS TABLE (
+    result_type TEXT,
+    product_id INTEGER,
+    name VARCHAR(255),
+    slug VARCHAR(255),
+    image_path VARCHAR(255),
+    search_term_result VARCHAR(255),
+    sort_rank INTEGER
+)
+LANGUAGE sql
+STABLE
+AS $$
+    (
+        SELECT
+            'product'::TEXT AS result_type,
+            p.id AS product_id,
+            p.name,
+            p.slug,
+            p.primary_image::VARCHAR(255) AS image_path,
+            NULL::VARCHAR(255) AS search_term_result,
+            CASE
+                WHEN p.name ILIKE p_search_term || '%' THEN 1
+                WHEN p.name ILIKE '%' || p_search_term || '%' THEN 2
+                ELSE 3
+            END AS sort_rank
+        FROM catalog_product_listing_view p
+        WHERE p.is_active = TRUE
+          AND (
+              p.name ILIKE '%' || p_search_term || '%'
+              OR p.description ILIKE '%' || p_search_term || '%'
+              OR p.brand ILIKE '%' || p_search_term || '%'
+          )
+        ORDER BY sort_rank, p.name
+        LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 5), 20))
+    )
+    UNION ALL
+    (
+        SELECT
+            'term'::TEXT AS result_type,
+            NULL::INTEGER AS product_id,
+            NULL::VARCHAR(255) AS name,
+            NULL::VARCHAR(255) AS slug,
+            NULL::VARCHAR(255) AS image_path,
+            terms.name::VARCHAR(255) AS search_term_result,
+            10 AS sort_rank
+        FROM (
+            SELECT DISTINCT p.name
+            FROM catalog_product_listing_view p
+            WHERE p.is_active = TRUE
+              AND p.name ILIKE '%' || p_search_term || '%'
+              AND p.name IS NOT NULL
+              AND p.name <> ''
+            ORDER BY p.name
+            LIMIT 6
+        ) AS terms
+    );
+$$;
+
+CREATE INDEX idx_discount_codes_code_lower
+    ON discount_codes (LOWER(code));
+
+CREATE INDEX idx_discount_codes_active_dates
+    ON discount_codes (is_active, start_date, end_date, used_count);
+
+CREATE INDEX idx_discount_code_usage_code_user
+    ON discount_code_usage (discount_code_id, user_id);
+
+CREATE INDEX idx_bulk_discount_rules_active_range
+    ON bulk_discount_rules (is_active, min_quantity, max_quantity, discount_percentage);
+
+CREATE OR REPLACE FUNCTION discount_cleanup_expired_codes()
+RETURNS TABLE (
+    deactivated_codes INTEGER,
+    purged_applied_discounts INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    WITH updated_codes AS (
+        UPDATE discount_codes
+        SET is_active = FALSE,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE is_active = TRUE
+          AND end_date IS NOT NULL
+          AND end_date < CURRENT_TIMESTAMP
+        RETURNING 1
+    )
+    SELECT COUNT(*)::INTEGER INTO deactivated_codes
+    FROM updated_codes;
+
+    WITH deleted_applied AS (
+        DELETE FROM user_applied_discounts
+        WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '2 months'
+        RETURNING 1
+    )
+    SELECT COUNT(*)::INTEGER INTO purged_applied_discounts
+    FROM deleted_applied;
+
+    RETURN NEXT;
+END;
+$$;
+
+CREATE INDEX idx_orders_user_created
+    ON orders (user_id, created_at DESC);
+
+CREATE INDEX idx_orders_admin_reports
+    ON orders (created_at DESC, status, payment_status);
+
+CREATE INDEX idx_orders_payment_status_created
+    ON orders (payment_status, created_at DESC);
+
+CREATE INDEX idx_order_items_product_created
+    ON order_items (product_id, created_at DESC);
+
+CREATE INDEX idx_order_status_history_order_created
+    ON order_status_history (order_id, created_at DESC, id DESC);
+
+CREATE INDEX idx_order_views_user_viewed
+    ON order_views (user_id, viewed_at DESC);
+
+CREATE INDEX idx_order_refund_requests_status_requested
+    ON order_refund_requests (status, requested_at DESC);
+
+CREATE OR REPLACE VIEW order_history_view AS
+SELECT
+    osh.id,
+    osh.order_id,
+    o.order_number,
+    o.user_id AS order_user_id,
+    o.status AS order_status,
+    o.payment_status AS order_payment_status,
+    osh.changed_by,
+    osh.changed_by_name,
+    osh.change_type,
+    osh.field_changed,
+    osh.old_value,
+    osh.new_value,
+    osh.description,
+    osh.ip_address,
+    osh.user_agent,
+    osh.created_at
+FROM order_status_history osh
+JOIN orders o ON o.id = osh.order_id;
+
+CREATE OR REPLACE VIEW order_sales_daily_view AS
+SELECT
+    DATE_TRUNC('day', created_at)::DATE AS sales_date,
+    status,
+    payment_status,
+    COUNT(*)::INTEGER AS orders_count,
+    COALESCE(SUM(subtotal), 0)::numeric(12, 2) AS subtotal,
+    COALESCE(SUM(shipping_cost), 0)::numeric(12, 2) AS shipping_total,
+    COALESCE(SUM(discount_amount), 0)::numeric(12, 2) AS discount_total,
+    COALESCE(SUM(total), 0)::numeric(12, 2) AS sales_total
+FROM orders
+GROUP BY DATE_TRUNC('day', created_at)::DATE, status, payment_status;
+
+CREATE INDEX idx_notifications_user_read_created
+    ON notifications (user_id, is_read, created_at DESC);
+
+CREATE INDEX idx_notifications_expires_at
+    ON notifications (expires_at);
+
+CREATE INDEX idx_notification_queue_status_scheduled
+    ON notification_queue (status, scheduled_at, attempts);
+
+CREATE INDEX idx_admin_notification_dismissals_admin_key
+    ON admin_notification_dismissals (admin_id, notification_key);
+
+CREATE INDEX idx_announcements_active_window
+    ON announcements (is_active, priority DESC, start_date, end_date);
+
+CREATE OR REPLACE VIEW notification_inbox_view AS
+SELECT
+    n.id,
+    n.user_id,
+    n.type_id,
+    nt.name AS type_name,
+    nt.description AS type_description,
+    n.title,
+    n.message,
+    n.related_entity_type,
+    n.related_entity_id,
+    n.is_read,
+    n.is_email_sent,
+    n.is_sms_sent,
+    n.is_push_sent,
+    n.expires_at,
+    n.created_at,
+    n.read_at
+FROM notifications n
+LEFT JOIN notification_types nt ON nt.id = n.type_id
+WHERE n.expires_at IS NULL
+   OR n.expires_at > CURRENT_TIMESTAMP;
 
 COMMIT;

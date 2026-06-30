@@ -1,14 +1,17 @@
+/* Modal de cuenta de pago: separa editor y vista previa. */
 .admin-payments-page .payment-account-modal {
   display: grid;
   gap: 1rem;
 }
 
+/* Grilla de dos columnas para configuración y resumen. */
 .admin-payments-page .payment-account-modal__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 1rem;
 }
 
+/* Panel de edición con superficie suave del admin. */
 .admin-payments-page .payment-account-modal__editor {
   border: 1px solid #d8e5f2;
   border-radius: 1rem;
@@ -18,39 +21,46 @@
   gap: 1rem;
 }
 
+/* Encabezado interno del editor de cuenta. */
 .admin-payments-page .payment-account-modal__editor-header {
   display: grid;
   gap: 0.35rem;
 }
 
+/* Título del editor de cuenta bancaria. */
 .admin-payments-page .payment-account-modal__editor-header h4 {
   margin: 0;
   font-size: 1.15rem;
   color: #20344a;
 }
 
+/* Descripción auxiliar del editor de cuenta. */
 .admin-payments-page .payment-account-modal__editor-header p {
   margin: 0;
   color: #607289;
   line-height: 1.5;
 }
 
+/* Grilla de campos bancarios en dos columnas. */
 .admin-payments-page .payment-account-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
+/* Grupo de label y control dentro del formulario bancario. */
 .admin-payments-page .payment-account-form-grid .form-group {
   display: grid;
   gap: 0.35rem;
 }
 
+/* Etiquetas de datos bancarios. */
 .admin-payments-page .payment-account-form-grid .form-group label {
   font-weight: 700;
   color: #30475f;
 }
 
+/* Inputs y selects del formulario bancario. */
 .admin-payments-page .payment-account-form-grid .form-group input,
 .admin-payments-page .payment-account-form-grid .form-group select {
   width: 100%;
@@ -61,6 +71,7 @@
   background: #fff;
 }
 
+/* Estado de foco de controles bancarios. */
 .admin-payments-page .payment-account-form-grid .form-group input:focus,
 .admin-payments-page .payment-account-form-grid .form-group select:focus {
   outline: none;
@@ -68,19 +79,23 @@
   box-shadow: 0 0 0 3px rgba(15, 122, 191, 0.12);
 }
 
+/* Campo que ocupa todo el ancho de la grilla. */
 .admin-payments-page .payment-account-form-grid__full {
   grid-column: 1 / -1;
 }
 
+/* Bloque de toggle para habilitar o deshabilitar cuenta. */
 .admin-payments-page .payment-account-form-grid__toggle {
   margin-top: 0.25rem;
 }
 
+/* Texto principal del toggle. */
 .admin-payments-page .payment-account-form-grid__toggle strong {
   color: #20344a;
   font-size: 1rem;
 }
 
+/* Ayuda secundaria del toggle. */
 .admin-payments-page .payment-account-form-grid__toggle p {
   margin: 0.25rem 0 0;
   color: #607289;
@@ -88,11 +103,13 @@
   font-size: 0.92rem;
 }
 
+/* Mensaje de validación del formulario de cuenta de pago. */
 .admin-payments-page .form-error {
   color: #d14343;
   font-size: 0.85rem;
 }
 
+/* Texto introductorio del modal de cuenta. */
 .admin-payments-page .payment-account-modal__intro {
   margin: 0;
   color: #526277;
@@ -100,6 +117,7 @@
   line-height: 1.6;
 }
 
+/* Tablet y móvil: editor y formulario pasan a una columna. */
 @media (max-width: 960px) {
   .admin-payments-page .payment-account-modal__grid {
     grid-template-columns: 1fr;

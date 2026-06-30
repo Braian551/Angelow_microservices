@@ -3,6 +3,7 @@
 <!-- indice:auto:start -->
 ## Índice rápido
 
+- [2026-06-29 - Rendimiento de base de datos en microservicios](#2026-06-29---rendimiento-de-base-de-datos-en-microservicios)
 - [2026-06-28 - Corrección de carga admin de reembolsos](#2026-06-28---corrección-de-carga-admin-de-reembolsos)
 - [2026-06-22 - Configuración de cuenta y preferencias](#2026-06-22---configuración-de-cuenta-y-preferencias)
 - [2026-06-22 - Código compartido para registro y recuperación](#2026-06-22---código-compartido-para-registro-y-recuperación)
@@ -49,6 +50,14 @@
 - [2026-04-03 - Paridad fina de Productos admin (paginación + modales + filtros)](#2026-04-03---paridad-fina-de-productos-admin-paginación-modales-filtros)
 - [2026-04-03 - Sugerencias de búsqueda del header con paridad Angelow](#2026-04-03---sugerencias-de-búsqueda-del-header-con-paridad-angelow)
 <!-- indice:auto:end -->
+
+## 2026-06-29 - Rendimiento de base de datos en microservicios
+
+- Patrón: Adapter + Facade + Strategy (Refactoring Guru)
+- Aplicación: los procedimientos y consultas del SQL completo se adaptaron a vistas, funciones e índices PostgreSQL por microservicio; catálogo activa la ruta optimizada solo cuando los objetos existen y conserva respaldo Query Builder.
+- Ubicación: `services/catalog-service/app/Repositories/QueryBuilderProductRepository.php`, `services/catalog-service/app/Http/Controllers/SearchController.php`, `services/catalog-service/database/migrations/2026_06_29_010000_create_catalog_performance_objects.php`, `services/discount-service/database/migrations/2026_06_29_010000_create_discount_performance_objects.php`, `services/order-service/database/migrations/2026_06_29_010000_create_order_performance_objects.php`, `services/notification-service/database/migrations/2026_06_29_010000_create_notification_performance_objects.php`, `docs/datos/rendimiento-bd-microservicios.md`
+- Problema resuelto: mejorar lecturas frecuentes de catálogo, búsqueda, descuentos, pedidos y notificaciones sin cambiar contratos de API ni duplicar triggers de escritura entre dominios.
+- Referencia detallada: `datos/patrones-diseno-rendimiento-bd-microservicios-2026-06-29.md`
 
 ## 2026-06-28 - Corrección de carga admin de reembolsos
 

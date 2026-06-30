@@ -1,5 +1,6 @@
 <template>
   <main class="auth-page register-page">
+    <!-- Barra superior mínima para regresar al inicio durante el alta de cuenta. -->
     <header class="auth-topbar">
       <RouterLink to="/" class="auth-topbar-logo" aria-label="Inicio">
         <img src="/logo_principal.png" alt="Angelow" />
@@ -7,6 +8,7 @@
     </header>
 
     <section class="register-container">
+      <!-- Encabezado del formulario de registro y marca visual de la pantalla. -->
       <div class="register-header">
         <div class="register-logo">
           <img src="/logo.png" alt="Angelow" />
@@ -14,6 +16,7 @@
         <h1>Crea tu cuenta</h1>
       </div>
 
+      <!-- Progreso de cinco pasos para dividir datos personales, verificación y contraseña. -->
       <div class="progress-steps">
         <div class="step" :class="{ active: step === 1, completed: step > 1 }" data-step="1">
           <div class="step-number">1</div>
@@ -41,6 +44,7 @@
       </div>
 
       <form class="register-form" novalidate @submit.prevent="onFormSubmit">
+        <!-- Paso 1: nombre público del cliente. -->
         <div class="form-step" :class="{ active: step === 1 }" data-step="1">
           <div class="form-group">
             <label for="register-name">Nombre completo</label>
@@ -63,6 +67,7 @@
           </button>
         </div>
 
+        <!-- Paso 2: correo y verificación Turnstile antes de enviar código. -->
         <div class="form-step" :class="{ active: step === 2 }" data-step="2">
           <div class="form-group">
             <label for="register-email">Correo electr&oacute;nico</label>
@@ -100,6 +105,7 @@
           </div>
         </div>
 
+        <!-- Paso 3: validación del código recibido por correo. -->
         <div class="form-step" :class="{ active: step === 3 }" data-step="3">
           <AuthCodeVerification
             v-model:code="form.emailCode"
@@ -134,6 +140,7 @@
           </div>
         </div>
 
+        <!-- Paso 4: teléfono opcional reutilizable para login y contacto. -->
         <div class="form-step" :class="{ active: step === 4 }" data-step="4">
           <div class="form-group">
             <label for="register-phone">Tel&eacute;fono (opcional)</label>
@@ -160,6 +167,7 @@
           </div>
         </div>
 
+        <!-- Paso 5: contraseña, aceptación de términos y creación definitiva de cuenta. -->
         <div class="form-step" :class="{ active: step === 5 }" data-step="5">
           <div class="form-group password-group">
             <label for="register-password">Contrase&ntilde;a</label>
@@ -242,6 +250,7 @@
 
       <div v-if="errors.global" class="error-message global-error">{{ errors.global }}</div>
 
+      <!-- Registro alternativo con Google, bloqueado mientras haya otro envío en curso. -->
       <div class="social-login">
         <p>Tambi&eacute;n puedes registrarte con:</p>
         <div class="social-buttons">
@@ -276,10 +285,12 @@ import { useSession } from '../../../composables/useSession'
 import { firebaseAuth, googleProvider, isFirebaseReady } from '../../../services/firebase'
 import '../views/RegisterView.css'
 
+// Dependencias de sesión y navegación para continuar después del registro.
 const router = useRouter()
 const route = useRoute()
 const { saveSession } = useSession()
 
+// Estado principal del flujo de pasos, cargas, captcha y verificación de correo.
 const step = ref(1)
 const submitting = ref(false)
 const googleSubmitting = ref(false)
@@ -298,9 +309,11 @@ const emailCodeExpiresIn = ref(0)
 const emailResendCooldown = ref(0)
 const registrationToken = ref('')
 
+// Referencias de intervalos para limpiar temporizadores al salir de la vista.
 let emailTimerIntervalId = null
 let emailResendIntervalId = null
 
+// Modelo reactivo con todos los campos del registro escalonado.
 const form = reactive({
   name: '',
   email: '',
@@ -311,6 +324,7 @@ const form = reactive({
   terms: false,
 })
 
+// Errores por campo para validación en tiempo real y mensajes del backend.
 const errors = reactive({
   name: '',
   email: '',
@@ -323,6 +337,7 @@ const errors = reactive({
   global: '',
 })
 
+// Banderas de interacción que evitan mostrar errores antes de que el usuario toque un campo.
 const touched = reactive({
   name: false,
   email: false,
@@ -333,6 +348,7 @@ const touched = reactive({
   terms: false,
 })
 
+// Calcula el ancho visual de la barra según el paso actual del registro.
 const progressWidth = computed(() => {
   if (step.value <= 1) return '0%'
   if (step.value === 2) return '25%'
@@ -341,14 +357,17 @@ const progressWidth = computed(() => {
   return '100%'
 })
 
+// Formatea el tiempo restante del código de correo.
 const emailTimerLabel = computed(() => formatSeconds(emailCodeExpiresIn.value))
 
+// Ajusta el texto del reenvío según carga y cooldown activo.
 const emailResendButtonText = computed(() => {
   if (emailCodeLoading.value) return 'Reenviando...'
   if (emailResendCooldown.value > 0) return `Reenviar código (${emailResendCooldown.value}s)`
   return 'Reenviar código'
 })
 
+// Clasifica la fortaleza de contraseña con una regla visual simple.
 const passwordStrengthClass = computed(() => {
   const value = form.password || ''
   if (!value) return ''
@@ -357,6 +376,7 @@ const passwordStrengthClass = computed(() => {
   return 'strong'
 })
 
+// Evita redirecciones externas o rutas API después de crear la cuenta.
 function isSafeRedirectPath(value) {
   const path = String(value || '').trim()
   if (!path.startsWith('/')) return false
@@ -365,20 +385,24 @@ function isSafeRedirectPath(value) {
   return true
 }
 
+// Propaga el redirect seguro hacia enlaces entre login y registro.
 const redirectQuery = computed(() => {
   const redirect = String(route.query.redirect || '').trim()
   return isSafeRedirectPath(redirect) ? { redirect } : {}
 })
 
+// Devuelve el destino seguro solicitado antes de entrar al registro.
 function resolveRedirect() {
   const redirect = String(route.query.redirect || '').trim()
   return isSafeRedirectPath(redirect) ? redirect : ''
 }
 
+// Limpia el teléfono para persistir solo dígitos válidos.
 function sanitizePhone(value) {
   return String(value || '').replace(/\D+/g, '')
 }
 
+// Limpia todos los errores de campo antes de un envío final.
 function resetFieldErrors() {
   errors.name = ''
   errors.email = ''
@@ -390,6 +414,7 @@ function resetFieldErrors() {
   errors.turnstile = ''
 }
 
+// Limpia únicamente los errores del paso actual para no borrar contexto de otros pasos.
 function clearStepErrors(stepNumber) {
   if (stepNumber === 1) errors.name = ''
   if (stepNumber === 2) errors.email = ''
@@ -406,11 +431,13 @@ function clearStepErrors(stepNumber) {
   }
 }
 
+// Reinicia Turnstile y descarta el token actual.
 function resetTurnstile() {
   turnstileToken.value = ''
   turnstileResetKey.value += 1
 }
 
+// Convierte segundos a etiqueta mm:ss para los temporizadores de código.
 function formatSeconds(totalSeconds) {
   const safeValue = Math.max(0, Number(totalSeconds) || 0)
   const minutes = String(Math.floor(safeValue / 60)).padStart(2, '0')
@@ -418,6 +445,7 @@ function formatSeconds(totalSeconds) {
   return `${minutes}:${seconds}`
 }
 
+// Detiene los intervalos activos para evitar fugas al cambiar de pantalla o reiniciar código.
 function stopEmailTimers() {
   if (emailTimerIntervalId) {
     clearInterval(emailTimerIntervalId)
@@ -430,6 +458,7 @@ function stopEmailTimers() {
   }
 }
 
+// Inicia temporizador de expiración y cooldown de reenvío para el código de correo.
 function startEmailTimers(expiresIn, cooldown) {
   stopEmailTimers()
   emailCodeExpiresIn.value = Math.max(0, Number(expiresIn) || 900)
@@ -460,20 +489,24 @@ function startEmailTimers(expiresIn, cooldown) {
   }, 1000)
 }
 
+// Guarda el token validado por Turnstile para el siguiente envío seguro.
 function onTurnstileVerified(token) {
   turnstileToken.value = token
   errors.turnstile = ''
 }
 
+// Borra el token cuando Turnstile expira y obliga a obtener uno nuevo.
 function onTurnstileExpired() {
   turnstileToken.value = ''
 }
 
+// Muestra un error de seguridad cuando Turnstile falla.
 function onTurnstileError() {
   turnstileToken.value = ''
   errors.turnstile = 'No pudimos cargar la verificación de seguridad. Inténtalo de nuevo.'
 }
 
+// Mapea errores de validación del backend hacia el paso y campo correspondiente.
 function applyValidationErrors(validationErrors) {
   if (!validationErrors || typeof validationErrors !== 'object') {
     return false
@@ -532,6 +565,7 @@ function applyValidationErrors(validationErrors) {
   return assigned
 }
 
+// Lee mensajes de error priorizando validaciones por campo devueltas por la API.
 function readErrorMessage(error, fallback) {
   const validationErrors = error?.response?.data?.errors
   if (applyValidationErrors(validationErrors)) {
@@ -545,6 +579,7 @@ function readErrorMessage(error, fallback) {
   )
 }
 
+// Ejecuta la validación que corresponde al paso activo.
 function validateCurrentStep() {
   errors.global = ''
   clearStepErrors(step.value)
@@ -571,16 +606,19 @@ function validateCurrentStep() {
   return isPasswordValid && isConfirmationValid && isTermsValid
 }
 
+// Avanza un paso solo cuando la validación local permite continuar.
 function nextStep() {
   if (!validateCurrentStep()) return
   step.value = Math.min(step.value + 1, 5)
 }
 
+// Retrocede un paso manteniendo el formulario capturado.
 function prevStep() {
   errors.global = ''
   step.value = Math.max(step.value - 1, 1)
 }
 
+// Valida nombre mínimo después de interacción o cuando el avance fuerza la revisión.
 function validateName(force = false) {
   if (!force && !touched.name) return true
 
@@ -589,6 +627,7 @@ function validateName(force = false) {
   return !errors.name
 }
 
+// Normaliza y valida correo electrónico antes de solicitar código.
 function validateEmail(force = false) {
   if (!force && !touched.email) return true
 
@@ -599,6 +638,7 @@ function validateEmail(force = false) {
   return !errors.email
 }
 
+// Restringe el código de correo a cuatro dígitos.
 function validateEmailCode(force = false) {
   if (!force && !touched.emailCode) return true
 
@@ -609,6 +649,7 @@ function validateEmailCode(force = false) {
   return !errors.emailCode
 }
 
+// Limpia y valida teléfono opcional dentro del rango aceptado.
 function validatePhone(force = false) {
   if (!force && !touched.phone) return true
 
@@ -620,6 +661,7 @@ function validatePhone(force = false) {
   return !errors.phone
 }
 
+// Valida longitud de contraseña de acuerdo con el contrato del formulario.
 function validatePassword(force = false) {
   if (!force && !touched.password) return true
 
@@ -630,6 +672,7 @@ function validatePassword(force = false) {
   return !errors.password
 }
 
+// Confirma que la repetición coincida con la contraseña principal.
 function validatePasswordConfirmation(force = false) {
   if (!force && !touched.passwordConfirmation) return true
 
@@ -639,6 +682,7 @@ function validatePasswordConfirmation(force = false) {
   return !errors.passwordConfirmation
 }
 
+// Verifica aceptación de términos antes de permitir el registro.
 function validateTerms(force = false) {
   if (!force && !touched.terms) return true
 
@@ -646,17 +690,20 @@ function validateTerms(force = false) {
   return !errors.terms
 }
 
+// Marca el nombre como tocado y revalida en tiempo real.
 function onNameInput() {
   touched.name = true
   errors.global = ''
   validateName()
 }
 
+// Fuerza validación del nombre al salir del campo.
 function onNameBlur() {
   touched.name = true
   validateName(true)
 }
 
+// Reinicia la verificación de correo cuando cambia el email.
 function onEmailInput() {
   touched.email = true
   errors.global = ''
@@ -666,33 +713,39 @@ function onEmailInput() {
   validateEmail()
 }
 
+// Normaliza y valida el correo al salir del campo.
 function onEmailBlur() {
   touched.email = true
   validateEmail(true)
 }
 
+// Valida el código mientras el usuario escribe.
 function onEmailCodeInput() {
   touched.emailCode = true
   errors.global = ''
   validateEmailCode()
 }
 
+// Fuerza la validación completa del código al salir del campo.
 function onEmailCodeBlur() {
   touched.emailCode = true
   validateEmailCode(true)
 }
 
+// Valida teléfono en tiempo real después de interacción.
 function onPhoneInput() {
   touched.phone = true
   errors.global = ''
   validatePhone()
 }
 
+// Fuerza validación del teléfono al salir del campo.
 function onPhoneBlur() {
   touched.phone = true
   validatePhone(true)
 }
 
+// Revalida contraseña y confirmación cuando la contraseña cambia.
 function onPasswordInput() {
   touched.password = true
   errors.global = ''
@@ -702,6 +755,7 @@ function onPasswordInput() {
   }
 }
 
+// Fuerza validación de contraseña al salir del campo.
 function onPasswordBlur() {
   touched.password = true
   validatePassword(true)
@@ -710,22 +764,26 @@ function onPasswordBlur() {
   }
 }
 
+// Revalida confirmación de contraseña mientras se escribe.
 function onPasswordConfirmationInput() {
   touched.passwordConfirmation = true
   errors.global = ''
   validatePasswordConfirmation()
 }
 
+// Fuerza validación de confirmación al salir del campo.
 function onPasswordConfirmationBlur() {
   touched.passwordConfirmation = true
   validatePasswordConfirmation(true)
 }
 
+// Marca términos como revisados y valida el checkbox.
 function onTermsChange() {
   touched.terms = true
   validateTerms(true)
 }
 
+// Guarda la sesión creada y redirige al destino seguro o al inicio.
 function applySessionAndRedirect(response) {
   const token = response?.data?.token || ''
   const authUser = response?.data?.user || null
@@ -745,6 +803,7 @@ function applySessionAndRedirect(response) {
   router.push({ name: 'home' })
 }
 
+// Extrae mensajes de error del flujo de código de correo.
 function parseCodeError(error, fallback) {
   const validationErrors = error?.response?.data?.errors
   if (validationErrors && typeof validationErrors === 'object') {
@@ -755,6 +814,7 @@ function parseCodeError(error, fallback) {
   return error?.response?.data?.message || fallback
 }
 
+// Solicita o reenvía el código de registro usando Turnstile como protección.
 async function submitEmailCode(isResend) {
   errors.email = ''
   errors.emailCode = ''
@@ -795,6 +855,7 @@ async function submitEmailCode(isResend) {
   }
 }
 
+// Verifica el código y obtiene el token temporal necesario para crear la cuenta.
 async function submitVerifyEmailCode() {
   errors.emailCode = ''
   errors.global = ''
@@ -821,6 +882,7 @@ async function submitVerifyEmailCode() {
   }
 }
 
+// Envía el registro final con token de correo y token de seguridad vigentes.
 async function submitRegister() {
   resetFieldErrors()
   errors.global = ''
@@ -861,6 +923,7 @@ async function submitRegister() {
   }
 }
 
+// Registra o autentica con Google reutilizando el flujo común de sesión.
 async function submitGoogle() {
   resetFieldErrors()
   errors.global = ''
@@ -885,6 +948,7 @@ async function submitGoogle() {
   }
 }
 
+// Orquesta el submit según el paso activo del registro.
 function onFormSubmit() {
   if (step.value === 2) {
     submitEmailCode(false)
@@ -904,6 +968,7 @@ function onFormSubmit() {
   submitRegister()
 }
 
+// Limpia temporizadores pendientes al desmontar la vista.
 onBeforeUnmount(() => {
   stopEmailTimers()
 })

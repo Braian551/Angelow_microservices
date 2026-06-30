@@ -1,3 +1,4 @@
+/* Sección de carga de foto del administrador dentro del formulario. */
 .admin-administrators-page .admin-photo-upload-section {
   border: 1px solid var(--admin-border);
   border-radius: 1rem;
@@ -5,6 +6,7 @@
   background: var(--admin-bg-soft);
 }
 
+/* Fila flexible que agrupa preview y controles de foto. */
 .admin-administrators-page .admin-photo-upload {
   display: flex;
   align-items: center;
@@ -12,11 +14,13 @@
   flex-wrap: wrap;
 }
 
+/* Contenedor relativo para ubicar el ícono de estado sobre la foto. */
 .admin-administrators-page .admin-photo-preview-wrap {
   position: relative;
   width: fit-content;
 }
 
+/* Avatar circular del administrador. */
 .admin-administrators-page .admin-photo-preview {
   width: 7.2rem;
   height: 7.2rem;
@@ -26,6 +30,7 @@
   flex-shrink: 0;
 }
 
+/* Indicador visual de foto cargada o editable. */
 .admin-administrators-page .admin-photo-state-icon {
   position: absolute;
   right: -0.2rem;
@@ -41,12 +46,14 @@
   box-shadow: 0 4px 10px rgba(0, 119, 182, 0.28);
 }
 
+/* Columna de botón y ayuda de carga. */
 .admin-administrators-page .admin-photo-controls {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
+/* Botón estilizado que dispara el input de archivo oculto. */
 .admin-administrators-page .admin-photo-trigger {
   display: inline-flex;
   align-items: center;
@@ -65,23 +72,27 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+/* Hover del disparador de carga de foto. */
 .admin-administrators-page .admin-photo-trigger:hover {
   border-color: rgba(0, 119, 182, 0.32);
   box-shadow: 0 6px 16px rgba(15, 55, 96, 0.12);
   transform: translateY(-1px);
 }
 
+/* Estado deshabilitado mientras el formulario no permite cambiar foto. */
 .admin-administrators-page .admin-photo-trigger.is-disabled {
   opacity: 0.65;
   pointer-events: none;
 }
 
+/* Texto de ayuda sobre formatos o límites de imagen. */
 .admin-administrators-page .admin-photo-hint {
   font-size: 1.2rem;
   color: var(--admin-text-light);
   margin: 0;
 }
 
+/* Clase accesible para inputs de archivo ocultos visualmente. */
 .admin-administrators-page .sr-only {
   position: absolute;
   width: 1px;
@@ -94,6 +105,7 @@
   border: 0;
 }
 
+/* Móvil: controles de foto se apilan y el botón ocupa todo el ancho. */
 @media (max-width: 640px) {
   .admin-administrators-page .admin-photo-upload {
     align-items: flex-start;

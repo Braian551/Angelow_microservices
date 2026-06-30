@@ -1,3 +1,4 @@
+// Obtiene el origen del payment-service para resolver archivos fuera del host Vite.
 function paymentServiceBaseUrl() {
   const configuredUrl = String(import.meta.env.VITE_PAYMENT_API_URL || 'http://localhost:8005/api').trim()
   if (!configuredUrl) return ''
@@ -5,6 +6,7 @@ function paymentServiceBaseUrl() {
   return configuredUrl.replace(/\/api\/?$/i, '').replace(/\/+$/, '')
 }
 
+// Une base y ruta evitando dobles slash o rutas vacías inconsistentes.
 function joinUrl(baseUrl, path) {
   const cleanBaseUrl = String(baseUrl || '').replace(/\/+$/, '')
   const cleanPath = String(path || '').replace(/^\/+/, '')
@@ -12,6 +14,7 @@ function joinUrl(baseUrl, path) {
   return cleanBaseUrl ? `${cleanBaseUrl}/${cleanPath}` : `/${cleanPath}`
 }
 
+// Resuelve comprobantes de pago desde rutas completas, /uploads o nombres sueltos.
 export function resolvePaymentProofUrl(value) {
   const proofPath = String(value || '').trim().replace(/\\/g, '/')
   if (!proofPath) return ''

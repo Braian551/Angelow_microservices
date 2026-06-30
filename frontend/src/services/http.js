@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { normalizeUtf8Data } from '../utils/text'
 
+// Configuración base compartida por todos los clientes HTTP de microservicios.
 const baseConfig = {
   timeout: 15000,
   headers: {
@@ -8,6 +9,7 @@ const baseConfig = {
   },
 }
 
+// Detecta respuestas binarias para no intentar normalizarlas como JSON.
 function isBinaryResponseData(data) {
   if (!data) return false
   if (typeof Blob !== 'undefined' && data instanceof Blob) return true
@@ -15,6 +17,7 @@ function isBinaryResponseData(data) {
   return false
 }
 
+// Crea un cliente Axios con token, soporte FormData y normalización UTF-8 de respuestas.
 function createClient(baseURL) {
   const client = axios.create({
     ...baseConfig,
@@ -60,6 +63,7 @@ function createClient(baseURL) {
   return client
 }
 
+// Clientes por dominio: cada módulo consume únicamente el microservicio dueño de sus datos.
 export const authHttp = createClient(import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8001/api')
 export const catalogHttp = createClient(import.meta.env.VITE_CATALOG_API_URL || 'http://localhost:8002/api')
 export const cartHttp = createClient(import.meta.env.VITE_CART_API_URL || 'http://localhost:8003/api')

@@ -1,8 +1,10 @@
+/* Título destacado de la regla de envío dentro del hero del módulo. */
 .admin-shipping-rules-page .shipping-rule-hero h3 {
   font-size: 2.2rem;
 }
 
 /* Mock resumen: réplica de las filas de envío del resumen de pago en checkout */
+/* Caja de simulación que muestra cómo impacta la regla en el checkout. */
 .admin-shipping-rules-page .shipping-rule-mock-summary {
   display: grid;
   gap: 0;

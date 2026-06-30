@@ -1,4 +1,5 @@
 <template>
+  <!-- Bloque reutilizable para validar códigos de correo en registro y recuperación. -->
   <div class="auth-code-verification">
     <div class="code-meta">
       <p>{{ info }}</p>
@@ -36,6 +37,7 @@
 <script setup>
 import { computed } from 'vue'
 
+// Props que permiten adaptar textos, estado y reenvío según el flujo contenedor.
 const props = defineProps({
   code: { type: String, default: '' },
   error: { type: String, default: '' },
@@ -51,20 +53,24 @@ const props = defineProps({
 
 const emit = defineEmits(['update:code', 'input', 'blur', 'resend'])
 
+// Clase visual del chip de estado del código.
 const statusClass = computed(() => ({
   pending: props.status === 'pending',
   valid: props.status === 'valid',
   expired: props.status === 'expired',
 }))
 
+// Texto del chip según si el código está pendiente, validado o expirado.
 const statusText = computed(() => {
   if (props.status === 'valid') return 'Código validado'
   if (props.status === 'expired') return 'Código expirado'
   return 'Pendiente de validación'
 })
 
+// Ayuda dinámica que muestra el tiempo restante recibido desde el padre.
 const hint = computed(() => `El código vence en ${props.timerLabel}`)
 
+// Normaliza la entrada a cuatro dígitos y sincroniza v-model + evento de input.
 function onInput(event) {
   // Reutiliza la normalización numérica en cada flujo que consume el componente.
   const value = String(event.target.value || '').replace(/\D+/g, '').slice(0, 4)

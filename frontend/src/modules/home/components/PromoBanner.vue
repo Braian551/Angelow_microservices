@@ -1,4 +1,5 @@
 <template>
+  <!-- Banner promocional público alimentado desde anuncios o configuración de portada. -->
   <section
     v-if="banner"
     class="promo-banner"
@@ -21,6 +22,7 @@
 import { computed } from 'vue'
 import { getFallbackMediaUrl, resolveMediaUrl } from '../../../utils/media'
 
+// Banner opcional; si no existe, el componente no se renderiza.
 const props = defineProps({
   banner: {
     type: Object,
@@ -28,6 +30,7 @@ const props = defineProps({
   },
 })
 
+// Construye estilos dinámicos de color e imagen con fallback compartido.
 const bannerStyle = computed(() => {
   const style = {}
 
@@ -44,6 +47,7 @@ const bannerStyle = computed(() => {
   return style
 })
 
+// Normaliza enlaces antiguos de tienda y define destino por defecto.
 const buttonLink = computed(() => {
   const link = String(props.banner?.button_link || '').trim()
   if (!link) return '/tienda'

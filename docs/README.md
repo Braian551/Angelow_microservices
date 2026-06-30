@@ -22,6 +22,7 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 - `arquitectura/modelos-relacionales-bases-datos-plantuml.md`: índice de modelos relacionales PlantUML separados por microservicio.
 - `arquitectura/modelo-relacional-completo-plantuml.md`: mapa maestro con todas las tablas de negocio y sus relaciones.
 - `datos/estructura-unificada-microservicios.sql`: estructura SQL de referencia para una base de datos unificada con relaciones entre microservicios.
+- `datos/rendimiento-bd-microservicios.md`: objetos de base de datos agregados para acelerar lecturas y mantenimiento.
 - `referencias/historias-usuario-angelow.md`: historias de usuario en lenguaje funcional, entendible para cliente.
 - `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
 - `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
@@ -66,6 +67,7 @@ flowchart LR
   - `datos/importacion-datos.md`
   - `datos/migracion-tablas.md`
   - `datos/estructura-unificada-microservicios.sql`
+  - `datos/rendimiento-bd-microservicios.md`
 - `proyecto/`: ficha de seguimiento académico y técnico del proyecto.
   - `proyecto/FICHA_PROYECTO_ANGELOW.md`
 - `operaciones/`: despliegue, operación y mantenimiento de infraestructura compartida.
@@ -95,6 +97,8 @@ flowchart LR
   - `patrones/dashboard/`
     - `patrones/dashboard/patrones-diseno-cuenta-configuracion-preferencias-2026-06-22.md`
     - `patrones/dashboard/patrones-diseno-dashboard-pedidos-realtime-2026-06-16.md`
+  - `patrones/datos/`
+    - `patrones/datos/patrones-diseno-rendimiento-bd-microservicios-2026-06-29.md`
   - `patrones/home/`
   - `patrones/tienda/`
 - `microservicios/`: índice de acceso a la documentación específica de cada servicio.

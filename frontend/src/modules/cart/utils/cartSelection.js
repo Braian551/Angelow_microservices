@@ -1,6 +1,7 @@
 const CART_SELECTION_STORAGE_KEY = 'angelow_cart_selection'
 const LOW_STOCK_THRESHOLD = 6
 
+// Evalúa si una línea del carrito puede comprarse según stock disponible y cantidad solicitada.
 export function resolveCartItemAvailability(item = {}, options = {}) {
   const lowStockThreshold = Math.max(1, Number(options?.lowStockThreshold || LOW_STOCK_THRESHOLD))
   const availableStock = Math.max(0, Math.floor(Number(item?.available_stock ?? item?.availableStock ?? 0)))
@@ -25,6 +26,7 @@ export function resolveCartItemAvailability(item = {}, options = {}) {
   }
 }
 
+// Lee la selección persistida del carrito y la normaliza para evitar valores corruptos en localStorage.
 export function readStoredCartSelectionMap() {
   if (typeof window === 'undefined') {
     return {}
@@ -42,6 +44,7 @@ export function readStoredCartSelectionMap() {
   }
 }
 
+// Guarda la selección actual del carrito y elimina la clave cuando no hay productos seleccionables.
 export function writeStoredCartSelectionMap(selectionMap = {}) {
   const normalizedSelectionMap = normalizeSelectionMap(selectionMap)
 
@@ -58,6 +61,7 @@ export function writeStoredCartSelectionMap(selectionMap = {}) {
   return normalizedSelectionMap
 }
 
+// Sincroniza la selección guardada con los ítems vigentes para conservar preferencias válidas.
 export function synchronizeCartSelectionMap(items = [], baseSelectionMap = readStoredCartSelectionMap()) {
   const storedSelectionMap = normalizeSelectionMap(baseSelectionMap)
   const nextSelectionMap = {}
@@ -76,6 +80,7 @@ export function synchronizeCartSelectionMap(items = [], baseSelectionMap = readS
   return writeStoredCartSelectionMap(nextSelectionMap)
 }
 
+// Cambia la selección de una sola línea sin perder el resto del mapa persistido.
 export function setStoredCartItemSelection(itemId, selected, baseSelectionMap = readStoredCartSelectionMap()) {
   const normalizedItemId = normalizeCartItemId({ item_id: itemId })
   if (!normalizedItemId) {
@@ -90,6 +95,7 @@ export function setStoredCartItemSelection(itemId, selected, baseSelectionMap = 
   return writeStoredCartSelectionMap(nextSelectionMap)
 }
 
+// Aplica selección masiva únicamente sobre productos que todavía se pueden comprar.
 export function setAllStoredCartSelections(items = [], selected, baseSelectionMap = readStoredCartSelectionMap()) {
   const nextSelectionMap = {
     ...normalizeSelectionMap(baseSelectionMap),
@@ -112,6 +118,7 @@ export function setAllStoredCartSelections(items = [], selected, baseSelectionMa
   return writeStoredCartSelectionMap(nextSelectionMap)
 }
 
+// Construye el resumen que usa la vista del carrito para totales, conteos y estados bloqueados.
 export function buildCartSelectionSummary(items = [], baseSelectionMap = readStoredCartSelectionMap()) {
   const selectionMap = normalizeSelectionMap(baseSelectionMap)
   const entries = []
@@ -156,6 +163,7 @@ export function buildCartSelectionSummary(items = [], baseSelectionMap = readSto
   }
 }
 
+// Resuelve el total de línea usando primero totales precalculados y luego precio por cantidad.
 export function resolveCartLineTotal(item = {}) {
   const explicitTotal = Number(item?.line_total ?? item?.item_total ?? item?.total ?? 0)
   if (Number.isFinite(explicitTotal) && explicitTotal > 0) {
@@ -165,6 +173,7 @@ export function resolveCartLineTotal(item = {}) {
   return Number(item?.price || 0) * Math.max(1, Number(item?.quantity || 1))
 }
 
+// Limpia el mapa recibido para aceptar solo identificadores numéricos con valores booleanos.
 function normalizeSelectionMap(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {}
@@ -181,6 +190,7 @@ function normalizeSelectionMap(value) {
   }, {})
 }
 
+// Normaliza el identificador del ítem para usarlo como clave estable de selección.
 function normalizeCartItemId(item = {}) {
   const itemId = Number(item?.item_id || item?.itemId || 0)
   if (!Number.isFinite(itemId) || itemId <= 0) {

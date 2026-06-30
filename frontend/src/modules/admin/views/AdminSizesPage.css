@@ -1,4 +1,5 @@
 /* Estilos específicos de Tallas; los comunes están en admin.css */
+/* Móvil: filtros de tallas se apilan para evitar controles comprimidos. */
 @media (max-width: 768px) {
   .admin-sizes-page .admin-entity-filters__form {
     grid-template-columns: 1fr;

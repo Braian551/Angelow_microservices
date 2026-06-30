@@ -1,5 +1,6 @@
 <template>
   <main class="auth-page recovery-page">
+    <!-- Barra superior para volver al inicio sin abandonar la navegación SPA. -->
     <header class="auth-topbar">
       <RouterLink to="/" class="auth-topbar-logo" aria-label="Inicio">
         <img src="/logo_principal.png" alt="Angelow" />
@@ -7,6 +8,7 @@
     </header>
 
     <section class="recovery-container">
+      <!-- Encabezado que explica el propósito del flujo de recuperación. -->
       <div class="recovery-header">
         <div class="recovery-logo">
           <img src="/logo.png" alt="Angelow" />
@@ -15,6 +17,7 @@
         <p>Usa tu correo o teléfono registrado para recibir un código seguro en segundos.</p>
       </div>
 
+      <!-- Progreso de tres pasos: identificar cuenta, validar código y cambiar contraseña. -->
       <div class="progress-steps">
         <div class="step" :class="{ active: step === 1, completed: step > 1 }" data-step="1">
           <div class="step-number">1</div>
@@ -34,6 +37,7 @@
       </div>
 
       <form class="recovery-form" novalidate @submit.prevent="submitResetPassword">
+        <!-- Paso 1: captura correo o teléfono y solicita el código seguro. -->
         <div class="form-step" :class="{ active: step === 1 }" data-step="1">
           <div class="form-group">
             <label for="recovery-identifier">Correo electrónico o teléfono</label>
@@ -74,6 +78,7 @@
           </button>
         </div>
 
+        <!-- Paso 2: valida el código recibido y permite reenvío controlado. -->
         <div class="form-step" :class="{ active: step === 2 }" data-step="2">
           <AuthCodeVerification
             v-model:code="form.code"
@@ -111,6 +116,7 @@
           <div v-if="errors.turnstile" class="error-message">{{ errors.turnstile }}</div>
         </div>
 
+        <!-- Paso 3: recibe y confirma la nueva contraseña antes de cerrar el flujo. -->
         <div class="form-step" :class="{ active: step === 3 }" data-step="3">
           <div class="form-group password-group">
             <label for="recovery-password">Nueva contraseña</label>
@@ -195,8 +201,10 @@ import {
 } from '../../../services/authApi'
 import '../views/ForgotPasswordView.css'
 
+// Router usado para regresar al login cuando la contraseña queda actualizada.
 const router = useRouter()
 
+// Estado principal del flujo de recuperación y visibilidad de contraseñas.
 const step = ref(1)
 const showPassword = ref(false)
 const showPasswordConfirmation = ref(false)
@@ -215,10 +223,12 @@ const turnstileRef = ref(null)
 const resendTurnstileRef = ref(null)
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
 
+// Identificadores de intervalos para expiración, reenvío y cooldown inicial.
 let timerIntervalId = null
 let resendIntervalId = null
 let requestIntervalId = null
 
+// Modelo del formulario de recuperación en sus tres etapas.
 const form = reactive({
   identifier: '',
   code: '',
@@ -227,6 +237,7 @@ const form = reactive({
   turnstile: '',
 })
 
+// Estados de carga independientes para bloquear doble envío por acción.
 const loading = reactive({
   requestCode: false,
   resendCode: false,
@@ -234,6 +245,7 @@ const loading = reactive({
   resetPassword: false,
 })
 
+// Errores por campo del flujo de recuperación.
 const errors = reactive({
   identifier: '',
   code: '',
@@ -241,38 +253,45 @@ const errors = reactive({
   passwordConfirmation: '',
 })
 
+// Calcula el avance visual del flujo según el paso activo.
 const progressWidth = computed(() => {
   if (step.value <= 1) return '0%'
   if (step.value === 2) return '50%'
   return '100%'
 })
 
+// Etiqueta mm:ss del código vigente.
 const timerLabel = computed(() => formatSeconds(codeExpiresIn.value))
 
+// Clase visual del estado del código para el componente de verificación.
 const codeStatusClass = computed(() => ({
   pending: codeStatus.value === 'pending',
   valid: codeStatus.value === 'valid',
   expired: codeStatus.value === 'expired',
 }))
 
+// Texto legible del estado actual del código.
 const codeStatusText = computed(() => {
   if (codeStatus.value === 'valid') return 'Código validado'
   if (codeStatus.value === 'expired') return 'Código expirado'
   return 'Pendiente de validación'
 })
 
+// Texto del botón inicial, incluyendo cooldown cuando aplica.
 const requestCodeButtonText = computed(() => {
   if (loading.requestCode) return 'Enviando...'
   if (requestCooldown.value > 0) return `Enviar código (${requestCooldown.value}s)`
   return 'Enviar código'
 })
 
+// Texto del botón de reenvío, incluyendo cooldown cuando aplica.
 const resendButtonText = computed(() => {
   if (loading.resendCode) return 'Reenviando...'
   if (resendCooldown.value > 0) return `Reenviar código (${resendCooldown.value}s)`
   return 'Reenviar código'
 })
 
+// Limpia errores de campos antes de validar una nueva acción.
 function clearFieldErrors() {
   errors.identifier = ''
   errors.code = ''
@@ -281,30 +300,36 @@ function clearFieldErrors() {
   errors.turnstile = ''
 }
 
+// Fuerza una nueva instancia lógica del widget Turnstile.
 function resetTurnstile() {
   turnstileToken.value = ''
   turnstileResetKey.value += 1
 }
 
+// Guarda el token emitido por Turnstile.
 function onTurnstileVerified(token) {
   turnstileToken.value = token
   errors.turnstile = ''
 }
 
+// Descarta el token cuando Turnstile expira.
 function onTurnstileExpired() {
   turnstileToken.value = ''
 }
 
+// Bloquea el envío y muestra el error cuando Turnstile falla.
 function onTurnstileError() {
   turnstileToken.value = ''
   errors.turnstile = 'No pudimos cargar la verificación de seguridad. Inténtalo de nuevo.'
 }
 
+// Limpia mensajes globales al reintentar una acción.
 function clearMessages() {
   successMessage.value = ''
   globalError.value = ''
 }
 
+// Extrae mensajes de validación o error general desde la respuesta de API.
 function parseApiError(error, fallbackMessage) {
   const validationErrors = error?.response?.data?.errors
   if (validationErrors && typeof validationErrors === 'object') {
@@ -315,6 +340,7 @@ function parseApiError(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
 }
 
+// Lee el cooldown enviado por el backend o incluido en el mensaje de error.
 function extractCooldownSeconds(error) {
   const fromData = Number(error?.response?.data?.data?.resend_cooldown)
   if (Number.isFinite(fromData) && fromData > 0) {
@@ -330,6 +356,7 @@ function extractCooldownSeconds(error) {
   return Math.min(Math.round(parsed), 60)
 }
 
+// Formatea segundos en mm:ss para mostrar expiración de código.
 function formatSeconds(totalSeconds) {
   const safeValue = Math.max(0, Number(totalSeconds) || 0)
   const minutes = String(Math.floor(safeValue / 60)).padStart(2, '0')
@@ -337,10 +364,12 @@ function formatSeconds(totalSeconds) {
   return `${minutes}:${seconds}`
 }
 
+// Mantiene informado al usuario mientras no puede pedir otro código.
 function setIdentifierCooldownMessage(seconds) {
   errors.identifier = `Ya enviamos un código recientemente. Intenta de nuevo en ${seconds} segundos.`
 }
 
+// Inicia el cooldown para solicitudes iniciales y limpia el mensaje al terminar.
 function startRequestCooldown(seconds) {
   if (requestIntervalId) {
     clearInterval(requestIntervalId)
@@ -368,6 +397,7 @@ function startRequestCooldown(seconds) {
   }, 1000)
 }
 
+// Normaliza correo o teléfono para que el backend reciba una identidad consistente.
 function normalizeIdentifier(value) {
   const input = String(value || '').trim()
   if (!input) return ''
@@ -381,6 +411,7 @@ function normalizeIdentifier(value) {
   return ''
 }
 
+// Valida el identificador antes de solicitar o reenviar código.
 function validateIdentifier() {
   const normalized = normalizeIdentifier(form.identifier)
   if (!normalized) {
@@ -395,15 +426,18 @@ function validateIdentifier() {
   return normalized
 }
 
+// Revalida el identificador al escribir y elimina mensajes previos.
 function onIdentifierInput() {
   clearMessages()
   validateIdentifier()
 }
 
+// Fuerza validación del identificador al salir del campo.
 function onIdentifierBlur() {
   validateIdentifier()
 }
 
+// Valida que el código tenga exactamente cuatro dígitos.
 function validateCode() {
   if (!/^[0-9]{4}$/.test(form.code)) {
     errors.code = 'El código debe tener 4 dígitos.'
@@ -414,15 +448,18 @@ function validateCode() {
   return true
 }
 
+// Revalida el código en tiempo real.
 function onCodeInput() {
   clearMessages()
   validateCode()
 }
 
+// Fuerza validación del código al salir del campo.
 function onCodeBlur() {
   validateCode()
 }
 
+// Valida longitud y coincidencia de la nueva contraseña.
 function validatePasswords() {
   let valid = true
 
@@ -446,24 +483,29 @@ function validatePasswords() {
   return valid
 }
 
+// Revalida contraseñas al escribir la principal.
 function onPasswordInput() {
   clearMessages()
   validatePasswords()
 }
 
+// Fuerza validación de contraseña al salir del campo.
 function onPasswordBlur() {
   validatePasswords()
 }
 
+// Revalida confirmación al escribirla.
 function onPasswordConfirmationInput() {
   clearMessages()
   validatePasswords()
 }
 
+// Fuerza validación de confirmación al salir del campo.
 function onPasswordConfirmationBlur() {
   validatePasswords()
 }
 
+// Detiene todos los temporizadores activos del flujo.
 function stopTimers() {
   if (timerIntervalId) {
     clearInterval(timerIntervalId)
@@ -481,6 +523,7 @@ function stopTimers() {
   }
 }
 
+// Inicia temporizadores de expiración del código y cooldown de reenvío.
 function startTimers(expiresIn, cooldown) {
   if (timerIntervalId) {
     clearInterval(timerIntervalId)
@@ -520,6 +563,7 @@ function startTimers(expiresIn, cooldown) {
   }, 1000)
 }
 
+// Solicita o reenvía el código de recuperación con protección Turnstile.
 async function submitRequestCode(isResend) {
   clearFieldErrors()
   clearMessages()
@@ -587,6 +631,7 @@ async function submitRequestCode(isResend) {
   }
 }
 
+// Verifica el código y guarda el token temporal de recuperación.
 async function submitVerifyCode() {
   clearMessages()
   errors.code = ''
@@ -621,6 +666,7 @@ async function submitVerifyCode() {
   }
 }
 
+// Envía la nueva contraseña usando el token temporal ya verificado.
 async function submitResetPassword() {
   if (step.value !== 3) return
 
@@ -659,12 +705,14 @@ async function submitResetPassword() {
   }
 }
 
+// Regresa al primer paso para corregir la cuenta sin conservar error de código.
 function goBackToIdentifier() {
   clearMessages()
   errors.code = ''
   step.value = 1
 }
 
+// Limpia intervalos al salir de la vista para evitar timers huérfanos.
 onBeforeUnmount(() => {
   stopTimers()
 })

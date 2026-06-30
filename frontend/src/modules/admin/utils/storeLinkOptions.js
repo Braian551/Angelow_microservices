@@ -2,12 +2,14 @@ import { catalogHttp } from '../../../services/http'
 
 export const CUSTOM_STORE_LINK_VALUE = '__custom__'
 
+// Normaliza banderas que pueden llegar como booleanos reales o enteros desde el catálogo.
 function normalizeBoolean(value, fallback = true) {
   if (typeof value === 'boolean') return value
   if (value === null || value === undefined || value === '') return fallback
   return Boolean(Number(value))
 }
 
+// Adapta una categoría a la forma mínima que necesita el selector de enlaces del admin.
 function normalizeCategory(item) {
   return {
     id: Number(item?.id || 0),
@@ -16,6 +18,7 @@ function normalizeCategory(item) {
   }
 }
 
+// Adapta una colección a la misma forma que las categorías para compartir el render del selector.
 function normalizeCollection(item) {
   return {
     id: Number(item?.id || 0),
@@ -24,10 +27,12 @@ function normalizeCollection(item) {
   }
 }
 
+// Ordena opciones por nombre usando reglas de español para mantener listados previsibles.
 function sortByName(rows) {
   return [...rows].sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'es'))
 }
 
+// Extrae filas desde respuestas paginadas o planas sin acoplar la UI a una forma única de API.
 function normalizeResponseRows(response) {
   const payload = response?.data?.data || response?.data || []
   if (Array.isArray(payload)) return payload
@@ -35,6 +40,7 @@ function normalizeResponseRows(response) {
   return []
 }
 
+// Consulta primero endpoints admin y usa rutas públicas como respaldo durante la migración.
 async function fetchCatalogRows(adminPath, fallbackPath) {
   try {
     const response = await catalogHttp.get(adminPath)
@@ -49,6 +55,7 @@ async function fetchCatalogRows(adminPath, fallbackPath) {
   }
 }
 
+// Carga categorías y colecciones en paralelo para armar destinos rápidos de botones y banners.
 export async function loadStoreLinkCatalogs() {
   const [categoryRows, collectionRows] = await Promise.all([
     fetchCatalogRows('/admin/categories', '/categories'),
@@ -61,6 +68,7 @@ export async function loadStoreLinkCatalogs() {
   }
 }
 
+// Construye grupos de opciones visibles combinando rutas fijas con datos activos del catálogo.
 export function buildStoreLinkGroups({ categories = [], collections = [], includeEmptyOption = false } = {}) {
   const groups = []
 
@@ -127,6 +135,7 @@ export function buildStoreLinkGroups({ categories = [], collections = [], includ
   return groups
 }
 
+// Detecta si un enlace coincide con una opción conocida o debe tratarse como personalizado.
 export function detectStoreLinkOption(link, groups, fallbackValue = '') {
   const clean = String(link || '').trim()
   if (!clean) return fallbackValue
