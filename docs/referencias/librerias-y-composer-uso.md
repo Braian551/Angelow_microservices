@@ -17,7 +17,7 @@
 
 Este documento centraliza las librerías declaradas directamente por el proyecto en `composer.json` y `package.json`, además de las fuentes tipográficas y colores base usados por el sitio. No enumera dependencias transitivas internas de `vendor` o `node_modules`, porque esas llegan como soporte automático de los paquetes principales y se controlan desde los archivos lock.
 
-No se instalaron dependencias nuevas en esta revisión. La actualización se hizo por inventario documental el 2026-06-17.
+El inventario se actualizó el 2026-07-23 con las dependencias directas de la aplicación Flutter de repartidores y la guía interactiva del frontend.
 
 ## Inventario Composer por servicio
 
@@ -63,6 +63,25 @@ Todos los servicios Laravel declaran el mismo grupo de soporte de desarrollo: `f
 
 Estas dependencias se usan para datos de prueba, logs de desarrollo, formato de código, entorno auxiliar, dobles de prueba, manejo de errores en desarrollo y pruebas automatizadas.
 
+## Inventario Flutter
+
+| Paquete | Versión declarada | Uso principal |
+|---|---:|---|
+| `firebase_core` | `^4.12.1` | Inicialización del proyecto Firebase `angelow-4e5fe`. |
+| `firebase_auth` | `^6.5.6` | Intercambio seguro de identidad Firebase para Google. |
+| `google_sign_in` | `^7.2.0` | Selector nativo de cuenta Google. |
+| `http` | `^1.6.0` | APIs Angelow, Directions de Mapbox y catálogos externos. |
+| `flutter_secure_storage` | `^10.3.1` | Persistencia cifrada del token de sesión. |
+| `provider` | `^6.1.5+1` | Inyección y estado de presentación con ViewModels. |
+| `mapbox_maps_flutter` | `^2.26.0` | Mapa nativo 3D durante la ruta. |
+| `geolocator` | `^14.0.3` | Permisos y posición del repartidor durante ruta activa. |
+| `file_selector` | `^1.1.0` | Selección multiplataforma de soportes JPG, PNG y PDF. |
+| `image_picker` | `^1.2.3` | Captura o selección de foto desde el dispositivo. |
+| `intl` | `^0.20.3` | Formato local de fechas, distancias y tiempos. |
+| `flutter_native_splash` | `^2.4.7` | Splash nativo generado con `assets/images/logo2.png`. |
+
+La app está en `mobile/repartidor`; su lockfile conserva las versiones resueltas. NHTSA vPIC y The Color API son catálogos HTTP con fallback local, no paquetes ni fuentes de verdad de la autorización.
+
 ## Inventario npm y Node
 
 ### Frontend principal
@@ -78,6 +97,7 @@ Estas dependencias se usan para datos de prueba, logs de desarrollo, formato de 
 | `exceljs` | `^4.4.0` | Exportaciones administrativas a Excel con formato reutilizable. | `frontend/src/modules/admin/composables/useAdminDataExport.js` |
 | `jspdf` | `^4.2.1` | Exportaciones administrativas a PDF desde frontend. | `frontend/src/modules/admin/composables/useAdminDataExport.js` |
 | `jspdf-autotable` | `^5.0.8` | Tablas PDF administrativas con columnas declarativas. | `frontend/src/modules/admin/composables/useAdminDataExport.js` |
+| `intro.js` | `^8.5.0` | Manual interactivo con recorridos por vista y catálogo filtrado según sesión y rol. | `frontend/src/features/user-guide/`, `frontend/src/components/layout/SiteFooter.vue`, `frontend/src/modules/admin/pages/AdminSettingsPage.vue` |
 | `@vitejs/plugin-vue` | `^6.0.1` | Compilación de componentes Vue en Vite. | `frontend/vite.config.js` |
 | `vite` | `^7.3.1` | Servidor de desarrollo y compilación del frontend. | `frontend/package.json`, `frontend/vite.config.js` |
 
@@ -206,6 +226,27 @@ Los servicios `audit-service`, `auth-service`, `cart-service`, `catalog-service`
 | Snackbar información | Clase `snackbar--info` | `#0284c7` |
 
 ## Uso funcional documentado
+
+### Guía de usuario interactiva
+
+- Fecha: 2026-07-23
+- Tipo: librería frontend npm.
+- Paquete/versión: `intro.js@^8.5.0`.
+- Motivo: ofrecer recorridos paso a paso en todas las rutas Vue y filtrar el manual según visitante, cliente o administrador.
+- Comando usado: `docker compose exec -T frontend npm install intro.js@8.5.0`.
+- Licencia declarada por el paquete: `AGPL-3.0`; Intro.js también publica una opción comercial para aplicaciones propietarias.
+- Archivos donde se aplica:
+  - `frontend/package.json`
+  - `frontend/package-lock.json`
+  - `frontend/src/main.js`
+  - `frontend/src/features/user-guide/guideCatalog.js`
+  - `frontend/src/features/user-guide/userGuide.js`
+  - `frontend/src/features/user-guide/UserGuideHub.vue`
+  - `frontend/src/features/user-guide/userGuide.css`
+  - `frontend/src/App.vue`
+  - `frontend/src/components/layout/SiteFooter.vue`
+  - `frontend/src/modules/admin/pages/AdminSettingsPage.vue`
+- Contexto funcional: ayuda pública desde el footer, ayuda de autenticación dentro de su layout, manual de cliente autenticado y acceso administrativo desde Configuración general.
 
 ### Exportaciones admin reutilizables en PDF y Excel
 

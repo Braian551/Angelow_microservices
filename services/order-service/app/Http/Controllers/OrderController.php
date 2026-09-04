@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class OrderController extends Controller
@@ -188,18 +189,21 @@ class OrderController extends Controller
         $data = $request->validate([
             'order_number' => ['required', 'string', 'max:20'],
             'user_id' => ['nullable', 'string', 'max:20'],
-            'subtotal' => ['required', 'numeric'],
-            'shipping_cost' => ['nullable', 'numeric'],
+            'subtotal' => ['required', 'numeric', 'min:0.01'],
+            'shipping_cost' => ['nullable', 'numeric', 'min:0'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'discount_code' => ['nullable', 'string', 'max:50'],
             'discount_source' => ['nullable', 'string', 'max:30'],
-            'total' => ['required', 'numeric'],
+            'total' => ['required', 'numeric', 'min:0.01'],
             'status' => ['nullable', 'string', 'max:20'],
             'payment_method' => ['nullable', 'string', 'max:30'],
             'payment_status' => ['nullable', 'string', 'max:20'],
             'shipping_address' => ['nullable', 'string'],
             'shipping_city' => ['nullable', 'string', 'max:100'],
+            'shipping_address_id' => ['nullable', 'integer', 'min:1'],
             'shipping_method_id' => ['nullable', 'integer'],
+            'shipping_method_name' => ['nullable', 'string', 'max:100'],
+            'shipping_delivery_time' => ['nullable', 'string', 'max:80'],
             'billing_name' => ['nullable', 'string', 'max:150'],
             'billing_document' => ['nullable', 'string', 'max:40'],
             'billing_email' => ['nullable', 'string', 'email', 'max:255'],
@@ -213,10 +217,12 @@ class OrderController extends Controller
             'items.*.size_variant_id' => ['required_with:items', 'integer', 'min:1'],
             'items.*.product_name' => ['required_with:items', 'string', 'max:255'],
             'items.*.variant_name' => ['nullable', 'string', 'max:255'],
-            'items.*.price' => ['required_with:items', 'numeric'],
+            'items.*.price' => ['required_with:items', 'numeric', 'min:0.01'],
             'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
-            'items.*.total' => ['required_with:items', 'numeric'],
+            'items.*.total' => ['required_with:items', 'numeric', 'min:0.01'],
         ]);
+
+        $data = $this->normalizeAndValidateOrderAmounts($data);
 
         // Verifica duplicados por número de orden antes de crear.
         $existingOrderId = DB::table('orders')
@@ -259,7 +265,10 @@ class OrderController extends Controller
                 'payment_status' => $data['payment_status'] ?? null,
                 'shipping_address' => $data['shipping_address'] ?? null,
                 'shipping_city' => $data['shipping_city'] ?? null,
+                'shipping_address_id' => $data['shipping_address_id'] ?? null,
                 'shipping_method_id' => $data['shipping_method_id'] ?? null,
+                'shipping_method_name' => $data['shipping_method_name'] ?? null,
+                'shipping_delivery_time' => $data['shipping_delivery_time'] ?? null,
                 'discount_code' => $data['discount_code'] ?? null,
                 'discount_source' => $data['discount_source'] ?? null,
                 'billing_name' => $data['billing_name'] ?? null,
@@ -383,6 +392,57 @@ class OrderController extends Controller
                 'ttl_seconds' => $reservationResult['ttl_seconds'] ?? null,
             ],
         ], 201);
+    }
+
+    /**
+     * Recalcula los importes desde los ítems y rechaza descuentos o totales inconsistentes.
+     */
+    private function normalizeAndValidateOrderAmounts(array $data): array
+    {
+        $errors = [];
+        $calculatedSubtotal = 0.0;
+
+        foreach ($data['items'] as $index => &$item) {
+            $lineTotal = round((float) $item['price'] * (int) $item['quantity'], 2);
+            if (abs((float) $item['total'] - $lineTotal) > 0.01) {
+                $errors["items.{$index}.total"] = 'El total del producto no coincide con su precio y cantidad.';
+            }
+            $item['total'] = $lineTotal;
+            $calculatedSubtotal += $lineTotal;
+        }
+        unset($item);
+
+        $calculatedSubtotal = round($calculatedSubtotal, 2);
+        if (abs((float) $data['subtotal'] - $calculatedSubtotal) > 0.01) {
+            $errors['subtotal'] = 'El subtotal no coincide con los productos del pedido.';
+        }
+
+        $shippingCost = round(max(0, (float) ($data['shipping_cost'] ?? 0)), 2);
+        $discountAmount = round(max(0, (float) ($data['discount_amount'] ?? 0)), 2);
+        $grossAmount = round($calculatedSubtotal + $shippingCost, 2);
+
+        if ($discountAmount >= $grossAmount) {
+            $errors['discount_amount'] = 'El descuento debe ser menor que el valor del pedido.';
+        }
+
+        $calculatedTotal = round($grossAmount - $discountAmount, 2);
+        if ($calculatedTotal <= 0 || abs((float) $data['total'] - $calculatedTotal) > 0.01) {
+            $errors['total'] = 'El total del pedido es inválido. Recalcula el descuento antes de continuar.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        $data['subtotal'] = $calculatedSubtotal;
+        $data['shipping_cost'] = $shippingCost;
+        $data['discount_amount'] = $discountAmount;
+        $data['total'] = $calculatedTotal;
+        $data['shipping_method_id'] = (int) ($data['shipping_method_id'] ?? 0) > 0
+            ? (int) $data['shipping_method_id']
+            : null;
+
+        return $data;
     }
 
     /**
@@ -549,10 +609,25 @@ class OrderController extends Controller
             }
         }
 
+        $statusChanged = !$this->sameNormalizedValue($oldStatus, $targetStatus);
         $updatePayload = [
             $statusColumn => $data['status'],
             'updated_at' => now(),
         ];
+
+        if ($statusChanged && $targetStatus === 'delivered') {
+            $deliveredAtColumn = $this->firstExistingColumn('orders', ['delivered_at'], $sourceConnection);
+            if ($deliveredAtColumn !== null) {
+                $updatePayload[$deliveredAtColumn] = now();
+            }
+        }
+
+        if ($statusChanged && $targetStatus === 'completed') {
+            $completedAtColumn = $this->firstExistingColumn('orders', ['completed_at'], $sourceConnection);
+            if ($completedAtColumn !== null) {
+                $updatePayload[$completedAtColumn] = now();
+            }
+        }
 
         if ($newPaymentStatus !== null) {
             $updatePayload[$paymentStatusColumn] = $newPaymentStatus;
@@ -592,7 +667,7 @@ class OrderController extends Controller
         $hydratedOrder = $this->hydrateOrderCustomerIdentity($order, $sourceConnection);
 
         // Notifica del cambio de estado si realmente hubo modificación.
-        if (!$this->sameNormalizedValue($oldStatus, $data['status'])) {
+        if ($statusChanged) {
             $this->notifyOrderUpdateChannels(
                 $hydratedOrder,
                 $sourceConnection,
@@ -620,6 +695,76 @@ class OrderController extends Controller
             'message' => 'Estado actualizado',
             'invoice' => $invoiceResult,
         ]);
+    }
+
+    /**
+     * Completa pedidos entregados cuando vence la ventana de reembolso que se
+     * expone al cliente. Las órdenes sin reembolso se cierran en la siguiente
+     * ejecución, y se respetan las solicitudes de reembolso aún activas.
+     * La transición reutiliza updateStatus para conservar historial,
+     * notificaciones, eventos en tiempo real y factura.
+     *
+     * @return array{checked: int, completed: int, pending: int, skipped: int, failed: int}
+     */
+    public function completeDeliveredOrdersWithExpiredRefundWindow(int $batchSize = 200): array
+    {
+        $result = [
+            'checked' => 0,
+            'completed' => 0,
+            'pending' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+        ];
+        $statusColumn = $this->firstExistingColumn('orders', ['status', 'order_status'], null);
+        if ($statusColumn === null) {
+            return $result;
+        }
+
+        $orders = $this->query(null)
+            ->table('orders')
+            ->whereRaw('LOWER(' . $statusColumn . ") = 'delivered'")
+            ->orderBy('id')
+            ->limit(max(1, $batchSize))
+            ->get();
+
+        foreach ($orders as $order) {
+            $result['checked']++;
+            $paymentStatus = Str::lower(trim((string) ($order->payment_status ?? '')));
+            if (in_array($paymentStatus, ['refund_requested', 'pending_refund', 'refunded'], true)) {
+                $result['skipped']++;
+                continue;
+            }
+
+            $eligibility = $this->resolveOrderRefundEligibility($order, null);
+            if (!($eligibility['completion_ready'] ?? false)) {
+                if ($this->nullableString($eligibility['deadline_at'] ?? null) !== null) {
+                    $result['pending']++;
+                } else {
+                    $result['skipped']++;
+                }
+                continue;
+            }
+
+            if (($eligibility['request_status'] ?? null) !== null) {
+                $result['skipped']++;
+                continue;
+            }
+
+            $response = $this->updateStatus(Request::create('/internal/orders/complete', 'PATCH', [
+                'status' => 'completed',
+                'changed_by' => 'system',
+                'changed_by_name' => 'Automatización de reembolsos',
+                'description' => 'Pedido completado al vencer el plazo de reembolso.',
+            ]), (int) $order->id);
+
+            if ($response->isSuccessful()) {
+                $result['completed']++;
+            } else {
+                $result['failed']++;
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -774,6 +919,11 @@ class OrderController extends Controller
                 $oldPaymentStatus,
                 $targetPaymentStatus,
             );
+
+        }
+
+        if (in_array(Str::lower(trim($targetPaymentStatus)), ['approved', 'paid', 'verified'], true)) {
+            $this->notifyShippingEligibility($hydratedOrder, $sourceConnection);
         }
 
         $invoiceResult = $this->orderInvoiceService->ensureInvoiceForCompletedOrder($id, $sourceConnection);
@@ -782,6 +932,53 @@ class OrderController extends Controller
             'message' => 'Estado de pago actualizado',
             'invoice' => $invoiceResult,
         ]);
+    }
+
+    /** Publica en shipping-service las órdenes pagadas que requieren entrega a domicilio. */
+    private function notifyShippingEligibility(object $order, ?string $sourceConnection): void
+    {
+        $rawShippingMethodId = (int) ($order->shipping_method_id ?? 0);
+        $shippingMethodId = $rawShippingMethodId > 0 ? $rawShippingMethodId : null;
+        $shippingMethodName = $this->nullableString($order->shipping_method_name ?? null);
+
+        // Los pedidos históricos con -1 usaron el método temporal de entrega a domicilio.
+        if ($shippingMethodId === null && $shippingMethodName === null && $rawShippingMethodId >= 0) {
+            return;
+        }
+
+        $shippingMethodName ??= 'Envío estándar';
+
+        try {
+            $baseUrl = rtrim((string) config('services.shipping.base_url'), '/');
+            $response = Http::withHeaders([
+                'X-Internal-Token' => (string) config('services.shipping.internal_token'),
+            ])->timeout(8)->post($baseUrl . '/internal/deliveries/eligible', [
+                'order_id' => (int) $order->id,
+                'order_number' => $this->nullableString($order->order_number ?? null),
+                'order_source' => $sourceConnection === self::LEGACY_CONNECTION ? 'legacy' : 'local',
+                'customer_user_id' => $this->nullableString($order->user_id ?? null),
+                'customer_email' => $this->nullableString($order->user_email ?? $order->customer_email ?? null),
+                'shipping_method_id' => $shippingMethodId,
+                'shipping_method_name' => $shippingMethodName,
+                'delivery_time' => $this->nullableString($order->shipping_delivery_time ?? null),
+                'shipping_address_id' => isset($order->shipping_address_id) ? (int) $order->shipping_address_id : null,
+                'destination_address' => $this->nullableString($order->shipping_address ?? null),
+                'destination_city' => $this->nullableString($order->shipping_city ?? null),
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('Shipping-service rechazó la publicación de la orden.', [
+                    'order_id' => $order->id ?? null,
+                    'status' => $response->status(),
+                    'response' => $response->json(),
+                ]);
+            }
+        } catch (Throwable $exception) {
+            Log::warning('No fue posible publicar la orden para reparto.', [
+                'order_id' => $order->id ?? null,
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -1473,13 +1670,18 @@ class OrderController extends Controller
     private function resolveOrderRefundEligibility(object $order, ?string $connection): array
     {
         if (!$this->hasTable('order_refund_requests', $connection)) {
-            return ['available' => false, 'message' => 'El flujo de reembolso aún no está disponible.'];
+            return [
+                'available' => false,
+                'completion_ready' => false,
+                'message' => 'El flujo de reembolso aún no está disponible.',
+            ];
         }
 
         $openRequest = $this->existingOpenRefundRequest($connection, (int) ($order->id ?? 0));
         if ($openRequest !== null) {
             return [
                 'available' => false,
+                'completion_ready' => false,
                 'request_status' => $openRequest->status ?? 'requested',
                 'message' => 'Ya tienes una solicitud de reembolso en revisión.',
             ];
@@ -1487,13 +1689,21 @@ class OrderController extends Controller
 
         $normalizedStatus = Str::lower(trim((string) ($order->status ?? $order->order_status ?? '')));
         if (!in_array($normalizedStatus, ['delivered', 'completed'], true)) {
-            return ['available' => false, 'message' => 'El reembolso se habilita cuando el pedido está completado.'];
+            return [
+                'available' => false,
+                'completion_ready' => false,
+                'message' => 'El reembolso se habilita cuando el pedido está completado.',
+            ];
         }
 
         $items = $this->fetchOrderItemsByConnection($connection, (int) ($order->id ?? 0));
         $policy = $this->resolveRefundPolicyForItems($items);
         if (!($policy['is_refundable'] ?? false)) {
-            return ['available' => false, 'message' => 'Los productos de este pedido no tienen reembolso activo.'];
+            return [
+                'available' => false,
+                'completion_ready' => true,
+                'message' => 'Los productos de este pedido no tienen reembolso activo.',
+            ];
         }
 
         $baseDate = $this->resolveRefundBaseDate($order);
@@ -1501,6 +1711,7 @@ class OrderController extends Controller
         if (now()->greaterThan($deadline)) {
             return [
                 'available' => false,
+                'completion_ready' => true,
                 'refund_days' => (int) $policy['refund_days'],
                 'deadline_at' => $deadline->toIso8601String(),
                 'message' => 'El plazo de reembolso ya venció.',
@@ -1509,6 +1720,7 @@ class OrderController extends Controller
 
         return [
             'available' => true,
+            'completion_ready' => false,
             'refund_days' => (int) $policy['refund_days'],
             'deadline_at' => $deadline->toIso8601String(),
             'message' => 'Reembolso disponible.',

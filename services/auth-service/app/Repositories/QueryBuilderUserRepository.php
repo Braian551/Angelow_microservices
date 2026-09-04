@@ -64,7 +64,14 @@ class QueryBuilderUserRepository implements UserRepositoryInterface
 
     public function findByEmail(string $email): ?User
     {
-        $record = DB::table('users')->where('email', $email)->first();
+        // Los proveedores externos (p. ej. Google/Firebase) pueden variar
+        // las mayúsculas del correo. La identidad de correo debe ser única
+        // sin depender de esa diferencia para evitar crear otra cuenta con
+        // rol customer durante el inicio de sesión.
+        $normalizedEmail = strtolower(trim($email));
+        $record = DB::table('users')
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->first();
         return $this->hydrate($record);
     }
 
@@ -79,14 +86,15 @@ class QueryBuilderUserRepository implements UserRepositoryInterface
      */
     public function findByCredential(string $credential): ?User
     {
-        $isEmail = filter_var($credential, FILTER_VALIDATE_EMAIL) !== false;
+        $normalizedCredential = trim($credential);
+        $isEmail = filter_var($normalizedCredential, FILTER_VALIDATE_EMAIL) !== false;
 
         $record = DB::table('users')
-            ->where(function ($query) use ($credential, $isEmail) {
+            ->where(function ($query) use ($normalizedCredential, $isEmail) {
                 if ($isEmail) {
-                    $query->where('email', $credential);
+                    $query->whereRaw('LOWER(email) = ?', [strtolower($normalizedCredential)]);
                 } else {
-                    $query->where('phone', $credential);
+                    $query->where('phone', $normalizedCredential);
                 }
             })
             ->first();

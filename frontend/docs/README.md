@@ -4,6 +4,7 @@
 ## Índice rápido
 
 - [Documentos relacionados](#documentos-relacionados)
+- [Guía de usuario interactiva](#guía-de-usuario-interactiva)
 - [Patrones aplicados](#patrones-aplicados)
 - [Registro obligatorio de patrones](#registro-obligatorio-de-patrones)
 <!-- indice:auto:end -->
@@ -14,8 +15,13 @@ Guía de navegación funcional y de patrones específicos del frontend SPA.
 
 - `../README.md`
 - `./exportaciones-admin-reutilizables.md`
+- `./guia-usuario-interactiva.md`
 - `../../docs/operaciones/manual-tecnico.md`
 - `../../docs/patrones/README.md`
+
+## Guía de usuario interactiva
+
+El manual funcional integrado con Intro.js, sus reglas de visibilidad por rol y el catálogo completo de vistas se mantienen en `guia-usuario-interactiva.md`.
 
 ```mermaid
 flowchart LR

@@ -66,6 +66,10 @@ angelow/uploads/
 uploads/
 .composer-cache/
 .composer-home/
-
+docs/testing/plan-de-pruebas/capturas/
+docs/arquitectura/diagramas-clases-microservicios/svg/
+docs/arquitectura/modelos-relacionales-bases-datos/svg/
+docs/datos/
+docs/documentos/
 
 *.xlsx

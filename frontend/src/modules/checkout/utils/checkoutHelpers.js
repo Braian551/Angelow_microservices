@@ -65,7 +65,19 @@ export function normalizeCheckoutAddress(item = {}) {
     apartment_number: normalizeText(item?.apartment_number || ''),
     delivery_instructions: normalizeText(item?.delivery_instructions || item?.notes || ''),
     is_default: Boolean(item?.is_default),
+    gps_latitude: normalizeOptionalCoordinate(item?.gps_latitude, -90, 90),
+    gps_longitude: normalizeOptionalCoordinate(item?.gps_longitude, -180, 180),
   }
+}
+
+// Conserva coordenadas válidas sin convertir un valor ausente en el punto 0,0.
+function normalizeOptionalCoordinate(value, minimum, maximum) {
+  if (value === null || value === undefined || value === '') return null
+
+  const coordinate = Number(value)
+  return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum
+    ? coordinate
+    : null
 }
 
 // Normaliza cada línea del carrito antes de enviarla al flujo de pago y pedido.

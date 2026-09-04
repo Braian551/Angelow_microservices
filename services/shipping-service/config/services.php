@@ -18,6 +18,24 @@
 
 return [
 
+    'auth' => [
+        'base_url' => env('AUTH_SERVICE_URL', 'http://auth-service:8000/api'),
+    ],
+
+    'orders' => [
+        'base_url' => env('ORDER_SERVICE_URL', 'http://order-service:8000/api'),
+    ],
+
+    'notifications' => [
+        'base_url' => env('NOTIFICATION_SERVICE_URL', 'http://notification-service:8000/api'),
+    ],
+
+    'mapbox' => [
+        'access_token' => env('MAPBOX_ACCESS_TOKEN', ''),
+    ],
+
+    'internal_token' => env('AUTH_INTERNAL_TOKEN', ''),
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "77139939464",
+    "project_id": "angelow-4e5fe",
+    "storage_bucket": "angelow-4e5fe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:77139939464:android:103723ce1cc423ce0fcf3d",
+        "android_client_info": {
+          "package_name": "online.angelow.angelow_repartidor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "77139939464-emgjebc8pfed8bbh00odbtsvaqomdp9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "online.angelow.angelow_repartidor",
+            "certificate_hash": "1e7f9f2249cb597942d73a9f8a65938ea6e0af66"
+          }
+        },
+        {
+          "client_id": "77139939464-kfbflg2qngcslc0vvhqq3fghuh3jtsjq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAW6OqP-29ucAyDM7B2qPjyj13pgA3gIR4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "77139939464-kfbflg2qngcslc0vvhqq3fghuh3jtsjq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "77139939464-8qoe6n4a5r85sg9j2b553hg46pu8sb1m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "online.angelow.angelowRepartidor"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

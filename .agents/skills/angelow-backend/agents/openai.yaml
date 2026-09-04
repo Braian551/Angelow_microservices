@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angelow Backend"
+  short_description: "Laravel, APIs y datos distribuidos"
+  default_prompt: "Usa $angelow-backend para implementar este cambio Laravel en el servicio dueño del dominio."

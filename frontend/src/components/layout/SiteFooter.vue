@@ -36,6 +36,12 @@
       <div class="footer-column">
         <h3>Ayuda</h3>
         <ul>
+          <li>
+            <button type="button" class="footer-help-button" @click="openUserGuideHub">
+              <i class="fas fa-circle-question" aria-hidden="true"></i>
+              Ayuda
+            </button>
+          </li>
           <li><a href="#">Guía de tallas</a></li>
           <li><a href="#">Envíos y entregas</a></li>
           <li><a href="#">Devoluciones</a></li>
@@ -87,6 +93,8 @@
 import { computed } from 'vue'
 /* Importación de RouterLink para generar enlaces de navegación interna */
 import { RouterLink } from 'vue-router'
+import { openUserGuideHub } from '../../features/user-guide/userGuide'
+import './Footer.css'
 
 /*
  * Definición de props del componente.

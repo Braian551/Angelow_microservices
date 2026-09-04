@@ -244,6 +244,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 // Composable que expone el estado de la sesión del usuario (autenticación y datos).
 import { useSession } from '../../composables/useSession'
+import { resolveRoleLandingRoute } from '../../utils/authNavigation'
 // Servicios de la API del catálogo para búsquedas: obtener sugerencias, historial y guardarlo.
 import { getSearchHistory, getSearchSuggestions, saveSearchHistory } from '../../services/catalogApi'
 // Utilidades para manejar errores de carga de imágenes y resolver URLs de medios.
@@ -417,12 +418,7 @@ const accountRoute = computed(() => {
     return { name: 'login', query: { redirect: '/mi-cuenta/resumen' } }
   }
 
-  const role = String(user.value?.role || '').toLowerCase()
-  if (role === 'admin' || role === 'super_admin') {
-    return { name: 'admin-dashboard' }
-  }
-
-  return { name: 'account-dashboard' }
+  return resolveRoleLandingRoute(user.value)
 })
 
 // Ruta de favoritos: redirige a login con redirect si el usuario no está autenticado.

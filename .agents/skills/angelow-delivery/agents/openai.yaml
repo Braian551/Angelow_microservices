@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angelow Delivery"
+  short_description: "Build, pruebas, Docker y cierre"
+  default_prompt: "Usa $angelow-delivery para validar y cerrar este cambio de Angelow con evidencia real."

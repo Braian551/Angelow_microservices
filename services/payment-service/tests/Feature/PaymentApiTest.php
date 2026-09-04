@@ -11,6 +11,16 @@ class PaymentApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Las migraciones agregan bancos iniciales. Cada caso define sus
+        // propios datos para que el resultado no dependa de ese catálogo.
+        DB::table('bank_account_config')->delete();
+        DB::table('colombian_banks')->delete();
+    }
+
     public function test_can_list_only_active_banks(): void
     {
         DB::table('colombian_banks')->insert([

@@ -17,6 +17,7 @@ use PHPMailer\PHPMailer\PHPMailer;
  */
 class RegistrationVerificationService
 {
+    private const COURIER_ROLES = ['courier', 'repartidor'];
     /**
      * Genera y envía un código de registro al correo indicado.
      *
@@ -118,6 +119,93 @@ class RegistrationVerificationService
         Cache::forget($this->tokenCacheKey($token));
     }
 
+    /** Envía un código de seis dígitos sin revelar si el correo ya existe. */
+    public function requestCourierCode(string $email, bool $isResend = false): array
+    {
+        $normalizedEmail = $this->normalizeEmail($email);
+        if ($normalizedEmail === '') {
+            throw new AuthException('Ingresa un correo electrónico válido.', 422);
+        }
+
+        $cooldown = $this->secondsUntilNextCourierCode($normalizedEmail);
+        if ($cooldown > 0) {
+            throw new AuthException("Ya enviamos un código. Intenta de nuevo en {$cooldown} segundos.", 429);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expiresAt = now()->addSeconds($this->getCodeTtlSeconds());
+        Cache::put($this->courierCodeCacheKey($normalizedEmail), [
+            'hash' => Hash::make($code),
+            'expires_at' => $expiresAt->toISOString(),
+        ], $expiresAt);
+
+        if (!$this->sendCourierEmail($normalizedEmail, $code, $expiresAt)) {
+            Cache::forget($this->courierCodeCacheKey($normalizedEmail));
+            throw new AuthException('No pudimos enviar el código. Inténtalo nuevamente.', 500);
+        }
+
+        $seconds = $this->getResendCooldownSeconds();
+        Cache::put($this->courierCooldownCacheKey($normalizedEmail), time() + $seconds, now()->addSeconds($seconds));
+
+        return [
+            'message' => $isResend ? 'Enviamos un código nuevo.' : 'Te enviamos un código de verificación.',
+            'data' => [
+                'identifier' => $this->maskEmail($normalizedEmail),
+                'expires_in' => $this->getCodeTtlSeconds(),
+                'resend_cooldown' => $seconds,
+            ],
+        ];
+    }
+
+    /** Verifica el correo y decide el siguiente paso sin exponerlo antes de probar su propiedad. */
+    public function verifyCourierCode(string $email, string $code): array
+    {
+        $normalizedEmail = $this->normalizeEmail($email);
+        $record = Cache::get($this->courierCodeCacheKey($normalizedEmail));
+        if (!is_array($record)) {
+            throw new AuthException('El código expiró. Solicita uno nuevo.', 410);
+        }
+        if (!Hash::check(trim($code), (string) ($record['hash'] ?? ''))) {
+            throw new AuthException('El código ingresado no es válido.', 422);
+        }
+
+        $user = User::query()->where('email', $normalizedEmail)->first();
+        $nextStep = !$user
+            ? 'register'
+            : (in_array($user->role, self::COURIER_ROLES, true) ? 'password' : 'blocked');
+        $token = Str::random(64);
+        Cache::put($this->courierTokenCacheKey($token), [
+            'email' => $normalizedEmail,
+            'next_step' => $nextStep,
+        ], now()->addSeconds($this->getCodeTtlSeconds()));
+        Cache::forget($this->courierCodeCacheKey($normalizedEmail));
+
+        return [
+            'verification_token' => $token,
+            'next_step' => $nextStep,
+            'message' => $nextStep === 'blocked'
+                ? 'Esta cuenta debe ingresar desde angelow.online.'
+                : null,
+        ];
+    }
+
+    /** @param array<int, string> $allowedSteps */
+    public function assertCourierToken(string $email, string $token, array $allowedSteps): void
+    {
+        $context = Cache::get($this->courierTokenCacheKey(trim($token)));
+        if (!is_array($context)
+            || ($context['email'] ?? '') !== $this->normalizeEmail($email)
+            || !in_array($context['next_step'] ?? '', $allowedSteps, true)) {
+            throw new AuthException('Verifica nuevamente tu correo para continuar.', 422);
+        }
+    }
+
+    public function consumeCourierToken(string $email, string $token): void
+    {
+        $this->assertCourierToken($email, $token, ['password', 'register']);
+        Cache::forget($this->courierTokenCacheKey(trim($token)));
+    }
+
     /**
      * Envía el correo de verificación con la misma base SMTP del auth-service.
      */
@@ -157,6 +245,44 @@ class RegistrationVerificationService
             return true;
         } catch (MailException $exception) {
             Log::error('Error al enviar código de registro', [
+                'email' => $email,
+                'message' => $exception->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    private function sendCourierEmail(string $email, string $code, Carbon $expiresAt): bool
+    {
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host = (string) config('services.phpmailer.host', 'smtp.gmail.com');
+            $mail->Port = (int) config('services.phpmailer.port', 587);
+            $mail->CharSet = 'UTF-8';
+            $username = trim((string) config('services.phpmailer.username', ''));
+            $password = (string) config('services.phpmailer.password', '');
+            $mail->SMTPAuth = $username !== '' && $password !== '';
+            if ($mail->SMTPAuth) {
+                $mail->Username = $username;
+                $mail->Password = $password;
+            }
+            $mail->SMTPSecure = strtolower((string) config('services.phpmailer.encryption', 'tls')) === 'ssl'
+                ? PHPMailer::ENCRYPTION_SMTPS
+                : PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->setFrom(
+                trim((string) config('services.phpmailer.from_email', 'seguridad@angelow.com')),
+                trim((string) config('services.phpmailer.from_name', 'Seguridad Angelow')),
+            );
+            $mail->addAddress($email);
+            $mail->isHTML(true);
+            $mail->Subject = 'Tu código de acceso a Angelow Repartidor';
+            $mail->Body = $this->buildEmailTemplate($code, $expiresAt->format('d/m/Y H:i'));
+            $mail->send();
+
+            return true;
+        } catch (MailException $exception) {
+            Log::error('Error al enviar código de repartidor', [
                 'email' => $email,
                 'message' => $exception->getMessage(),
             ]);
@@ -238,6 +364,27 @@ class RegistrationVerificationService
     private function cooldownCacheKey(string $email): string
     {
         return 'registration_verification:cooldown:' . sha1($email);
+    }
+
+    private function courierCodeCacheKey(string $email): string
+    {
+        return 'courier_verification:code:' . sha1($email);
+    }
+
+    private function courierTokenCacheKey(string $token): string
+    {
+        return 'courier_verification:token:' . $token;
+    }
+
+    private function courierCooldownCacheKey(string $email): string
+    {
+        return 'courier_verification:cooldown:' . sha1($email);
+    }
+
+    private function secondsUntilNextCourierCode(string $email): int
+    {
+        $remaining = (int) Cache::get($this->courierCooldownCacheKey($email), 0) - time();
+        return max(0, min($remaining, $this->getResendCooldownSeconds()));
     }
 
     private function getCodeTtlSeconds(): int

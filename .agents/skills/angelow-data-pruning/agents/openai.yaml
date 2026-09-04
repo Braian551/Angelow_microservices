@@ -1,0 +1,4 @@
+interface:
+  display_name: "Depuración de datos Angelow"
+  short_description: "Retira campos persistidos sin uso real"
+  default_prompt: "Usa $angelow-data-pruning para demostrar qué campos persistidos ya no se usan y retirarlos de forma segura."

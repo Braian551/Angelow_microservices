@@ -872,6 +872,7 @@ async function submitAddress() {
   if (!validateStep(3)) return
 
   isSaving.value = true
+  const wasEditing = isEditMode.value
 
   try {
     // Construye el objeto con los datos del formulario
@@ -887,14 +888,15 @@ async function submitAddress() {
     // Recarga las direcciones y notifica a otras pestañas
     await loadAddresses()
     emitAddressSyncSignal()
-    // Vuelve a la lista de direcciones
+    // Libera el bloqueo antes de volver; backToList protege el formulario durante el guardado.
+    isSaving.value = false
     backToList()
 
     // Muestra confirmación de éxito
     showSnackbar({
       type: 'success',
       title: 'Dirección guardada',
-      message: isEditMode.value
+      message: wasEditing
         ? 'La dirección fue actualizada correctamente.'
         : 'La dirección fue creada correctamente.',
       durationMs: 3000,

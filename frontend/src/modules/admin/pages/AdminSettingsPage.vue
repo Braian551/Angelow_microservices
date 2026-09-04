@@ -7,6 +7,10 @@
       :breadcrumbs="[{ label: 'Dashboard', to: '/admin' }, { label: 'Configuración' }, { label: 'General' }]"
     >
       <template #actions>
+        <button class="btn btn-secondary btn-lg" type="button" title="Abrir manual completo (Alt+H)" @click="openUserGuideHub">
+          <i class="fas fa-circle-question"></i>
+          Ayuda
+        </button>
         <transition name="settings-fade">
           <span v-if="isDirty && !saving" class="settings-dirty-badge">
             <i class="fas fa-circle"></i>
@@ -275,6 +279,7 @@ import AdminEmptyState from '../components/AdminEmptyState.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminShimmer from '../components/AdminShimmer.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
+import { openUserGuideHub } from '../../../features/user-guide/userGuide'
 import { useAdminSettings } from '../composables/useAdminSettings'
 
 // =====================================================

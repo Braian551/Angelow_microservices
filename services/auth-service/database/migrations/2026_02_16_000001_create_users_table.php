@@ -33,7 +33,7 @@ return new class extends Migration
             $table->string('phone', 15)->nullable();
             $table->string('password', 255)->nullable();
             $table->string('image', 255)->nullable();
-            $table->enum('role', ['customer', 'admin'])->default('customer');
+            $table->enum('role', ['customer', 'admin', 'courier', 'repartidor'])->default('customer');
             $table->boolean('is_blocked')->default(false);
             $table->timestamps();
             $table->datetime('last_access')->nullable();

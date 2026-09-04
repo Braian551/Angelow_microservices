@@ -136,6 +136,9 @@
                   <button class="action-btn view" type="button" title="Ver cliente" @click="openCustomerModal(customer)">
                     <i class="fas fa-eye"></i>
                   </button>
+                  <button class="action-btn edit" type="button" title="Editar cliente" @click="openCustomerEditor(customer)">
+                    <i class="fas fa-pen"></i>
+                  </button>
                   <button
                     class="action-btn"
                     :class="customer.is_blocked ? 'edit' : 'delete'"
@@ -232,6 +235,9 @@
       </div>
 
       <template #footer>
+        <button v-if="selectedCustomer" class="btn btn-primary" type="button" @click="openCustomerEditor(selectedCustomer)">
+          <i class="fas fa-pen"></i> Editar cliente
+        </button>
         <button
           v-if="selectedCustomer"
           class="btn"
@@ -243,6 +249,46 @@
           {{ selectedCustomer.is_blocked ? 'Desbloquear' : 'Bloquear' }} cliente
         </button>
         <button class="btn btn-secondary" type="button" @click="closeCustomerModal">Cerrar</button>
+      </template>
+    </AdminModal>
+
+    <AdminModal :show="showEditorModal" title="Editar cliente" max-width="560px" @close="closeCustomerEditor">
+      <div class="admin-entity-form">
+        <div class="form-group admin-entity-form__full">
+          <label for="customer-name">Nombre *</label>
+          <input id="customer-name" v-model="customerForm.name" class="form-control" :class="{ 'is-invalid': customerErrors.name }" @input="validateCustomerField('name')">
+          <p v-if="customerErrors.name" class="form-error">{{ customerErrors.name }}</p>
+        </div>
+        <div class="form-group admin-entity-form__full">
+          <label for="customer-email">Correo electrónico *</label>
+          <input id="customer-email" v-model="customerForm.email" type="email" class="form-control" :class="{ 'is-invalid': customerErrors.email }" @input="validateCustomerField('email')">
+          <p v-if="customerErrors.email" class="form-error">{{ customerErrors.email }}</p>
+        </div>
+        <div class="form-group">
+          <label for="customer-phone">Teléfono</label>
+          <input id="customer-phone" v-model="customerForm.phone" type="tel" class="form-control" autocomplete="tel">
+        </div>
+        <div class="form-group">
+          <label for="customer-role">Rol</label>
+          <select id="customer-role" v-model="customerForm.role" class="form-control">
+            <option value="customer">Cliente</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <AdminToggleSwitch
+          id="customer-active"
+          class="admin-entity-form__full"
+          v-model="customerForm.active"
+          title="Cuenta activa"
+          description="Permite que esta persona acceda con el rol seleccionado."
+        />
+      </div>
+      <template #footer>
+        <button class="btn btn-secondary" type="button" :disabled="savingCustomer" @click="closeCustomerEditor">Cancelar</button>
+        <button class="btn btn-primary" type="button" :disabled="savingCustomer" @click="saveCustomer">
+          <i :class="savingCustomer ? 'fas fa-circle-notch fa-spin' : 'fas fa-floppy-disk'"></i>
+          {{ savingCustomer ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
       </template>
     </AdminModal>
   </div>
@@ -263,12 +309,16 @@ import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminResultsBar from '../components/AdminResultsBar.vue'
 import AdminStatsGrid from '../components/AdminStatsGrid.vue'
 import AdminTableShimmer from '../components/AdminTableShimmer.vue'
+import AdminToggleSwitch from '../components/AdminToggleSwitch.vue'
 import '../views/AdminCustomersPage.css'
 
 const {
   activeFilterCount, // Número de filtros activos actualmente aplicados
   clearAllFilters, // Función para limpiar todos los filtros de búsqueda
+  closeCustomerEditor,
   closeCustomerModal, // Función para cerrar el modal de detalle del cliente
+  customerErrors,
+  customerForm,
   customerSegmentLabel, // Función para obtener la etiqueta del segmento del cliente
   customers, // Lista completa de clientes cargados desde el servidor
   debouncedLoadCustomers, // Función con debounce para cargar clientes sin saturar el servidor
@@ -281,15 +331,20 @@ const {
   hubStatsFormatted, // Estadísticas formateadas del hub para mostrar en el grid
   loadCustomers, // Función para cargar la lista de clientes desde la API
   loading, // Indicador de carga en curso (true/false)
+  openCustomerEditor,
   openCustomerModal, // Función para abrir el modal de detalle de un cliente específico
   pagination, // Objeto con propiedades de paginación (página actual, total, etc.)
   paymentBadgeClass, // Función para obtener la clase CSS del badge de estado de pago
   paymentLabel, // Función para obtener la etiqueta del estado de pago
   selectedCustomer, // Cliente seleccionado actualmente para ver en el modal de detalle
+  saveCustomer,
   showDetailModal, // Indicador de visibilidad del modal de detalle (true/false)
+  showEditorModal,
+  savingCustomer,
   statusBadgeClass, // Función para obtener la clase CSS del badge de estado del pedido
   statusLabel, // Función para obtener la etiqueta del estado del pedido
   toggleCustomerBlock, // Función para bloquear o desbloquear un cliente
+  validateCustomerField,
 } = useAdminCustomers()
 
 function avatarUrl(customer) {

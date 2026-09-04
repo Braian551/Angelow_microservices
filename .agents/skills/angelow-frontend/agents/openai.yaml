@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angelow Frontend"
+  short_description: "Vue, SPA, UI y responsive de Angelow"
+  default_prompt: "Usa $angelow-frontend para implementar esta tarea de interfaz Vue respetando la arquitectura de Angelow."

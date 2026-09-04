@@ -611,18 +611,20 @@ export function useAdminDashboard() {
       console.warn('Error cargando productos:', error)
     }
 
-    activities.value = buildActivities({
-      orders,
-      customers: customerRows,
-      inventoryAlerts: inventoryAlerts.value,
-    })
+    try {
+      activities.value = buildActivities({
+        orders,
+        customers: customerRows,
+        inventoryAlerts: inventoryAlerts.value,
+      })
 
-    await Promise.allSettled([
-      loadSalesStats().catch((error) => console.warn('Error cargando gráfico de ventas:', error)),
-      loadStatusChartStats().catch((error) => console.warn('Error cargando gráfico circular:', error)),
-    ])
-
-    loading.value = false
+      await Promise.allSettled([
+        loadSalesStats().catch((error) => console.warn('Error cargando gráfico de ventas:', error)),
+        loadStatusChartStats().catch((error) => console.warn('Error cargando gráfico circular:', error)),
+      ])
+    } finally {
+      loading.value = false
+    }
   }
 
   // =====================================================

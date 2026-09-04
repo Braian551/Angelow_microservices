@@ -50,6 +50,31 @@
     color: #0077b6; /* Azul vibrante que resalta el enlace al pasar el cursor, señal de interacción */
 }
 
+.main-footer .footer-help-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 3.6rem;
+    padding: 0.7rem 1.1rem;
+    border: 1px solid rgba(56, 189, 248, 0.65);
+    border-radius: 0.8rem;
+    color: #e0f2fe;
+    background: rgba(14, 165, 233, 0.16);
+    font: inherit;
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.main-footer .footer-help-button:hover,
+.main-footer .footer-help-button:focus-visible {
+    color: #ffffff;
+    background: #0077b6;
+    border-color: #38bdf8;
+    outline: none;
+}
+
 /* Enlace legal destacado: mantiene visible el acceso a términos en azul, incluso sin hover. */
 .footer-column ul li a.footer-legal-link {
     color: #38bdf8;

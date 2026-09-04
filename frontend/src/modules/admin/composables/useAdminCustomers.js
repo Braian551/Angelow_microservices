@@ -20,11 +20,22 @@ export function useAdminCustomers() {
 
   const loading = ref(true)
   const showDetailModal = ref(false)
+  const showEditorModal = ref(false)
+  const savingCustomer = ref(false)
   const orderRowsLoaded = ref(false)
   const rawCustomers = ref([])
   const rawOrders = ref([])
   const selectedCustomerId = ref(null)
   const customerProfiles = ref({})
+  const customerForm = reactive({
+    id: '',
+    name: '',
+    email: '',
+    phone: '',
+    role: 'customer',
+    active: true,
+  })
+  const customerErrors = reactive({})
 
   const filters = reactive({
     search: '',
@@ -163,6 +174,7 @@ export function useAdminCustomers() {
       email: customer.email || 'Sin email',
       phone: customer.phone || '',
       image: customer.image || '',
+      role: customer.role || 'customer',
       is_blocked: Boolean(customer.is_blocked),
       created_at: customer.created_at || null,
       last_access: customer.last_access || null,
@@ -392,6 +404,77 @@ export function useAdminCustomers() {
     showDetailModal.value = false
   }
 
+  /** Abre el formulario para editar los datos administrativos de un cliente. */
+  function openCustomerEditor(customer) {
+    Object.assign(customerForm, {
+      id: String(customer.id),
+      name: customer.name || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      role: customer.role || 'customer',
+      active: !customer.is_blocked,
+    })
+    clearCustomerErrors()
+    showEditorModal.value = true
+  }
+
+  function closeCustomerEditor() {
+    showEditorModal.value = false
+    clearCustomerErrors()
+  }
+
+  function clearCustomerErrors() {
+    Object.keys(customerErrors).forEach((key) => delete customerErrors[key])
+  }
+
+  function validateCustomerField(field) {
+    delete customerErrors[field]
+
+    if (field === 'name' && customerForm.name.trim().length < 2) {
+      customerErrors.name = 'Ingresa un nombre de al menos 2 caracteres.'
+    }
+    if (field === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerForm.email.trim())) {
+      customerErrors.email = 'Ingresa un correo electrónico válido.'
+    }
+  }
+
+  function validateCustomerForm() {
+    clearCustomerErrors()
+    validateCustomerField('name')
+    validateCustomerField('email')
+    return Object.keys(customerErrors).length === 0
+  }
+
+  async function saveCustomer() {
+    if (savingCustomer.value || !validateCustomerForm()) return
+
+    savingCustomer.value = true
+    try {
+      await authHttp.put(`/admin/users/${customerForm.id}`, {
+        name: customerForm.name.trim(),
+        email: customerForm.email.trim(),
+        phone: customerForm.phone.trim() || null,
+        role: customerForm.role,
+        active: customerForm.active,
+      })
+      showSnackbar({ type: 'success', message: 'Cliente actualizado correctamente.' })
+      closeCustomerEditor()
+      await loadCustomers()
+      syncSelectedCustomer()
+    } catch (error) {
+      const errors = error.response?.data?.errors
+      if (errors && typeof errors === 'object') {
+        Object.entries(errors).forEach(([field, messages]) => {
+          customerErrors[field] = Array.isArray(messages) ? messages[0] : String(messages)
+        })
+      } else {
+        showSnackbar({ type: 'error', message: error.response?.data?.message || 'No fue posible actualizar el cliente.' })
+      }
+    } finally {
+      savingCustomer.value = false
+    }
+  }
+
   /** Verifica que el cliente seleccionado siga en la lista filtrada; cierra el modal si ya no existe. */
   function syncSelectedCustomer() {
     if (!selectedCustomerId.value) {
@@ -518,7 +601,10 @@ export function useAdminCustomers() {
   return {
     activeFilterCount,
     clearAllFilters,
+    closeCustomerEditor,
     closeCustomerModal,
+    customerErrors,
+    customerForm,
     customerSegmentLabel,
     customers,
     debouncedLoadCustomers,
@@ -531,14 +617,19 @@ export function useAdminCustomers() {
     hubStatsFormatted,
     loadCustomers,
     loading,
+    openCustomerEditor,
     openCustomerModal,
     pagination,
     paymentBadgeClass,
     paymentLabel,
     selectedCustomer,
+    saveCustomer,
     showDetailModal,
+    showEditorModal,
+    savingCustomer,
     statusBadgeClass,
     statusLabel,
     toggleCustomerBlock,
+    validateCustomerField,
   }
 }

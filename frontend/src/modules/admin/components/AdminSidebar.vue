@@ -102,6 +102,29 @@
           </ul>
         </li>
 
+        <li class="nav-item with-submenu" :class="{ active: isSubmenuActive('repartidores') }">
+          <div class="menu-item" @click="toggleSubmenu('repartidores')">
+            <i class="fas fa-motorcycle"></i>
+            <span>Repartidores</span>
+            <span v-if="!openMenus.repartidores && courierNotificationsCount > 0" class="badge nav-notification-badge">{{ courierNotificationsCount }}</span>
+            <i class="fas fa-chevron-down submenu-toggle" :style="{ transform: openMenus.repartidores ? 'rotate(180deg)' : '' }"></i>
+          </div>
+          <ul class="submenu" v-show="openMenus.repartidores">
+            <li>
+              <RouterLink to="/admin/repartidores" @click="handleNavigate">
+                <span>Solicitudes y perfiles</span>
+                <span v-if="courierApplicationsCount > 0" class="badge nav-notification-badge">{{ courierApplicationsCount }}</span>
+              </RouterLink>
+            </li>
+            <li>
+              <RouterLink to="/admin/repartidores/envios" @click="handleNavigate">
+                <span>Envíos asignados</span>
+                <span v-if="courierDeliveriesCount > 0" class="badge nav-notification-badge">{{ courierDeliveriesCount }}</span>
+              </RouterLink>
+            </li>
+          </ul>
+        </li>
+
         <li class="nav-item with-submenu" :class="{ active: isSubmenuActive('descuentos') }">
           <div class="menu-item" @click="toggleSubmenu('descuentos')">
             <i class="fas fa-percentage"></i>
@@ -177,7 +200,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { catalogHttp } from '../../../services/http'
+import { catalogHttp, shippingHttp } from '../../../services/http'
 import { SITE_SETTINGS_UPDATED_EVENT } from '../../../constants/siteSettingsEvents'
 import { useSession } from '../../../composables/useSession'
 import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
@@ -223,6 +246,24 @@ const paymentNotificationsCount = computed(() => unreadByModule.value.payments |
 const refundNotificationsCount = computed(() => unreadByModule.value.refunds || 0)
 const invoiceNotificationsCount = computed(() => unreadByModule.value.invoices || 0)
 const inventoryNotificationsCount = computed(() => unreadByModule.value.inventory || 0)
+const courierSummary = ref({})
+const COURIER_SEEN_STORAGE_KEY = 'angelow_admin_courier_seen_items'
+const seenCourierItems = ref(loadSeenCourierItems())
+const pendingApplicationIds = computed(() => normalizeCourierSummaryIds(courierSummary.value.pending_application_ids))
+const pendingDeliveryIds = computed(() => normalizeCourierSummaryIds(courierSummary.value.pending_delivery_ids))
+const courierApplicationsCount = computed(() => Math.max(
+  Number(unreadByModule.value.couriers || 0),
+  Array.isArray(courierSummary.value.pending_application_ids)
+    ? pendingApplicationIds.value.filter((id) => !seenCourierItems.value.applications.includes(id)).length
+    : Number(courierSummary.value.pending_applications || 0),
+))
+const courierDeliveriesCount = computed(() => (
+  Array.isArray(courierSummary.value.pending_delivery_ids)
+    ? pendingDeliveryIds.value.filter((id) => !seenCourierItems.value.deliveries.includes(id)).length
+    : Number(courierSummary.value.pending_deliveries || 0)
+))
+const courierNotificationsCount = computed(() => courierApplicationsCount.value + courierDeliveriesCount.value)
+let courierSummaryTimer = null
 /** Color primario por defecto para el sidebar cuando no hay configuración cargada. */
 const DEFAULT_PRIMARY_COLOR = '#0077b6'
 /** Color secundario por defecto (fondo del sidebar). */
@@ -233,6 +274,7 @@ const openMenus = reactive({
   productos: false,
   resenas: false,
   envios: false,
+  repartidores: false,
   descuentos: false,
   informes: false,
   configuracion: false,
@@ -399,6 +441,7 @@ function isSubmenuActive(menu) {
     productos: ['/admin/productos', '/admin/categorias', '/admin/colecciones', '/admin/tallas', '/admin/inventario'],
     resenas: ['/admin/resenas', '/admin/preguntas'],
     envios: ['/admin/envios'],
+    repartidores: ['/admin/repartidores'],
     descuentos: ['/admin/descuentos'],
     informes: ['/admin/informes'],
     configuracion: ['/admin/sliders', '/admin/configuracion'],
@@ -465,6 +508,54 @@ async function loadSidebarSettings() {
   }
 }
 
+async function loadCourierSummary() {
+  try {
+    const response = await shippingHttp.get('/admin/couriers/summary')
+    courierSummary.value = response.data?.data || {}
+    markCurrentCourierSectionAsSeen(route.path)
+  } catch {
+    courierSummary.value = {}
+  }
+}
+
+function normalizeCourierSummaryIds(values) {
+  return Array.isArray(values)
+    ? [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
+    : []
+}
+
+function loadSeenCourierItems() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(COURIER_SEEN_STORAGE_KEY) || '{}')
+    return {
+      applications: normalizeCourierSummaryIds(stored.applications),
+      deliveries: normalizeCourierSummaryIds(stored.deliveries),
+    }
+  } catch {
+    return { applications: [], deliveries: [] }
+  }
+}
+
+function markCurrentCourierSectionAsSeen(path) {
+  const normalizedPath = String(path || '').replace(/\/+$/, '')
+  let section = ''
+  let currentIds = []
+
+  if (normalizedPath === '/admin/repartidores/envios') {
+    section = 'deliveries'
+    currentIds = pendingDeliveryIds.value
+  } else if (normalizedPath === '/admin/repartidores') {
+    section = 'applications'
+    currentIds = pendingApplicationIds.value
+  }
+
+  if (!section || currentIds.length === 0) return
+
+  const nextIds = [...new Set([...seenCourierItems.value[section], ...currentIds])].slice(-500)
+  seenCourierItems.value = { ...seenCourierItems.value, [section]: nextIds }
+  localStorage.setItem(COURIER_SEEN_STORAGE_KEY, JSON.stringify(seenCourierItems.value))
+}
+
 /**
  * Maneja el evento personalizado de actualización de configuración del sitio.
  * Actualiza los settings del sidebar sin necesidad de recargar la página,
@@ -492,6 +583,7 @@ watch(
   (nextPath) => {
     autoOpenSubmenu()
     markRouteNotificationsAsRead(nextPath)
+    markCurrentCourierSectionAsSeen(nextPath)
   },
   { immediate: true },
 )
@@ -530,6 +622,8 @@ watch(
 onMounted(() => {
   startAdminNotifications()
   loadSidebarSettings()
+  loadCourierSummary()
+  courierSummaryTimer = window.setInterval(loadCourierSummary, 30000)
   window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 
@@ -539,6 +633,7 @@ onMounted(() => {
  */
 onBeforeUnmount(() => {
   stopAdminNotifications()
+  if (courierSummaryTimer) window.clearInterval(courierSummaryTimer)
   window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, handleSiteSettingsUpdated)
 })
 </script>

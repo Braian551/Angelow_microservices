@@ -14,6 +14,7 @@ const lastMessageAt = ref(null)
 
 // Instancia global del WebSocket compartida entre todos los suscriptores
 let socket = null
+let reconnectUrlIndex = 0
 
 // ID del temporizador para reconexión automática, permite cancelar si es necesario
 let reconnectTimerId = null
@@ -24,23 +25,22 @@ let manualDisconnect = false
 // Tiempo de espera en milisegundos antes de intentar reconectar tras desconexión
 const RECONNECT_DELAY_MS = 2500
 
-// Resuelve la URL del servidor WebSocket para el canal de stock en tiempo real
-// Prioriza la variable de entorno, luego construye URL basada en el host actual
-function resolveStockRealtimeUrl() {
-  // Intenta obtener URL configurada en variables de entorno de Vite
+// Resuelve las URLs del servidor WebSocket para el canal de stock en tiempo real.
+function resolveStockRealtimeUrls() {
   const configuredUrl = String(import.meta.env.VITE_STOCK_WS_URL || '').trim()
-  if (configuredUrl) {
-    return configuredUrl
-  }
 
-  // Si estamos en servidor (SSR), usa localhost como fallback
   if (typeof window === 'undefined') {
-    return 'ws://localhost:8090'
+    return [configuredUrl, 'wss://angelow.online/ws/stock', 'ws://localhost:8090'].filter(Boolean)
   }
 
-  // En el navegador, usa el mismo protocolo (ws/wss) y hostname que la página
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.hostname}:8090`
+  const localUrl = `${protocol}//${window.location.hostname}:8090`
+
+  return [...new Set([
+    configuredUrl,
+    'wss://angelow.online/ws/stock',
+    localUrl,
+  ].filter(Boolean))]
 }
 
 // Normaliza un ítem de stock individual recibido del servidor
@@ -188,8 +188,9 @@ function connectSocket() {
   manualDisconnect = false
   connectionStatus.value = 'connecting'
 
-  // Crea una nueva conexión WebSocket con la URL resuelta
-  const nextSocket = new WebSocket(resolveStockRealtimeUrl())
+  const urls = resolveStockRealtimeUrls()
+  const urlIndex = Math.min(reconnectUrlIndex, urls.length - 1)
+  const nextSocket = new WebSocket(urls[urlIndex])
   socket = nextSocket
 
   // Evento: conexión establecida exitosamente
@@ -197,6 +198,7 @@ function connectSocket() {
     // Verifica que esta instancia sigue siendo la activa (evita race conditions)
     if (socket !== nextSocket) return
     connectionStatus.value = 'open'
+    reconnectUrlIndex = urlIndex
   })
 
   // Evento: mensaje recibido del servidor
@@ -229,6 +231,7 @@ function connectSocket() {
     socket = null
     // Si fue desconexión manual, mantiene 'idle'; si no, marca 'closed' e intenta reconectar
     connectionStatus.value = manualDisconnect ? 'idle' : 'closed'
+    reconnectUrlIndex = urlIndex < urls.length - 1 ? urlIndex + 1 : 0
     scheduleReconnect()
   })
 }

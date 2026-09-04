@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angelow Documentation"
+  short_description: "Docs, requisitos, patrones y dependencias"
+  default_prompt: "Usa $angelow-documentation para actualizar la documentación canónica de Angelow sin duplicarla."

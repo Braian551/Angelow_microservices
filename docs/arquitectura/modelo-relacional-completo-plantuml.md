@@ -13,7 +13,7 @@
 
 ## Alcance
 
-Este documento consolida en un solo UML las tablas de negocio de las bases de datos de Angelow por microservicio y sus relaciones internas o lógicas. Sirve como mapa maestro para revisar cómo se conectan usuarios, catálogo, carrito, pedidos, pagos, descuentos, envíos, notificaciones y auditoría.
+Este documento consolida en un solo UML las tablas de negocio de las bases de datos de Angelow por microservicio y sus relaciones internas o lógicas. Sirve como mapa maestro para revisar cómo se conectan usuarios, catálogo, carrito, pedidos, pagos, descuentos, envíos, repartidores, entregas, notificaciones y auditoría.
 
 Se omiten del diagrama principal las tablas técnicas repetidas de Laravel (`cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`) porque no representan entidades del modelo de negocio. También se omiten los campos `trial*` heredados para mantener el diagrama legible.
 
@@ -544,12 +544,16 @@ package "angelow_shipping (shipping-service)" {
     * id : int <<PK>>
     --
     name : varchar(100)
+    description : text
     base_cost : decimal(10,2)
     delivery_time : varchar(50)
     free_shipping_threshold : decimal(10,2)
+    available_cities : text
     estimated_days_min : int
     estimated_days_max : int
     city : varchar(100)
+    free_shipping_minimum : decimal(10,2)
+    icon : varchar(50)
     is_active : boolean
   }
 
@@ -571,12 +575,104 @@ package "angelow_shipping (shipping-service)" {
     recipient_name : varchar(100)
     recipient_phone : varchar(15)
     address : varchar(255)
+    complement : varchar(100)
     neighborhood : varchar(100)
     building_type : varchar(20)
+    building_name : varchar(100)
+    apartment_number : varchar(20)
+    delivery_instructions : text
     gps_latitude : decimal(10,8)
     gps_longitude : decimal(11,8)
+    gps_accuracy : decimal(10,2)
+    gps_timestamp : timestamp
+    gps_used : boolean
     is_default : boolean
     is_active : boolean
+  }
+
+  entity "courier_profiles" as shp_couriers {
+    * id : bigint <<PK>>
+    --
+    user_id : varchar(20) <<UQ, lógica>>
+    email : varchar(100)
+    document_type : varchar(20)
+    document_number : text <<cifrado>>
+    document_number_hash : char(64) <<UQ>>
+    birth_date : date
+    phone : varchar(15)
+    address : varchar(180)
+    status : varchar(20)
+    rejection_reason : text <<NULL>>
+    is_active : boolean
+    terms_version : varchar(30)
+    terms_accepted_at : timestamp
+    reviewed_at : timestamp <<NULL>>
+    reviewed_by : varchar(20) <<NULL, lógica>>
+  }
+
+  entity "courier_vehicles" as shp_vehicles {
+    * id : bigint <<PK>>
+    --
+    courier_profile_id : bigint <<FK>>
+    type : varchar(20)
+    make_id : varchar(40) <<NULL>>
+    make_name : varchar(100) <<NULL>>
+    model_id : varchar(40) <<NULL>>
+    model_name : varchar(100) <<NULL>>
+    color_name : varchar(60) <<NULL>>
+    color_hex : varchar(7) <<NULL>>
+    year : smallint unsigned <<NULL>>
+    plate : varchar(12) <<NULL>>
+    ownership_type : varchar(20) <<NULL>>
+  }
+
+  entity "courier_documents" as shp_documents {
+    * id : bigint <<PK>>
+    --
+    courier_profile_id : bigint <<FK>>
+    type : varchar(40)
+    path : varchar(255)
+    expires_at : date <<NULL>>
+    status : varchar(20)
+    review_note : text <<NULL>>
+  }
+
+  entity "delivery_assignments" as shp_deliveries {
+    * id : bigint <<PK>>
+    --
+    order_id : bigint <<UQ, lógica>>
+    order_number : varchar(30) <<NULL>>
+    order_source : varchar(20) <<NULL>>
+    courier_profile_id : bigint <<FK,NULL>>
+    customer_user_id : varchar(40) <<NULL, lógica>>
+    customer_email : varchar(100) <<NULL>>
+    shipping_method_id : bigint <<NULL, lógica>>
+    shipping_method_name : varchar(100) <<NULL>>
+    delivery_time : varchar(80) <<NULL>>
+    destination_address : text <<NULL>>
+    destination_city : varchar(100) <<NULL>>
+    destination_latitude : decimal(10,7) <<NULL>>
+    destination_longitude : decimal(10,7) <<NULL>>
+    status : varchar(20)
+    delivery_code_hash : varchar(255) <<NULL>>
+    delivery_code : text <<NULL, cifrado>>
+    sharing_location : boolean
+    accepted_at : timestamp <<NULL>>
+    route_started_at : timestamp <<NULL>>
+    arrived_at : timestamp <<NULL>>
+    delivered_at : timestamp <<NULL>>
+  }
+
+  entity "courier_locations" as shp_locations {
+    * id : bigint <<PK>>
+    --
+    delivery_assignment_id : bigint <<FK>>
+    latitude : decimal(10,7)
+    longitude : decimal(10,7)
+    heading : decimal(6,2) <<NULL>>
+    speed : decimal(8,2) <<NULL>>
+    accuracy : decimal(8,2) <<NULL>>
+    recorded_at : timestamp
   }
 }
 
@@ -728,7 +824,7 @@ cat_popular_searches ||..o{ cat_search_history : search_term
 cat_site_settings ||..o{ cat_sliders : configuración visual
 cat_site_settings ||..o{ cat_announcements : configuración visible
 
-' Relaciones internas de carrito, órdenes, pagos, descuentos, envíos y notificaciones
+' Relaciones internas de carrito, órdenes, pagos, descuentos, envíos, entregas y notificaciones
 cart_carts ||--o{ cart_items : cart_id
 ord_orders ||--o{ ord_items : order_id
 ord_orders ||--o{ ord_history : order_id
@@ -746,6 +842,10 @@ dis_codes ||--o{ dis_fixed : discount_code_id
 dis_codes ||--o{ dis_free_shipping : discount_code_id
 dis_codes ||--o{ dis_user_applied : discount_code_id
 shp_methods ||..o{ shp_rules : cálculo de costo
+shp_couriers ||--o{ shp_vehicles : courier_profile_id, sin UNIQUE física
+shp_couriers ||--o{ shp_documents : courier_profile_id
+shp_couriers |o--o{ shp_deliveries : courier_profile_id
+shp_deliveries ||--o{ shp_locations : delivery_assignment_id
 not_types ||--o{ not_notifications : type_id
 not_types ||--o{ not_preferences : type_id
 not_notifications ||--o{ not_queue : notification_id
@@ -771,6 +871,8 @@ auth_users ||..o{ dis_codes : created_by
 auth_users ||..o{ dis_code_usage : user_id
 auth_users ||..o{ dis_user_applied : user_id
 auth_users ||..o{ shp_addresses : user_id
+auth_users ||..o| shp_couriers : user_id
+auth_users ||..o{ shp_deliveries : customer_user_id
 auth_users ||..o{ not_notifications : user_id
 auth_users ||..o{ not_preferences : user_id
 auth_users ||..o{ not_dismissals : admin_id
@@ -800,6 +902,8 @@ ord_refunds ||..o{ not_notifications : related_entity_id
 shp_methods ||..o{ ord_orders : shipping_method_id
 shp_addresses ||..o{ ord_orders : shipping_address_id
 shp_methods ||..o{ dis_free_shipping : shipping_method_id
+ord_orders ||..o| shp_deliveries : order_id
+shp_methods ||..o{ shp_deliveries : shipping_method_id
 
 pay_transactions ||..o{ not_notifications : eventos de pago
 dis_codes ||..o{ not_notifications : campañas y descuentos

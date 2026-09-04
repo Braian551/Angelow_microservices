@@ -19,6 +19,11 @@ import ConfirmationPage from '../modules/checkout/pages/ConfirmationPage.vue'
 import CollectionsPage from '../modules/home/pages/CollectionsPage.vue'
 import HomePage from '../modules/home/pages/HomePage.vue'
 import TermsAndConditionsPage from '../modules/legal/pages/TermsAndConditionsPage.vue'
+import ErrorPage from '../modules/errors/pages/ErrorPage.vue'
+import { authHttp } from '../services/http'
+import { useSession } from '../composables/useSession'
+import { isAdminRole } from '../utils/authNavigation'
+import { navigateToErrorPage } from '../utils/errorPage'
 
 // Administración
 import AdminLayout from '../modules/admin/layouts/AdminLayout.vue'
@@ -47,6 +52,8 @@ import AdminReportsPage from '../modules/admin/pages/AdminReportsPage.vue'
 import AdminSlidersPage from '../modules/admin/pages/AdminSlidersPage.vue'
 import AdminSettingsPage from '../modules/admin/pages/AdminSettingsPage.vue'
 import AdminAdministratorsPage from '../modules/admin/pages/AdminAdministratorsPage.vue'
+import AdminCouriersPage from '../modules/admin/pages/AdminCouriersPage.vue'
+import AdminDeliveriesPage from '../modules/admin/pages/AdminDeliveriesPage.vue'
 import AdminForgotPasswordPage from '../modules/admin/pages/AdminForgotPasswordPage.vue'
 
 const router = createRouter({
@@ -60,6 +67,13 @@ const router = createRouter({
     { path: '/checkout/pago', name: 'payment', component: PaymentPage, meta: { requiresCheckoutAuth: true } },
     { path: '/checkout/confirmacion', name: 'confirmation', component: ConfirmationPage, meta: { requiresCheckoutAuth: true } },
     { path: '/terminos-y-condiciones', name: 'terms-and-conditions', component: TermsAndConditionsPage },
+    {
+      path: '/error/:status(400|401|403|408|429|500|502|503|504)',
+      name: 'error-status',
+      component: ErrorPage,
+      props: true,
+      meta: { layout: 'error' },
+    },
     { path: '/login', name: 'login', component: LoginPage, meta: { layout: 'auth' } },
     { path: '/recuperar', name: 'forgot-password', component: ForgotPasswordPage, meta: { layout: 'auth' } },
     { path: '/admin/recuperar', name: 'admin-forgot-password', component: AdminForgotPasswordPage, meta: { layout: 'auth' } },
@@ -144,6 +158,8 @@ const router = createRouter({
         // Envíos
         { path: 'envios/reglas', name: 'admin-shipping-rules', component: AdminShippingRulesPage },
         { path: 'envios/metodos', name: 'admin-shipping-methods', component: AdminShippingMethodsPage },
+        { path: 'repartidores', name: 'admin-couriers', component: AdminCouriersPage },
+        { path: 'repartidores/envios', name: 'admin-deliveries', component: AdminDeliveriesPage },
         // Descuentos
         { path: 'descuentos/cantidad', name: 'admin-bulk-discounts', component: AdminBulkDiscountsPage },
         { path: 'descuentos/codigos', name: 'admin-discount-codes', component: AdminDiscountCodesPage },
@@ -171,13 +187,17 @@ const router = createRouter({
     { path: '/configuracion-cuenta', redirect: { name: 'account-settings' } },
     { path: '/favoritos', redirect: { name: 'account-wishlist' } },
     { path: '/colecciones', name: 'collections', component: CollectionsPage },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: ErrorPage, meta: { layout: 'error' } },
   ],
   scrollBehavior() {
     return { top: 0 }
   },
 })
 
-const ADMIN_ROLES = new Set(['admin', 'super_admin', 'superadmin', 'administrator'])
+const { saveSession, clearSession } = useSession()
+let sessionSyncToken = ''
+let sessionSyncAt = 0
+let sessionSyncPromise = null
 
 function readSessionUser() {
   try {
@@ -187,25 +207,50 @@ function readSessionUser() {
   }
 }
 
-function normalizeRole(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_')
+function isAdminSession(userData) {
+  return isAdminRole(userData)
 }
 
-function resolveUserRole(userData) {
-  const directRole = normalizeRole(userData?.role || userData?.rol || userData?.user_role || userData?.tipo_usuario)
-  if (directRole) {
-    return directRole
+async function synchronizeSession(token) {
+  if (!token) {
+    return true
   }
 
-  const firstRole = Array.isArray(userData?.roles) ? normalizeRole(userData.roles[0]) : ''
-  return firstRole
-}
+  const isFresh = sessionSyncToken === token && Date.now() - sessionSyncAt < 60_000
+  if (isFresh) {
+    return true
+  }
 
-function isAdminSession(userData) {
-  return ADMIN_ROLES.has(resolveUserRole(userData))
+  if (sessionSyncPromise) {
+    return sessionSyncPromise
+  }
+
+  sessionSyncPromise = authHttp.get('/auth/me')
+    .then((response) => {
+      const authUser = response.data?.data
+      if (authUser && typeof authUser === 'object') {
+        saveSession(token, authUser)
+      }
+      sessionSyncToken = token
+      sessionSyncAt = Date.now()
+      return true
+    })
+    .catch((error) => {
+      if (error?.response?.status === 401) {
+        clearSession()
+        sessionSyncToken = ''
+        sessionSyncAt = 0
+        return false
+      }
+
+      // Una caída temporal no debe expulsar una sesión todavía válida.
+      return true
+    })
+    .finally(() => {
+      sessionSyncPromise = null
+    })
+
+  return sessionSyncPromise
 }
 
 function hasSessionUser(userData) {
@@ -213,8 +258,13 @@ function hasSessionUser(userData) {
   return Boolean(userData && typeof userData === 'object' && (userData.id || String(userData.email || '').trim()))
 }
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const token = localStorage.getItem('angelow_token')
+  const sessionIsValid = await synchronizeSession(token)
+  if (!sessionIsValid) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
   const userData = readSessionUser()
   const isAuthenticated = Boolean(token && hasSessionUser(userData))
   const sessionIsAdmin = isAdminSession(userData)
@@ -265,6 +315,12 @@ router.beforeEach((to) => {
   }
 
   return true
+})
+
+// Una excepción al resolver una ruta o un componente no debe dejar la aplicación en blanco.
+router.onError((error, to) => {
+  console.error('[Angelow] Error al resolver la navegación:', error)
+  void navigateToErrorPage(router, 500, { from: to?.fullPath }).catch(() => {})
 })
 
 export default router

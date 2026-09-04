@@ -17,3 +17,8 @@ Artisan::command('inspire', function () {
 Schedule::job(new ReconcileStockReservationsJob(), 'orders')
     ->everyFiveMinutes()
     ->name('order-stock-reservations-reconcile');
+
+Schedule::command('orders:complete-expired-refund-windows')
+    ->hourly()
+    ->withoutOverlapping()
+    ->name('order-refund-window-completion');
