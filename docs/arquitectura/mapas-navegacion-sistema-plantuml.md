@@ -9,17 +9,19 @@
 - [2) Mapa de navegación por dominios funcionales](#2-mapa-de-navegación-por-dominios-funcionales)
 - [3) Flujo de protección del router](#3-flujo-de-protección-del-router)
 - [4) Mapa administrativo por dominio](#4-mapa-administrativo-por-dominio)
+- [5) Navegación de la app móvil del repartidor](#5-navegación-de-la-app-móvil-del-repartidor)
+- [6) Proceso operativo de entrega y seguimiento](#6-proceso-operativo-de-entrega-y-seguimiento)
 - [Rutas cubiertas](#rutas-cubiertas)
 - [Documentos relacionados](#documentos-relacionados)
 <!-- indice:auto:end -->
 
 ## Objetivo
 
-Este documento describe la navegación SPA vigente de Angelow y su relación con los microservicios que atienden cada dominio funcional. El mapa está pensado como una guía de arquitectura para entender qué rutas existen, qué actor las usa y qué reglas de acceso aplica el router.
+Este documento describe la navegación SPA vigente de Angelow, la navegación de la app Flutter del repartidor y su relación con los microservicios que atienden cada dominio funcional. El mapa está pensado como una guía de arquitectura para entender qué rutas existen, qué actor las usa, qué estados intermedios aparecen y qué reglas de acceso aplica cada cliente.
 
 ## Fuente de verdad
 
-La fuente principal para este mapa es `frontend/src/router/index.js`. Las rutas públicas, rutas de cuenta, rutas administrativas, redirecciones y reglas de guard se derivan de ese archivo para evitar divergencias entre la documentación y la SPA.
+La fuente principal de las rutas web es `frontend/src/router/index.js`. Para la navegación móvil se revisan `mobile/repartidor/lib/app.dart`, `mobile/repartidor/lib/ui/features/auth/views/auth_flow_view.dart`, `mobile/repartidor/lib/ui/features/courier/views/courier_workspace.dart` y `mobile/repartidor/lib/ui/features/deliveries/views/deliveries_home_view.dart`. El proceso operativo se contrasta además con `services/order-service/app/Http/Controllers/OrderController.php`, `services/shipping-service/routes/api.php` y `frontend/src/modules/account/pages/OrderDetailPage.vue`.
 
 ## 1) Mapa principal de rutas SPA
 
@@ -92,9 +94,11 @@ package "Panel administrativo (/admin)" {
     [/admin/facturas] as admin_invoices
   }
 
-  package "Envíos, descuentos y contenido" {
+  package "Envíos, repartidores, descuentos y contenido" {
     [/admin/envios/reglas] as admin_shipping_rules
     [/admin/envios/metodos] as admin_shipping_methods
+    [/admin/repartidores] as admin_couriers
+    [/admin/repartidores/envios] as admin_deliveries
     [/admin/descuentos/cantidad] as admin_bulk_discounts
     [/admin/descuentos/codigos] as admin_discount_codes
     [/admin/descuentos/codigos/usuarios-especificos] as admin_discount_specific
@@ -184,6 +188,8 @@ admin_dashboard --> admin_invoices
 admin_invoices --> admin_order_detail
 admin_dashboard --> admin_shipping_rules
 admin_dashboard --> admin_shipping_methods
+admin_dashboard --> admin_couriers
+admin_couriers --> admin_deliveries : consulta operativa
 admin_dashboard --> admin_bulk_discounts
 admin_dashboard --> admin_discount_codes
 admin_discount_codes --> admin_discount_specific
@@ -212,6 +218,7 @@ Reglas principales del router:
 - /admin requiere sesión y rol administrativo.
 - Si una sesión administrativa entra a /, redirige a /admin.
 - Una sesión administrativa no puede avanzar por checkout ni cuenta cliente.
+- El seguimiento de entrega se muestra dentro de /mi-cuenta/pedidos/:id; no existe una ruta web independiente.
 end note
 @enduml
 ```
@@ -226,7 +233,7 @@ skinparam packageStyle rectangle
 skinparam componentStyle rectangle
 skinparam shadowing false
 
-package "Frontend (rutas)" {
+package "Clientes y navegación" {
   [Home, tienda, producto y colecciones] as nav_catalog
   [Carrito] as nav_cart
   [Checkout] as nav_checkout
@@ -234,6 +241,7 @@ package "Frontend (rutas)" {
   [Mi cuenta] as nav_account
   [Legal público] as nav_legal
   [Panel administrativo] as nav_admin
+  [App móvil del repartidor] as nav_courier
 }
 
 package "Servicios API" {
@@ -252,6 +260,10 @@ package "Servicios API" {
 database "PostgreSQL por dominio" as postgres
 queue "Redis" as redis
 
+cloud "Mapbox" as ext_mapbox
+cloud "Nominatim" as ext_nominatim
+cloud "Google Maps / Waze" as ext_navigation
+
 nav_catalog --> svc_catalog : catálogo, búsquedas, categorías, colecciones, favoritos
 nav_cart --> svc_cart : carrito, cantidades y selección de ítems
 nav_cart --> svc_catalog : producto, variante, imagen y disponibilidad
@@ -267,7 +279,7 @@ nav_legal --> nav_auth : enlace desde registro
 nav_legal --> nav_checkout : enlace desde pago
 
 nav_account --> svc_order : historial, detalle, factura y reembolso
-nav_account --> svc_shipping : direcciones del usuario
+nav_account --> svc_shipping : direcciones y seguimiento activo de entregas
 nav_account --> svc_notification : notificaciones y preferencias
 nav_account --> svc_catalog : favoritos y productos
 nav_account --> svc_auth : perfil, contraseña y sesión
@@ -277,10 +289,19 @@ nav_admin --> svc_catalog : productos, categorías, colecciones, tallas, inventa
 nav_admin --> svc_order : órdenes, facturas, reembolsos e informes
 nav_admin --> svc_payment : pagos y cuenta bancaria
 nav_admin --> svc_discount : códigos, campañas y reglas por cantidad
-nav_admin --> svc_shipping : métodos y reglas de envío
+nav_admin --> svc_shipping : métodos, reglas, repartidores y entregas
 nav_admin --> svc_notification : anuncios, avisos y preferencias
 nav_admin --> svc_audit : trazabilidad operativa
 nav_admin --> svc_realtime : eventos de stock y progreso
+
+nav_courier --> svc_auth : correo, Google, verificación, registro y sesión
+nav_courier --> svc_shipping : perfil, revisión, entregas, mapa, estados y ubicación
+nav_courier --> ext_mapbox : mapa y cálculo de rutas
+nav_courier --> ext_nominatim : resolver destino sin coordenadas
+nav_courier --> ext_navigation : abrir Google Maps o Waze
+
+svc_shipping --> svc_order : actualiza shipped y delivered
+svc_shipping --> svc_notification : revisión, asignación, código y cierre
 
 svc_auth --> postgres
 svc_catalog --> postgres
@@ -312,6 +333,14 @@ skinparam activity {
 
 start
 :Leer token local;
+if (¿Hay token?) then (sí)
+  :Sincronizar sesión con /auth/me;
+  if (¿Respuesta 401?) then (sí)
+    :Limpiar sesión;
+    :Redirigir a /login con redirect;
+    stop
+  endif
+endif
 :Leer angelow_user de localStorage;
 :Normalizar rol de usuario;
 
@@ -357,6 +386,8 @@ endif
 stop
 @enduml
 ```
+
+Nota de comportamiento actual: la sincronización ante un error temporal distinto de 401 conserva la sesión local. La ruta `/admin/recuperar` está declarada, pero también coincide con el prefijo `/admin`; con el guard actual exige sesión y rol administrativo antes de mostrar la pantalla.
 
 ## 4) Mapa administrativo por dominio
 
@@ -410,6 +441,11 @@ package "Panel /admin" {
     [Configuración general] as configuracion_general
   }
 
+  package "Repartidores y entregas" {
+    [Repartidores y revisión] as repartidores
+    [Envíos asignados] as envios_asignados
+  }
+
   package "Informes" {
     [Informes] as informes
     [Ventas] as informes_ventas
@@ -450,10 +486,129 @@ codigos_descuento --> campania_especifica
 dashboard --> configuracion
 configuracion --> configuracion_general
 
+dashboard --> repartidores
+repartidores --> envios_asignados : seguimiento operativo
+
 dashboard --> informes
 informes --> informes_ventas
 informes --> informes_productos
 informes --> informes_clientes
+@enduml
+```
+
+## 5) Navegación de la app móvil del repartidor
+
+La app Flutter no usa rutas URL. `AngelowCourierApp` decide entre `AuthFlowView` y `CourierWorkspace`; el workspace decide entre registro, revisión o `DeliveriesHomeView`, y el detalle abre `DeliveryRouteView` según la sesión y el estado del perfil.
+
+```plantuml
+@startuml
+title Angelow Repartidor - Navegación móvil vigente
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+
+start
+:Inicializar Firebase y restaurar sesión;
+
+if (¿Sesión persistida?) then (sí)
+  :Continuar con la sesión restaurada;
+else (no)
+  :Mostrar bienvenida;
+  if (¿Continuar con Google?) then (sí)
+    :Autenticar con Google;
+  else (correo)
+    :Solicitar correo;
+    :Enviar y verificar código de 6 dígitos;
+    if (¿Cuenta de repartidor existente?) then (sí)
+      :Solicitar contraseña;
+      :Iniciar sesión;
+    else (cuenta nueva)
+      :Registrar identidad, teléfono y contraseña;
+    endif
+  endif
+endif
+
+:Consultar perfil de repartidor;
+if (¿Perfil inexistente?) then (sí)
+  :Completar identidad, vehículo, documentos y términos;
+  :Enviar solicitud de vinculación;
+endif
+
+if (¿Perfil aprobado y activo?) then (no)
+  :Mostrar estado de revisión;
+  if (¿Solicitud rechazada?) then (sí)
+    :Corregir documentos y reenviar solicitud;
+  endif
+  :Actualizar estado manualmente o con gesto de recarga;
+  stop
+endif
+
+:Mostrar entregas disponibles y entregas propias;
+if (¿Toca una entrega disponible?) then (sí)
+  :Abrir detalle;
+  :Aceptar entrega;
+  :Recargar entregas propias;
+endif
+
+:Abrir detalle de la entrega asignada;
+:Obtener configuración de mapa;
+:Resolver destino y preparar ruta;
+:Solicitar permiso de ubicación;
+:Elegir si comparte ubicación;
+:Iniciar ruta;
+if (¿Comparte ubicación?) then (sí)
+  :Enviar posiciones mientras la ruta está activa;
+endif
+:Registrar llegada al destino;
+:Ingresar código de entrega del cliente;
+:Confirmar entrega y volver a la lista;
+stop
+@enduml
+```
+
+## 6) Proceso operativo de entrega y seguimiento
+
+```plantuml
+@startuml
+title Angelow - Proceso actual de reparto y seguimiento
+skinparam shadowing false
+skinparam activity {
+  BackgroundColor White
+  BorderColor Black
+}
+
+start
+:Pago aprobado;
+:order-service publica la elegibilidad en shipping-service;
+if (¿El método no requiere repartidor?) then (sí)
+  :No crear asignación de entrega;
+  stop
+endif
+
+:Crear o actualizar delivery_assignment en estado pendiente;
+:Repartidor aprobado consulta entregas disponibles;
+:Administrador monitorea solicitudes y envíos desde /admin;
+:Repartidor abre el detalle y acepta la entrega;
+:shipping-service cambia la orden a shipped;
+:Enviar notificación y código al cliente;
+
+:Cliente abre /mi-cuenta/pedidos/:id;
+:El detalle consulta el seguimiento de entrega;
+if (¿Repartidor comparte ubicación?) then (sí)
+  :Mostrar última ubicación compartida;
+else (no)
+  :Mostrar estado y código sin ubicación en vivo;
+endif
+
+:Repartidor inicia la ruta;
+:Repartidor registra llegada;
+:Cliente entrega el código de seis dígitos;
+:Repartidor confirma el código;
+:shipping-service cambia la orden a delivered;
+:Eliminar código operativo y detener el uso de ubicación;
+stop
 @enduml
 ```
 
@@ -467,9 +622,11 @@ informes --> informes_clientes
 | Mi cuenta | `/mi-cuenta`, `/mi-cuenta/resumen`, `/mi-cuenta/pedidos`, `/mi-cuenta/pedidos/:id`, `/mi-cuenta/notificaciones`, `/mi-cuenta/direcciones`, `/mi-cuenta/favoritos`, `/mi-cuenta/configuracion` |
 | Admin catálogo | `/admin`, `/admin/productos`, `/admin/productos/nuevo`, `/admin/productos/:id/editar`, `/admin/categorias`, `/admin/colecciones`, `/admin/tallas`, `/admin/inventario` |
 | Admin operación | `/admin/ordenes`, `/admin/ordenes/:id`, `/admin/clientes`, `/admin/resenas`, `/admin/preguntas`, `/admin/pagos`, `/admin/reembolsos`, `/admin/facturas` |
+| Admin repartidores y entregas | `/admin/repartidores`, `/admin/repartidores/envios` |
 | Admin configuración | `/admin/envios/reglas`, `/admin/envios/metodos`, `/admin/descuentos/cantidad`, `/admin/descuentos/codigos`, `/admin/descuentos/codigos/usuarios-especificos`, `/admin/anuncios`, `/admin/sliders`, `/admin/configuracion`, `/admin/configuracion/general`, `/admin/administradores` |
 | Admin informes | `/admin/informes`, `/admin/informes/ventas`, `/admin/informes/productos`, `/admin/informes/clientes` |
 | Redirecciones | `/dashboard`, `/mis-pedidos`, `/notificaciones`, `/mis-direcciones`, `/mis-favoritos`, `/configuracion-cuenta`, `/favoritos` |
+| App móvil de repartidor | Sin URL: bienvenida, autenticación, registro, revisión, entregas, detalle de ruta y cierre con código |
 
 ## Documentos relacionados
 
@@ -480,3 +637,5 @@ informes --> informes_clientes
 - [Casos de uso](../referencias/casos-uso-angelow.md)
 - [Historias de usuario](../referencias/historias-usuario-angelow.md)
 - [Patrones de diseño aplicados](../patrones/README.md)
+- [README de la app de repartidores](../../mobile/repartidor/README.md)
+- [Casos de prueba de repartidores y entregas](../testing/casos-de-prueba/repartidores-entregas.md)

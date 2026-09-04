@@ -49,6 +49,11 @@ return [
         'internal_token' => env('AUTH_INTERNAL_TOKEN', ''),
     ],
 
+    'shipping' => [
+        'base_url' => env('SHIPPING_SERVICE_URL', 'http://shipping-service:8000/api'),
+        'internal_token' => env('AUTH_INTERNAL_TOKEN', ''),
+    ],
+
     'catalog' => [
         'base_url' => env('CATALOG_SERVICE_URL', 'http://catalog-service:8000/api'),
         'variant_path' => env('CATALOG_VARIANT_PATH', '/internal/variants'),

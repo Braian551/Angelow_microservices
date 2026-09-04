@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Skill Maintainer"
+  short_description: "Crea y actualiza skills sin duplicarlas"
+  default_prompt: "Usa $agent-skill-maintainer para actualizar este sistema de agentes sin duplicar reglas ni skills."

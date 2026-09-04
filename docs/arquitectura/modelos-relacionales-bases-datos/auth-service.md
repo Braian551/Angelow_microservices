@@ -30,7 +30,7 @@ entity "users" as auth_users {
   phone : varchar(15)
   password : varchar(255)
   image : varchar(255)
-  role : enum(customer, admin)
+  role : enum(customer, admin, courier, repartidor)
   is_blocked : boolean
   last_access : datetime
   remember_token : varchar(255)
@@ -129,6 +129,7 @@ end note
 ## Fuentes revisadas
 
 - `services/auth-service/database/migrations/2026_02_16_000001_create_users_table.php`
+- `services/auth-service/database/migrations/2026_07_22_000001_expand_user_roles_for_couriers.php`
 - `services/auth-service/database/migrations/2026_02_16_000002_create_login_attempts_table.php`
 - `services/auth-service/database/migrations/2026_02_16_185802_create_personal_access_tokens_table.php`
 - `services/auth-service/database/migrations/2026_03_24_010000_create_auth_domain_tables.php`

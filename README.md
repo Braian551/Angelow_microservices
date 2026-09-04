@@ -470,7 +470,7 @@ Para el modelo relacional completo y los diagramas por microservicio, consulta:
 | `order-service` | 8004 | `angelow_orders` | 5436 | Pedidos, reservas, estados, facturas, reembolsos y reportes |
 | `payment-service` | 8005 | `angelow_payments` | 5437 | Bancos, cuenta de pago, comprobantes y validación |
 | `discount-service` | 8006 | `angelow_discounts` | 5438 | Cupones, descuentos por cantidad y campañas |
-| `shipping-service` | 8007 | `angelow_shipping` | 5439 | Direcciones, métodos y reglas de envío |
+| `shipping-service` | 8007 | `angelow_shipping` | 5439 | Direcciones, métodos, repartidores y asignaciones de entrega |
 | `notification-service` | 8008 | `angelow_notifications` | 5440 | Notificaciones, preferencias y anuncios |
 | `audit-service` | 8009 | `angelow_audit` | 5441 | Auditoría de pedidos, usuarios y productos |
 | `realtime-gateway` | 8090 | n/a | n/a | Eventos WebSocket de inventario |

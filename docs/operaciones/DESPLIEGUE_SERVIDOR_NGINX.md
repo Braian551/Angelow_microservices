@@ -30,6 +30,8 @@
 
 Guía para preparar un servidor Ubuntu limpio y desplegar ANGELOW con Docker Compose, PostgreSQL, Redis, microservicios Laravel, frontend Vue compilado y Nginx como proxy público.
 
+> **Vigencia de la arquitectura actual:** el Compose vigente ejecuta Nginx dentro del contenedor `frontend`, que sirve la SPA y enruta `/api/{servicio}-service/`, `/ws/stock` y `/uploads/`. El flujo canónico y validado está en [Diagrama simple de despliegue e instalación](../arquitectura/diagrama-despliegue-instalacion.md) y [manual de instalación](manual-instalacion.md). Las secciones de este documento que crean un Nginx adicional en el host o un servicio `nginx` separado describen una variante alternativa; no deben mezclarse con `docker-compose.production.yml` sin revisar rutas, puertos, certificados y volúmenes.
+
 > Esta guía es para el servidor definitivo. No usa Apache2 ni depende del servidor temporal.
 
 ## 1. Requisitos

@@ -14,7 +14,7 @@
 
 Este índice organiza los modelos relacionales de Angelow por microservicio. El documento monolítico anterior fue separado para que cada base de datos pueda renderizarse, revisarse y mantenerse de forma independiente.
 
-La revisión se hizo el 2026-06-28 contra migraciones, modelos, rutas y controladores de `services/*`, incluyendo cambios recientes de autenticación, inventario, políticas de reembolso, solicitudes de reembolso, comprobantes de pago y eventos en tiempo real.
+La revisión se hizo el 2026-08-17 contra migraciones, modelos, rutas y controladores de `services/*`, incluyendo el flujo de vinculación de repartidores, asignación y seguimiento de entregas.
 
 ## Diagramas separados
 
@@ -39,7 +39,8 @@ La revisión se hizo el 2026-06-28 contra migraciones, modelos, rutas y controla
 - Se omiten tablas técnicas de Laravel como `cache`, `cache_locks`, `jobs`, `job_batches` y `failed_jobs` porque no representan entidades de negocio.
 - Las referencias entre bases distintas se documentan como relaciones lógicas, no como llaves foráneas físicas.
 - Los campos remanentes de migración `trial*` se omiten en los diagramas para mantener el foco en el modelo funcional.
-- Los diagramas incluyen tablas nuevas o ajustadas por cambios recientes: `auth_login_attempts`, `inventory_alerts`, `products.is_refundable`, `products.refund_days`, `stock_reservations` y `order_refund_requests`.
+- Los diagramas incluyen tablas nuevas o ajustadas por cambios recientes: `auth_login_attempts`, `inventory_alerts`, `products.is_refundable`, `products.refund_days`, `stock_reservations`, `order_refund_requests`, `courier_profiles`, `courier_vehicles`, `courier_documents`, `delivery_assignments` y `courier_locations`.
+- En `shipping-service`, la migración de depuración elimina de `courier_profiles` los campos laborales y de ciudad que ya no son parte del registro; el modelo documentado representa el esquema posterior a esa migración.
 - `realtime-gateway` queda documentado como servicio sin base relacional propia.
 
 ## Documentos relacionados

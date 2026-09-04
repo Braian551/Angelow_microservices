@@ -28,7 +28,7 @@ database "angelow_cart\ncarts, cart_items" as db_cart
 database "angelow_orders\norders, items, reservas,\nreembolsos, facturas" as db_orders
 database "angelow_payments\nbancos, cuenta,\ntransacciones" as db_payments
 database "angelow_discounts\ncódigos, reglas,\nusos" as db_discounts
-database "angelow_shipping\nmétodos, reglas,\ndirecciones" as db_shipping
+database "angelow_shipping\nmétodos, reglas, direcciones,\nrepartidores y entregas" as db_shipping
 database "angelow_notifications\ntipos, bandeja,\npreferencias, cola" as db_notifications
 database "angelow_audit\naudit_*" as db_audit
 cloud "Redis / WebSocket\nrealtime-gateway" as realtime
@@ -37,7 +37,7 @@ db_auth --> db_cart : user_id
 db_auth --> db_orders : user_id / changed_by
 db_auth --> db_payments : user_id / verified_by
 db_auth --> db_discounts : user_id / created_by
-db_auth --> db_shipping : user_id
+db_auth --> db_shipping : user_id / courier user_id / reviewed_by
 db_auth --> db_notifications : user_id / admin_id
 db_auth --> db_catalog : user_id en favoritos, reseñas y preguntas
 
@@ -48,6 +48,8 @@ db_catalog --> db_notifications : alertas de inventario
 
 db_cart --> db_orders : productos seleccionados
 db_shipping --> db_orders : shipping_method_id / shipping_address_id
+db_orders --> db_shipping : elegibilidad y order_id
+db_shipping --> db_notifications : solicitudes, asignaciones y estados de entrega
 db_orders --> db_catalog : confirmación y liberación de inventario
 db_orders --> db_payments : order_id / estado de pago
 db_orders --> db_discounts : order_id / uso de descuento
@@ -72,6 +74,7 @@ end note
 
 - Cada base mantiene sus tablas propias y consulta otros dominios por API, eventos o identificadores compartidos.
 - Los campos `user_id`, `product_id`, `order_id`, `shipping_method_id` y similares representan contratos entre servicios, no integridad referencial física entre bases.
+- `shipping-service` conserva la asignación, el destino y la trazabilidad de la entrega; `order-service` mantiene la propiedad del pedido y publica la elegibilidad mediante contrato interno.
 - `realtime-gateway` no guarda tablas; solo reenvía eventos publicados por los servicios.
 
 ## Documentos relacionados

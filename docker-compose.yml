@@ -348,6 +348,7 @@ services:
       CATALOG_INVENTORY_COMMIT_PATH: /internal/inventory/commit
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
+      SHIPPING_SERVICE_URL: http://shipping-service:8000/api
       ORDER_STOCK_RESERVATION_TTL: 7200
       ORDER_STOCK_LOCK_SECONDS: 10
       ORDER_STOCK_RECONCILIATION_BATCH_SIZE: 200
@@ -478,6 +479,9 @@ services:
       SESSION_DRIVER: file
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
+      ORDER_SERVICE_URL: http://order-service:8000/api
+      NOTIFICATION_SERVICE_URL: http://notification-service:8000/api
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
     depends_on:
       - shipping-db
       - redis
@@ -514,6 +518,15 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8000/api
       AUTH_INTERNAL_TOKEN: angelow-internal-token
       BROADCAST_CONNECTION: log
+      FRONTEND_URL: http://localhost:5173
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: smtp
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USERNAME: angelow2025sen@gmail.com
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM_ADDRESS: angelow2025sen@gmail.com
+      MAIL_FROM_NAME: Angelow
     depends_on:
       - notification-db
       - redis

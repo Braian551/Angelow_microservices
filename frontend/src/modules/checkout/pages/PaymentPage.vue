@@ -30,6 +30,7 @@
           :visible="formValidationError"
           :errors="paymentValidationErrors"
         />
+        <p v-if="errorMessage" class="error-box payment-page-status">{{ errorMessage }}</p>
         <p v-if="infoMessage" class="loading-box payment-page-status">{{ infoMessage }}</p>
 
         <div class="payment-page-layout">
@@ -394,6 +395,7 @@ const paymentAccount = ref(null)
 const paymentProofFile = ref(null)
 const proofPreview = ref('')
 const proofInput = ref(null)
+const pendingPaymentOrder = ref(null)
 
 const form = ref({
   bank_code: '',
@@ -430,6 +432,9 @@ const orderItems = computed(() => {
 })
 
 const itemCount = computed(() => orderItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0))
+const calculatedItemsSubtotal = computed(() => orderItems.value.reduce((sum, item) => {
+  return sum + (Number(item.price || 0) * Number(item.quantity || 0))
+}, 0))
 
 const storedSummary = computed(() => ({
   subtotal: Number(shippingData.value?.subtotal || 0),
@@ -474,8 +479,15 @@ const resolvedShippingCost = computed(() => {
   return Math.max(0, shippingBreakdown.value.method_cost + shippingBreakdown.value.range_rule_additional_cost)
 })
 
+const hasInvalidStoredDiscount = computed(() => {
+  const subtotalAmount = Math.max(0, Number(calculatedItemsSubtotal.value || storedSummary.value.subtotal || 0))
+  const grossAmount = subtotalAmount + resolvedShippingCost.value
+  const discountAmount = Math.max(0, Number(storedSummary.value.discount_amount || 0))
+  return discountAmount > 0 && discountAmount >= grossAmount
+})
+
 const summary = computed(() => {
-  const subtotalAmount = Math.max(0, Number(storedSummary.value.subtotal || 0))
+  const subtotalAmount = Math.max(0, Number(calculatedItemsSubtotal.value || storedSummary.value.subtotal || 0))
   const discountAmount = Math.max(0, Number(storedSummary.value.discount_amount || 0))
 
   return {
@@ -840,6 +852,11 @@ async function confirmOrder() {
     return
   }
 
+  if (hasInvalidStoredDiscount.value || summary.value.total <= 0) {
+    errorMessage.value = 'El descuento dejó un total inválido. Regresa al paso de envío para recalcularlo antes de pagar.'
+    return
+  }
+
   submitting.value = true
   infoMessage.value = 'Registrando tu pedido...'
 
@@ -848,7 +865,8 @@ async function confirmOrder() {
   let createdOrderId = null
 
   try {
-    const orderNumber = createOrderNumber()
+    const pendingOrder = pendingPaymentOrder.value
+    const orderNumber = String(pendingOrder?.number || createOrderNumber())
     const orderItemsPayload = orderItems.value.map((item) => ({
       product_id: Number(item.product_id || 0),
       color_variant_id: resolveCheckoutColorVariantId(item),
@@ -880,7 +898,10 @@ async function confirmOrder() {
       payment_status: 'pending',
       shipping_address: buildCheckoutAddressLine(selectedAddress.value),
       shipping_city: selectedAddress.value.city || selectedAddress.value.neighborhood || 'Medellín',
-      shipping_method_id: selectedShippingMethod.value.id || null,
+      shipping_address_id: selectedAddress.value.id || null,
+      shipping_method_id: selectedShippingMethod.value.id > 0 ? selectedShippingMethod.value.id : null,
+      shipping_method_name: selectedShippingMethod.value.name || null,
+      shipping_delivery_time: selectedShippingMethod.value.delivery_time || null,
       billing_name: selectedAddress.value.recipient_name || user.value?.name || '',
       billing_document: '',
       billing_email: normalizedCustomerEmail,
@@ -891,12 +912,15 @@ async function confirmOrder() {
       items: orderItemsPayload,
     }
 
-    const orderRes = await createOrder(orderPayload)
+    const orderRes = pendingOrder
+      ? { id: pendingOrder.id }
+      : await createOrder(orderPayload)
     const orderId = Number(orderRes?.id || 0)
     if (!orderId) {
       throw new Error('No se pudo crear la orden')
     }
     createdOrderId = orderId
+    pendingPaymentOrder.value = { id: orderId, number: orderNumber }
 
     const paymentPayload = new FormData()
     paymentPayload.append('order_id', String(orderId))
@@ -916,6 +940,7 @@ async function confirmOrder() {
     }
 
     const paymentRes = await createPayment(paymentPayload)
+    pendingPaymentOrder.value = null
 
     let confirmationEmailWarning = ''
     try {

@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\PasswordRecoveryController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\Auth\RegistrationVerificationController;
+use App\Http\Controllers\Api\Auth\CourierAuthController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Internal\UserProfileController;
 use App\Http\Controllers\HealthController;
@@ -48,16 +49,13 @@ Route::prefix('auth')->group(function () {
         Route::post('/verify-code', [RegistrationVerificationController::class, 'verifyCode']);
     });
 
-    Route::prefix('registration-verification')->group(function () {
-        Route::post('/request-code', [RegistrationVerificationController::class, 'requestCode']);
-        Route::post('/resend-code', [RegistrationVerificationController::class, 'resendCode']);
-        Route::post('/verify-code', [RegistrationVerificationController::class, 'verifyCode']);
-    });
-
-    Route::prefix('registration-verification')->group(function () {
-        Route::post('/request-code', [RegistrationVerificationController::class, 'requestCode']);
-        Route::post('/resend-code', [RegistrationVerificationController::class, 'resendCode']);
-        Route::post('/verify-code', [RegistrationVerificationController::class, 'verifyCode']);
+    Route::prefix('courier')->group(function () {
+        Route::post('/request-code', [CourierAuthController::class, 'requestCode']);
+        Route::post('/resend-code', [CourierAuthController::class, 'resendCode']);
+        Route::post('/verify-code', [CourierAuthController::class, 'verifyCode']);
+        Route::post('/login', [CourierAuthController::class, 'login']);
+        Route::post('/register', [CourierAuthController::class, 'register']);
+        Route::post('/google', [CourierAuthController::class, 'google']);
     });
 
     // Rutas protegidas (requieren token Sanctum)
@@ -73,6 +71,8 @@ Route::prefix('auth')->group(function () {
 Route::prefix('admin')->middleware(['auth:sanctum', EnsureAdmin::class])->group(function () {
     Route::get('/customers', [AdminUserController::class, 'customers']);
     Route::patch('/customers/{id}/block', [AdminUserController::class, 'toggleBlock']);
+    Route::get('/users/{id}', [AdminUserController::class, 'showUser']);
+    Route::put('/users/{id}', [AdminUserController::class, 'updateUser']);
     Route::get('/administrators', [AdminUserController::class, 'administrators']);
     Route::post('/administrators', [AdminUserController::class, 'storeAdmin']);
     Route::put('/administrators/{id}', [AdminUserController::class, 'updateAdmin']);

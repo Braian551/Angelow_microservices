@@ -98,6 +98,21 @@
           </div>
         </section>
 
+        <section v-if="tracking?.delivery_code || tracking?.sharing_location" class="account-card delivery-tracking-card">
+          <header class="section-header">
+            <h2>Seguimiento de la entrega</h2>
+          </header>
+          <div v-if="tracking.delivery_code" class="delivery-code-box">
+            <span>Código para recibir el pedido</span>
+            <strong>{{ tracking.delivery_code }}</strong>
+            <small>Entrégalo al repartidor únicamente cuando tengas el pedido.</small>
+          </div>
+          <div v-if="tracking.sharing_location && tracking.location" class="delivery-live-map">
+            <iframe :src="openStreetMapUrl" title="Ubicación actual del repartidor" loading="lazy" referrerpolicy="no-referrer" />
+            <p><i class="fas fa-location-dot" /> Ubicación compartida por el repartidor · {{ formatDate(tracking.location.recorded_at) }}</p>
+          </div>
+        </section>
+
         <!-- Sección de historial de cambios del pedido, solo visible si hay registros -->
         <section v-if="orderHistory.length > 0" class="account-card">
           <header class="section-header">
@@ -137,6 +152,7 @@ import { useSnackbarSystem } from '../../../composables/useSnackbarSystem'
 import { handleMediaError, resolveMediaUrl } from '../../../utils/media'
 // Funciones de la API para cancelar pedidos, descargar facturas y obtener detalles
 import { cancelOrder, downloadOrderInvoice, getOrderById } from '../../../services/orderApi'
+import { shippingHttp } from '../../../services/http'
 // Función para suscribirse a actualizaciones en tiempo real vía WebSocket
 import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 // Utilidades para formatear y normalizar estados de pedidos y pagos
@@ -171,6 +187,8 @@ const orderHistory = ref([])
 const cancellingOrder = ref(false)
 // Bandera para evitar múltiples clics durante la descarga de la factura
 const downloadingInvoice = ref(false)
+const tracking = ref(null)
+let trackingTimer = null
 // Referencia a la función de desuscripción del WebSocket para limpiar al desmontar
 let unsubscribeOrderRealtime = null
 
@@ -205,19 +223,45 @@ const hasInvoiceAvailable = computed(() => {
   return invoiceNumber !== '' || invoiceDate !== ''
 })
 
+const openStreetMapUrl = computed(() => {
+  const latitude = Number(tracking.value?.location?.latitude)
+  const longitude = Number(tracking.value?.location?.longitude)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return ''
+  const delta = 0.006
+  const bbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta].join('%2C')
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${latitude}%2C${longitude}`
+})
+
 // ============================================================
 // CICLO DE VIDA
 // ============================================================
 // Al montar el componente: carga los datos del pedido y se suscribe a actualizaciones en tiempo real
 onMounted(async () => {
   await loadOrderDetail()
+  await loadDeliveryTracking()
+  trackingTimer = window.setInterval(loadDeliveryTracking, 8000)
   unsubscribeOrderRealtime = subscribeToOrderRealtime(handleRealtimeOrderUpdate)
 })
 
 // Al desmontar el componente: se desuscribe del WebSocket para evitar fugas de memoria
 onUnmounted(() => {
   unsubscribeOrderRealtime?.()
+  if (trackingTimer) window.clearInterval(trackingTimer)
 })
+
+async function loadDeliveryTracking() {
+  const orderId = Number(route.params.id)
+  const sessionUser = user.value || {}
+  if (!Number.isFinite(orderId) || (!sessionUser.id && !sessionUser.email)) return
+  try {
+    const response = await shippingHttp.get(`/shipping/deliveries/orders/${orderId}/tracking`, {
+      params: { user_id: sessionUser.id || undefined, user_email: sessionUser.email || undefined },
+    })
+    tracking.value = response.data?.data || null
+  } catch {
+    tracking.value = null
+  }
+}
 
 // ============================================================
 // FUNCIONES PRINCIPALES
@@ -672,6 +716,15 @@ function normalizeStatus(value) {
   display: flex;
   gap: 0.7rem;
 }
+
+.delivery-tracking-card { display: grid; gap: 1rem; }
+.delivery-code-box { display: grid; justify-items: center; gap: .45rem; padding: 1.2rem; border: 1px solid #90c6e8; border-radius: 14px; background: #f0f9ff; text-align: center; }
+.delivery-code-box span { color: #475569; font-weight: 600; }
+.delivery-code-box strong { color: #075985; font-size: 3rem; letter-spacing: .45rem; }
+.delivery-code-box small { color: #64748b; }
+.delivery-live-map { overflow: hidden; border: 1px solid #dbe3ed; border-radius: 14px; }
+.delivery-live-map iframe { display: block; width: 100%; height: 360px; border: 0; }
+.delivery-live-map p { margin: 0; padding: .9rem 1rem; color: #475569; background: #fff; }
 
 /* Contenedor de botones de acción (factura y cancelar) */
 .order-hero-actions {

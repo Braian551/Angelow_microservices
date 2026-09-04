@@ -72,6 +72,27 @@ class AuthService
         ];
     }
 
+    /** Registra una identidad exclusiva para operar la aplicación de repartidores. */
+    public function registerCourier(RegisterUserDTO $dto): array
+    {
+        if ($this->userRepository->emailExists($dto->email)) {
+            throw new AuthException('Este correo ya está registrado.', 409);
+        }
+
+        $user = $this->userRepository->create([
+            'id' => uniqid(),
+            'name' => $dto->name,
+            'email' => mb_strtolower(trim($dto->email)),
+            'phone' => $dto->phone,
+            'password' => $dto->password,
+            'role' => 'courier',
+        ]);
+        $token = $user->createToken('courier-mobile')->plainTextToken;
+        $this->welcomeEmailService->send((string) $user->email, (string) $user->name);
+
+        return ['user' => $user, 'token' => $token, 'requires_profile' => true];
+    }
+
     /**
      * Autentica un usuario por correo/teléfono y contraseña.
      *
@@ -116,6 +137,28 @@ class AuthService
         return [
             'user'  => $user,
             'token' => $token,
+        ];
+    }
+
+    /** Autentica únicamente identidades habilitadas para la app de reparto. */
+    public function loginCourier(LoginUserDTO $dto): array
+    {
+        $user = $this->userRepository->findByCredential($dto->credential);
+        if (!$user || !Hash::check($dto->password, $user->password)) {
+            throw new AuthException('Credenciales incorrectas.', 401);
+        }
+        if (!in_array($user->role, ['courier', 'repartidor'], true)) {
+            throw new AuthException('Esta cuenta debe ingresar desde angelow.online.', 403);
+        }
+        if ($user->isBlocked()) {
+            throw new AuthException('Tu cuenta de repartidor está desactivada.', 403);
+        }
+
+        $this->userRepository->updateLastAccess($user);
+
+        return [
+            'user' => $user,
+            'token' => $user->createToken('courier-mobile')->plainTextToken,
         ];
     }
 
@@ -221,6 +264,71 @@ class AuthService
         ];
     }
 
+    /** Inicia o crea una identidad de repartidor a partir de un correo verificado por Google. */
+    public function loginCourierWithGoogleToken(string $idToken): array
+    {
+        $firebaseUser = $this->verifyGoogleIdentity($idToken);
+        $email = mb_strtolower(trim((string) $firebaseUser['email']));
+        $user = $this->userRepository->findByEmail($email);
+        $created = false;
+
+        if ($user && !in_array($user->role, ['courier', 'repartidor'], true)) {
+            throw new AuthException('Esta cuenta debe ingresar desde angelow.online.', 403);
+        }
+
+        if (!$user) {
+            $displayName = trim((string) ($firebaseUser['displayName'] ?? ''));
+            $user = $this->userRepository->create([
+                'id' => uniqid(),
+                'name' => $displayName !== '' ? $displayName : explode('@', $email)[0],
+                'email' => $email,
+                'phone' => null,
+                'password' => Str::random(40),
+                'role' => 'courier',
+            ]);
+            $created = true;
+        }
+
+        if ($user->isBlocked()) {
+            throw new AuthException('Tu cuenta de repartidor está desactivada.', 403);
+        }
+
+        if (!$created) {
+            $this->userRepository->updateLastAccess($user);
+        }
+
+        return [
+            'user' => $user,
+            'token' => $user->createToken('courier-google')->plainTextToken,
+            'requires_profile' => $created,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function verifyGoogleIdentity(string $idToken): array
+    {
+        $apiKey = (string) config('services.firebase.web_api_key');
+        if ($apiKey === '') {
+            throw new AuthException('La configuración de Firebase no está completa.', 500);
+        }
+
+        $response = Http::timeout(10)->post(
+            "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={$apiKey}",
+            ['idToken' => $idToken],
+        );
+        $firebaseUser = $response->successful() ? $response->json('users.0') : null;
+        if (!is_array($firebaseUser)) {
+            throw new AuthException('No se pudo validar la cuenta de Google.', 401);
+        }
+
+        $email = trim((string) ($firebaseUser['email'] ?? ''));
+        if ($email === '' || !(bool) ($firebaseUser['emailVerified'] ?? false)) {
+            throw new AuthException('Google no devolvió un correo verificado.', 401);
+        }
+
+        return $firebaseUser;
+    }
+
     /**
      * Revoca todos los tokens del usuario (cierre de sesión completo).
      */
@@ -229,4 +337,3 @@ class AuthService
         $user->tokens()->delete();
     }
 }
-

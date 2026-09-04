@@ -1,0 +1,130 @@
+services:
+  redis:
+    ports: !override []
+
+  auth-db:
+    ports: !override []
+
+  catalog-db:
+    ports: !override []
+
+  cart-db:
+    ports: !override []
+
+  order-db:
+    ports: !override []
+
+  payment-db:
+    ports: !override []
+
+  discount-db:
+    ports: !override []
+
+  shipping-db:
+    ports: !override []
+
+  notification-db:
+    ports: !override []
+
+  audit-db:
+    ports: !override []
+
+  auth-service:
+    ports: !override []
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  catalog-service:
+    ports: !override []
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  catalog-scheduler:
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  cart-service:
+    ports: !override []
+
+  order-service:
+    ports: !override []
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  order-worker:
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  order-scheduler:
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  payment-service:
+    ports: !override []
+
+  discount-service:
+    ports: !override []
+    environment:
+      FRONTEND_STORE_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  shipping-service:
+    ports: !override []
+
+  notification-service:
+    ports: !override []
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-https://angelow.online}
+
+  audit-service:
+    ports: !override []
+
+  realtime-gateway:
+    ports: !override []
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile.production
+      args:
+        VITE_AUTH_API_URL: ${VITE_AUTH_API_URL:-https://angelow.online/api/auth-service}
+        VITE_CATALOG_API_URL: ${VITE_CATALOG_API_URL:-https://angelow.online/api/catalog-service}
+        VITE_CART_API_URL: ${VITE_CART_API_URL:-https://angelow.online/api/cart-service}
+        VITE_ORDER_API_URL: ${VITE_ORDER_API_URL:-https://angelow.online/api/order-service}
+        VITE_PAYMENT_API_URL: ${VITE_PAYMENT_API_URL:-https://angelow.online/api/payment-service}
+        VITE_DISCOUNT_API_URL: ${VITE_DISCOUNT_API_URL:-https://angelow.online/api/discount-service}
+        VITE_SHIPPING_API_URL: ${VITE_SHIPPING_API_URL:-https://angelow.online/api/shipping-service}
+        VITE_NOTIFICATION_API_URL: ${VITE_NOTIFICATION_API_URL:-https://angelow.online/api/notification-service}
+        VITE_STOCK_WS_URL: ${VITE_STOCK_WS_URL:-wss://angelow.online/ws/stock}
+        VITE_UPLOADS_BASE_URL: ${VITE_UPLOADS_BASE_URL:-https://angelow.online/uploads}
+        VITE_SHIPPING_PUBLIC_URL: ${VITE_SHIPPING_PUBLIC_URL:-https://angelow.online}
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-AIzaSyBQMRz1TvRiQAYt_PlimHGZHpuP-NSJt5k}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-angelow-4e5fe.firebaseapp.com}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-angelow-4e5fe}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-angelow-4e5fe.firebasestorage.app}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-77139939464}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-1:77139939464:web:b5a6e06b7c89fd510fcf3d}
+        VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-G-NFE4E4F0BF}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-0x4AAAAAADox-khZbjUxerzI}
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes: !override
+      - ./uploads:/var/www/html/uploads:ro
+      - ./runtime/letsencrypt:/etc/letsencrypt:ro
+      - ./runtime/certbot:/var/www/certbot:ro
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: angelow_certbot
+    restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        while :; do
+          certbot renew --webroot --webroot-path /var/www/certbot --quiet
+          sleep 12h
+        done
+    volumes:
+      - ./runtime/letsencrypt:/etc/letsencrypt
+      - ./runtime/certbot:/var/www/certbot

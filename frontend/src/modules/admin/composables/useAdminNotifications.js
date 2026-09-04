@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { catalogHttp, notificationHttp, orderHttp } from '../../../services/http'
+import { catalogHttp, notificationHttp, orderHttp, shippingHttp } from '../../../services/http'
 import { subscribeToOrderRealtime } from '../../../composables/useOrderRealtime'
 import {
   buildInventoryTargetRoute,
@@ -19,7 +19,9 @@ const ORDER_NOTIFICATIONS_REFRESH_MS = 30000
 const ORDER_BOOTSTRAP_LOOKBACK_HOURS = 72
 const MAX_BOOTSTRAP_NOTIFICATIONS = 24
 const MAX_BOOTSTRAP_INVENTORY_NOTIFICATIONS = 12
+const MAX_BOOTSTRAP_COURIER_NOTIFICATIONS = 12
 const MAX_VISIBLE_NOTIFICATIONS = 60
+const HIDDEN_NOTIFICATION_PREFIX = 'hidden:'
 
 const MODULE_ROUTES = {
   orders: '/admin/ordenes',
@@ -27,6 +29,7 @@ const MODULE_ROUTES = {
   refunds: '/admin/reembolsos',
   invoices: '/admin/facturas',
   inventory: '/admin/inventario',
+  couriers: '/admin/repartidores',
 }
 
 const MODULE_LABELS = {
@@ -35,6 +38,7 @@ const MODULE_LABELS = {
   refunds: 'Reembolsos',
   invoices: 'Facturas',
   inventory: 'Inventario',
+  couriers: 'Repartidores',
 }
 
 const ORDER_STATUS_LABELS = {
@@ -72,6 +76,7 @@ const PAYMENT_REVIEW_STATUSES = new Set(['pending', 'pending_payment', 'in_revie
 
 const notifications = ref([])
 const dismissedNotificationReadAt = ref({})
+const hiddenNotificationKeys = ref(new Set())
 const unreadCount = computed(() => notifications.value.filter((item) => !item?.read_at).length)
 
 const unreadByModule = computed(() => {
@@ -81,6 +86,7 @@ const unreadByModule = computed(() => {
     refunds: 0,
     invoices: 0,
     inventory: 0,
+    couriers: 0,
   }
 
   notifications.value.forEach((item) => {
@@ -98,6 +104,7 @@ const unreadByModule = computed(() => {
 let loadingNotifications = false
 let orderSnapshot = new Map()
 let inventorySnapshot = new Map()
+let courierSnapshot = new Map()
 let orderNotificationsTimer = null
 let unsubscribeOrderRealtime = null
 let activeSubscribers = 0
@@ -143,9 +150,11 @@ function stopAdminNotifications() {
 
   orderSnapshot = new Map()
   inventorySnapshot = new Map()
+  courierSnapshot = new Map()
   lastVisitedRoutePath = null
   notifications.value = []
   dismissedNotificationReadAt.value = {}
+  hiddenNotificationKeys.value = new Set()
   dismissedNotificationsLoaded = false
   dismissedNotificationsPromise = null
 }
@@ -160,24 +169,28 @@ async function loadNotifications({ initialize = false } = {}) {
   try {
     await ensureDismissedNotificationsLoaded()
 
-    const [ordersResult, inventoryResult] = await Promise.allSettled([
+    const [ordersResult, inventoryResult, couriersResult] = await Promise.allSettled([
       fetchRecentOrdersForNotifications(),
       fetchInventoryRowsForNotifications(),
+      fetchPendingCouriersForNotifications(),
     ])
 
     const rows = ordersResult.status === 'fulfilled' ? ordersResult.value : []
     const inventoryRows = inventoryResult.status === 'fulfilled' ? inventoryResult.value : []
+    const courierRows = couriersResult.status === 'fulfilled' ? couriersResult.value : []
 
-    if (rows.length === 0 && inventoryRows.length === 0) {
+    if (rows.length === 0 && inventoryRows.length === 0 && courierRows.length === 0) {
       if (initialize) {
         orderSnapshot = new Map()
         inventorySnapshot = new Map()
+        courierSnapshot = new Map()
       }
       return
     }
 
     const currentOrderSnapshot = buildOrderSnapshot(rows)
     const currentInventorySnapshot = buildInventorySnapshot(inventoryRows)
+    const currentCourierSnapshot = buildCourierSnapshot(courierRows)
 
     if (initialize || orderSnapshot.size === 0) {
       const bootstrapEvents = buildBootstrapOrderEvents(rows)
@@ -203,8 +216,21 @@ async function loadNotifications({ initialize = false } = {}) {
       }
     }
 
+    if (initialize || courierSnapshot.size === 0) {
+      const bootstrapCourierEvents = buildBootstrapCourierEvents(courierRows)
+      if (bootstrapCourierEvents.length > 0) {
+        mergeNotifications(bootstrapCourierEvents)
+      }
+    } else {
+      const freshCourierNotifications = buildCourierEvents(courierRows)
+      if (freshCourierNotifications.length > 0) {
+        mergeNotifications(freshCourierNotifications)
+      }
+    }
+
     orderSnapshot = currentOrderSnapshot
     inventorySnapshot = currentInventorySnapshot
+    courierSnapshot = currentCourierSnapshot
 
     if (lastVisitedRoutePath) {
       markRouteNotificationsAsRead(lastVisitedRoutePath, { force: true })
@@ -231,6 +257,7 @@ async function ensureDismissedNotificationsLoaded() {
       const response = await notificationHttp.get('/admin/notification-dismissals')
       const rows = Array.isArray(response?.data?.data) ? response.data.data : []
       const nextState = {}
+      const nextHiddenKeys = new Set()
 
       rows.forEach((row) => {
         const notificationKey = String(row?.notification_key || '').trim()
@@ -238,12 +265,19 @@ async function ensureDismissedNotificationsLoaded() {
           return
         }
 
+        if (notificationKey.startsWith(HIDDEN_NOTIFICATION_PREFIX)) {
+          nextHiddenKeys.add(notificationKey.slice(HIDDEN_NOTIFICATION_PREFIX.length))
+          return
+        }
+
         nextState[notificationKey] = row?.dismissed_at || new Date().toISOString()
       })
 
       dismissedNotificationReadAt.value = nextState
+      hiddenNotificationKeys.value = nextHiddenKeys
     } catch {
       dismissedNotificationReadAt.value = {}
+      hiddenNotificationKeys.value = new Set()
     } finally {
       dismissedNotificationsLoaded = true
       dismissedNotificationsPromise = null
@@ -264,7 +298,7 @@ function mergeNotifications(incomingNotifications) {
 
   incomingNotifications.forEach((notification) => {
     const notificationId = String(notification?.id || '')
-    if (!notificationId) {
+    if (!notificationId || hiddenNotificationKeys.value.has(notificationId)) {
       return
     }
 
@@ -382,6 +416,37 @@ function markAllNotificationsAsRead() {
   void persistDismissedNotifications(unreadKeys, now)
 }
 
+function clearAllNotifications() {
+  const notificationKeys = notifications.value
+    .map((item) => normalizeNotificationKey(item?.id))
+    .filter(Boolean)
+
+  if (notificationKeys.length === 0) return
+
+  hiddenNotificationKeys.value = new Set([
+    ...hiddenNotificationKeys.value,
+    ...notificationKeys,
+  ])
+  notifications.value = []
+
+  void persistHiddenNotifications(notificationKeys)
+}
+
+async function persistHiddenNotifications(notificationKeys) {
+  const hiddenKeys = Array.from(new Set(notificationKeys))
+    .map((notificationKey) => `${HIDDEN_NOTIFICATION_PREFIX}${notificationKey}`)
+
+  if (hiddenKeys.length === 0) return
+
+  try {
+    await notificationHttp.patch('/admin/notification-dismissals', {
+      notification_keys: hiddenKeys,
+    })
+  } catch {
+    // El vaciado local se conserva y un siguiente intento podrá persistir eventos nuevos.
+  }
+}
+
 function markModuleAsRead(moduleKey) {
   const normalizedModule = String(moduleKey || '').trim().toLowerCase()
   if (!normalizedModule) {
@@ -430,6 +495,10 @@ function resolveModuleFromRoute(routePath) {
 
   if (routePath.startsWith('/admin/inventario')) {
     return 'inventory'
+  }
+
+  if (routePath.startsWith('/admin/repartidores')) {
+    return 'couriers'
   }
 
   return ''
@@ -508,6 +577,16 @@ function buildInventorySnapshot(rows) {
   rows.forEach((row) => {
     snapshot.set(buildInventoryKey(row), row)
   })
+  return snapshot
+}
+
+function buildCourierKey(row) {
+  return `courier:${String(row?.id || '').trim()}`
+}
+
+function buildCourierSnapshot(rows) {
+  const snapshot = new Map()
+  rows.forEach((row) => snapshot.set(buildCourierKey(row), row))
   return snapshot
 }
 
@@ -620,6 +699,38 @@ function buildInventoryEvents(rows) {
   })
 
   return sortNotifications(events)
+}
+
+function buildBootstrapCourierEvents(rows) {
+  return sortNotifications(rows.map((row) => buildCourierEvent(row)))
+    .slice(0, MAX_BOOTSTRAP_COURIER_NOTIFICATIONS)
+}
+
+function buildCourierEvents(rows) {
+  return sortNotifications(
+    rows
+      .filter((row) => !courierSnapshot.has(buildCourierKey(row)))
+      .map((row) => buildCourierEvent(row)),
+  )
+}
+
+function buildCourierEvent(row) {
+  const createdAt = row.updated_at || row.created_at || new Date().toISOString()
+  const courierId = Number(row.id || 0)
+  const email = String(row.email || 'Un repartidor').trim() || 'Un repartidor'
+
+  return {
+    id: `courier-application-${courierId}-${String(createdAt)}`,
+    type: 'courier',
+    module_key: 'couriers',
+    route: {
+      path: MODULE_ROUTES.couriers,
+      query: courierId > 0 ? { courier: String(courierId) } : {},
+    },
+    message: `${email} envió una solicitud con documentos pendientes de revisión.`,
+    created_at: createdAt,
+    read_at: null,
+  }
 }
 
 function buildNewOrderEvent(row, key) {
@@ -812,6 +923,22 @@ async function fetchInventoryRowsForNotifications() {
     .filter((row) => resolveInventoryRowStatus(row) !== 'active')
 }
 
+async function fetchPendingCouriersForNotifications() {
+  const response = await shippingHttp.get('/admin/couriers', {
+    params: { status: 'pending', page: 1, per_page: MAX_BOOTSTRAP_COURIER_NOTIFICATIONS },
+  })
+  const payload = response?.data?.data || {}
+  const rows = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : [])
+
+  return rows.map((row) => ({
+    ...row,
+    id: Number(row.id || 0),
+    email: String(row.email || '').trim(),
+    created_at: row.created_at || row.updated_at || null,
+    updated_at: row.updated_at || row.created_at || null,
+  }))
+}
+
 function resolveOrderRoute(order) {
   const orderId = Number(order?.id || 0)
   if (!Number.isFinite(orderId) || orderId <= 0) {
@@ -862,6 +989,7 @@ export function useAdminNotifications() {
     loadNotifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    clearAllNotifications,
     markModuleAsRead,
     markRouteNotificationsAsRead,
     resolveNotificationRoute,

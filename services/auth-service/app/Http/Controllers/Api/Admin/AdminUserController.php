@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 /**
  * Controlador administrativo para gestión de clientes y administradores.
@@ -68,7 +69,7 @@ class AdminUserController extends Controller
 
         $customers = $query->orderByDesc('created_at')
             ->limit(200)
-            ->get(['id', 'name', 'email', 'phone', 'image', 'is_blocked', 'created_at', 'last_access']);
+            ->get(['id', 'name', 'email', 'phone', 'image', 'role', 'is_blocked', 'created_at', 'last_access']);
 
         return response()->json([
             'success' => true,
@@ -87,6 +88,10 @@ class AdminUserController extends Controller
 
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
+        }
+
+        if ($user->role !== 'customer') {
+            return response()->json(['success' => false, 'message' => 'El usuario no es un cliente'], 422);
         }
 
         $user->is_blocked = !$user->is_blocked;
@@ -108,7 +113,7 @@ class AdminUserController extends Controller
         $admins = User::query()
             ->whereIn('role', ['admin', 'super_admin'])
             ->orderByDesc('created_at')
-            ->get(['id', 'name', 'email', 'phone', 'image', 'is_blocked', 'created_at', 'last_access'])
+            ->get(['id', 'name', 'email', 'phone', 'image', 'role', 'is_blocked', 'created_at', 'last_access'])
             ->map(static function (User $admin): array {
                 return [
                     'id' => (string) $admin->id,
@@ -116,6 +121,7 @@ class AdminUserController extends Controller
                     'email' => (string) $admin->email,
                     'phone' => $admin->phone,
                     'image' => $admin->image,
+                    'role' => $admin->role,
                     'active' => !$admin->is_blocked,
                     'is_blocked' => (bool) $admin->is_blocked,
                     'created_at' => $admin->created_at,
@@ -127,6 +133,85 @@ class AdminUserController extends Controller
         return response()->json([
             'success' => true,
             'data' => $admins,
+        ]);
+    }
+
+    /**
+     * Consulta la identidad editable de un usuario desde el panel.
+     *
+     * GET /api/admin/users/{id}
+     */
+    public function showUser(string $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->serializeUser($user),
+        ]);
+    }
+
+    /**
+     * Actualiza la identidad, el estado y el rol de una cuenta cliente o repartidor.
+     *
+     * PUT /api/admin/users/{id}
+     */
+    public function updateUser(Request $request, string $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
+        }
+
+        if ($user->role === 'super_admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'La cuenta superadministradora no se puede modificar desde esta pantalla.',
+            ], 403);
+        }
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:100'],
+            'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->getKey())],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'role' => ['sometimes', Rule::in(['customer', 'courier', 'admin'])],
+            'active' => ['nullable', 'boolean'],
+        ]);
+
+        $currentUser = $request->user();
+        $isCurrentUser = $currentUser && (string) $currentUser->getKey() === (string) $user->getKey();
+        if ($isCurrentUser && array_key_exists('role', $data) && $data['role'] !== $user->role) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No puedes cambiar tu propio rol de administrador.',
+            ], 422);
+        }
+        if ($isCurrentUser && array_key_exists('active', $data) && !$data['active']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No puedes desactivar tu propia cuenta.',
+            ], 422);
+        }
+
+        foreach (['name', 'email', 'phone', 'role'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $user->{$field} = $data[$field];
+            }
+        }
+        if (array_key_exists('active', $data)) {
+            $user->is_blocked = !$data['active'];
+        }
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Usuario actualizado.',
+            'data' => $this->serializeUser($user),
         ]);
     }
 
@@ -291,5 +376,22 @@ class AdminUserController extends Controller
                 'rows' => $rows,
             ],
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializeUser(User $user): array
+    {
+        return [
+            'id' => (string) $user->id,
+            'name' => (string) $user->name,
+            'email' => (string) $user->email,
+            'phone' => $user->phone,
+            'image' => $user->image,
+            'role' => (string) $user->role,
+            'active' => !$user->is_blocked,
+            'is_blocked' => (bool) $user->is_blocked,
+            'created_at' => $user->created_at,
+            'last_access' => $user->last_access,
+        ];
     }
 }

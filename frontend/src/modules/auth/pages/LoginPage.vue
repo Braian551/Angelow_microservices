@@ -143,6 +143,7 @@ import TurnstileWidget from '../../../components/security/TurnstileWidget.vue'
 import { loginUser, loginWithGoogle } from '../../../services/authApi'
 import { useSession } from '../../../composables/useSession'
 import { firebaseAuth, googleProvider, isFirebaseReady } from '../../../services/firebase'
+import { isAdminRole, resolveRoleLandingRoute } from '../../../utils/authNavigation'
 import '../views/LoginView.css'
 
 // Dependencias de navegación y sesión usadas para redirigir después del login.
@@ -354,8 +355,7 @@ function applySessionAndRedirect(response) {
 
   saveSession(token, authUser)
 
-  const role = String(authUser?.role || '').toLowerCase()
-  const isAdmin = role === 'admin' || role === 'super_admin'
+  const isAdmin = isAdminRole(authUser)
   const redirect = resolveRedirect()
 
   if (isAdmin) {
@@ -373,7 +373,7 @@ function applySessionAndRedirect(response) {
     return
   }
 
-  router.push({ name: 'account-dashboard' })
+  router.push(resolveRoleLandingRoute(authUser))
 }
 
 // Envía credenciales al auth-service y activa captcha cuando el backend lo exige.

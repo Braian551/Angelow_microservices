@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angelow Core"
+  short_description: "Reglas base obligatorias de Angelow"
+  default_prompt: "Usa $angelow-core para aplicar las reglas base del repositorio Angelow."

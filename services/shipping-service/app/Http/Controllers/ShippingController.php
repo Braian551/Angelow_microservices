@@ -489,6 +489,11 @@ class ShippingController extends Controller
             'apartment_number' => ['nullable', 'string', 'max:40'],
             'delivery_instructions' => ['nullable', 'string', 'max:255'],
             'is_default' => ['nullable', 'boolean'],
+            'gps_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'gps_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'gps_accuracy' => ['nullable', 'numeric', 'min:0'],
+            'gps_timestamp' => ['nullable', 'date'],
+            'gps_used' => ['nullable', 'boolean'],
         ]);
 
         // Resuelve el user_id preferido (user_id directo > resolución por email legacy)
@@ -553,6 +558,11 @@ class ShippingController extends Controller
             'apartment_number' => ['nullable', 'string', 'max:40'],
             'delivery_instructions' => ['nullable', 'string', 'max:255'],
             'is_default' => ['nullable', 'boolean'],
+            'gps_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'gps_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'gps_accuracy' => ['nullable', 'numeric', 'min:0'],
+            'gps_timestamp' => ['nullable', 'date'],
+            'gps_used' => ['nullable', 'boolean'],
         ]);
 
         // Construye candidatos de user_id desde los datos de la solicitud
@@ -1025,6 +1035,11 @@ class ShippingController extends Controller
             'delivery_instructions' => $this->nullableString($data['delivery_instructions'] ?? null),
             'is_default' => (bool) ($data['is_default'] ?? false),
             'is_active' => true,
+            'gps_latitude' => $data['gps_latitude'] ?? null,
+            'gps_longitude' => $data['gps_longitude'] ?? null,
+            'gps_accuracy' => $data['gps_accuracy'] ?? null,
+            'gps_timestamp' => $data['gps_timestamp'] ?? null,
+            'gps_used' => (bool) ($data['gps_used'] ?? false),
         ];
     }
 
@@ -1089,6 +1104,11 @@ class ShippingController extends Controller
                 ?? $this->nullableString($row['notes'] ?? null),
             'is_default' => (bool) ($row['is_default'] ?? false),
             'is_active' => (bool) ($row['is_active'] ?? true),
+            'gps_latitude' => isset($row['gps_latitude']) ? (float) $row['gps_latitude'] : null,
+            'gps_longitude' => isset($row['gps_longitude']) ? (float) $row['gps_longitude'] : null,
+            'gps_accuracy' => isset($row['gps_accuracy']) ? (float) $row['gps_accuracy'] : null,
+            'gps_timestamp' => $row['gps_timestamp'] ?? null,
+            'gps_used' => (bool) ($row['gps_used'] ?? false),
             'created_at' => $row['created_at'] ?? null,
             'updated_at' => $row['updated_at'] ?? null,
         ];

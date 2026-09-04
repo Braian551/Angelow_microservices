@@ -17,6 +17,10 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 ## Puntos de entrada
 
 - `operaciones/manual-tecnico.md`: manual técnico central del repositorio.
+- `operaciones/manual-instalacion.md`: manual SENA para preparar, instalar, configurar, verificar y retirar el software.
+- `arquitectura/diagrama-despliegue-instalacion.md`: diagrama vigente de Nginx/HTTPS, frontend, APIs, PostgreSQL, Redis, WebSocket e instalación.
+- `../.env.example`: plantilla global de variables interpoladas por Docker Compose.
+- `../mobile/repartidor/README.md`: ejecución y configuración de la aplicación Flutter de repartidores.
 - `microservicios/README.md`: navegación hacia documentación específica por servicio.
 - `arquitectura/diagramas-clases-microservicios-plantuml.md`: índice de diagramas de clases PlantUML separados por microservicio.
 - `arquitectura/modelos-relacionales-bases-datos-plantuml.md`: índice de modelos relacionales PlantUML separados por microservicio.
@@ -25,16 +29,19 @@ Centralizar la documentación compartida del repositorio y dejarla organizada po
 - `datos/rendimiento-bd-microservicios.md`: objetos de base de datos agregados para acelerar lecturas y mantenimiento.
 - `referencias/historias-usuario-angelow.md`: historias de usuario en lenguaje funcional, entendible para cliente.
 - `referencias/casos-uso-angelow.md`: casos de uso completos del sistema, orientados a negocio.
+- `referencias/uml-casos-uso/README.md`: índice, criterio de modelado y trazabilidad UML de los requerimientos funcionales.
 - `referencias/requisitos-no-funcionales-angelow.md`: requisitos no funcionales del software organizados con ISO/IEC 25010.
 - `patrones/legal/patrones-diseno-terminos-condiciones-2026-06-30.md`: patrón aplicado para la vista pública de términos y condiciones.
 - `proyecto/FICHA_PROYECTO_ANGELOW.md`: ficha académica y técnica actual del proyecto.
 - `testing/README.md`: ubicación de guías y evidencias de validación transversal.
+- `testing/casos-de-prueba/README.md`: suite manual completa, organizada por los 17 módulos funcionales del sistema.
 - `patrones/checkout/patrones-diseno-checkout-2026-04-03.md`: patrones del flujo de checkout, incluyendo acceso autenticado desde envío en adelante.
 - `../frontend/docs/exportaciones-admin-reutilizables.md`: arquitectura compartida para exportaciones administrativas PDF y Excel.
+- `../frontend/docs/guia-usuario-interactiva.md`: manual interactivo, accesos por rol y catálogo de recorridos de la SPA.
 
 ## Resumen de arquitectura
 
-Angelow separa el monolito en microservicios de dominio con PostgreSQL por servicio, Redis para colas/eventos y un frontend SPA que consume APIs por contexto funcional.
+Angelow separa el monolito en microservicios de dominio con PostgreSQL por servicio, Redis para colas/eventos, un frontend SPA y una aplicación Flutter de repartidores.
 
 ```mermaid
 flowchart LR
@@ -43,6 +50,9 @@ flowchart LR
   FE --> CART[cart-service]
   FE --> ORD[order-service]
   FE --> PAY[payment-service]
+
+  MOBILE[Flutter repartidor] --> AUTH
+  MOBILE --> SHIP
 
   ORD --> SHIP[shipping-service]
   ORD --> DISC[discount-service]
@@ -60,6 +70,7 @@ flowchart LR
 
 - `arquitectura/`: diagramas y mapas estructurales del sistema.
   - `arquitectura/arquitectura-web-plantuml.md`
+  - `arquitectura/diagrama-despliegue-instalacion.md`
   - `arquitectura/diagramas-clases-microservicios-plantuml.md`
   - `arquitectura/diagramas-clases-microservicios/`
   - `arquitectura/mapas-navegacion-sistema-plantuml.md`
@@ -75,6 +86,7 @@ flowchart LR
   - `proyecto/FICHA_PROYECTO_ANGELOW.md`
 - `operaciones/`: despliegue, operación y mantenimiento de infraestructura compartida.
   - `operaciones/manual-tecnico.md`
+  - `operaciones/manual-instalacion.md`
   - `operaciones/DESPLIEGUE_SERVIDOR_NGINX.md`
 - `referencias/`: catálogos de dependencias y referencias compartidas del repositorio.
   - `referencias/historias-usuario-angelow.md`
@@ -112,6 +124,7 @@ flowchart LR
   - `microservicios/README.md`
 - `testing/`: carpeta reservada para guías, evidencias y bitácoras de pruebas compartidas.
   - `testing/README.md`
+  - `testing/casos-de-prueba/README.md`
 
 ## Criterio de ubicación
 

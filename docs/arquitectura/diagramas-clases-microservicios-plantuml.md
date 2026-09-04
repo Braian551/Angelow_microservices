@@ -12,7 +12,7 @@
 
 ## Alcance
 
-Análisis realizado el 2026-06-28 sobre `services/*/app/**/*.php`, `services/*/routes/api.php`, `services/*/database/migrations/*.php`, `services/realtime-gateway/server.js` y `shared/src/**/*.php`.
+Análisis realizado el 2026-08-17 sobre `services/*/app/**/*.php`, `services/*/routes/api.php`, `services/*/database/migrations/*.php`, `services/realtime-gateway/server.js` y `shared/src/**/*.php`.
 
 Este índice reemplaza el documento monolítico anterior. Los diagramas ahora viven en archivos independientes para que cada microservicio pueda renderizarse, revisarse y versionarse sin mezclar responsabilidades. El documento queda limitado a microservicios y dependencias runtime de backend.
 
@@ -44,6 +44,7 @@ Este índice reemplaza el documento monolítico anterior. Los diagramas ahora vi
 - `auth-service/routes/api.php` contiene tres bloques repetidos para `auth/registration-verification`; el diagrama documenta una sola clase `RegistrationVerificationController` porque las rutas duplicadas apuntan al mismo controlador y métodos.
 - En la revisión se encontró que los diagramas anteriores listaban principalmente métodos y omitían atributos de entidades; se actualizaron modelos y tablas principales para cumplir el estándar UML de clase con atributos, métodos y relaciones.
 - `catalog-service`, `order-service`, `payment-service`, `discount-service`, `notification-service` y `audit-service` usan Query Builder de forma relevante; por eso sus tablas principales aparecen como clases `<<Tabla>>`.
+- `shipping-service` incorpora las clases de vinculación y operación de repartidores (`CourierProfile`, `CourierVehicle`, `CourierDocument`, `DeliveryAssignment` y `CourierLocation`), además de sus solicitudes, middleware y controladores administrativos.
 - `realtime-gateway` no tiene clases PHP; se documenta como módulo Node con funciones runtime, servidor HTTP/WebSocket y suscripción Redis.
 
 ## Documentos relacionados

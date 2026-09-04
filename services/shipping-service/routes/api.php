@@ -3,7 +3,12 @@
 use App\Http\Controllers\Admin\AdminShippingController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ShippingController;
+use App\Http\Controllers\CourierController;
+use App\Http\Controllers\DeliveryEligibilityController;
+use App\Http\Controllers\DeliveryTrackingController;
+use App\Http\Controllers\Admin\AdminCourierController;
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureCourier;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +39,21 @@ Route::get('/shipping/rules', [ShippingController::class, 'rules']);
 /** Calcula costo estimado de envío para un subtotal */
 Route::post('/shipping/estimate', [ShippingController::class, 'estimate']);
 
+Route::post('/internal/deliveries/eligible', [DeliveryEligibilityController::class, 'store']);
+Route::get('/shipping/deliveries/orders/{orderId}/tracking', [DeliveryTrackingController::class, 'show']);
+
+Route::prefix('courier')->middleware(EnsureCourier::class)->group(function () {
+    Route::get('/profile', [CourierController::class, 'profile']);
+    Route::post('/profile', [CourierController::class, 'saveProfile']);
+    Route::get('/map-config', [CourierController::class, 'mapConfig']);
+    Route::get('/assignments', [CourierController::class, 'assignments']);
+    Route::post('/assignments/{assignmentId}/accept', [CourierController::class, 'accept']);
+    Route::post('/assignments/{assignmentId}/start-route', [CourierController::class, 'startRoute']);
+    Route::post('/assignments/{assignmentId}/location', [CourierController::class, 'location']);
+    Route::post('/assignments/{assignmentId}/arrive', [CourierController::class, 'arrive']);
+    Route::post('/assignments/{assignmentId}/complete', [CourierController::class, 'complete']);
+});
+
 // ── Direcciones (público) ────────────────────────────────
 /** Obtiene las direcciones activas del usuario */
 Route::get('/shipping/addresses', [ShippingController::class, 'userAddresses']);
@@ -52,6 +72,12 @@ Route::patch('/shipping/addresses/{addressId}/default', [ShippingController::cla
 
 // ── Admin (protegido con middleware EnsureAdmin) ─────────
 Route::prefix('admin')->middleware(EnsureAdmin::class)->group(function () {
+    Route::get('/couriers/summary', [AdminCourierController::class, 'summary']);
+    Route::get('/couriers', [AdminCourierController::class, 'index']);
+    Route::get('/couriers/{id}', [AdminCourierController::class, 'show']);
+    Route::put('/couriers/{id}', [AdminCourierController::class, 'update']);
+    Route::patch('/couriers/{id}/active', [AdminCourierController::class, 'toggleActive']);
+    Route::get('/deliveries', [AdminCourierController::class, 'deliveries']);
     // Gestión de métodos de envío
     Route::get('/shipping-methods', [AdminShippingController::class, 'methods']);
     Route::post('/shipping-methods', [AdminShippingController::class, 'storeMethod']);

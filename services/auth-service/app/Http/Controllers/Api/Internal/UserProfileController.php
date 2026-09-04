@@ -34,17 +34,27 @@ class UserProfileController extends Controller
             ], 403);
         }
 
-        $userIds = $this->parseUserIds($request->query('ids'));
-        if ($userIds === []) {
+        $data = $request->validate([
+            'ids' => ['nullable'],
+            'role' => ['nullable', 'in:customer,admin,courier,repartidor'],
+        ]);
+        $userIds = $this->parseUserIds($data['ids'] ?? null);
+        $role = $data['role'] ?? null;
+        if ($userIds === [] && $role === null) {
             return response()->json([
                 'success' => true,
                 'data' => [],
             ]);
         }
 
-        $users = User::query()
-            ->whereIn('id', $userIds)
-            ->get(['id', 'name', 'email', 'phone', 'image']);
+        $query = User::query();
+        if ($userIds !== []) {
+            $query->whereIn('id', $userIds);
+        }
+        if ($role !== null) {
+            $query->where('role', $role);
+        }
+        $users = $query->limit(200)->get(['id', 'name', 'email', 'phone', 'image', 'role']);
 
         $profiles = $users->map(function (User $user): array {
             return [
@@ -53,6 +63,7 @@ class UserProfileController extends Controller
                 'email' => $this->normalizeUserEmail($user->email),
                 'phone' => $this->normalizeUserPhone($user->phone),
                 'image' => $this->normalizeUserImagePath($user->image),
+                'role' => $user->role,
             ];
         })->values();
 

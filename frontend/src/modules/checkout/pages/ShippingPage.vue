@@ -810,7 +810,7 @@ async function applyDiscount() {
   if (!discountCode.value) {
     discountFeedback.value = 'Ingresa un código para validarlo.'
     discountFeedbackType.value = 'error'
-    return
+    return false
   }
 
   const previousDiscountAmount = discountAmount.value
@@ -840,7 +840,7 @@ async function applyDiscount() {
 
       discountFeedback.value = String(result?.message || 'El código no es válido o ya no está disponible.')
       discountFeedbackType.value = 'error'
-      return
+      return false
     }
 
     const discountData = result.discount
@@ -866,6 +866,7 @@ async function applyDiscount() {
       : previousBulkDiscountMeta
     discountFeedback.value = `¡Descuento aplicado! Ahorras ${formatCheckoutPrice(discountAmount.value)}.`
     discountFeedbackType.value = 'success'
+    return true
   } catch (error) {
     if (previousDiscountSource === 'bulk') {
       discountAmount.value = previousDiscountAmount
@@ -878,6 +879,7 @@ async function applyDiscount() {
 
     discountFeedback.value = extractDiscountErrorMessage(error, 'No fue posible validar el descuento en este momento.')
     discountFeedbackType.value = 'error'
+    return false
   } finally {
     applyingDiscount.value = false
   }
@@ -942,8 +944,23 @@ async function continueToPayment() {
     return
   }
 
-  if (!discountCode.value.trim()) {
+  if (discountCode.value.trim()) {
+    const validDiscount = await applyDiscount()
+    if (!validDiscount) {
+      showSnackbar({
+        type: 'warning',
+        title: 'Revisa el descuento',
+        message: 'El descuento guardado ya no es válido. Corrígelo o elimínalo para continuar.',
+      })
+      return
+    }
+  } else {
     await syncAutomaticBulkDiscount()
+  }
+
+  if (orderTotal.value <= 0) {
+    errorMessage.value = 'El total del pedido debe ser mayor que cero. Revisa el descuento aplicado.'
+    return
   }
 
   errorMessage.value = ''

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angelow Files & Exports"
+  short_description: "Uploads, imágenes, PDF y Excel"
+  default_prompt: "Usa $angelow-files-exports para resolver este flujo de archivos o exportación sin duplicar infraestructura."

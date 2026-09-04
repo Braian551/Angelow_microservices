@@ -27,6 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Las rutas API deben devolver 401 JSON aunque el cliente no envíe Accept: application/json.
+        $middleware->redirectGuestsTo(static fn (Request $request): ?string => $request->is('api/*')
+            ? null
+            : route('login'));
+
         // Middleware CORS global para permitir peticiones desde el frontend Vue
         $middleware->append(\App\Http\Middleware\CorsMiddleware::class);
     })

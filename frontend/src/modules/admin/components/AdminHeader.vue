@@ -62,6 +62,14 @@
               <div class="dropdown-actions">
                 <button type="button" class="link-button" @click="loadNotifications">Actualizar</button>
                 <button type="button" class="link-button" @click="markAllRead">Marcar todo</button>
+                <button
+                  type="button"
+                  class="link-button"
+                  :disabled="notifications.length === 0"
+                  @click="clearNotifications"
+                >
+                  Eliminar todo
+                </button>
               </div>
             </div>
             <div class="dropdown-body">
@@ -154,6 +162,7 @@ const {
   unreadCount,
   loadNotifications,
   markAllNotificationsAsRead,
+  clearAllNotifications,
   markNotificationAsRead,
   resolveNotificationRoute,
   resolveNotificationModuleLabel,
@@ -603,6 +612,10 @@ async function markAllRead() {
   markAllNotificationsAsRead()
 }
 
+function clearNotifications() {
+  clearAllNotifications()
+}
+
 /**
  * Abre una notificación individual: la marca como leída,
  * resuelve la ruta de destino y navega a ella.
@@ -651,6 +664,7 @@ function notificationIcon(type) {
     refund: 'fas fa-rotate-left',
     invoice: 'fas fa-file-invoice-dollar',
     inventory: 'fas fa-warehouse',
+    courier: 'fas fa-motorcycle',
     review: 'fas fa-star',
     system: 'fas fa-cog',
   }
